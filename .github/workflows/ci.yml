@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  CI: true
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type Check
+        run: npx tsc --noEmit
+
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: kita_poll_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U test; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_test
+        run: npm run db:push
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_test
+          NODE_ENV: test
+        run: npx vitest run --reporter=verbose
+
+      - name: Run tests with coverage
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_test
+          NODE_ENV: test
+        run: npx vitest run --coverage || true
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: success()
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: kita_poll_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Setup database
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_e2e
+        run: npm run db:push
+
+      - name: Run E2E tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_e2e
+          NODE_ENV: test
+          SESSION_SECRET: e2e-test-session-secret-minimum-32-characters-long
+          BASE_URL: http://localhost:5000
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high || true
+
+      - name: Check for known vulnerabilities
+        run: npx better-npm-audit audit || true

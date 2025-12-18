@@ -1,0 +1,83 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#FFF8DC"/>
+  
+  <!-- Table -->
+  <ellipse cx="200" cy="220" rx="150" ry="20" fill="#8B4513"/>
+  <rect x="60" y="220" width="280" height="15" fill="#D2B48C"/>
+  
+  <!-- Child's head -->
+  <circle cx="200" cy="150" r="35" fill="#FDBCB4"/>
+  
+  <!-- Hair -->
+  <path d="M 165 130 Q 180 110 200 115 Q 220 110 235 130 Q 240 140 235 150 Q 230 145 225 150 Q 215 140 200 145 Q 185 140 175 150 Q 170 145 165 150 Q 160 140 165 130" fill="#8B4513"/>
+  
+  <!-- Eyes -->
+  <circle cx="185" cy="145" r="4" fill="#FFFFFF"/>
+  <circle cx="215" cy="145" r="4" fill="#FFFFFF"/>
+  <circle cx="185" cy="145" r="2" fill="#2C3E50"/>
+  <circle cx="215" cy="145" r="2" fill="#2C3E50"/>
+  
+  <!-- Butterfly face paint -->
+  <!-- Left wing -->
+  <path d="M 175 140 Q 165 135 160 145 Q 165 155 175 150 Q 180 145 175 140" fill="#FF69B4"/>
+  <path d="M 175 145 Q 170 142 167 147 Q 170 152 175 149" fill="#FFB6C1"/>
+  <circle cx="170" cy="145" r="2" fill="#FFFFFF"/>
+  
+  <!-- Right wing -->
+  <path d="M 225 140 Q 235 135 240 145 Q 235 155 225 150 Q 220 145 225 140" fill="#FF69B4"/>
+  <path d="M 225 145 Q 230 142 233 147 Q 230 152 225 149" fill="#FFB6C1"/>
+  <circle cx="230" cy="145" r="2" fill="#FFFFFF"/>
+  
+  <!-- Butterfly body -->
+  <line x1="200" y1="135" x2="200" y2="155" stroke="#4B0082" stroke-width="3"/>
+  <circle cx="200" cy="140" r="2" fill="#4B0082"/>
+  <circle cx="200" cy="150" r="2" fill="#4B0082"/>
+  
+  <!-- Antennae -->
+  <line x1="198" y1="135" x2="195" y2="130" stroke="#4B0082" stroke-width="1"/>
+  <line x1="202" y1="135" x2="205" y2="130" stroke="#4B0082" stroke-width="1"/>
+  <circle cx="195" cy="130" r="1" fill="#FFD700"/>
+  <circle cx="205" cy="130" r="1" fill="#FFD700"/>
+  
+  <!-- Nose -->
+  <circle cx="200" cy="155" r="1" fill="#FF6B6B"/>
+  
+  <!-- Smile -->
+  <path d="M 190 165 Q 200 175 210 165" stroke="#FF1493" stroke-width="2" fill="none"/>
+  
+  <!-- Paint supplies on table -->
+  <!-- Paint palette -->
+  <ellipse cx="120" cy="210" rx="25" ry="15" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1"/>
+  <circle cx="110" cy="205" r="3" fill="#FF0000"/>
+  <circle cx="120" cy="208" r="3" fill="#0000FF"/>
+  <circle cx="130" cy="205" r="3" fill="#FFFF00"/>
+  <circle cx="115" cy="215" r="3" fill="#FF69B4"/>
+  <circle cx="125" cy="218" r="3" fill="#00FF00"/>
+  
+  <!-- Brushes -->
+  <line x1="280" y1="190" x2="290" y2="220" stroke="#8B4513" stroke-width="3"/>
+  <ellipse cx="285" cy="187" rx="2" ry="5" fill="#2C3E50"/>
+  
+  <line x1="295" y1="185" x2="305" y2="215" stroke="#8B4513" stroke-width="3"/>
+  <ellipse cx="300" cy="182" rx="2" ry="5" fill="#8B4513"/>
+  
+  <!-- Water cup -->
+  <rect x="320" y="200" width="20" height="25" fill="#87CEEB" stroke="#2C3E50" stroke-width="1"/>
+  <ellipse cx="330" cy="200" rx="10" ry="2" fill="#B0E0E6"/>
+  
+  <!-- Adult hand holding brush (face painter) -->
+  <ellipse cx="160" cy="180" rx="8" ry="15" fill="#FDBCB4"/>
+  <rect x="155" y="175" width="10" height="20" fill="#8B4513"/>
+  <ellipse cx="160" cy="172" rx="1" ry="3" fill="#FF69B4"/>
+  
+  <!-- Sparkles around the child -->
+  <polygon points="100,100 102,108 110,110 102,112 100,120 98,112 90,110 98,108" fill="#FFD700"/>
+  <polygon points="320,120 322,128 330,130 322,132 320,140 318,132 310,130 318,128" fill="#FFD700"/>
+  <polygon points="80,180 82,188 90,190 82,192 80,200 78,192 70,190 78,188" fill="#FFB6C1"/>
+  <polygon points="350,160 352,168 360,170 352,172 350,180 348,172 340,170 348,168" fill="#FFB6C1"/>
+  
+  <!-- Hearts -->
+  <path d="M 250 80 Q 255 75 260 80 Q 265 75 270 80 Q 270 90 260 100 Q 255 95 250 100 Q 250 90 250 80" fill="#FF1493"/>
+  <path d="M 130 60 Q 133 57 136 60 Q 139 57 142 60 Q 142 67 136 72 Q 133 69 130 72 Q 130 67 130 60" fill="#FF1493"/>
+</svg>

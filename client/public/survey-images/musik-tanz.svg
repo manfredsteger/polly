@@ -1,0 +1,139 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#E6E6FA"/>
+  
+  <!-- Stage/dance floor -->
+  <rect x="50" y="200" width="300" height="100" fill="#DDA0DD" stroke="#9370DB" stroke-width="2"/>
+  
+  <!-- Musical notes floating -->
+  <g fill="#FF1493">
+    <circle cx="80" cy="80" r="4"/>
+    <rect x="84" y="60" width="2" height="20"/>
+    <path d="M 86 60 Q 90 58 94 62 L 94 65 Q 90 61 86 63" fill="#FF1493"/>
+  </g>
+  
+  <g fill="#FF6B6B">
+    <circle cx="150" cy="60" r="3"/>
+    <rect x="153" y="45" width="2" height="15"/>
+    <circle cx="160" cy="50" r="2"/>
+    <rect x="162" y="40" width="2" height="10"/>
+    <path d="M 155 45 L 164 40" stroke="#FF6B6B" stroke-width="2"/>
+  </g>
+  
+  <g fill="#32CD32">
+    <circle cx="320" cy="70" r="4"/>
+    <rect x="324" y="50" width="2" height="20"/>
+    <path d="M 326 50 Q 330 48 334 52 L 334 55 Q 330 51 326 53" fill="#32CD32"/>
+  </g>
+  
+  <!-- Children dancing -->
+  <!-- Child 1 - Dancing with arms up -->
+  <circle cx="130" cy="160" r="18" fill="#FDBCB4"/>
+  <!-- Hair -->
+  <path d="M 112 150 Q 120 135 130 140 Q 140 135 148 150 Q 152 160 148 170 Q 145 165 142 168 Q 138 160 130 165 Q 122 160 118 168 Q 115 165 112 170 Q 108 160 112 150" fill="#8B4513"/>
+  <!-- Eyes -->
+  <circle cx="122" cy="157" r="2" fill="#2C3E50"/>
+  <circle cx="138" cy="157" r="2" fill="#2C3E50"/>
+  <!-- Happy mouth -->
+  <path d="M 122 168 Q 130 178 138 168" stroke="#2C3E50" stroke-width="2" fill="none"/>
+  <!-- Body -->
+  <rect x="118" y="178" width="24" height="35" fill="#FF69B4"/>
+  <!-- Arms up dancing -->
+  <rect x="95" y="185" width="23" height="8" fill="#FDBCB4" transform="rotate(-30 107 189)"/>
+  <rect x="142" y="185" width="23" height="8" fill="#FDBCB4" transform="rotate(30 153 189)"/>
+  <!-- Hands -->
+  <circle cx="100" cy="180" r="4" fill="#FDBCB4"/>
+  <circle cx="160" cy="180" r="4" fill="#FDBCB4"/>
+  <!-- Legs -->
+  <rect x="122" y="213" width="6" height="15" fill="#FDBCB4"/>
+  <rect x="132" y="213" width="6" height="15" fill="#FDBCB4"/>
+  <!-- Feet -->
+  <ellipse cx="125" cy="233" rx="4" ry="2" fill="#000000"/>
+  <ellipse cx="135" cy="233" rx="4" ry="2" fill="#000000"/>
+  
+  <!-- Child 2 - Dancing with one leg up -->
+  <circle cx="220" cy="155" r="16" fill="#FDBCB4"/>
+  <!-- Hair with pigtails -->
+  <circle cx="210" cy="145" r="6" fill="#FFD700"/>
+  <circle cx="230" cy="145" r="6" fill="#FFD700"/>
+  <circle cx="220" cy="140" r="8" fill="#FFD700"/>
+  <!-- Eyes -->
+  <circle cx="214" cy="152" r="2" fill="#2C3E50"/>
+  <circle cx="226" cy="152" r="2" fill="#2C3E50"/>
+  <!-- Happy mouth -->
+  <path d="M 214 162 Q 220 170 226 162" stroke="#2C3E50" stroke-width="2" fill="none"/>
+  <!-- Body -->
+  <rect x="210" y="171" width="20" height="30" fill="#4ECDC4"/>
+  <!-- Arms dancing -->
+  <rect x="195" y="178" width="15" height="6" fill="#FDBCB4" transform="rotate(-20 202 181)"/>
+  <rect x="230" y="178" width="15" height="6" fill="#FDBCB4" transform="rotate(45 237 181)"/>
+  <!-- Hands -->
+  <circle cx="195" cy="175" r="3" fill="#FDBCB4"/>
+  <circle cx="245" cy="185" r="3" fill="#FDBCB4"/>
+  <!-- One leg standing, one leg up dancing -->
+  <rect x="218" y="201" width="5" height="12" fill="#FDBCB4"/>
+  <rect x="225" y="195" width="5" height="10" fill="#FDBCB4" transform="rotate(45 227 200)"/>
+  <!-- Feet -->
+  <ellipse cx="220" cy="218" rx="3" ry="2" fill="#000000"/>
+  <ellipse cx="232" cy="200" rx="3" ry="2" fill="#000000"/>
+  
+  <!-- Child 3 - Playing tambourine -->
+  <circle cx="300" cy="170" r="15" fill="#FDBCB4"/>
+  <!-- Hair -->
+  <path d="M 285 160 Q 290 145 300 150 Q 310 145 315 160 Q 318 168 315 175 Q 312 172 310 174 Q 308 168 300 172 Q 292 168 290 174 Q 288 172 285 175 Q 282 168 285 160" fill="#4B0082"/>
+  <!-- Eyes -->
+  <circle cx="295" cy="167" r="2" fill="#2C3E50"/>
+  <circle cx="305" cy="167" r="2" fill="#2C3E50"/>
+  <!-- Smile -->
+  <path d="M 295 175 Q 300 182 305 175" stroke="#2C3E50" stroke-width="2" fill="none"/>
+  <!-- Body -->
+  <rect x="290" y="185" width="20" height="28" fill="#A8E6CF"/>
+  <!-- Arms -->
+  <rect x="275" y="190" width="15" height="6" fill="#FDBCB4"/>
+  <rect x="310" y="190" width="15" height="6" fill="#FDBCB4"/>
+  <!-- Hands -->
+  <circle cx="275" cy="193" r="3" fill="#FDBCB4"/>
+  <circle cx="325" cy="193" r="3" fill="#FDBCB4"/>
+  <!-- Tambourine -->
+  <circle cx="265" cy="193" r="8" fill="#FFD700" stroke="#FF8C00" stroke-width="2"/>
+  <circle cx="260" cy="190" r="1" fill="#C0C0C0"/>
+  <circle cx="270" cy="190" r="1" fill="#C0C0C0"/>
+  <circle cx="260" cy="196" r="1" fill="#C0C0C0"/>
+  <circle cx="270" cy="196" r="1" fill="#C0C0C0"/>
+  <!-- Legs -->
+  <rect x="295" y="213" width="5" height="12" fill="#FDBCB4"/>
+  <rect x="300" y="213" width="5" height="12" fill="#FDBCB4"/>
+  <!-- Feet -->
+  <ellipse cx="297" cy="230" rx="3" ry="2" fill="#000000"/>
+  <ellipse cx="302" cy="230" rx="3" ry="2" fill="#000000"/>
+  
+  <!-- Music equipment -->
+  <!-- Speaker -->
+  <rect x="20" y="160" width="25" height="40" fill="#2C3E50"/>
+  <circle cx="32" cy="175" r="6" fill="#34495E"/>
+  <circle cx="32" cy="185" r="6" fill="#34495E"/>
+  <circle cx="32" cy="175" r="3" fill="#000000"/>
+  <circle cx="32" cy="185" r="3" fill="#000000"/>
+  
+  <!-- Music streaming from speaker -->
+  <path d="M 45 170 Q 55 165 60 175 Q 55 185 45 180" stroke="#FF1493" stroke-width="2" fill="none"/>
+  <path d="M 45 175 Q 52 172 55 178 Q 52 184 45 181" stroke="#32CD32" stroke-width="2" fill="none"/>
+  
+  <!-- Colorful confetti in air -->
+  <rect x="100" y="100" width="3" height="3" fill="#FF1493" transform="rotate(45 101 101)"/>
+  <rect x="180" y="90" width="3" height="3" fill="#32CD32" transform="rotate(30 181 91)"/>
+  <rect x="250" y="110" width="3" height="3" fill="#FFD700" transform="rotate(60 251 111)"/>
+  <circle cx="120" cy="120" r="2" fill="#FF6B6B"/>
+  <circle cx="280" cy="100" r="2" fill="#4ECDC4"/>
+  <polygon points="200,105 203,110 198,110" fill="#9B59B6"/>
+  <polygon points="330,120 333,125 328,125" fill="#FF8C00"/>
+  
+  <!-- Dance floor sparkles -->
+  <polygon points="80,240 82,248 90,250 82,252 80,260 78,252 70,250 78,248" fill="#FFD700"/>
+  <polygon points="320,230 322,238 330,240 322,242 320,250 318,242 310,240 318,238" fill="#FF69B4"/>
+  <polygon points="150,280 152,288 160,290 152,292 150,300 148,292 140,290 148,288" fill="#32CD32"/>
+  
+  <!-- Hearts for love of music -->
+  <path d="M 350 40 Q 353 37 356 40 Q 359 37 362 40 Q 362 47 356 52 Q 353 49 350 52 Q 350 47 350 40" fill="#FF1493"/>
+  <path d="M 20 50 Q 23 47 26 50 Q 29 47 32 50 Q 32 57 26 62 Q 23 59 20 62 Q 20 57 20 50" fill="#FF1493"/>
+</svg>

@@ -1,0 +1,121 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#87CEEB"/>
+  
+  <!-- Ground -->
+  <rect x="0" y="220" width="400" height="80" fill="#90EE90"/>
+  
+  <!-- Grill base -->
+  <rect x="150" y="160" width="100" height="60" fill="#2C3E50" rx="5"/>
+  <rect x="145" y="155" width="110" height="10" fill="#34495E" rx="5"/>
+  
+  <!-- Grill legs -->
+  <rect x="155" y="220" width="8" height="40" fill="#2C3E50"/>
+  <rect x="175" y="220" width="8" height="40" fill="#2C3E50"/>
+  <rect x="217" y="220" width="8" height="40" fill="#2C3E50"/>
+  <rect x="237" y="220" width="8" height="40" fill="#2C3E50"/>
+  
+  <!-- Grill grates -->
+  <line x1="160" y1="175" x2="240" y2="175" stroke="#7F8C8D" stroke-width="2"/>
+  <line x1="160" y1="180" x2="240" y2="180" stroke="#7F8C8D" stroke-width="2"/>
+  <line x1="160" y1="185" x2="240" y2="185" stroke="#7F8C8D" stroke-width="2"/>
+  <line x1="160" y1="190" x2="240" y2="190" stroke="#7F8C8D" stroke-width="2"/>
+  <line x1="160" y1="195" x2="240" y2="195" stroke="#7F8C8D" stroke-width="2"/>
+  
+  <!-- Sausages on grill -->
+  <ellipse cx="170" cy="182" rx="8" ry="3" fill="#8B4513"/>
+  <ellipse cx="190" cy="185" rx="9" ry="3" fill="#A0522D"/>
+  <ellipse cx="210" cy="180" rx="8" ry="3" fill="#8B4513"/>
+  <ellipse cx="230" cy="187" rx="9" ry="3" fill="#A0522D"/>
+  
+  <!-- Grill marks on sausages -->
+  <line x1="166" y1="182" x2="174" y2="182" stroke="#654321" stroke-width="1"/>
+  <line x1="186" y1="185" x2="194" y2="185" stroke="#654321" stroke-width="1"/>
+  <line x1="206" y1="180" x2="214" y2="180" stroke="#654321" stroke-width="1"/>
+  <line x1="226" y1="187" x2="234" y2="187" stroke="#654321" stroke-width="1"/>
+  
+  <!-- Smoke -->
+  <path d="M 175 160 Q 180 150 175 140 Q 170 130 175 120 Q 180 110 175 100" stroke="#B0B0B0" stroke-width="3" fill="none" opacity="0.6"/>
+  <path d="M 200 158 Q 205 148 200 138 Q 195 128 200 118 Q 205 108 200 98" stroke="#B0B0B0" stroke-width="3" fill="none" opacity="0.6"/>
+  <path d="M 225 162 Q 230 152 225 142 Q 220 132 225 122 Q 230 112 225 102" stroke="#B0B0B0" stroke-width="3" fill="none" opacity="0.6"/>
+  
+  <!-- Chef/Adult -->
+  <circle cx="120" cy="120" r="20" fill="#FDBCB4"/>
+  
+  <!-- Chef hat -->
+  <rect x="105" y="105" width="30" height="20" fill="#FFFFFF"/>
+  <ellipse cx="120" cy="105" rx="15" ry="8" fill="#FFFFFF"/>
+  <rect x="110" y="100" width="20" height="5" fill="#FFFFFF"/>
+  
+  <!-- Eyes -->
+  <circle cx="112" cy="118" r="2" fill="#2C3E50"/>
+  <circle cx="128" cy="118" r="2" fill="#2C3E50"/>
+  
+  <!-- Smile -->
+  <path d="M 112 128 Q 120 135 128 128" stroke="#2C3E50" stroke-width="2" fill="none"/>
+  
+  <!-- Body -->
+  <rect x="105" y="140" width="30" height="50" fill="#FFFFFF"/>
+  
+  <!-- Apron -->
+  <rect x="108" y="145" width="24" height="40" fill="#FF6B6B"/>
+  <rect x="115" y="150" width="10" height="5" fill="#FFFFFF"/>
+  
+  <!-- Arms -->
+  <rect x="85" y="150" width="20" height="10" fill="#FDBCB4"/>
+  <rect x="135" y="150" width="20" height="10" fill="#FDBCB4"/>
+  
+  <!-- Hands -->
+  <circle cx="85" cy="155" r="4" fill="#FDBCB4"/>
+  <circle cx="155" cy="155" r="4" fill="#FDBCB4"/>
+  
+  <!-- Spatula in hand -->
+  <line x1="155" y1="155" x2="175" y2="165" stroke="#8B4513" stroke-width="3"/>
+  <rect x="175" y="162" width="8" height="6" fill="#C0C0C0"/>
+  
+  <!-- Children waiting -->
+  <!-- Child 1 -->
+  <circle cx="60" cy="180" r="15" fill="#FDBCB4"/>
+  <circle cx="55" cy="177" r="1.5" fill="#2C3E50"/>
+  <circle cx="65" cy="177" r="1.5" fill="#2C3E50"/>
+  <path d="M 55 185 Q 60 190 65 185" stroke="#2C3E50" stroke-width="1" fill="none"/>
+  <rect x="50" y="195" width="20" height="25" fill="#4ECDC4"/>
+  
+  <!-- Child 2 -->
+  <circle cx="320" cy="175" r="14" fill="#FDBCB4"/>
+  <circle cx="316" cy="172" r="1.5" fill="#2C3E50"/>
+  <circle cx="324" cy="172" r="1.5" fill="#2C3E50"/>
+  <path d="M 316 180 Q 320 185 324 180" stroke="#2C3E50" stroke-width="1" fill="none"/>
+  <rect x="312" y="189" width="16" height="20" fill="#FFE66D"/>
+  
+  <!-- Picnic table -->
+  <rect x="280" y="200" width="80" height="8" fill="#8B4513"/>
+  <rect x="285" y="208" width="6" height="20" fill="#8B4513"/>
+  <rect x="349" y="208" width="6" height="20" fill="#8B4513"/>
+  
+  <!-- Plates on table -->
+  <circle cx="300" cy="196" r="8" fill="#FFFFFF" stroke="#E5E5E5" stroke-width="1"/>
+  <circle cx="340" cy="196" r="8" fill="#FFFFFF" stroke="#E5E5E5" stroke-width="1"/>
+  
+  <!-- Condiments -->
+  <rect x="315" y="185" width="6" height="15" fill="#FF0000"/>
+  <rect x="322" y="185" width="6" height="15" fill="#FFFF00"/>
+  <ellipse cx="318" cy="185" rx="3" ry="2" fill="#FF0000"/>
+  <ellipse cx="325" cy="185" rx="3" ry="2" fill="#FFFF00"/>
+  
+  <!-- Fun elements -->
+  <!-- Sun -->
+  <circle cx="350" cy="50" r="20" fill="#FFD700"/>
+  <line x1="330" y1="50" x2="320" y2="50" stroke="#FFD700" stroke-width="3"/>
+  <line x1="370" y1="50" x2="380" y2="50" stroke="#FFD700" stroke-width="3"/>
+  <line x1="350" y1="30" x2="350" y2="20" stroke="#FFD700" stroke-width="3"/>
+  <line x1="350" y1="70" x2="350" y2="80" stroke="#FFD700" stroke-width="3"/>
+  <line x1="335" y1="35" x2="330" y2="30" stroke="#FFD700" stroke-width="3"/>
+  <line x1="365" y1="35" x2="370" y2="30" stroke="#FFD700" stroke-width="3"/>
+  <line x1="335" y1="65" x2="330" y2="70" stroke="#FFD700" stroke-width="3"/>
+  <line x1="365" y1="65" x2="370" y2="70" stroke="#FFD700" stroke-width="3"/>
+  
+  <!-- Hearts for love of food -->
+  <path d="M 250 50 Q 253 47 256 50 Q 259 47 262 50 Q 262 57 256 62 Q 253 59 250 62 Q 250 57 250 50" fill="#FF1493"/>
+  <path d="M 40 120 Q 43 117 46 120 Q 49 117 52 120 Q 52 127 46 132 Q 43 129 40 132 Q 40 127 40 120" fill="#FF1493"/>
+</svg>

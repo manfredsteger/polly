@@ -1,0 +1,101 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#F0F8FF"/>
+  
+  <!-- Table -->
+  <ellipse cx="200" cy="250" rx="180" ry="25" fill="#8B4513"/>
+  <rect x="30" y="250" width="340" height="20" fill="#D2B48C"/>
+  
+  <!-- Craft supplies scattered on table -->
+  
+  <!-- Colored papers -->
+  <rect x="80" y="200" width="40" height="30" fill="#FF6B6B" transform="rotate(15 100 215)"/>
+  <rect x="90" y="210" width="35" height="25" fill="#4ECDC4" transform="rotate(-10 107 222)"/>
+  <rect x="100" y="190" width="30" height="35" fill="#FFE66D" transform="rotate(25 115 207)"/>
+  <rect x="260" y="200" width="45" height="28" fill="#A8E6CF" transform="rotate(-20 282 214)"/>
+  <rect x="280" y="180" width="38" height="32" fill="#FF8B94" transform="rotate(8 299 196)"/>
+  
+  <!-- Scissors -->
+  <g transform="translate(150,180) rotate(30)">
+    <circle cx="0" cy="0" r="8" fill="#C0C0C0" stroke="#808080" stroke-width="1"/>
+    <circle cx="15" cy="0" r="8" fill="#C0C0C0" stroke="#808080" stroke-width="1"/>
+    <path d="M 8 -6 L 25 -15 L 27 -13 L 10 -4" fill="#C0C0C0" stroke="#808080"/>
+    <path d="M 8 6 L 25 15 L 27 13 L 10 4" fill="#C0C0C0" stroke="#808080"/>
+    <line x1="15" y1="0" x2="35" y2="0" stroke="#8B4513" stroke-width="3"/>
+  </g>
+  
+  <!-- Glue bottle -->
+  <rect x="200" y="185" width="15" height="40" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1"/>
+  <rect x="203" y="180" width="9" height="8" fill="#FF6B6B"/>
+  <circle cx="207" cy="177" r="2" fill="#FF6B6B"/>
+  <text x="207" y="205" font-family="Arial" font-size="8" text-anchor="middle" fill="#2C3E50">KLEBER</text>
+  
+  <!-- Crayons -->
+  <rect x="320" y="160" width="6" height="40" fill="#FF0000" transform="rotate(20 323 180)"/>
+  <rect x="330" y="165" width="6" height="40" fill="#0000FF" transform="rotate(-15 333 185)"/>
+  <rect x="340" y="170" width="6" height="40" fill="#00FF00" transform="rotate(35 343 190)"/>
+  <rect x="350" y="155" width="6" height="40" fill="#FFD700" transform="rotate(-5 353 175)"/>
+  
+  <!-- Child crafting -->
+  <circle cx="150" cy="120" r="25" fill="#FDBCB4"/>
+  
+  <!-- Hair -->
+  <path d="M 125 105 Q 140 85 150 90 Q 160 85 175 105 Q 180 115 175 125 Q 170 120 165 125 Q 160 115 150 120 Q 140 115 135 125 Q 130 120 125 125 Q 120 115 125 105" fill="#4B0082"/>
+  
+  <!-- Eyes -->
+  <circle cx="140" cy="115" r="3" fill="#FFFFFF"/>
+  <circle cx="160" cy="115" r="3" fill="#FFFFFF"/>
+  <circle cx="140" cy="115" r="1.5" fill="#2C3E50"/>
+  <circle cx="160" cy="115" r="1.5" fill="#2C3E50"/>
+  
+  <!-- Smile -->
+  <path d="M 140 130 Q 150 140 160 130" stroke="#2C3E50" stroke-width="2" fill="none"/>
+  
+  <!-- Body -->
+  <rect x="135" y="145" width="30" height="40" fill="#FF69B4"/>
+  
+  <!-- Arms -->
+  <rect x="115" y="150" width="20" height="8" fill="#FDBCB4"/>
+  <rect x="165" y="150" width="20" height="8" fill="#FDBCB4"/>
+  
+  <!-- Hands working on craft -->
+  <circle cx="115" cy="154" r="5" fill="#FDBCB4"/>
+  <circle cx="185" cy="154" r="5" fill="#FDBCB4"/>
+  
+  <!-- Paper craft project in progress -->
+  <rect x="120" y="160" width="60" height="40" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1"/>
+  
+  <!-- Drawn house on paper -->
+  <rect x="130" y="180" width="20" height="15" fill="#8B4513" stroke="#654321" stroke-width="1"/>
+  <polygon points="125,180 140,165 155,180" fill="#FF0000" stroke="#8B0000" stroke-width="1"/>
+  <rect x="135" y="185" width="5" height="8" fill="#4B0082"/>
+  <circle cx="145" cy="187" r="2" fill="#FFD700"/>
+  
+  <!-- Sun in drawing -->
+  <circle cx="160" cy="170" r="4" fill="#FFD700"/>
+  <line x1="155" y1="170" x2="153" y2="170" stroke="#FFD700" stroke-width="1"/>
+  <line x1="165" y1="170" x2="167" y2="170" stroke="#FFD700" stroke-width="1"/>
+  <line x1="160" y1="165" x2="160" y2="163" stroke="#FFD700" stroke-width="1"/>
+  <line x1="160" y1="175" x2="160" y2="177" stroke="#FFD700" stroke-width="1"/>
+  
+  <!-- Craft materials around -->
+  <!-- Stickers -->
+  <polygon points="250,130 255,140 245,140" fill="#FF1493"/>
+  <circle cx="270" cy="135" r="4" fill="#00FF00"/>
+  <polygon points="290,125 295,135 285,135" fill="#FFD700"/>
+  
+  <!-- Ribbon -->
+  <rect x="60" y="160" width="30" height="4" fill="#9B59B6"/>
+  <rect x="60" y="160" width="6" height="4" fill="#8E44AD"/>
+  <rect x="72" y="160" width="6" height="4" fill="#8E44AD"/>
+  <rect x="84" y="160" width="6" height="4" fill="#8E44AD"/>
+  
+  <!-- Creative sparkles -->
+  <polygon points="50,80 52,88 60,90 52,92 50,100 48,92 40,90 48,88" fill="#FFD700"/>
+  <polygon points="350,60 352,68 360,70 352,72 350,80 348,72 340,70 348,68" fill="#FF69B4"/>
+  <polygon points="300,40 302,48 310,50 302,52 300,60 298,52 290,50 298,48" fill="#4ECDC4"/>
+  
+  <!-- Hearts for creativity -->
+  <path d="M 80 50 Q 83 47 86 50 Q 89 47 92 50 Q 92 57 86 62 Q 83 59 80 62 Q 80 57 80 50" fill="#FF1493"/>
+  <path d="M 320 90 Q 323 87 326 90 Q 329 87 332 90 Q 332 97 326 102 Q 323 99 320 102 Q 320 97 320 90" fill="#FF1493"/>
+</svg>

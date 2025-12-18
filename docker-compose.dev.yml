@@ -1,0 +1,31 @@
+# KITA Poll - Docker Compose Development Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Compatible with Docker Compose V2+
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./client:/app/client:cached
+      - ./server:/app/server:cached
+      - ./shared:/app/shared:cached
+      - ./uploads:/app/uploads
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    command: npm run dev
+    develop:
+      watch:
+        - action: sync
+          path: ./client
+          target: /app/client
+        - action: sync
+          path: ./server
+          target: /app/server
+        - action: sync
+          path: ./shared
+          target: /app/shared
+        - action: rebuild
+          path: package.json

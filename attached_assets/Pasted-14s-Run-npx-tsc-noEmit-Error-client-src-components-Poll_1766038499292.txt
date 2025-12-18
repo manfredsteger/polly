@@ -1,0 +1,14 @@
+14s
+Run npx tsc --noEmit
+Error: client/src/components/PollForm.tsx(123,13): error TS2322: Type '{ selectedDates: Date[]; onDatesChange: Dispatch<SetStateAction<Date[]>>; onAddTimeSlot: (date: Date, startTime: string, endTime: string) => void; }' is not assignable to type 'IntrinsicAttributes & CalendarPickerProps'.
+  Property 'selectedDates' does not exist on type 'IntrinsicAttributes & CalendarPickerProps'.
+Error: client/src/contexts/ThemeContext.tsx(47,11): error TS2339: Property 'customization' does not exist on type 'CustomizationContextType'.
+Error: client/src/pages/dashboard.tsx(51,36): error TS2339: Property 'userPolls' does not exist on type '{}'.
+Error: client/src/pages/dashboard.tsx(52,38): error TS2339: Property 'sharedPolls' does not exist on type '{}'.
+Error: server/services/qrService.ts(1,20): error TS7016: Could not find a declaration file for module 'qrcode'. '/home/runner/work/polly/polly/node_modules/qrcode/lib/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/qrcode` if it exists or add a new declaration (.d.ts) file containing `declare module 'qrcode';`
+Error: server/services/testRunnerService.ts(637,80): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+Error: server/services/testRunnerService.ts(768,26): error TS2802: Type 'Map<string, { id: number; testId: string; testFile: string; testName: string; testType: string; category: string; description: string | null; enabled: boolean; lastStatus: string | null; lastRunAt: Date | null; createdAt: Date; updatedAt: Date; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+Error: server/services/testRunnerService.ts(822,14): error TS1252: Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode.
+Error: server/services/testRunnerService.ts(848,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+Error: Process completed with exit code 2.

@@ -1,0 +1,1056 @@
+openapi: 3.0.3
+info:
+  title: KITA Poll (Polly) API
+  description: |
+    API für die KITA Poll Anwendung zur Integration in Flutter/Native Apps.
+    
+    ## Authentifizierung
+    Die API unterstützt zwei Authentifizierungsmethoden:
+    - **Cookie-Session**: Für Web-Browser
+    - **Bearer-Token**: Für Mobile Apps (Keycloak Access-Token)
+    
+    ## Poll-Typen
+    - `schedule`: Terminumfrage (Ja/Vielleicht/Nein)
+    - `survey`: Klassische Umfrage (Einfachauswahl)
+    - `organization`: Orga-Liste mit Kapazitäten
+  version: 1.0.0
+  contact:
+    name: KITA Bayern
+    url: https://kita.bayern
+servers:
+  - url: https://polly.kita.bayern/api/v1
+    description: Production (versioned)
+  - url: http://localhost:5000/api/v1
+    description: Development (versioned)
+  - url: https://polly.kita.bayern/api
+    description: Production (legacy - redirects to v1)
+  - url: http://localhost:5000/api
+    description: Development (legacy - redirects to v1)
+
+tags:
+  - name: Auth
+    description: Authentifizierung und Session
+  - name: User
+    description: Benutzer-Dashboard und Profil
+  - name: Polls
+    description: Umfragen erstellen und verwalten
+  - name: Voting
+    description: Abstimmen und Ergebnisse
+  - name: Invitations
+    description: Einladungen versenden
+  - name: Theming
+    description: Corporate Design und Branding
+  - name: Matrix
+    description: Matrix-Chat-Integration
+
+security:
+  - BearerAuth: []
+  - CookieAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak Access-Token
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Express Session Cookie
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [user, admin, manager]
+
+    Poll:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [schedule, survey, organization]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        publicToken:
+          type: string
+        allowMultipleSlots:
+          type: boolean
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/PollOption'
+
+    PollOption:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+        currentBookings:
+          type: integer
+
+    CreatePollRequest:
+      type: object
+      required:
+        - title
+        - type
+        - options
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        type:
+          type: string
+          enum: [schedule, survey, organization]
+        expiresAt:
+          type: string
+          format: date-time
+        allowMultipleSlots:
+          type: boolean
+          default: false
+        options:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              imageUrl:
+                type: string
+              startTime:
+                type: string
+                format: date-time
+              endTime:
+                type: string
+                format: date-time
+              capacity:
+                type: integer
+
+    VoteRequest:
+      type: object
+      required:
+        - voterName
+        - voterEmail
+        - optionId
+        - response
+      properties:
+        voterName:
+          type: string
+          minLength: 1
+        voterEmail:
+          type: string
+          format: email
+        optionId:
+          type: integer
+        response:
+          type: string
+          enum: [yes, maybe, no]
+        comment:
+          type: string
+
+    BulkVoteRequest:
+      type: object
+      required:
+        - voterName
+        - voterEmail
+        - votes
+      properties:
+        voterName:
+          type: string
+        voterEmail:
+          type: string
+          format: email
+        votes:
+          type: array
+          items:
+            type: object
+            properties:
+              optionId:
+                type: integer
+              response:
+                type: string
+                enum: [yes, maybe, no]
+
+    PollResults:
+      type: object
+      properties:
+        pollId:
+          type: string
+        totalVotes:
+          type: integer
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              email:
+                type: string
+              votes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    optionId:
+                      type: integer
+                    response:
+                      type: string
+        optionSummary:
+          type: array
+          items:
+            type: object
+            properties:
+              optionId:
+                type: integer
+              text:
+                type: string
+              yesCount:
+                type: integer
+              maybeCount:
+                type: integer
+              noCount:
+                type: integer
+              score:
+                type: integer
+        bestOption:
+          type: object
+          nullable: true
+          properties:
+            optionId:
+              type: integer
+            text:
+              type: string
+            score:
+              type: integer
+
+    Customization:
+      type: object
+      properties:
+        siteName:
+          type: string
+        siteNameFirstPart:
+          type: string
+        siteNameSecondPart:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+        footerText:
+          type: string
+        theme:
+          type: object
+          properties:
+            primaryColor:
+              type: string
+              pattern: '^#[0-9A-Fa-f]{6}$'
+            secondaryColor:
+              type: string
+            scheduleColor:
+              type: string
+            surveyColor:
+              type: string
+            organizationColor:
+              type: string
+        defaultThemePreference:
+          type: string
+          enum: [light, dark, system]
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+        errorCode:
+          type: string
+          enum:
+            - INVALID_INPUT
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - REQUIRES_LOGIN
+            - EMAIL_MISMATCH
+            - DUPLICATE_EMAIL_VOTE
+            - POLL_EXPIRED
+            - POLL_INACTIVE
+            - RATE_LIMITED
+        details:
+          type: object
+
+paths:
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Aktuelle Session prüfen
+      responses:
+        '200':
+          description: User-Daten oder null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                    nullable: true
+
+  /auth/methods:
+    get:
+      tags: [Auth]
+      summary: Verfügbare Login-Methoden
+      security: []
+      responses:
+        '200':
+          description: Login-Methoden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  local:
+                    type: boolean
+                  keycloak:
+                    type: boolean
+                  registrationEnabled:
+                    type: boolean
+
+  /user/polls:
+    get:
+      tags: [User]
+      summary: Meine erstellten Umfragen
+      responses:
+        '200':
+          description: Liste der Umfragen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  polls:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Poll'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/participations:
+    get:
+      tags: [User]
+      summary: Meine Teilnahmen
+      responses:
+        '200':
+          description: Liste der Teilnahmen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  participations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pollId:
+                          type: string
+                        pollTitle:
+                          type: string
+                        pollType:
+                          type: string
+                        votedAt:
+                          type: string
+                          format: date-time
+                        publicToken:
+                          type: string
+                        editToken:
+                          type: string
+
+  /user/profile:
+    get:
+      tags: [User]
+      summary: Profil abrufen
+      responses:
+        '200':
+          description: Benutzerprofil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      tags: [User]
+      summary: Profil aktualisieren
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+      responses:
+        '200':
+          description: Aktualisiertes Profil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /polls:
+    post:
+      tags: [Polls]
+      summary: Neue Umfrage erstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePollRequest'
+      responses:
+        '200':
+          description: Erstellte Umfrage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  poll:
+                    $ref: '#/components/schemas/Poll'
+                  publicToken:
+                    type: string
+                  adminToken:
+                    type: string
+        '400':
+          description: Ungültige Eingabe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /polls/public/{token}:
+    get:
+      tags: [Polls]
+      summary: Umfrage per Public-Token abrufen
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Umfrage-Daten
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Poll'
+        '404':
+          description: Umfrage nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /polls/admin/{token}:
+    get:
+      tags: [Polls]
+      summary: Umfrage per Admin-Token abrufen
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Umfrage-Daten mit Admin-Infos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Poll'
+                  - type: object
+                    properties:
+                      adminToken:
+                        type: string
+                      userId:
+                        type: integer
+                      creatorEmail:
+                        type: string
+    patch:
+      tags: [Polls]
+      summary: Umfrage bearbeiten
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                isActive:
+                  type: boolean
+                expiresAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Aktualisierte Umfrage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Poll'
+
+  /polls/{token}/vote:
+    post:
+      tags: [Voting]
+      summary: Einzelne Stimme abgeben
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteRequest'
+      responses:
+        '200':
+          description: Stimme erfolgreich
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  vote:
+                    type: object
+                  editToken:
+                    type: string
+        '409':
+          description: Login erforderlich oder bereits abgestimmt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /polls/{token}/vote-bulk:
+    post:
+      tags: [Voting]
+      summary: Mehrfach-Abstimmung
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkVoteRequest'
+      responses:
+        '200':
+          description: Stimmen erfolgreich
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  editToken:
+                    type: string
+
+  /polls/{token}/results:
+    get:
+      tags: [Voting]
+      summary: Ergebnisse abrufen
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Abstimmungsergebnisse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollResults'
+
+  /polls/{token}/qr:
+    get:
+      tags: [Polls]
+      summary: QR-Code generieren
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: QR-Code als Base64
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  qrCode:
+                    type: string
+                    description: Base64-encoded PNG image
+
+  /polls/{token}/invite:
+    post:
+      tags: [Invitations]
+      summary: E-Mail-Einladungen versenden
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - emails
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                customMessage:
+                  type: string
+      responses:
+        '200':
+          description: Einladungen gesendet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    type: integer
+                  failed:
+                    type: integer
+
+  /polls/{token}/invite/matrix:
+    post:
+      tags: [Invitations]
+      summary: Matrix-Chat-Einladungen versenden
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userIds
+              properties:
+                userIds:
+                  type: array
+                  items:
+                    type: string
+                    description: Matrix User-ID (@user:server)
+                customMessage:
+                  type: string
+      responses:
+        '200':
+          description: Einladungen gesendet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    type: integer
+                  failed:
+                    type: integer
+
+  /votes/edit/{editToken}:
+    get:
+      tags: [Voting]
+      summary: Stimme zum Bearbeiten laden
+      security: []
+      parameters:
+        - name: editToken
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stimme und Poll-Daten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  poll:
+                    $ref: '#/components/schemas/Poll'
+                  existingVotes:
+                    type: array
+                    items:
+                      type: object
+                  voterName:
+                    type: string
+                  voterEmail:
+                    type: string
+    put:
+      tags: [Voting]
+      summary: Stimme bearbeiten
+      security: []
+      parameters:
+        - name: editToken
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                votes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      optionId:
+                        type: integer
+                      response:
+                        type: string
+                        enum: [yes, maybe, no]
+      responses:
+        '200':
+          description: Stimme aktualisiert
+
+  /customization:
+    get:
+      tags: [Theming]
+      summary: Branding-Konfiguration abrufen (Web)
+      security: []
+      responses:
+        '200':
+          description: Customization-Daten
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customization'
+
+  /customization/mobile:
+    get:
+      tags: [Theming]
+      summary: Mobile-optimierte Theming-Daten (Flutter/KH App)
+      security: []
+      responses:
+        '200':
+          description: Mobile Theming-Daten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  branding:
+                    type: object
+                    properties:
+                      siteName:
+                        type: string
+                      siteNameFirstPart:
+                        type: string
+                      siteNameSecondPart:
+                        type: string
+                      logoUrl:
+                        type: string
+                        nullable: true
+                      footerText:
+                        type: string
+                      copyrightText:
+                        type: string
+                  colors:
+                    type: object
+                    properties:
+                      primary:
+                        type: string
+                      secondary:
+                        type: string
+                      background:
+                        type: string
+                      backgroundDark:
+                        type: string
+                      surface:
+                        type: string
+                      surfaceDark:
+                        type: string
+                      pollTypes:
+                        type: object
+                        properties:
+                          schedule:
+                            type: object
+                            properties:
+                              color:
+                                type: string
+                              name:
+                                type: string
+                              icon:
+                                type: string
+                          survey:
+                            type: object
+                            properties:
+                              color:
+                                type: string
+                              name:
+                                type: string
+                              icon:
+                                type: string
+                          organization:
+                            type: object
+                            properties:
+                              color:
+                                type: string
+                              name:
+                                type: string
+                              icon:
+                                type: string
+                  typography:
+                    type: object
+                    properties:
+                      fontFamily:
+                        type: string
+                      headingWeight:
+                        type: integer
+                      bodyWeight:
+                        type: integer
+                  responses:
+                    type: object
+                    properties:
+                      yes:
+                        type: object
+                        properties:
+                          color:
+                            type: string
+                          icon:
+                            type: string
+                          label:
+                            type: string
+                      maybe:
+                        type: object
+                        properties:
+                          color:
+                            type: string
+                          icon:
+                            type: string
+                          label:
+                            type: string
+                      no:
+                        type: object
+                        properties:
+                          color:
+                            type: string
+                          icon:
+                            type: string
+                          label:
+                            type: string
+                  defaultThemeMode:
+                    type: string
+                    enum: [light, dark, system]
+                  apiVersion:
+                    type: string
+
+  /theme:
+    get:
+      tags: [Theming]
+      summary: Theme-Präferenz abrufen
+      responses:
+        '200':
+          description: Theme-Präferenz
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  themePreference:
+                    type: string
+                    enum: [light, dark, system]
+                  source:
+                    type: string
+                    enum: [user, default, system]
+    post:
+      tags: [Theming]
+      summary: Theme-Präferenz setzen
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                themePreference:
+                  type: string
+                  enum: [light, dark, system]
+      responses:
+        '200':
+          description: Theme aktualisiert
+
+  /matrix/status:
+    get:
+      tags: [Matrix]
+      summary: Matrix-Integration Status
+      security: []
+      responses:
+        '200':
+          description: Status-Daten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  searchEnabled:
+                    type: boolean
+
+  /matrix/users/search:
+    get:
+      tags: [Matrix]
+      summary: Matrix-Benutzer suchen
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: Suchergebnisse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId:
+                          type: string
+                        displayName:
+                          type: string
+                          nullable: true
+                        avatarUrl:
+                          type: string
+                          nullable: true
+
+  /upload/image:
+    post:
+      tags: [Polls]
+      summary: Bild hochladen
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Bild-URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imageUrl:
+                    type: string

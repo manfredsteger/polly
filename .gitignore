@@ -1,0 +1,45 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+server/public
+
+# Environment variables (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# IDE and OS files
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+Thumbs.db
+
+# Vite
+vite.config.ts.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Archives
+*.tar.gz
+*.zip
+
+# Test coverage
+coverage
+.nyc_output
+
+# Uploads (keep .gitkeep)
+uploads/*
+!uploads/.gitkeep
+
+# Replit cache
+.cache
+
+# Local test scripts (not part of test suite)
+test-*.js
+test-*.ts

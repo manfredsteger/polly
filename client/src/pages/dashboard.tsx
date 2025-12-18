@@ -1,0 +1,347 @@
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "wouter";
+import { 
+  Plus, 
+  Calendar, 
+  Vote, 
+  Users, 
+  BarChart3, 
+  Clock, 
+  Share2, 
+  Edit,
+  Trash2,
+  TrendingUp,
+  Activity
+} from "lucide-react";
+import type { PollWithOptions } from "@shared/schema";
+
+// Mock user ID - in real app this would come from auth context
+const CURRENT_USER_ID = 1;
+
+interface DashboardData {
+  userPolls: PollWithOptions[];
+  sharedPolls: PollWithOptions[];
+}
+
+export default function Dashboard() {
+  const { data: dashboardData, isLoading } = useQuery<DashboardData>({
+    queryKey: [`/api/v1/users/${CURRENT_USER_ID}/dashboard`],
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: [`/api/v1/admin/stats`],
+  });
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-1/3" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+          <Skeleton className="h-96" />
+        </div>
+      </div>
+    );
+  }
+
+  const userPolls = dashboardData?.userPolls || [];
+  const sharedPolls = dashboardData?.sharedPolls || [];
+
+  const activePolls = userPolls.filter((poll: PollWithOptions) => 
+    poll.isActive && (!poll.expiresAt || new Date() < new Date(poll.expiresAt))
+  ).length;
+
+  const totalVotes = userPolls.reduce((sum: number, poll: PollWithOptions) => 
+    sum + poll.votes.length, 0
+  );
+
+  const thisWeekPolls = userPolls.filter((poll: PollWithOptions) => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return new Date(poll.createdAt) > weekAgo;
+  }).length;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground mt-2">
+              Verwalten Sie Ihre Umfragen und Termine übersichtlich
+            </p>
+          </div>
+          <div className="flex space-x-3">
+            <Link href="/create-poll">
+              <Button className="kita-button-primary">
+                <Plus className="w-4 h-4 mr-2" />
+                Termin
+              </Button>
+            </Link>
+            <Link href="/create-survey">
+              <Button className="kita-button-secondary">
+                <Plus className="w-4 h-4 mr-2" />
+                Umfrage
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <Card className="kita-gradient-orange text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-100 text-sm">Aktive Umfragen</p>
+                <p className="text-2xl font-bold">{activePolls}</p>
+              </div>
+              <Activity className="w-8 h-8 text-orange-200" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="kita-gradient-blue text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm">Gesamt Umfragen</p>
+                <p className="text-2xl font-bold">{userPolls.length}</p>
+              </div>
+              <BarChart3 className="w-8 h-8 text-blue-200" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100 text-sm">Teilnahmen</p>
+                <p className="text-2xl font-bold">{totalVotes}</p>
+              </div>
+              <Users className="w-8 h-8 text-green-200" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100 text-sm">Diese Woche</p>
+                <p className="text-2xl font-bold">{thisWeekPolls}</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-purple-200" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Tabs defaultValue="my-polls" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="my-polls">
+            Meine Umfragen ({userPolls.length})
+          </TabsTrigger>
+          <TabsTrigger value="shared-polls">
+            Geteilte Umfragen ({sharedPolls.length})
+          </TabsTrigger>
+          <TabsTrigger value="archived">
+            Archiv
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="my-polls" className="space-y-4">
+          {userPolls.length === 0 ? (
+            <Card className="kita-card">
+              <CardContent className="p-8 text-center">
+                <Vote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Keine Umfragen vorhanden
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  Erstellen Sie Ihre erste Umfrage, um loszulegen.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Link href="/create-poll">
+                    <Button className="kita-button-primary">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Termin
+                    </Button>
+                  </Link>
+                  <Link href="/create-survey">
+                    <Button className="kita-button-secondary">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Umfrage
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {userPolls.map((poll: PollWithOptions) => (
+                <PollCard key={poll.id} poll={poll} isOwner={true} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="shared-polls" className="space-y-4">
+          {sharedPolls.length === 0 ? (
+            <Card className="kita-card">
+              <CardContent className="p-8 text-center">
+                <Share2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Keine geteilten Umfragen
+                </h3>
+                <p className="text-muted-foreground">
+                  Umfragen, an denen Sie teilgenommen haben, werden hier angezeigt.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {sharedPolls.map((poll: PollWithOptions) => (
+                <PollCard key={poll.id} poll={poll} isOwner={false} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="archived" className="space-y-4">
+          <Card className="kita-card">
+            <CardContent className="p-8 text-center">
+              <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                Archiv wird bald verfügbar sein
+              </h3>
+              <p className="text-muted-foreground">
+                Abgelaufene und beendete Umfragen werden hier archiviert.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+interface PollCardProps {
+  poll: PollWithOptions;
+  isOwner: boolean;
+}
+
+function PollCard({ poll, isOwner }: PollCardProps) {
+  const isPollExpired = poll.expiresAt && new Date() > new Date(poll.expiresAt);
+  const uniqueVoters = new Set(
+    poll.votes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)
+  ).size;
+
+  const getStatusBadge = () => {
+    if (!poll.isActive) {
+      return <Badge variant="secondary">Inaktiv</Badge>;
+    }
+    if (isPollExpired) {
+      return <Badge variant="secondary">Abgelaufen</Badge>;
+    }
+    return <Badge className="bg-green-100 text-green-800">Aktiv</Badge>;
+  };
+
+  const getPollTypeInfo = () => {
+    if (poll.type === 'schedule') {
+      return {
+        icon: <Calendar className="w-4 h-4" />,
+        label: 'Termin',
+        color: 'bg-kita-orange text-white'
+      };
+    }
+    return {
+      icon: <Vote className="w-4 h-4" />,
+      label: 'Umfrage',
+      color: 'bg-kita-blue text-white'
+    };
+  };
+
+  const typeInfo = getPollTypeInfo();
+
+  return (
+    <Card className="kita-card hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <Badge className={typeInfo.color}>
+                {typeInfo.icon}
+                <span className="ml-1">{typeInfo.label}</span>
+              </Badge>
+              {getStatusBadge()}
+            </div>
+            
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              {poll.title}
+            </h3>
+            
+            {poll.description && (
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                {poll.description}
+              </p>
+            )}
+            
+            <div className="flex items-center space-x-6 text-sm text-muted-foreground">
+              <span className="flex items-center">
+                <Users className="w-4 h-4 mr-1" />
+                {uniqueVoters} Teilnehmer
+              </span>
+              <span className="flex items-center">
+                <Calendar className="w-4 h-4 mr-1" />
+                Erstellt: {new Date(poll.createdAt).toLocaleDateString('de-DE')}
+              </span>
+              {poll.expiresAt && (
+                <span className="flex items-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  Läuft ab: {new Date(poll.expiresAt).toLocaleDateString('de-DE')}
+                </span>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2 ml-4">
+            <Link href={`/poll/${poll.publicToken}`}>
+              <Button variant="ghost" size="sm" title="Ergebnisse anzeigen">
+                <BarChart3 className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Button variant="ghost" size="sm" title="Teilen">
+              <Share2 className="w-4 h-4" />
+            </Button>
+            {isOwner && (
+              <>
+                <Link href={`/admin/${poll.adminToken}`}>
+                  <Button variant="ghost" size="sm" title="Bearbeiten">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" title="Löschen" className="text-destructive hover:text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

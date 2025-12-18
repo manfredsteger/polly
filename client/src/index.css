@@ -1,0 +1,268 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(20, 100%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.75rem;
+
+  /* KITA Bayern Custom Colors */
+  --kita-orange: hsl(17, 100%, 60%);
+  --kita-blue: hsl(198, 38%, 47%);
+  --kita-gray-50: hsl(210, 20%, 98%);
+  --kita-gray-100: hsl(220, 14%, 96%);
+  --kita-gray-500: hsl(220, 9%, 46%);
+  --kita-gray-900: hsl(224, 71%, 4%);
+
+  /* Feature Colors - Default values based on design manual */
+  /* Termin (Schedule): Orange #F97316 */
+  --color-schedule: hsl(25, 95%, 53%);
+  --color-schedule-foreground: hsl(0, 0%, 100%);
+  --color-schedule-light: hsl(25, 95%, 95%);
+  
+  /* Umfrage (Survey): Light Blue/Teal #72BEB7 */
+  --color-survey: hsl(174, 37%, 60%);
+  --color-survey-foreground: hsl(0, 0%, 100%);
+  --color-survey-light: hsl(174, 37%, 95%);
+  
+  /* Orga (Organization): Green #7DB942 */
+  --color-organization: hsl(88, 48%, 49%);
+  --color-organization-foreground: hsl(0, 0%, 100%);
+  --color-organization-light: hsl(88, 48%, 95%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(17, 100%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  
+  /* Feature Colors - Dark Mode */
+  /* Termin (Schedule): Orange - slightly dimmed for dark mode */
+  --color-schedule: hsl(25, 95%, 48%);
+  --color-schedule-foreground: hsl(0, 0%, 100%);
+  --color-schedule-light: hsl(25, 95%, 20%);
+  
+  /* Umfrage (Survey): Light Blue/Teal - slightly dimmed for dark mode */
+  --color-survey: hsl(174, 37%, 50%);
+  --color-survey-foreground: hsl(0, 0%, 100%);
+  --color-survey-light: hsl(174, 37%, 20%);
+  
+  /* Orga (Organization): Green - slightly dimmed for dark mode */
+  --color-organization: hsl(88, 48%, 40%);
+  --color-organization-foreground: hsl(0, 0%, 100%);
+  --color-organization-light: hsl(88, 48%, 20%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
+@layer components {
+  .kita-button-primary {
+    background-color: var(--kita-orange);
+    @apply text-white focus:ring-2 focus:ring-offset-2;
+  }
+  .kita-button-primary:hover {
+    filter: brightness(0.9);
+  }
+
+  .kita-button-secondary {
+    background-color: var(--kita-blue);
+    @apply text-white focus:ring-2 focus:ring-offset-2;
+  }
+  .kita-button-secondary:hover {
+    filter: brightness(0.9);
+  }
+
+  /* Feature-specific button styles - higher specificity to override shadcn defaults */
+  button.kita-button-schedule,
+  .kita-button-schedule {
+    background-color: var(--color-schedule) !important;
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    @apply focus:ring-2 focus:ring-offset-2;
+  }
+  button.kita-button-schedule:hover,
+  .kita-button-schedule:hover {
+    filter: brightness(0.9);
+  }
+
+  button.kita-button-survey,
+  .kita-button-survey {
+    background-color: var(--color-survey) !important;
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    @apply focus:ring-2 focus:ring-offset-2;
+  }
+  button.kita-button-survey:hover,
+  .kita-button-survey:hover {
+    filter: brightness(0.9);
+  }
+
+  button.kita-button-organization,
+  .kita-button-organization {
+    background-color: var(--color-organization) !important;
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    @apply focus:ring-2 focus:ring-offset-2;
+  }
+  button.kita-button-organization:hover,
+  .kita-button-organization:hover {
+    filter: brightness(0.9);
+  }
+
+  /* Feature badges */
+  .kita-badge-schedule {
+    background-color: var(--color-schedule-light);
+    color: var(--color-schedule);
+    @apply border;
+    border-color: var(--color-schedule);
+  }
+
+  .kita-badge-survey {
+    background-color: var(--color-survey-light);
+    color: var(--color-survey);
+    @apply border;
+    border-color: var(--color-survey);
+  }
+
+  .kita-badge-organization {
+    background-color: var(--color-organization-light);
+    color: var(--color-organization);
+    @apply border;
+    border-color: var(--color-organization);
+  }
+
+  .kita-card {
+    @apply bg-white border border-[hsl(220,14%,96%)] rounded-xl shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  .kita-gradient-orange {
+    background: linear-gradient(135deg, hsl(17, 100%, 60%) 0%, hsl(25, 95%, 53%) 100%);
+  }
+
+  .kita-gradient-blue {
+    background: linear-gradient(135deg, hsl(198, 38%, 47%) 0%, hsl(210, 50%, 45%) 100%);
+  }
+
+  .poll-option-selected {
+    @apply ring-2 ring-[hsl(17,100%,60%)] bg-[hsl(17,100%,96%)];
+  }
+
+  .vote-yes {
+    @apply bg-green-100 text-green-800 border-green-200;
+  }
+
+  .vote-maybe {
+    @apply bg-yellow-100 text-yellow-800 border-yellow-200;
+  }
+
+  .vote-no {
+    @apply bg-red-100 text-red-800 border-red-200;
+  }
+}
+
+@layer utilities {
+  .text-kita-orange {
+    color: var(--kita-orange);
+  }
+
+  .text-kita-blue {
+    color: var(--kita-blue);
+  }
+
+  /* Feature color text utilities */
+  .text-schedule {
+    color: var(--color-schedule);
+  }
+
+  .text-survey {
+    color: var(--color-survey);
+  }
+
+  .text-organization {
+    color: var(--color-organization);
+  }
+
+  /* Feature color background utilities */
+  .bg-schedule {
+    background-color: var(--color-schedule);
+  }
+
+  .bg-survey {
+    background-color: var(--color-survey);
+  }
+
+  .bg-organization {
+    background-color: var(--color-organization);
+  }
+
+  .bg-kita-orange {
+    background-color: var(--kita-orange);
+  }
+
+  .bg-kita-blue {
+    background-color: var(--kita-blue);
+  }
+
+  .border-kita-orange {
+    border-color: var(--kita-orange);
+  }
+
+  .border-kita-blue {
+    border-color: var(--kita-blue);
+  }
+
+  .hover\:bg-kita-orange:hover {
+    background-color: hsl(17, 100%, 55%);
+  }
+
+  .hover\:bg-kita-blue:hover {
+    background-color: hsl(198, 38%, 42%);
+  }
+}

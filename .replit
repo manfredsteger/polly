@@ -1,0 +1,43 @@
+modules = ["nodejs-20", "web", "postgresql-16"]
+run = "npm run dev"
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["libuuid", "chromium", "glib", "nss", "nspr", "atk", "cups", "dbus", "expat", "fontconfig", "freetype", "pango", "cairo", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "xorg.libXrender", "alsa-lib", "git-filter-repo"]
+
+[deployment]
+deploymentTarget = "autoscale"
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
+
+[env]
+PORT = "5000"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[agent]
+integrations = ["javascript_sendgrid:1.0.0"]

@@ -1,0 +1,63 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sky background -->
+  <rect width="400" height="300" fill="#87CEEB"/>
+  
+  <!-- Clouds -->
+  <circle cx="80" cy="60" r="20" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="100" cy="60" r="25" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="320" cy="80" r="18" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="340" cy="80" r="22" fill="#FFFFFF" opacity="0.8"/>
+  
+  <!-- Ground -->
+  <rect x="0" y="250" width="400" height="50" fill="#90EE90"/>
+  
+  <!-- Bounce house base -->
+  <rect x="50" y="150" width="300" height="100" fill="#FF6B6B" stroke="#E74C3C" stroke-width="3" rx="20"/>
+  
+  <!-- Bounce house towers -->
+  <rect x="70" y="100" width="50" height="50" fill="#4ECDC4" stroke="#26A69A" stroke-width="2" rx="10"/>
+  <rect x="140" y="80" width="60" height="70" fill="#FFE66D" stroke="#F39C12" stroke-width="2" rx="10"/>
+  <rect x="220" y="90" width="55" height="60" fill="#A8E6CF" stroke="#27AE60" stroke-width="2" rx="10"/>
+  <rect x="290" y="110" width="50" height="40" fill="#FF8B94" stroke="#E91E63" stroke-width="2" rx="10"/>
+  
+  <!-- Windows on towers -->
+  <circle cx="95" cy="125" r="8" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1"/>
+  <circle cx="170" cy="115" r="10" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1"/>
+  <circle cx="247" cy="120" r="9" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1"/>
+  <circle cx="315" cy="130" r="7" fill="#FFFFFF" stroke="#2C3E50" stroke-width="1"/>
+  
+  <!-- Entrance -->
+  <path d="M 180 150 Q 200 130 220 150 L 220 250 L 180 250 Z" fill="#9B59B6" stroke="#8E44AD" stroke-width="2"/>
+  
+  <!-- Happy children -->
+  <!-- Child 1 -->
+  <circle cx="120" cy="180" r="12" fill="#FDBCB4"/>
+  <circle cx="115" cy="177" r="2" fill="#2C3E50"/>
+  <circle cx="125" cy="177" r="2" fill="#2C3E50"/>
+  <path d="M 115 185 Q 120 190 125 185" stroke="#2C3E50" stroke-width="1" fill="none"/>
+  <rect x="115" y="192" width="10" height="15" fill="#E74C3C"/>
+  <rect x="110" y="200" width="5" height="10" fill="#FDBCB4"/>
+  <rect x="125" y="200" width="5" height="10" fill="#FDBCB4"/>
+  <rect x="117" y="207" width="6" height="8" fill="#3498DB"/>
+  
+  <!-- Child 2 -->
+  <circle cx="250" cy="170" r="11" fill="#FDBCB4"/>
+  <circle cx="246" cy="167" r="1.5" fill="#2C3E50"/>
+  <circle cx="254" cy="167" r="1.5" fill="#2C3E50"/>
+  <path d="M 246 175 Q 250 179 254 175" stroke="#2C3E50" stroke-width="1" fill="none"/>
+  <rect x="246" y="181" width="8" height="12" fill="#27AE60"/>
+  <rect x="242" y="187" width="4" height="8" fill="#FDBCB4"/>
+  <rect x="254" y="187" width="4" height="8" fill="#FDBCB4"/>
+  <rect x="247" y="193" width="6" height="7" fill="#9B59B6"/>
+  
+  <!-- Motion lines for bouncing -->
+  <path d="M 100 160 Q 110 150 120 160" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.7"/>
+  <path d="M 240 155 Q 250 145 260 155" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.7"/>
+  <path d="M 160 165 Q 170 155 180 165" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.7"/>
+  
+  <!-- Fun decorative elements -->
+  <polygon points="30,30 35,45 25,45" fill="#FFD700"/>
+  <polygon points="370,40 375,55 365,55" fill="#FFD700"/>
+  <circle cx="350" cy="200" r="3" fill="#FF69B4"/>
+  <circle cx="40" cy="180" r="4" fill="#FF69B4"/>
+</svg>

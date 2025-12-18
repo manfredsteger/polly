@@ -21,7 +21,8 @@ test.describe('Abstimmung', () => {
     // The success page is at /success, not /poll-success
     await page.waitForURL('**/success**', { timeout: 30000 });
     
-    await expect(page.locator('text=erfolgreich')).toBeVisible({ timeout: 10000 });
+    // Use specific heading selector to avoid "strict mode violation" with multiple matches
+    await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
     
     const publicLink = page.locator('a[href*="/poll/"]:not([href*="admin"])').first();
     await expect(publicLink).toBeVisible({ timeout: 5000 });
@@ -51,7 +52,8 @@ test.describe('Abstimmung', () => {
     // The success page is at /success, not /poll-success
     await page.waitForURL('**/success**', { timeout: 30000 });
     
-    await expect(page.locator('text=erfolgreich')).toBeVisible({ timeout: 10000 });
+    // Use specific heading selector to avoid "strict mode violation" with multiple matches
+    await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
     
     const adminLink = page.locator('a[href*="admin"]').first();
     await expect(adminLink).toBeVisible({ timeout: 5000 });

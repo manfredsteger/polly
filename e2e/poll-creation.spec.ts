@@ -51,8 +51,9 @@ test.describe('Umfrage erstellen', () => {
     // Use specific heading selector to avoid "strict mode violation" with multiple matches
     await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
     
-    const publicLink = page.locator('a[href*="/poll/"]').first();
-    await expect(publicLink).toBeVisible({ timeout: 5000 });
+    // Wait for the public link card to be visible (confirms data loaded from sessionStorage)
+    const publicCard = page.locator('[data-testid="card-public-link"]');
+    await expect(publicCard).toBeVisible({ timeout: 10000 });
   });
 
   test('sollte eine Umfrage erstellen können', async ({ page }) => {
@@ -81,7 +82,8 @@ test.describe('Umfrage erstellen', () => {
     // Use specific heading selector to avoid "strict mode violation" with multiple matches
     await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
     
-    const publicLink = page.locator('a[href*="/poll/"]').first();
-    await expect(publicLink).toBeVisible({ timeout: 5000 });
+    // Wait for the public link card to be visible (confirms data loaded from sessionStorage)
+    const publicCard = page.locator('[data-testid="card-public-link"]');
+    await expect(publicCard).toBeVisible({ timeout: 10000 });
   });
 });

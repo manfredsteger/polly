@@ -24,13 +24,23 @@ test.describe('Abstimmung', () => {
     // Use specific heading selector to avoid "strict mode violation" with multiple matches
     await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
     
-    const publicLink = page.locator('a[href*="/poll/"]:not([href*="admin"])').first();
-    await expect(publicLink).toBeVisible({ timeout: 5000 });
+    // Wait for the public link card to be visible (confirms data loaded from sessionStorage)
+    const publicCard = page.locator('[data-testid="card-public-link"]');
+    await expect(publicCard).toBeVisible({ timeout: 10000 });
     
-    await publicLink.click();
-    await page.waitForURL('**/poll/**');
+    // Click the open button to navigate to the poll
+    const openButton = page.locator('[data-testid="button-open-public-link"]');
+    await expect(openButton).toBeVisible({ timeout: 5000 });
     
-    await expect(page.locator(`text=${uniqueTitle}`)).toBeVisible({ timeout: 10000 });
+    // Use popup handling since the button opens in a new tab
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup'),
+      openButton.click(),
+    ]);
+    await popup.waitForLoadState();
+    
+    await expect(popup.locator(`text=${uniqueTitle}`)).toBeVisible({ timeout: 10000 });
+    await popup.close();
   });
 
   test('sollte zur Admin-Ansicht navigieren können', async ({ page }) => {
@@ -55,12 +65,22 @@ test.describe('Abstimmung', () => {
     // Use specific heading selector to avoid "strict mode violation" with multiple matches
     await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
     
-    const adminLink = page.locator('a[href*="admin"]').first();
-    await expect(adminLink).toBeVisible({ timeout: 5000 });
+    // Wait for the admin link card to be visible (confirms data loaded from sessionStorage)
+    const adminCard = page.locator('[data-testid="card-admin-link"]');
+    await expect(adminCard).toBeVisible({ timeout: 10000 });
     
-    await adminLink.click();
-    await page.waitForURL('**/poll/**');
+    // Click the open button to navigate to the admin view
+    const openButton = page.locator('[data-testid="button-open-admin-link"]');
+    await expect(openButton).toBeVisible({ timeout: 5000 });
     
-    await expect(page.locator(`text=${uniqueTitle}`)).toBeVisible({ timeout: 10000 });
+    // Use popup handling since the button opens in a new tab
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup'),
+      openButton.click(),
+    ]);
+    await popup.waitForLoadState();
+    
+    await expect(popup.locator(`text=${uniqueTitle}`)).toBeVisible({ timeout: 10000 });
+    await popup.close();
   });
 });

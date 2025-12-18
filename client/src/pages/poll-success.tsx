@@ -82,7 +82,7 @@ export default function PollSuccess() {
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           {/* Public Link Card */}
-          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20">
+          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20" data-testid="card-public-link">
             <CardHeader>
               <CardTitle className="flex items-center text-blue-700 dark:text-blue-300">
                 {pollType === 'schedule' ? (
@@ -115,6 +115,7 @@ export default function PollSuccess() {
                   onClick={() => window.open(fullPublicLink, '_blank')}
                   variant="outline"
                   size="icon"
+                  data-testid="button-open-public-link"
                 >
                   <ExternalLink className="w-4 h-4" />
                 </Button>
@@ -123,7 +124,7 @@ export default function PollSuccess() {
           </Card>
 
           {/* Admin Link Card */}
-          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/20">
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/20" data-testid="card-admin-link">
             <CardHeader>
               <CardTitle className="flex items-center text-orange-700 dark:text-orange-300">
                 <Mail className="w-5 h-5 mr-2" />
@@ -152,6 +153,7 @@ export default function PollSuccess() {
                   onClick={() => window.open(fullAdminLink, '_blank')}
                   variant="outline"
                   size="icon"
+                  data-testid="button-open-admin-link"
                 >
                   <ExternalLink className="w-4 h-4" />
                 </Button>

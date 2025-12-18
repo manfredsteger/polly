@@ -95,14 +95,15 @@ COPY --from=deps /app/node_modules ./node_modules
 RUN npm install tsx drizzle-kit && \
     npm cache clean --force
 
-# Copy built frontend from builder stage
-COPY --from=builder /app/dist ./dist
-
 # Copy server source (needed for tsx runtime)
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/drizzle.config.ts ./
+COPY --from=builder /app/vite.config.ts ./
+
+# Copy built frontend to server/public (where serveStatic expects it)
+COPY --from=builder /app/dist/public ./server/public
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh ./

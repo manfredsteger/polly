@@ -23,9 +23,9 @@ docker compose up -d
 
 Das startet:
 - PostgreSQL 16 Datenbank
-- KITA Poll Anwendung auf Port 5000
+- KITA Poll Anwendung auf Port 3080 (extern)
 
-Öffnen Sie http://localhost:5000 im Browser.
+Öffnen Sie http://localhost:3080 im Browser.
 
 ### Mit eigener Konfiguration
 

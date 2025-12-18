@@ -16,7 +16,7 @@ docker compose up -d
 SEED_DEMO_DATA=true docker compose up -d
 ```
 
-**That's it!** Open http://localhost:5000 and start exploring.
+**That's it!** Open http://localhost:3080 and start exploring.
 
 - ✅ Database auto-configured (PostgreSQL included)
 - ✅ Schema auto-applied on first start
@@ -92,7 +92,7 @@ npm run db:push
 # Start development server
 npm run dev
 
-# Open http://localhost:5000
+# Open http://localhost:3080
 ```
 
 ## ⚙️ Configuration

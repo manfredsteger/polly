@@ -65,12 +65,12 @@ help:
 setup:
 	@echo "$(GREEN)Starting KITA Poll...$(NC)"
 	docker compose up -d
-	@echo "$(GREEN)App running at http://localhost:5000$(NC)"
+	@echo "$(GREEN)App running at http://localhost:3080$(NC)"
 
 setup-demo:
 	@echo "$(GREEN)Starting KITA Poll with demo data...$(NC)"
 	SEED_DEMO_DATA=true docker compose up -d
-	@echo "$(GREEN)App running at http://localhost:5000$(NC)"
+	@echo "$(GREEN)App running at http://localhost:3080$(NC)"
 	@echo "$(GREEN)Demo polls created for testing$(NC)"
 
 # ============================================
@@ -101,7 +101,7 @@ build:
 prod:
 	@echo "$(GREEN)Starting production environment...$(NC)"
 	docker compose up -d --build
-	@echo "$(GREEN)Application running at http://localhost:5000$(NC)"
+	@echo "$(GREEN)Application running at http://localhost:3080$(NC)"
 
 prod-down:
 	@echo "$(YELLOW)Stopping production environment...$(NC)"
@@ -225,13 +225,13 @@ fresh: clean
 	@echo "$(GREEN)Fresh start: rebuilding everything...$(NC)"
 	docker compose build --no-cache
 	docker compose up -d
-	@echo "$(GREEN)Fresh environment running at http://localhost:5000$(NC)"
+	@echo "$(GREEN)Fresh environment running at http://localhost:3080$(NC)"
 
 fresh-demo: clean
 	@echo "$(GREEN)Fresh start with demo data...$(NC)"
 	docker compose build --no-cache
 	SEED_DEMO_DATA=true docker compose up -d
-	@echo "$(GREEN)Fresh environment with demo data at http://localhost:5000$(NC)"
+	@echo "$(GREEN)Fresh environment with demo data at http://localhost:3080$(NC)"
 
 # ============================================
 # CI Simulation (Local)

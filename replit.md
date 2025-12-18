@@ -163,7 +163,7 @@ The project is organized into `client/` (React frontend), `server/` (Express bac
 ### Docker Quick Start
 ```bash
 docker compose up -d
-# Opens at http://localhost:5000
+# Opens at http://localhost:3080
 ```
 
 ### Required Environment Variables

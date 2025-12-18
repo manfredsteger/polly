@@ -26,7 +26,7 @@ cd kita-poll
 # Start with zero configuration
 docker compose up -d
 
-# Open http://localhost:5000
+# Open http://localhost:3080
 ```
 
 That's it! The application auto-configures PostgreSQL and applies the database schema on first start.
@@ -72,7 +72,7 @@ Best for: Organizations with existing PostgreSQL infrastructure
 # Use external database
 docker run -d \
   --name kita-poll \
-  -p 5000:5000 \
+  -p 3080:5000 \
   -e DATABASE_URL=postgresql://user:pass@your-db-host:5432/kitapoll \
   -e SESSION_SECRET=your-secure-secret \
   -v kita-uploads:/app/uploads \
@@ -251,7 +251,7 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
 
     location / {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://localhost:3080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -264,7 +264,7 @@ server {
 
     # WebSocket support for live voting
     location /ws/ {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://localhost:3080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -327,7 +327,7 @@ tar -czf uploads-backup.tar.gz uploads/
 ### Health Check Endpoint
 
 ```bash
-curl http://localhost:5000/api/health
+curl http://localhost:3080/api/health
 # Returns: {"status":"ok","timestamp":"..."}
 ```
 

@@ -7,9 +7,9 @@ Save these URLs as bookmarks for easy testing of all features:
 ### 📊 Example Survey - "KITA Sommerfest Aktivitäten 2025"
 A classic survey where users vote for their favorite summer festival activities. **Now with beautiful SVG images!**
 
-- **Public URL (for voting)**: http://localhost:5000/poll/example-survey-public-2HBD_6QRkmWXAFW0C1dE
-- **Admin URL (for management)**: http://localhost:5000/admin/example-survey-admin-S3O3K40gXfe3v_xGgl2T
-- **Results URL (direct to results)**: http://localhost:5000/poll/example-survey-public-2HBD_6QRkmWXAFW0C1dE#results
+- **Public URL (for voting)**: http://localhost:3080/poll/example-survey-public-2HBD_6QRkmWXAFW0C1dE
+- **Admin URL (for management)**: http://localhost:3080/admin/example-survey-admin-S3O3K40gXfe3v_xGgl2T
+- **Results URL (direct to results)**: http://localhost:3080/poll/example-survey-public-2HBD_6QRkmWXAFW0C1dE#results
 
 **Features to test:**
 - Classic survey voting (Ja/Vielleicht/Nein)
@@ -30,9 +30,9 @@ A classic survey where users vote for their favorite summer festival activities.
 ### 📅 Example Date Poll - "Elternabend Terminplanung"
 A scheduling poll for finding the best meeting time.
 
-- **Public URL (for voting)**: http://localhost:5000/poll/example-poll-public-JS_sF-UiedqeIXhFbOfV
-- **Admin URL (for management)**: http://localhost:5000/admin/example-poll-admin-0dyW1qaEC7nx_iyPlrVi
-- **Results URL (direct to results)**: http://localhost:5000/poll/example-poll-public-JS_sF-UiedqeIXhFbOfV#results
+- **Public URL (for voting)**: http://localhost:3080/poll/example-poll-public-JS_sF-UiedqeIXhFbOfV
+- **Admin URL (for management)**: http://localhost:3080/admin/example-poll-admin-0dyW1qaEC7nx_iyPlrVi
+- **Results URL (direct to results)**: http://localhost:3080/poll/example-poll-public-JS_sF-UiedqeIXhFbOfV#results
 
 **Features to test:**
 - Date/time scheduling interface

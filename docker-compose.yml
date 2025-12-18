@@ -4,7 +4,7 @@
 #
 # Quick Start:
 #   docker compose up -d
-#   Open http://localhost:5000
+#   Open http://localhost:3080
 #
 # With Demo Data:
 #   SEED_DEMO_DATA=true docker compose up -d
@@ -47,9 +47,9 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-kitapoll}:${POSTGRES_PASSWORD:-kitapoll_secret}@postgres:5432/${POSTGRES_DB:-kitapoll}
       SESSION_SECRET: ${SESSION_SECRET:-change-this-in-production-to-a-secure-random-string}
-      BASE_URL: ${BASE_URL:-http://localhost:5000}
-      APP_URL: ${APP_URL:-http://localhost:5000}
-      VITE_APP_URL: ${VITE_APP_URL:-http://localhost:5000}
+      BASE_URL: ${BASE_URL:-http://localhost:3080}
+      APP_URL: ${APP_URL:-http://localhost:3080}
+      VITE_APP_URL: ${VITE_APP_URL:-http://localhost:3080}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
@@ -63,7 +63,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
     ports:
-      - "${APP_PORT:-5000}:5000"
+      - "${APP_PORT:-3080}:5000"
     volumes:
       - uploads_data:/app/uploads
     healthcheck:

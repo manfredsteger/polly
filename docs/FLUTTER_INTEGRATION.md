@@ -48,7 +48,7 @@ Der Server validiert das Token via:
 
 ```
 Production: https://polly.kita.bayern/api/v1
-Development: http://localhost:5000/api/v1
+Development: http://localhost:3080/api/v1
 
 Legacy URLs (auto-redirect):
 https://polly.kita.bayern/api  -> 308 Redirect to /api/v1

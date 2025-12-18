@@ -43,3 +43,6 @@ uploads/*
 # Local test scripts (not part of test suite)
 test-*.js
 test-*.ts
+
+# Replit attached assets (chat screenshots, logs, etc.)
+attached_assets/

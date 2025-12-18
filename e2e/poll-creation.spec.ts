@@ -20,12 +20,13 @@ test.describe('Umfrage erstellen', () => {
     const calendarPicker = page.locator('[data-testid="calendar-picker"]');
     await expect(calendarPicker).toBeVisible({ timeout: 10000 });
     
-    // react-day-picker renders day cells in a table structure
-    // Each day button has aria-disabled attribute for disabled days
-    // Find an enabled day button - use role=gridcell and check for non-disabled buttons
-    const dayButton = calendarPicker.locator('button:not([disabled]):not([aria-disabled="true"])').first();
-    await expect(dayButton).toBeVisible({ timeout: 5000 });
-    await dayButton.click();
+    // react-day-picker renders day cells inside table cells (td elements)
+    // The day buttons are inside td.rdp-cell elements and have role="gridcell"
+    // We need to select a day button in the calendar grid, not navigation buttons
+    // Using the table structure: the calendar renders a table with td cells containing day buttons
+    const dayCell = calendarPicker.locator('td button:not([aria-disabled="true"])').first();
+    await expect(dayCell).toBeVisible({ timeout: 5000 });
+    await dayCell.click();
     
     // After clicking a day, a dialog opens to add time slots
     // Wait for the time slot dialog inputs to appear

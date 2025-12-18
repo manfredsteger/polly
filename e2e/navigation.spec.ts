@@ -31,7 +31,8 @@ test.describe('Navigation', () => {
   });
 
   test('sollte Login-Seite anzeigen können', async ({ page }) => {
-    await page.goto('/login');
+    // The login route is /anmelden, not /login
+    await page.goto('/anmelden');
     
     // Wait for page to fully load
     await page.waitForLoadState('networkidle');

@@ -20,11 +20,9 @@ test.describe('Umfrage erstellen', () => {
     const calendarPicker = page.locator('[data-testid="calendar-picker"]');
     await expect(calendarPicker).toBeVisible({ timeout: 10000 });
     
-    // react-day-picker renders day cells inside table cells (td elements)
-    // The day buttons are inside td.rdp-cell elements and have role="gridcell"
-    // We need to select a day button in the calendar grid, not navigation buttons
-    // Using the table structure: the calendar renders a table with td cells containing day buttons
-    const dayCell = calendarPicker.locator('td button:not([aria-disabled="true"])').first();
+    // react-day-picker marks disabled days with the HTML "disabled" attribute
+    // Select an enabled day button (not disabled)
+    const dayCell = calendarPicker.locator('td button:not([disabled])').first();
     await expect(dayCell).toBeVisible({ timeout: 5000 });
     await dayCell.click();
     
@@ -47,7 +45,8 @@ test.describe('Umfrage erstellen', () => {
     
     await page.click('[data-testid="button-submit"]');
     
-    await page.waitForURL('**/poll-success**', { timeout: 30000 });
+    // The success page is at /success, not /poll-success
+    await page.waitForURL('**/success**', { timeout: 30000 });
     
     await expect(page.locator('text=erfolgreich')).toBeVisible({ timeout: 10000 });
     
@@ -75,7 +74,8 @@ test.describe('Umfrage erstellen', () => {
     
     await page.click('[data-testid="button-submit"]');
     
-    await page.waitForURL('**/poll-success**', { timeout: 30000 });
+    // The success page is at /success, not /poll-success
+    await page.waitForURL('**/success**', { timeout: 30000 });
     
     await expect(page.locator('text=erfolgreich')).toBeVisible({ timeout: 10000 });
     

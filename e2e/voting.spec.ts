@@ -18,7 +18,8 @@ test.describe('Abstimmung', () => {
     
     await page.click('[data-testid="button-submit"]');
     
-    await page.waitForURL('**/poll-success**', { timeout: 30000 });
+    // The success page is at /success, not /poll-success
+    await page.waitForURL('**/success**', { timeout: 30000 });
     
     await expect(page.locator('text=erfolgreich')).toBeVisible({ timeout: 10000 });
     
@@ -47,7 +48,8 @@ test.describe('Abstimmung', () => {
     
     await page.click('[data-testid="button-submit"]');
     
-    await page.waitForURL('**/poll-success**', { timeout: 30000 });
+    // The success page is at /success, not /poll-success
+    await page.waitForURL('**/success**', { timeout: 30000 });
     
     await expect(page.locator('text=erfolgreich')).toBeVisible({ timeout: 10000 });
     

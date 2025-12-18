@@ -1,0 +1,34 @@
+The failure in your GitHub Actions job appears to be related to two primary issues:
+
+### 1. **Test Timeout Errors**
+   - In the `e2e/voting.spec.ts` file, the test `sollte zur Admin-Ansicht navigieren können` is failing due to a timeout while waiting for the URL `"**/poll-success**"` to load. The timeout is currently set to `30000ms`, but the page seems not to reach the desired state in time.
+   - Similarly, the test `sollte eine Umfrage erstellen und zur Abstimmung navigieren` is also facing a timeout while waiting for the same `"**/poll-success**"` URL.
+
+### Suggested Fix
+   - **Increase Timeout:** If the `poll-success` page requires additional time to load due to backend delays, try increasing the timeout in `page.waitForURL()`:
+     ```typescript
+     await page.waitForURL('**/poll-success**', { timeout: 60000 }); // Increase timeout to 60 seconds
+     ```
+   - **Ensure Correct Navigation Paths:** Double-check whether the application correctly processes actions needed to load the `poll-success` page. This could include ensuring the backend service handling survey submissions is performing as expected during this test.
+
+### 2. **Database Role Issue**
+   - The logs indicate repeated errors with `FATAL: role "root" does not exist`. This suggests that the database setup does not have the expected role `root` configured, which might be causing connection or authentication issues.
+   
+### Suggested Fix
+   - In the PostgreSQL service definition in the [workflow file](https://github.com/manfredsteger/polly/blob/3404ed79ba6ca347160cd4aaa798d2a0e55bb3fe/.github/workflows/ci.yml), the `POSTGRES_USER` is defined as `test`. Verify that any database operations or connections in your tests are using this `test` user and not implicitly trying to use the `root` role.
+   - If the role `root` is indeed required, add the following initialization to your PostgreSQL setup:
+     ```sh
+     psql -U postgres -c "CREATE ROLE root WITH SUPERUSER LOGIN PASSWORD 'password';"
+     ```
+
+### Code Location Details
+   - The test files are located in:
+     - [e2e/voting.spec.ts](https://github.com/manfredsteger/polly/blob/3404ed79ba6ca347160cd4aaa798d2a0e55bb3fe/e2e/voting.spec.ts)
+     - [e2e/poll-creation.spec.ts](https://github.com/manfredsteger/polly/blob/3404ed79ba6ca347160cd4aaa798d2a0e55bb3fe/e2e/poll-creation.spec.ts)
+   - The GitHub Actions workflow file is located at: [.github/workflows/ci.yml](https://github.com/manfredsteger/polly/blob/3404ed79ba6ca347160cd4aaa798d2a0e55bb3fe/.github/workflows/ci.yml)
+
+### Conclusion
+- **For the timeout issue:** Adjust the timeouts in the `e2e/voting.spec.ts` and ensure that the application reaches the correct state during navigation.
+- **For the database role issue:** Review the database connection user in both your tests and the CI configuration to align with the PostgreSQL setup.
+
+Apply these fixes iteratively and re-run the workflow to verify the resolutions.

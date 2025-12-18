@@ -5,7 +5,7 @@
 # ============================================
 # Stage 1: Dependencies
 # ============================================
-FROM node:20-slim AS deps
+FROM node:22-slim AS deps
 
 # Install build dependencies for native modules (canvas, pdfkit)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -30,7 +30,7 @@ RUN npm ci
 # ============================================
 # Stage 2: Builder
 # ============================================
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
@@ -55,7 +55,7 @@ RUN npm run build
 # ============================================
 # Stage 3: Production
 # ============================================
-FROM node:20-slim AS production
+FROM node:22-slim AS production
 
 # Install runtime dependencies for:
 # - canvas/pdfkit: libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 libpixman-1-0

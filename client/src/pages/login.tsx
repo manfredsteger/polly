@@ -286,7 +286,7 @@ export default function Login() {
                       onChange={(e) => setLoginForm({ ...loginForm, usernameOrEmail: e.target.value })}
                       placeholder="max@example.de"
                       required
-                      data-testid="input-login-username"
+                      data-testid="input-login-email"
                     />
                   </div>
                   <div className="space-y-2">
@@ -409,7 +409,7 @@ export default function Login() {
                   onChange={(e) => setLoginForm({ ...loginForm, usernameOrEmail: e.target.value })}
                   placeholder="max@example.de"
                   required
-                  data-testid="input-login-username"
+                  data-testid="input-login-email"
                 />
               </div>
               <div className="space-y-2">

@@ -1,0 +1,135 @@
+[+] Running 12/12
+ ✔ postgres Pulled                                                        41.3s
+   ✔ f6b4fb944634 Pull complete                                            2.4s
+   ✔ 409f53b105a8 Pull complete                                            2.4s
+   ✔ d2f73330ca75 Pull complete                                            2.4s
+   ✔ 9cf4b6218dc3 Pull complete                                            2.5s
+   ✔ 9d26d6c343c2 Pull complete                                           32.7s
+   ✔ fcf4b0abe453 Pull complete                                           34.2s
+   ✔ c795092f8ce9 Pull complete                                           34.3s
+   ✔ d7215aa7d72d Pull complete                                           34.3s
+   ✔ 302472f811f6 Pull complete                                           34.3s
+   ✔ ac7318a68b4c Pull complete                                           34.3s
+   ✔ fe5ac8f25241 Pull complete                                           36.3s
+[+] Building 125.5s (16/36)
+ => [internal] load local bake definitions                                 0.0s
+ => => reading from stdin 517B                                             0.0s
+ => [internal] load build definition from Dockerfile                       0.0s
+ => => transferring dockerfile: 2.90kB                                     0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine          2.1s
+ => [internal] load .dockerignore                                          0.0s
+ => => transferring context: 644B                                          0.0s
+ => [deps 1/5] FROM docker.io/library/node:20-alpine@sha256:658d0f63e501  10.8s
+ => => resolve docker.io/library/node:20-alpine@sha256:658d0f63e501824d6c  0.0s
+ => => sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9 7.67kB / 7.67kB  0.0s
+ => => sha256:8de97c8d14c9f6a920191993d1f08ae1ac27e476f0a 1.72kB / 1.72kB  0.0s
+ => => sha256:03337a57e3ac1108ce452cf3e2276a52a1c69695b07 6.54kB / 6.54kB  0.0s
+ => => sha256:eb9824d7990580162dd96cf3c8e08c9e966ed8d81 43.12MB / 43.12MB  9.8s
+ => => sha256:bb9f6f8b202047f37f5d51a1f2e731b60925a601fe4 1.26MB / 1.26MB  1.2s
+ => => sha256:70268380327fbc2d9c066979d554cdff4c22f752e9be70b 443B / 443B  0.8s
+ => => extracting sha256:eb9824d7990580162dd96cf3c8e08c9e966ed8d819adbb6e  0.8s
+ => => extracting sha256:bb9f6f8b202047f37f5d51a1f2e731b60925a601fe4c9c14  0.0s
+ => => extracting sha256:70268380327fbc2d9c066979d554cdff4c22f752e9be70bd  0.0s
+ => [internal] load build context                                          0.0s
+ => => transferring context: 1.87MB                                        0.0s
+ => [production  2/14] RUN apk add --no-cache     cairo pango jpeg gifli  85.7s
+ => [builder  2/14] WORKDIR /app                                           0.1s
+ => [deps 2/5] RUN apk add --no-cache python3 make g++ cairo-dev pango-d  52.8s
+ => [deps 3/5] WORKDIR /app                                                0.0s
+ => [deps 4/5] COPY package*.json ./                                       0.0s
+ => CANCELED [deps 5/5] RUN npm ci                                        59.4s
+ => [production  3/14] RUN addgroup -g 1001 -S nodejs &&     adduser -S n  0.2s
+ => [production  4/14] WORKDIR /app                                        0.1s
+ => [production  5/14] COPY package*.json ./                               0.0s
+ => ERROR [production  6/14] RUN npm ci --only=production &&     npm ins  26.0s
+------
+ > [production  6/14] RUN npm ci --only=production &&     npm install tsx drizzle-kit &&     npm cache clean --force:
+0.173 npm warn config only Use `--omit=dev` to omit dev dependencies from the install.
+0.547 npm warn EBADENGINE Unsupported engine {
+0.547 npm warn EBADENGINE   package: 'matrix-js-sdk@38.4.0',
+0.547 npm warn EBADENGINE   required: { node: '>=22.0.0' },
+0.547 npm warn EBADENGINE   current: { node: 'v20.19.6', npm: '10.8.2' }
+0.547 npm warn EBADENGINE }
+25.78 npm error code 1
+25.78 npm error path /app/node_modules/canvas
+25.78 npm error command failed
+25.78 npm error command sh -c prebuild-install -r napi || node-gyp rebuild
+25.78 npm error prebuild-install warn install No prebuilt binaries found (target=7 runtime=napi arch=arm64 libc=musl platform=linux)
+25.78 npm error gyp info it worked if it ends with ok
+25.78 npm error gyp info using node-gyp@10.1.0
+25.78 npm error gyp info using node@20.19.6 | linux | arm64
+25.78 npm error gyp info find Python using Python version 3.12.12 found at "/usr/bin/python3"
+25.78 npm error gyp http GET https://nodejs.org/download/release/v20.19.6/node-v20.19.6-headers.tar.gz
+25.78 npm error gyp http 200 https://nodejs.org/download/release/v20.19.6/node-v20.19.6-headers.tar.gz
+25.78 npm error gyp http GET https://nodejs.org/download/release/v20.19.6/SHASUMS256.txt
+25.78 npm error gyp http 200 https://nodejs.org/download/release/v20.19.6/SHASUMS256.txt
+25.78 npm error gyp info spawn /usr/bin/python3
+25.78 npm error gyp info spawn args [
+25.78 npm error gyp info spawn args '/usr/local/lib/node_modules/npm/node_modules/node-gyp/gyp/gyp_main.py',
+25.78 npm error gyp info spawn args 'binding.gyp',
+25.78 npm error gyp info spawn args '-f',
+25.78 npm error gyp info spawn args 'make',
+25.78 npm error gyp info spawn args '-I',
+25.78 npm error gyp info spawn args '/app/node_modules/canvas/build/config.gypi',
+25.78 npm error gyp info spawn args '-I',
+25.78 npm error gyp info spawn args '/usr/local/lib/node_modules/npm/node_modules/node-gyp/addon.gypi',
+25.78 npm error gyp info spawn args '-I',
+25.78 npm error gyp info spawn args '/root/.cache/node-gyp/20.19.6/include/node/common.gypi',
+25.78 npm error gyp info spawn args '-Dlibrary=shared_library',
+25.78 npm error gyp info spawn args '-Dvisibility=default',
+25.78 npm error gyp info spawn args '-Dnode_root_dir=/root/.cache/node-gyp/20.19.6',
+25.78 npm error gyp info spawn args '-Dnode_gyp_dir=/usr/local/lib/node_modules/npm/node_modules/node-gyp',
+25.78 npm error gyp info spawn args '-Dnode_lib_file=/root/.cache/node-gyp/20.19.6/<(target_arch)/node.lib',
+25.78 npm error gyp info spawn args '-Dmodule_root_dir=/app/node_modules/canvas',
+25.78 npm error gyp info spawn args '-Dnode_engine=v8',
+
+25.78 npm error gyp info spawn args '--depth=.',
+25.78 npm error gyp info spawn args '--no-parallel',
+25.78 npm error gyp info spawn args '--generator-output',
+25.78 npm error gyp info spawn args 'build',
+25.78 npm error gyp info spawn args '-Goutput_dir=.'
+25.78 npm error gyp info spawn args ]
+25.78 npm error Package pixman-1 was not found in the pkg-config search path.
+25.78 npm error Perhaps you should add the directory containing `pixman-1.pc'
+25.78 npm error to the PKG_CONFIG_PATH environment variable
+25.78 npm error Package 'pixman-1' not found
+25.78 npm error gyp: Call to 'pkg-config pixman-1 --libs' returned exit status 1 while in binding.gyp. while trying to load binding.gyp
+25.78 npm error gyp ERR! configure error
+25.78 npm error gyp ERR! stack Error: `gyp` failed with exit code: 1
+25.78 npm error gyp ERR! stack at ChildProcess.<anonymous> (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/configure.js:297:18)
+25.78 npm error gyp ERR! stack at ChildProcess.emit (node:events:524:28)
+25.78 npm error gyp ERR! stack at ChildProcess._handle.onexit (node:internal/child_process:293:12)
+25.78 npm error gyp ERR! System Linux 6.10.14-linuxkit
+25.78 npm error gyp ERR! command "/usr/local/bin/node" "/usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js" "rebuild"
+25.78 npm error gyp ERR! cwd /app/node_modules/canvas
+25.78 npm error gyp ERR! node -v v20.19.6
+25.78 npm error gyp ERR! node-gyp -v v10.1.0
+25.78 npm error gyp ERR! not ok
+25.78 npm notice
+25.78 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+25.78 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+25.78 npm notice To update run: npm install -g npm@11.7.0
+25.78 npm notice
+25.78 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-12-18T11_05_59_255Z-debug-0.log
+------
+Dockerfile:73
+
+--------------------
+
+  72 |     # Install production dependencies only, plus tsx for running TypeScript
+
+  73 | >>> RUN npm ci --only=production && \
+
+  74 | >>>     npm install tsx drizzle-kit && \
+
+  75 | >>>     npm cache clean --force
+
+  76 |
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm ci --only=production &&     npm install tsx drizzle-kit &&     npm cache clean --force" did not complete successfully: exit code: 1
+
+
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/z9v062ekfmrpjm1qi0tfsfk3k

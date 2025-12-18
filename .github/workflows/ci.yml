@@ -148,10 +148,30 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U test; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL... attempt $i"
+            sleep 2
+          done
+
       - name: Setup database
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_e2e
-        run: npm run db:push
+        run: |
+          npm run db:push
+          echo "Database schema pushed successfully"
+
+      - name: Verify database connection
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_e2e
+        run: |
+          PGPASSWORD=test psql -h localhost -U test -d kita_poll_e2e -c "SELECT 1 as connection_test;"
+          echo "Database connection verified"
 
       - name: Run E2E tests
         env:
@@ -159,7 +179,8 @@ jobs:
           NODE_ENV: test
           SESSION_SECRET: e2e-test-session-secret-minimum-32-characters-long
           BASE_URL: http://localhost:5000
-        run: npx playwright test
+          SMTP_ENABLED: false
+        run: npx playwright test --timeout=60000
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

@@ -1,0 +1,32 @@
+The failure occurred in the test sollte eine Terminumfrage erstellen können in e2e/poll-creation.spec.ts, specifically on this line:
+
+```typescript
+await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
+```
+([view on GitHub](https://github.com/manfredsteger/polly/blob/660301a83bc1022036021e44b254e62e232b8167/e2e/poll-creation.spec.ts#L52))
+
+The error message is:
+
+Test timeout of 30000ms exceeded.  
+waiting for navigation to "**/success**" until "load"  
+Error: page.waitForURL: Test timeout of 30000ms exceeded.
+
+This indicates that, after submitting the poll, the app did not navigate to the /success page within the expected 30 seconds, and the confirmation heading did not appear. Additionally, the logs show repeated PostgreSQL errors: "role 'root' does not exist". This suggests a backend issue, likely that the test app's backend cannot connect to the database with the expected credentials, resulting in the poll creation silently failing.
+
+To resolve:
+
+1. Ensure your PostgreSQL setup for CI includes a user matching your app’s configuration. The logs suggest the app is trying to connect as user root, which does not exist in the default Postgres setup.
+   - Either add this user during DB setup in your workflow, or
+   - Change your app/test DB config to use the default postgres user or another valid user.
+2. In your GitHub Actions workflow (.github/workflows/ci.yml), review any service or DB container setup steps and DB environment variables. For example, add a step to create the user:
+   ```yaml
+   - name: Create database user
+     run: |
+       psql -U postgres -c "CREATE USER root WITH PASSWORD 'yourpassword';"
+       psql -U postgres -c "ALTER USER root CREATEDB;"
+   ```
+   Or adjust your test config (env variables or test setup) to use a user already available (such as postgres).
+
+3. For immediate triage, locally check the behavior with an intentionally misconfigured DB user and verify that the /success navigation only happens when the backend is reachable and poll creation succeeds.
+
+Adjust your DB setup or app config so the workflow database user exists and has necessary permissions, then rerun the test—the navigation and heading checks should succeed.

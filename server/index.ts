@@ -78,12 +78,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Determine if cookies should be secure based on BASE_URL (not just NODE_ENV)
+// This allows production deployments over HTTP (e.g., localhost, internal networks)
+const isSecureConnection = (process.env.BASE_URL || '').startsWith('https://');
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'kita-poll-dev-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureConnection,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',

@@ -56,7 +56,7 @@ SEED_DEMO_DATA=true docker compose up -d
 
 ### Voraussetzungen
 
-- Node.js 20 LTS
+- Node.js 22 LTS
 - PostgreSQL 16
 - Chromium (für PDF-Export)
 
@@ -64,8 +64,8 @@ SEED_DEMO_DATA=true docker compose up -d
 
 **Ubuntu/Debian:**
 ```bash
-# Node.js 20
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Node.js 22
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # PostgreSQL 16
@@ -81,8 +81,8 @@ sudo apt-get install -y chromium-browser \
 
 **RHEL/CentOS:**
 ```bash
-# Node.js 20
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+# Node.js 22
+curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
 sudo yum install -y nodejs
 
 # PostgreSQL 16

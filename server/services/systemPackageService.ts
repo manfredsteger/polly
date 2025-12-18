@@ -59,14 +59,14 @@ const PACKAGE_PURPOSES: Record<string, string> = {
   'xorg.libxcb': 'X11 Protocol',
   'xorg.libXrender': 'X11 Rendering',
   'alsa-lib': 'Audio-Bibliothek',
-  'nodejs-20': 'JavaScript Runtime',
+  'nodejs-22': 'JavaScript Runtime',
   'postgresql-16': 'Datenbank',
   'web': 'Web-Modul'
 };
 
 // Default packages required for production (used when not running in Replit)
 const PRODUCTION_PACKAGES = [
-  'nodejs-20',
+  'nodejs-22',
   'postgresql-16', 
   'chromium',
   'libuuid',

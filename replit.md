@@ -16,6 +16,7 @@ Preferred communication style: Simple, everyday language (German).
 ## System Architecture
 
 ### Full-Stack Architecture
+-   **Runtime**: Node.js 22 LTS (EOL: April 2027)
 -   **Frontend**: React 18 with TypeScript, Vite, Shadcn/ui (Radix UI) + Tailwind CSS, TanStack Query v5, Wouter
 -   **Backend**: Express.js server with TypeScript
 -   **Database**: PostgreSQL with Drizzle ORM

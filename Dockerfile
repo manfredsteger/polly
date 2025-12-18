@@ -7,7 +7,7 @@
 FROM node:20-alpine AS deps
 
 # Install build dependencies for native modules (canvas, pdfkit)
-RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev
+RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev
 
 WORKDIR /app
 
@@ -48,11 +48,11 @@ RUN npm run build
 FROM node:20-alpine AS production
 
 # Install runtime dependencies for:
-# - canvas/pdfkit: cairo pango jpeg giflib
+# - canvas/pdfkit: cairo pango jpeg giflib pixman
 # - Puppeteer/Chromium: chromium nss freetype harfbuzz ttf-freefont
 # - Database: postgresql-client (for pg_isready health checks)
 RUN apk add --no-cache \
-    cairo pango jpeg giflib \
+    cairo pango jpeg giflib pixman \
     chromium nss freetype harfbuzz ttf-freefont \
     postgresql-client
 
@@ -69,9 +69,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only, plus tsx for running TypeScript
-RUN npm ci --only=production && \
-    npm install tsx drizzle-kit && \
+# Copy node_modules from deps stage (includes pre-built native modules like canvas)
+COPY --from=deps /app/node_modules ./node_modules
+
+# Install additional runtime tools (tsx for TypeScript execution)
+RUN npm install tsx drizzle-kit && \
     npm cache clean --force
 
 # Copy built frontend from builder stage

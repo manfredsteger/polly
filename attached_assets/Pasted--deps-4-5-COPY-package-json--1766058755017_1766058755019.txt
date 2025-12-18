@@ -1,0 +1,389 @@
+> [deps 4/5] COPY package*.json ./                                                                                                                                                                                                                                     0.0s
+ => ERROR [deps 5/5] RUN npm ci                                                                                                                                                                                                                                         40.2s
+ => [production  3/15] RUN addgroup -g 1001 -S nodejs &&     adduser -S nodejs -u 1001                                                                                                                                                                                   0.1s
+ => [production  4/15] WORKDIR /app                                                                                                                                                                                                                                      0.0s
+ => [production  5/15] COPY package*.json ./                                                                                                                                                                                                                             0.0s
+------
+ > [deps 5/5] RUN npm ci:
+0.796 npm warn EBADENGINE Unsupported engine {
+0.796 npm warn EBADENGINE   package: 'matrix-js-sdk@38.4.0',
+0.796 npm warn EBADENGINE   required: { node: '>=22.0.0' },
+0.796 npm warn EBADENGINE   current: { node: 'v20.19.6', npm: '10.8.2' }
+0.796 npm warn EBADENGINE }
+9.932 npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+9.960 npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+40.19 npm error code 1
+40.19 npm error path /app/node_modules/canvas
+40.19 npm error command failed
+40.19 npm error command sh -c prebuild-install -r napi || node-gyp rebuild
+40.19 npm error make: Entering directory '/app/node_modules/canvas/build'
+40.19 npm error   SOLINK_MODULE(target) Release/obj.target/canvas-postbuild.node
+40.19 npm error   COPY Release/canvas-postbuild.node
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/backend/Backend.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/backend/ImageBackend.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/backend/PdfBackend.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/backend/SvgBackend.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/bmp/BMPParser.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/Backends.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/Canvas.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/CanvasGradient.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/CanvasPattern.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/CanvasRenderingContext2d.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/closure.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/color.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/Image.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/ImageData.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/init.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/register_font.o
+40.19 npm error   CXX(target) Release/obj.target/canvas/src/FontParser.o
+40.19 npm error make: Leaving directory '/app/node_modules/canvas/build'
+40.19 npm error prebuild-install warn install No prebuilt binaries found (target=7 runtime=napi arch=arm64 libc=musl platform=linux)
+40.19 npm error gyp info it worked if it ends with ok
+40.19 npm error gyp info using node-gyp@10.1.0
+40.19 npm error gyp info using node@20.19.6 | linux | arm64
+40.19 npm error gyp info find Python using Python version 3.12.12 found at "/usr/bin/python3"
+40.19 npm error gyp http GET https://nodejs.org/download/release/v20.19.6/node-v20.19.6-headers.tar.gz
+40.19 npm error gyp http 200 https://nodejs.org/download/release/v20.19.6/node-v20.19.6-headers.tar.gz
+40.19 npm error gyp http GET https://nodejs.org/download/release/v20.19.6/SHASUMS256.txt
+40.19 npm error gyp http 200 https://nodejs.org/download/release/v20.19.6/SHASUMS256.txt
+40.19 npm error gyp info spawn /usr/bin/python3
+40.19 npm error gyp info spawn args [
+40.19 npm error gyp info spawn args '/usr/local/lib/node_modules/npm/node_modules/node-gyp/gyp/gyp_main.py',
+40.19 npm error gyp info spawn args 'binding.gyp',
+40.19 npm error gyp info spawn args '-f',
+40.19 npm error gyp info spawn args 'make',
+40.19 npm error gyp info spawn args '-I',
+40.19 npm error gyp info spawn args '/app/node_modules/canvas/build/config.gypi',
+40.19 npm error gyp info spawn args '-I',
+40.19 npm error gyp info spawn args '/usr/local/lib/node_modules/npm/node_modules/node-gyp/addon.gypi',
+40.19 npm error gyp info spawn args '-I',
+40.19 npm error gyp info spawn args '/root/.cache/node-gyp/20.19.6/include/node/common.gypi',
+40.19 npm error gyp info spawn args '-Dlibrary=shared_library',
+40.19 npm error gyp info spawn args '-Dvisibility=default',
+40.19 npm error gyp info spawn args '-Dnode_root_dir=/root/.cache/node-gyp/20.19.6',
+40.19 npm error gyp info spawn args '-Dnode_gyp_dir=/usr/local/lib/node_modules/npm/node_modules/node-gyp',
+40.19 npm error gyp info spawn args '-Dnode_lib_file=/root/.cache/node-gyp/20.19.6/<(target_arch)/node.lib',
+40.19 npm error gyp info spawn args '-Dmodule_root_dir=/app/node_modules/canvas',
+40.19 npm error gyp info spawn args '-Dnode_engine=v8',
+40.19 npm error gyp info spawn args '--depth=.',
+40.19 npm error gyp info spawn args '--no-parallel',
+40.19 npm error gyp info spawn args '--generator-output',
+40.19 npm error gyp info spawn args 'build',
+40.19 npm error gyp info spawn args '-Goutput_dir=.'
+40.19 npm error gyp info spawn args ]
+40.19 npm error gyp info spawn make
+40.19 npm error gyp info spawn args [ 'BUILDTYPE=Release', '-C', 'build' ]
+40.19 npm error In file included from /root/.cache/node-gyp/20.19.6/include/node/node.h:76,
+40.19 npm error                  from /root/.cache/node-gyp/20.19.6/include/node/node_buffer.h:25,
+40.19 npm error                  from ../src/Canvas.cc:23:
+40.19 npm error /root/.cache/node-gyp/20.19.6/include/node/node_version.h:103:9: warning: 'NAPI_VERSION' redefined
+40.19 npm error   103 | #define NAPI_VERSION 9
+40.19 npm error       |         ^~~~~~~~~~~~
+40.19 npm error In file included from /root/.cache/node-gyp/20.19.6/include/node/node_api.h:12,
+40.19 npm error                  from ../../node-addon-api/napi.h:13,
+40.19 npm error                  from ../src/backend/Backend.h:6,
+40.19 npm error                  from ../src/Canvas.h:7,
+40.19 npm error                  from ../src/Canvas.cc:3:
+40.19 npm error /root/.cache/node-gyp/20.19.6/include/node/js_native_api.h:20:9: note: this is the location of the previous definition
+40.19 npm error    20 | #define NAPI_VERSION 8
+40.19 npm error       |         ^~~~~~~~~~~~
+40.19 npm error In file included from /root/.cache/node-gyp/20.19.6/include/node/node.h:76,
+40.19 npm error                  from /root/.cache/node-gyp/20.19.6/include/node/node_buffer.h:25,
+40.19 npm error                  from ../src/Image.cc:11:
+40.19 npm error /root/.cache/node-gyp/20.19.6/include/node/node_version.h:103:9: warning: 'NAPI_VERSION' redefined
+40.19 npm error   103 | #define NAPI_VERSION 9
+40.19 npm error       |         ^~~~~~~~~~~~
+40.19 npm error In file included from /root/.cache/node-gyp/20.19.6/include/node/node_api.h:12,
+40.19 npm error                  from ../../node-addon-api/napi.h:13,
+40.19 npm error                  from ../src/CanvasError.h:4,
+40.19 npm error                  from ../src/Image.h:6,
+40.19 npm error                  from ../src/Image.cc:3:
+40.19 npm error /root/.cache/node-gyp/20.19.6/include/node/js_native_api.h:20:9: note: this is the location of the previous definition
+40.19 npm error    20 | #define NAPI_VERSION 8
+40.19 npm error       |         ^~~~~~~~~~~~
+40.19 npm error In file included from ../src/FontParser.h:9,
+40.19 npm error                  from ../src/FontParser.cc:9:
+40.19 npm error ../src/CharData.h:7:20: error: 'uint8_t' does not name a type
+40.19 npm error     7 |   static constexpr uint8_t Whitespace = 0x1;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:1:1: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error   +++ |+#include <cstdint>
+40.19 npm error     1 | // This is used for classifying characters according to the definition of tokens
+40.19 npm error ../src/CharData.h:8:20: error: 'uint8_t' does not name a type
+40.19 npm error     8 |   static constexpr uint8_t Newline = 0x2;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:8:20: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/CharData.h:9:20: error: 'uint8_t' does not name a type
+40.19 npm error     9 |   static constexpr uint8_t Hex = 0x4;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:9:20: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/CharData.h:10:20: error: 'uint8_t' does not name a type
+40.19 npm error    10 |   static constexpr uint8_t Nmstart = 0x8;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:10:20: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/CharData.h:11:20: error: 'uint8_t' does not name a type
+40.19 npm error    11 |   static constexpr uint8_t Nmchar = 0x10;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:11:20: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/CharData.h:12:20: error: 'uint8_t' does not name a type
+40.19 npm error    12 |   static constexpr uint8_t Sign = 0x20;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:12:20: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/CharData.h:13:20: error: 'uint8_t' does not name a type
+40.19 npm error    13 |   static constexpr uint8_t Digit = 0x40;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:13:20: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/CharData.h:14:20: error: 'uint8_t' does not name a type
+
+40.19 npm error    14 |   static constexpr uint8_t NumStart = 0x80;
+40.19 npm error       |                    ^~~~~~~
+40.19 npm error ../src/CharData.h:14:20: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/CharData.h:19:17: error: 'uint8_t' does not name a type
+40.19 npm error    19 | constexpr const uint8_t charData[256] = {
+40.19 npm error       |                 ^~~~~~~
+40.19 npm error ../src/CharData.h:19:17: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.h:25:3: error: 'uint16_t' does not name a type
+40.19 npm error    25 |   uint16_t fontWeight{400};
+40.19 npm error       |   ^~~~~~~~
+40.19 npm error ../src/FontParser.h:10:1: note: 'uint16_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error     9 | #include "CharData.h"
+40.19 npm error   +++ |+#include <cstdint>
+40.19 npm error    10 |
+40.19 npm error ../src/FontParser.h:68:28: error: 'uint32_t' has not been declared
+40.19 npm error    68 |     std::string utf8Encode(uint32_t codepoint);
+40.19 npm error       |                            ^~~~~~~~
+40.19 npm error ../src/FontParser.h:68:28: note: 'uint32_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.h:83:5: error: 'uint32_t' does not name a type
+40.19 npm error    83 |     uint32_t parseUnicode();
+40.19 npm error       |     ^~~~~~~~
+40.19 npm error ../src/FontParser.h:83:5: note: 'uint32_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.h: In member function 'bool Tokenizer::isWhitespace(char) const':
+40.19 npm error ../src/FontParser.h:70:14: error: 'charData' was not declared in this scope; did you mean 'CharData'?
+40.19 npm error    70 |       return charData[static_cast<uint8_t>(c)] & CharData::Whitespace;
+40.19 npm error       |              ^~~~~~~~
+40.19 npm error       |              CharData
+40.19 npm error ../src/FontParser.h:70:35: error: 'uint8_t' does not name a type
+40.19 npm error    70 |       return charData[static_cast<uint8_t>(c)] & CharData::Whitespace;
+40.19 npm error       |                                   ^~~~~~~
+40.19 npm error ../src/FontParser.h:70:35: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.h:70:60: error: 'Whitespace' is not a member of 'CharData'
+40.19 npm error    70 |       return charData[static_cast<uint8_t>(c)] & CharData::Whitespace;
+40.19 npm error       |                                                            ^~~~~~~~~~
+40.19 npm error ../src/FontParser.h: In member function 'bool Tokenizer::isNewline(char) const':
+40.19 npm error ../src/FontParser.h:73:14: error: 'charData' was not declared in this scope; did you mean 'CharData'?
+40.19 npm error    73 |       return charData[static_cast<uint8_t>(c)] & CharData::Newline;
+40.19 npm error       |              ^~~~~~~~
+40.19 npm error       |              CharData
+40.19 npm error ../src/FontParser.h:73:35: error: 'uint8_t' does not name a type
+40.19 npm error    73 |       return charData[static_cast<uint8_t>(c)] & CharData::Newline;
+40.19 npm error       |                                   ^~~~~~~
+40.19 npm error ../src/FontParser.h:73:35: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.h:73:60: error: 'Newline' is not a member of 'CharData'
+40.19 npm error    73 |       return charData[static_cast<uint8_t>(c)] & CharData::Newline;
+40.19 npm error       |                                                            ^~~~~~~
+40.19 npm error ../src/FontParser.h: At global scope:
+40.19 npm error ../src/FontParser.h:93:50: error: 'uint16_t' was not declared in this scope
+40.19 npm error    93 |     static const std::unordered_map<std::string, uint16_t> weightMap;
+40.19 npm error       |                                                  ^~~~~~~~
+40.19 npm error ../src/FontParser.h:93:50: note: 'uint16_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.h:93:58: error: template argument 2 is invalid
+40.19 npm error    93 |     static const std::unordered_map<std::string, uint16_t> weightMap;
+40.19 npm error       |                                                          ^
+40.19 npm error ../src/FontParser.h:93:58: error: template argument 5 is invalid
+40.19 npm error ../src/FontParser.cc:36:1: error: 'std::string Tokenizer::utf8Encode' is not a static data member of 'class Tokenizer'
+40.19 npm error    36 | Tokenizer::utf8Encode(uint32_t codepoint) {
+40.19 npm error       | ^~~~~~~~~
+40.19 npm error ../src/FontParser.cc:36:23: error: 'uint32_t' was not declared in this scope
+40.19 npm error    36 | Tokenizer::utf8Encode(uint32_t codepoint) {
+40.19 npm error       |                       ^~~~~~~~
+40.19 npm error ../src/FontParser.cc:10:1: note: 'uint32_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error     9 | #include "FontParser.h"
+40.19 npm error   +++ |+#include <cstdint>
+40.19 npm error    10 | #include "CharData.h"
+40.19 npm error ../src/FontParser.cc:36:43: error: expected ',' or ';' before '{' token
+40.19 npm error    36 | Tokenizer::utf8Encode(uint32_t codepoint) {
+40.19 npm error       |                                           ^
+40.19 npm error ../src/FontParser.cc: In member function 'Token Tokenizer::parseNumber()':
+40.19 npm error ../src/FontParser.cc:87:5: error: 'uint8_t' was not declared in this scope
+40.19 npm error    87 |     uint8_t flags = charData[static_cast<uint8_t>(c)];
+40.19 npm error       |     ^~~~~~~
+40.19 npm error ../src/FontParser.cc:87:5: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc:91:13: error: 'flags' was not declared in this scope
+40.19 npm error    91 |         if (flags & CharData::Sign) {
+40.19 npm error       |             ^~~~~
+40.19 npm error ../src/FontParser.cc:91:31: error: 'Sign' is not a member of 'CharData'
+40.19 npm error    91 |         if (flags & CharData::Sign) {
+40.19 npm error       |                               ^~~~
+40.19 npm error ../src/FontParser.cc:94:38: error: 'Digit' is not a member of 'CharData'
+40.19 npm error    94 |         } else if (flags & CharData::Digit) {
+40.19 npm error       |                                      ^~~~~
+40.19 npm error ../src/FontParser.cc:107:13: error: 'flags' was not declared in this scope
+40.19 npm error   107 |         if (flags & CharData::Digit) {
+40.19 npm error       |             ^~~~~
+40.19 npm error ../src/FontParser.cc:107:31: error: 'Digit' is not a member of 'CharData'
+40.19 npm error   107 |         if (flags & CharData::Digit) {
+40.19 npm error       |                               ^~~~~
+40.19 npm error ../src/FontParser.cc:120:13: error: 'flags' was not declared in this scope
+40.19 npm error   120 |         if (flags & CharData::Digit) {
+40.19 npm error       |             ^~~~~
+40.19 npm error ../src/FontParser.cc:120:31: error: 'Digit' is not a member of 'CharData'
+40.19 npm error   120 |         if (flags & CharData::Digit) {
+40.19 npm error       |                               ^~~~~
+40.19 npm error ../src/FontParser.cc:136:13: error: 'flags' was not declared in this scope
+40.19 npm error   136 |         if (flags & CharData::Digit) {
+40.19 npm error       |             ^~~~~
+40.19 npm error ../src/FontParser.cc:136:31: error: 'Digit' is not a member of 'CharData'
+40.19 npm error   136 |         if (flags & CharData::Digit) {
+40.19 npm error       |                               ^~~~~
+40.19 npm error ../src/FontParser.cc:146:13: error: 'flags' was not declared in this scope
+40.19 npm error   146 |         if (flags & CharData::Sign) {
+40.19 npm error       |             ^~~~~
+40.19 npm error ../src/FontParser.cc:146:31: error: 'Sign' is not a member of 'CharData'
+40.19 npm error   146 |         if (flags & CharData::Sign) {
+40.19 npm error       |                               ^~~~
+40.19 npm error ../src/FontParser.cc:149:38: error: 'Digit' is not a member of 'CharData'
+40.19 npm error   149 |         } else if (flags & CharData::Digit) {
+40.19 npm error       |                                      ^~~~~
+40.19 npm error ../src/FontParser.cc:161:13: error: 'flags' was not declared in this scope
+40.19 npm error   161 |         if (flags & CharData::Digit) {
+40.19 npm error       |             ^~~~~
+40.19 npm error ../src/FontParser.cc:161:31: error: 'Digit' is not a member of 'CharData'
+40.19 npm error   161 |         if (flags & CharData::Digit) {
+40.19 npm error       |                               ^~~~~
+40.19 npm error ../src/FontParser.cc:173:13: error: 'flags' was not declared in this scope
+40.19 npm error   173 |         if (flags & CharData::Digit) {
+40.19 npm error       |             ^~~~~
+40.19 npm error ../src/FontParser.cc:173:31: error: 'Digit' is not a member of 'CharData'
+40.19 npm error   173 |         if (flags & CharData::Digit) {
+40.19 npm error       |                               ^~~~~
+40.19 npm error ../src/FontParser.cc: In member function 'Token Tokenizer::parseIdentifier()':
+40.19 npm error ../src/FontParser.cc:200:26: error: 'Nmstart' is not a member of 'CharData'
+40.19 npm error   200 |   auto flags = CharData::Nmstart;
+40.19 npm error       |                          ^~~~~~~
+40.19 npm error ../src/FontParser.cc:212:25: error: 'Nmchar' is not a member of 'CharData'
+40.19 npm error   212 |       flags = CharData::Nmchar;
+40.19 npm error       |                         ^~~~~~
+40.19 npm error ../src/FontParser.cc:213:16: error: 'charData' was not declared in this scope; did you mean 'CharData'?
+40.19 npm error   213 |     } else if (charData[static_cast<uint8_t>(c)] & flags) {
+40.19 npm error       |                ^~~~~~~~
+40.19 npm error       |                CharData
+40.19 npm error ../src/FontParser.cc:213:37: error: 'uint8_t' does not name a type
+40.19 npm error   213 |     } else if (charData[static_cast<uint8_t>(c)] & flags) {
+40.19 npm error       |                                     ^~~~~~~
+40.19 npm error ../src/FontParser.cc:213:37: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc:215:25: error: 'Nmchar' is not a member of 'CharData'
+40.19 npm error   215 |       flags = CharData::Nmchar;
+40.19 npm error       |                         ^~~~~~
+
+40.19 npm error ../src/FontParser.cc: At global scope:
+40.19 npm error ../src/FontParser.cc:224:1: error: 'uint32_t' does not name a type
+40.19 npm error   224 | uint32_t
+40.19 npm error       | ^~~~~~~~
+40.19 npm error ../src/FontParser.cc:224:1: note: 'uint32_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc: In member function 'bool Tokenizer::parseEscape(std::string&)':
+40.19 npm error ../src/FontParser.cc:263:16: error: 'charData' was not declared in this scope; did you mean 'CharData'?
+40.19 npm error   263 |   auto flags = charData[static_cast<uint8_t>(c)];
+40.19 npm error       |                ^~~~~~~~
+40.19 npm error       |                CharData
+40.19 npm error ../src/FontParser.cc:263:37: error: 'uint8_t' does not name a type
+40.19 npm error   263 |   auto flags = charData[static_cast<uint8_t>(c)];
+40.19 npm error       |                                     ^~~~~~~
+40.19 npm error ../src/FontParser.cc:263:37: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc:265:25: error: 'Hex' is not a member of 'CharData'
+40.19 npm error   265 |   if (flags & CharData::Hex) {
+40.19 npm error       |                         ^~~
+40.19 npm error ../src/FontParser.cc:266:23: error: 'parseUnicode' was not declared in this scope
+40.19 npm error   266 |     str += utf8Encode(parseUnicode());
+40.19 npm error       |                       ^~~~~~~~~~~~
+40.19 npm error ../src/FontParser.cc:268:34: error: 'Newline' is not a member of 'CharData'
+40.19 npm error   268 |   } else if (!(flags & CharData::Newline) && !(flags & CharData::Hex)) {
+40.19 npm error       |                                  ^~~~~~~
+40.19 npm error ../src/FontParser.cc:268:66: error: 'Hex' is not a member of 'CharData'
+40.19 npm error   268 |   } else if (!(flags & CharData::Newline) && !(flags & CharData::Hex)) {
+40.19 npm error       |                                                                  ^~~
+40.19 npm error ../src/FontParser.cc: In member function 'Token Tokenizer::nextToken()':
+40.19 npm error ../src/FontParser.cc:318:16: error: 'charData' was not declared in this scope; did you mean 'CharData'?
+40.19 npm error   318 |   auto flags = charData[static_cast<uint8_t>(c)];
+40.19 npm error       |                ^~~~~~~~
+40.19 npm error       |                CharData
+40.19 npm error ../src/FontParser.cc:318:37: error: 'uint8_t' does not name a type
+40.19 npm error   318 |   auto flags = charData[static_cast<uint8_t>(c)];
+40.19 npm error       |                                     ^~~~~~~
+40.19 npm error ../src/FontParser.cc:318:37: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc:328:25: error: 'NumStart' is not a member of 'CharData'
+40.19 npm error   328 |   if (flags & CharData::NumStart) {
+40.19 npm error       |                         ^~~~~~~~
+40.19 npm error ../src/FontParser.cc:333:25: error: 'Nmstart' is not a member of 'CharData'
+40.19 npm error   333 |   if (flags & CharData::Nmstart) {
+40.19 npm error       |                         ^~~~~~~
+40.19 npm error ../src/FontParser.cc: At global scope:
+40.19 npm error ../src/FontParser.cc:361:39: error: 'uint16_t' was not declared in this scope
+40.19 npm error   361 | const std::unordered_map<std::string, uint16_t> FontParser::weightMap = {
+40.19 npm error       |                                       ^~~~~~~~
+40.19 npm error ../src/FontParser.cc:361:39: note: 'uint16_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc:361:47: error: template argument 2 is invalid
+40.19 npm error   361 | const std::unordered_map<std::string, uint16_t> FontParser::weightMap = {
+40.19 npm error       |                                               ^
+40.19 npm error ../src/FontParser.cc:361:47: error: template argument 5 is invalid
+40.19 npm error ../src/FontParser.cc:361:49: error: scalar object 'FontParser::weightMap' requires one element in initializer
+40.19 npm error   361 | const std::unordered_map<std::string, uint16_t> FontParser::weightMap = {
+40.19 npm error       |                                                 ^~~~~~~~~~
+40.19 npm error ../src/FontParser.cc: In member function 'bool FontParser::parseFontWeight(FontProperties&)':
+40.19 npm error ../src/FontParser.cc:446:11: error: 'struct FontProperties' has no member named 'fontWeight'
+40.19 npm error   446 |     props.fontWeight = static_cast<uint16_t>(weight);
+40.19 npm error       |           ^~~~~~~~~~
+40.19 npm error ../src/FontParser.cc:446:36: error: 'uint16_t' does not name a type
+40.19 npm error   446 |     props.fontWeight = static_cast<uint16_t>(weight);
+40.19 npm error       |                                    ^~~~~~~~
+40.19 npm error ../src/FontParser.cc:446:36: note: 'uint16_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc:453:13: error: 'struct FontProperties' has no member named 'fontWeight'
+40.19 npm error   453 |       props.fontWeight = it->second;
+40.19 npm error       |             ^~~~~~~~~~
+40.19 npm error ../src/FontParser.cc: In member function 'FontProperties FontParser::parseFont()':
+40.19 npm error ../src/FontParser.cc:572:3: error: 'uint8_t' was not declared in this scope
+40.19 npm error   572 |   uint8_t state = 0b111;
+40.19 npm error       |   ^~~~~~~
+40.19 npm error ../src/FontParser.cc:572:3: note: 'uint8_t' is defined in header '<cstdint>'; this is probably fixable by adding '#include <cstdint>'
+40.19 npm error ../src/FontParser.cc:577:10: error: 'state' was not declared in this scope
+40.19 npm error   577 |     if ((state & 0b001) && parseFontStyle(props)) {
+40.19 npm error       |          ^~~~~
+40.19 npm error ../src/FontParser.cc:582:10: error: 'state' was not declared in this scope
+40.19 npm error   582 |     if ((state & 0b010) && parseFontVariant(props)) {
+40.19 npm error       |          ^~~~~
+40.19 npm error ../src/FontParser.cc:587:10: error: 'state' was not declared in this scope
+40.19 npm error   587 |     if ((state & 0b100) && parseFontWeight(props)) {
+40.19 npm error       |          ^~~~~
+40.19 npm error make: *** [canvas.target.mk:154: Release/obj.target/canvas/src/FontParser.o] Error 1
+40.19 npm error gyp ERR! build error
+40.19 npm error gyp ERR! stack Error: `make` failed with exit code: 2
+40.19 npm error gyp ERR! stack at ChildProcess.<anonymous> (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/build.js:209:23)
+40.19 npm error gyp ERR! System Linux 6.10.14-linuxkit
+40.19 npm error gyp ERR! command "/usr/local/bin/node" "/usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js" "rebuild"
+40.19 npm error gyp ERR! cwd /app/node_modules/canvas
+40.19 npm error gyp ERR! node -v v20.19.6
+40.19 npm error gyp ERR! node-gyp -v v10.1.0
+40.19 npm error gyp ERR! not ok
+40.19 npm notice
+40.19 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+40.19 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+40.19 npm notice To update run: npm install -g npm@11.7.0
+40.19 npm notice
+40.19 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-12-18T11_22_35_948Z-debug-0.log
+------
+Dockerfile:18
+
+--------------------
+
+  16 |
+
+  17 |     # Install all dependencies
+
+  18 | >>> RUN npm ci
+
+  19 |
+
+  20 |     # ============================================
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm ci" did not complete successfully: exit code: 1

@@ -1,13 +1,23 @@
 # KITA Poll - Docker Configuration
 # Multi-stage build for production deployment
+# Uses Debian-based images for better native module compatibility (canvas, puppeteer)
 
 # ============================================
 # Stage 1: Dependencies
 # ============================================
-FROM node:20-alpine AS deps
+FROM node:20-slim AS deps
 
 # Install build dependencies for native modules (canvas, pdfkit)
-RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    libpixman-1-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -20,7 +30,7 @@ RUN npm ci
 # ============================================
 # Stage 2: Builder
 # ============================================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -45,24 +55,33 @@ RUN npm run build
 # ============================================
 # Stage 3: Production
 # ============================================
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
 # Install runtime dependencies for:
-# - canvas/pdfkit: cairo pango jpeg giflib pixman
-# - Puppeteer/Chromium: chromium nss freetype harfbuzz ttf-freefont
+# - canvas/pdfkit: libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 libpixman-1-0
+# - Puppeteer/Chromium: chromium and dependencies
 # - Database: postgresql-client (for pg_isready health checks)
-RUN apk add --no-cache \
-    cairo pango jpeg giflib pixman \
-    chromium nss freetype harfbuzz ttf-freefont \
-    postgresql-client
+# - Utilities: wget for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libjpeg62-turbo \
+    libgif7 \
+    libpixman-1-0 \
+    chromium \
+    fonts-freefont-ttf \
+    postgresql-client \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 # Configure Puppeteer to use system Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN groupadd -g 1001 nodejs && \
+    useradd -u 1001 -g nodejs -m nodejs
 
 WORKDIR /app
 

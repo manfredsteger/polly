@@ -33,7 +33,11 @@ test.describe('Navigation', () => {
   test('sollte Login-Seite anzeigen können', async ({ page }) => {
     await page.goto('/login');
     
-    await expect(page.locator('input[type="email"], input[name="email"], [data-testid*="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"], input[name="password"], [data-testid*="password"]')).toBeVisible();
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+    
+    // The login form uses data-testid="input-login-email" for the username/email field
+    await expect(page.locator('[data-testid="input-login-email"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="input-login-password"]')).toBeVisible({ timeout: 10000 });
   });
 });

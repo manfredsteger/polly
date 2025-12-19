@@ -2245,6 +2245,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== SESSION TIMEOUT SETTINGS API ==============
+  
+  // Get session timeout settings (admin only)
+  v1Router.get('/admin/session-timeout', requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getSessionTimeoutSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching session timeout settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+  
+  // Update session timeout settings (admin only)
+  v1Router.put('/admin/session-timeout', requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.setSessionTimeoutSettings(req.body);
+      res.json({ success: true, settings });
+    } catch (error) {
+      console.error('Error updating session timeout settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
   // ============== DEPROVISION API (Kafka/Keycloak Integration) ==============
   
   // Get deprovision settings (admin only)

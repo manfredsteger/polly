@@ -29,6 +29,7 @@ interface SurveyFormData {
   options: SurveyOption[];
   allowVoteEdit: boolean;
   resultsPublic: boolean;
+  allowMaybe: boolean;
   expiresAt: string | null;
 }
 
@@ -45,6 +46,7 @@ export default function CreateSurvey() {
   const [expiryReminderHours, setExpiryReminderHours] = useState(24);
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [allowMaybe, setAllowMaybe] = useState(true);
   const [options, setOptions] = useState<SurveyOption[]>([
     { text: "", order: 0 },
     { text: "", order: 1 },
@@ -67,6 +69,7 @@ export default function CreateSurvey() {
       setCreatorEmail(stored.data.creatorEmail || "");
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setAllowMaybe(stored.data.allowMaybe ?? true);
       if (stored.data.options && stored.data.options.length >= 2) {
         setOptions(stored.data.options);
       }
@@ -170,7 +173,7 @@ export default function CreateSurvey() {
       if (requiresLogin) {
         // Save form data before redirect
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, resultsPublic, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-survey'
         );
         
@@ -259,6 +262,7 @@ export default function CreateSurvey() {
       expiryReminderHours: expiresAt && enableExpiryReminder ? expiryReminderHours : undefined,
       allowVoteEdit,
       resultsPublic,
+      allowMaybe,
       options: validOptions.map((option, index) => {
         const opt: any = {
           text: option.text.trim(),
@@ -427,6 +431,20 @@ export default function CreateSurvey() {
                 checked={resultsPublic}
                 onCheckedChange={setResultsPublic}
                 data-testid="switch-results-public"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="space-y-0.5">
+                <Label>"Vielleicht"-Option anbieten</Label>
+                <p className="text-sm text-muted-foreground">
+                  Können Teilnehmende mit "Vielleicht" antworten?
+                </p>
+              </div>
+              <Switch
+                checked={allowMaybe}
+                onCheckedChange={setAllowMaybe}
+                data-testid="switch-allow-maybe"
               />
             </div>
           </CardContent>

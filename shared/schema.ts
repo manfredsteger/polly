@@ -35,6 +35,7 @@ export const polls = pgTable("polls", {
   allowMultipleSlots: boolean("allow_multiple_slots").default(true).notNull(), // for organization polls: can one person sign up for multiple slots?
   allowVoteEdit: boolean("allow_vote_edit").default(false).notNull(), // allow voters to edit their votes after submission
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
+  allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at"),
   // Notification settings per poll
@@ -380,6 +381,17 @@ export const notificationSettingsSchema = z.object({
 });
 
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+
+// Session Timeout Settings Schema (role-based session expiry)
+export const sessionTimeoutSettingsSchema = z.object({
+  enabled: z.boolean().default(false), // Master switch for session timeout
+  adminTimeoutMinutes: z.number().min(5).max(10080).default(480), // 8 hours default for admins
+  managerTimeoutMinutes: z.number().min(5).max(10080).default(240), // 4 hours default for managers
+  userTimeoutMinutes: z.number().min(5).max(10080).default(60), // 1 hour default for users
+  showWarningMinutes: z.number().min(1).max(30).default(5), // Show warning X minutes before logout
+});
+
+export type SessionTimeoutSettings = z.infer<typeof sessionTimeoutSettingsSchema>;
 
 export const customizationSettingsSchema = z.object({
   theme: themeSettingsSchema.default({}),

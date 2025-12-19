@@ -122,14 +122,14 @@ export default function Admin() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Initial Admin Warning Banner */}
       {user.isInitialAdmin && (
-        <Alert variant="destructive" className="mb-6 border-2 border-destructive" data-testid="initial-admin-warning">
-          <ShieldAlert className="h-5 w-5" />
-          <AlertTitle className="font-bold">Standard-Administratorkonto</AlertTitle>
-          <AlertDescription className="mt-2">
+        <Alert variant="destructive" className="mb-6 border-2 border-destructive bg-red-50 dark:bg-red-950/50" data-testid="initial-admin-warning">
+          <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400" />
+          <AlertTitle className="font-bold text-red-800 dark:text-red-200">Standard-Administratorkonto</AlertTitle>
+          <AlertDescription className="mt-2 text-red-700 dark:text-red-300">
             <p className="mb-2">
               Sie sind mit dem Standard-Administratorkonto angemeldet. Dieses Konto ist nur für die Ersteinrichtung gedacht.
             </p>
-            <p className="font-semibold">
+            <p className="font-semibold text-red-800 dark:text-red-200">
               Bitte erstellen Sie ein neues Administrator-Konto unter "Benutzer" und löschen Sie anschließend dieses Standard-Konto.
             </p>
           </AlertDescription>

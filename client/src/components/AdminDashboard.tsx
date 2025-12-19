@@ -248,7 +248,7 @@ interface AdminDashboardProps {
   userRole: 'admin' | 'manager';
 }
 
-type SettingsPanel = 'oidc' | 'database' | 'email' | 'security' | 'matrix' | 'roles' | 'notifications' | 'pentest' | 'tests' | null;
+type SettingsPanel = 'oidc' | 'database' | 'email' | 'security' | 'matrix' | 'roles' | 'notifications' | 'session-timeout' | 'pentest' | 'tests' | null;
 
 export function AdminDashboard({ stats, users, polls, settings, userRole }: AdminDashboardProps) {
   const { toast } = useToast();
@@ -1757,6 +1757,16 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 onClick={() => setSelectedSettingsPanel('roles')}
                 testId="settings-roles"
               />
+              
+              <SettingCard
+                title="Session-Timeout"
+                description="Automatische Abmeldung nach Inaktivität"
+                icon={<Timer className="w-6 h-6" />}
+                status="Konfigurierbar"
+                statusType="neutral"
+                onClick={() => setSelectedSettingsPanel('session-timeout')}
+                testId="settings-session-timeout"
+              />
             </div>
             
             {/* Integrationen Section */}
@@ -1823,6 +1833,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         {/* Notification Settings Panel */}
         {activeTab === "settings" && selectedSettingsPanel === 'notifications' && (
           <NotificationSettingsPanel onBack={() => setSelectedSettingsPanel(null)} />
+        )}
+
+        {/* Session Timeout Settings Panel */}
+        {activeTab === "settings" && selectedSettingsPanel === 'session-timeout' && (
+          <SessionTimeoutPanel onBack={() => setSelectedSettingsPanel(null)} />
         )}
 
         {/* Pentest-Tools Panel */}
@@ -4410,6 +4425,278 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
             onClick={handleSave}
             disabled={saveMutation.isPending}
             data-testid="button-save-notifications"
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Speichern...
+              </>
+            ) : (
+              'Einstellungen speichern'
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Session Timeout Settings Panel
+interface SessionTimeoutSettings {
+  enabled: boolean;
+  adminTimeoutMinutes: number;
+  managerTimeoutMinutes: number;
+  userTimeoutMinutes: number;
+  showWarningMinutes: number;
+}
+
+function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [settings, setSettings] = useState<SessionTimeoutSettings>({
+    enabled: false,
+    adminTimeoutMinutes: 480,
+    managerTimeoutMinutes: 240,
+    userTimeoutMinutes: 60,
+    showWarningMinutes: 5,
+  });
+
+  const { data: timeoutData, isLoading } = useQuery<SessionTimeoutSettings>({
+    queryKey: ['/api/v1/admin/session-timeout'],
+  });
+
+  useEffect(() => {
+    if (timeoutData) {
+      setSettings(timeoutData);
+    }
+  }, [timeoutData]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (newSettings: SessionTimeoutSettings) => {
+      const response = await apiRequest('PUT', '/api/v1/admin/session-timeout', newSettings);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Gespeichert", description: "Session-Timeout-Einstellungen wurden gespeichert." });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/session-timeout'] });
+    },
+    onError: () => {
+      toast({ title: "Fehler", description: "Einstellungen konnten nicht gespeichert werden.", variant: "destructive" });
+    }
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate(settings);
+  };
+
+  const formatDuration = (minutes: number) => {
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours} Stunden`;
+    }
+    return `${minutes} Minuten`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Zurück zu Einstellungen
+        </Button>
+        <span className="font-medium text-foreground">Session-Timeout</span>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-foreground">Automatische Session-Abmeldung</h2>
+          <p className="text-muted-foreground">Konfigurieren Sie rollenbasierte Timeout-Zeiten für automatische Abmeldung</p>
+        </div>
+
+        {/* Master Switch */}
+        <Card className="kita-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Timer className="w-5 h-5" />
+              Session-Timeout
+            </CardTitle>
+            <CardDescription>
+              Benutzer werden nach Inaktivität automatisch abgemeldet
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Session-Timeout aktiviert</Label>
+                <p className="text-sm text-muted-foreground">Automatische Abmeldung nach Inaktivität aktivieren</p>
+              </div>
+              <Switch
+                checked={settings.enabled}
+                onCheckedChange={(v) => setSettings({ ...settings, enabled: v })}
+                data-testid="switch-session-timeout-enabled"
+              />
+            </div>
+            
+            {!settings.enabled && (
+              <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground">
+                Bei deaktiviertem Session-Timeout bleiben Benutzer bis zum manuellen Logout oder Cookie-Ablauf (24 Stunden) angemeldet.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Role-based Timeouts */}
+        <Card className="kita-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Rollenbasierte Timeouts
+            </CardTitle>
+            <CardDescription>
+              Unterschiedliche Timeout-Zeiten je nach Benutzerrolle
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-red-100 text-red-800">Admin</Badge>
+                  <span className="text-sm text-muted-foreground">Längste Session für Administratoren</span>
+                </div>
+                <span className="text-sm font-medium">{formatDuration(settings.adminTimeoutMinutes)}</span>
+              </div>
+              <Input
+                type="range"
+                min={30}
+                max={720}
+                step={30}
+                value={settings.adminTimeoutMinutes}
+                onChange={(e) => setSettings({ ...settings, adminTimeoutMinutes: parseInt(e.target.value) })}
+                disabled={!settings.enabled}
+                className="w-full"
+                data-testid="slider-admin-timeout"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>30 Min</span>
+                <span>12 Stunden</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-800">Manager</Badge>
+                  <span className="text-sm text-muted-foreground">Mittlere Session für Manager</span>
+                </div>
+                <span className="text-sm font-medium">{formatDuration(settings.managerTimeoutMinutes)}</span>
+              </div>
+              <Input
+                type="range"
+                min={15}
+                max={480}
+                step={15}
+                value={settings.managerTimeoutMinutes}
+                onChange={(e) => setSettings({ ...settings, managerTimeoutMinutes: parseInt(e.target.value) })}
+                disabled={!settings.enabled}
+                className="w-full"
+                data-testid="slider-manager-timeout"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>15 Min</span>
+                <span>8 Stunden</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-gray-100 text-gray-800">User</Badge>
+                  <span className="text-sm text-muted-foreground">Kürzeste Session für normale Benutzer</span>
+                </div>
+                <span className="text-sm font-medium">{formatDuration(settings.userTimeoutMinutes)}</span>
+              </div>
+              <Input
+                type="range"
+                min={5}
+                max={240}
+                step={5}
+                value={settings.userTimeoutMinutes}
+                onChange={(e) => setSettings({ ...settings, userTimeoutMinutes: parseInt(e.target.value) })}
+                disabled={!settings.enabled}
+                className="w-full"
+                data-testid="slider-user-timeout"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>5 Min</span>
+                <span>4 Stunden</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Warning Settings */}
+        <Card className="kita-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Warnhinweis
+            </CardTitle>
+            <CardDescription>
+              Benutzer vor der automatischen Abmeldung warnen
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Warnung anzeigen (Minuten vor Abmeldung)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={settings.showWarningMinutes}
+                onChange={(e) => setSettings({ ...settings, showWarningMinutes: parseInt(e.target.value) || 5 })}
+                disabled={!settings.enabled}
+                className="w-32"
+                data-testid="input-warning-minutes"
+              />
+              <p className="text-sm text-muted-foreground">
+                Benutzer sehen {settings.showWarningMinutes} Minute(n) vor der Abmeldung einen Warnhinweis mit der Möglichkeit, die Session zu verlängern.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Info Box */}
+        <Card className="kita-card border-dashed">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="font-medium">Hinweis zur Implementierung</p>
+                <p className="text-sm text-muted-foreground">
+                  Die Session-Timeout-Funktion überprüft die letzte Aktivität des Benutzers und meldet ihn nach der konfigurierten Inaktivitätszeit automatisch ab. 
+                  Aktivitäten wie Mausklicks, Tastatureingaben und Seitenwechsel verlängern die Session.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            data-testid="button-save-session-timeout"
           >
             {saveMutation.isPending ? (
               <>

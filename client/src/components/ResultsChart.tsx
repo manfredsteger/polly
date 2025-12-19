@@ -128,10 +128,13 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
     option: option
   }));
 
-  // Find the best option (highest score) - only for non-organization polls
+  // Find the best option(s) (highest score) - only for non-organization polls
   const bestOption = stats.reduce((best, current) => 
     current.score > best.score ? current : best
   );
+  // Check if there are multiple options with the same highest score (tie)
+  const tiedOptions = stats.filter(stat => stat.score === bestOption.score);
+  const isTie = tiedOptions.length > 1;
   const bestOptionData = !isOrganization ? options.find(opt => opt.id === bestOption.optionId) : null;
 
   // Group participants by their voting patterns
@@ -795,16 +798,18 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                         <td className="py-4 px-4 text-center">
                           <div className="flex flex-col items-center">
                             <Badge 
-                              variant={stat.optionId === bestOption.optionId ? "default" : "secondary"}
-                              className={stat.optionId === bestOption.optionId ? "bg-green-100 text-green-800" : ""}
+                              variant={stat.score === bestOption.score && stat.score > 0 ? "default" : "secondary"}
+                              className={stat.score === bestOption.score && stat.score > 0 ? (isTie ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800") : ""}
                             >
                               {stat.score}
-                              {stat.optionId === bestOption.optionId && (
+                              {stat.score === bestOption.score && stat.score > 0 && (
                                 <Crown className="w-3 h-3 ml-1" />
                               )}
                             </Badge>
-                            {stat.optionId === bestOption.optionId && (
-                              <span className="text-xs text-green-600 font-medium mt-1">Sieger</span>
+                            {stat.score === bestOption.score && stat.score > 0 && (
+                              <span className={`text-xs font-medium mt-1 ${isTie ? 'text-amber-600' : 'text-green-600'}`}>
+                                {isTie ? '⚖️ Unentschieden' : 'Sieger'}
+                              </span>
                             )}
                           </div>
                         </td>

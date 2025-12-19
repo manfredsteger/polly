@@ -12,7 +12,8 @@ import {
   type PollResults, type VoteStats,
   type CustomizationSettings, customizationSettingsSchema,
   type SecuritySettings, securitySettingsSchema,
-  type NotificationSettings, notificationSettingsSchema
+  type NotificationSettings, notificationSettingsSchema,
+  type SessionTimeoutSettings, sessionTimeoutSettingsSchema
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, count, isNull } from "drizzle-orm";
@@ -73,6 +74,10 @@ export interface IStorage {
   // Security settings
   getSecuritySettings(): Promise<SecuritySettings>;
   setSecuritySettings(settings: Partial<SecuritySettings>): Promise<SecuritySettings>;
+  
+  // Session timeout settings
+  getSessionTimeoutSettings(): Promise<SessionTimeoutSettings>;
+  setSessionTimeoutSettings(settings: Partial<SessionTimeoutSettings>): Promise<SessionTimeoutSettings>;
 
   // Notification settings
   getNotificationSettings(): Promise<NotificationSettings>;
@@ -691,6 +696,30 @@ export class DatabaseStorage implements IStorage {
     }
 
     return await this.getSecuritySettings();
+  }
+  
+  async getSessionTimeoutSettings(): Promise<SessionTimeoutSettings> {
+    const setting = await this.getSetting('session_timeout_settings');
+    
+    if (!setting) {
+      return sessionTimeoutSettingsSchema.parse({});
+    }
+    
+    return sessionTimeoutSettingsSchema.parse(setting.value);
+  }
+  
+  async setSessionTimeoutSettings(settings: Partial<SessionTimeoutSettings>): Promise<SessionTimeoutSettings> {
+    const current = await this.getSessionTimeoutSettings();
+    const merged = { ...current, ...settings };
+    const validated = sessionTimeoutSettingsSchema.parse(merged);
+    
+    await this.setSetting({ 
+      key: 'session_timeout_settings', 
+      value: validated,
+      description: 'Role-based session timeout settings'
+    });
+    
+    return validated;
   }
 
   async getSystemStats(): Promise<{

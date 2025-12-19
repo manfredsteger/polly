@@ -20,6 +20,7 @@ interface SimpleImageVotingProps {
   existingVotes?: Record<string, 'yes' | 'no' | 'maybe'>;
   disabled?: boolean;
   adminPreview?: boolean;
+  allowMaybe?: boolean;
 }
 
 export function SimpleImageVoting({ 
@@ -27,7 +28,8 @@ export function SimpleImageVoting({
   onVote, 
   existingVotes = {}, 
   disabled = false,
-  adminPreview = false
+  adminPreview = false,
+  allowMaybe = true
 }: SimpleImageVotingProps) {
   const [votes, setVotes] = useState<Record<string, 'yes' | 'no' | 'maybe'>>(existingVotes);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -127,16 +129,18 @@ export function SimpleImageVoting({
                         <Check className="w-4 h-4 mr-1" />
                         Ja
                       </Button>
-                      <Button
-                        className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50'}`}
-                        variant={currentVote === 'maybe' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleVoteClick(option.id, 'maybe')}
-                        disabled={disabled}
-                      >
-                        <Minus className="w-4 h-4 mr-1" />
-                        Vielleicht
-                      </Button>
+                      {allowMaybe && (
+                        <Button
+                          className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50'}`}
+                          variant={currentVote === 'maybe' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleVoteClick(option.id, 'maybe')}
+                          disabled={disabled}
+                        >
+                          <Minus className="w-4 h-4 mr-1" />
+                          Vielleicht
+                        </Button>
+                      )}
                       <Button
                         className={`flex-1 py-2 ${currentVote === 'no' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-600 text-red-600 hover:bg-red-50'}`}
                         variant={currentVote === 'no' ? 'default' : 'outline'}
@@ -177,16 +181,18 @@ export function SimpleImageVoting({
                       <Check className="w-4 h-4 mr-1" />
                       Ja
                     </Button>
-                    <Button
-                      className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50'}`}
-                      variant={currentVote === 'maybe' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleVoteClick(option.id, 'maybe')}
-                      disabled={disabled}
-                    >
-                      <Minus className="w-4 h-4 mr-1" />
-                      Vielleicht
-                    </Button>
+                    {allowMaybe && (
+                      <Button
+                        className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50'}`}
+                        variant={currentVote === 'maybe' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleVoteClick(option.id, 'maybe')}
+                        disabled={disabled}
+                      >
+                        <Minus className="w-4 h-4 mr-1" />
+                        Vielleicht
+                      </Button>
+                    )}
                     <Button
                       className={`flex-1 py-2 ${currentVote === 'no' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-600 text-red-600 hover:bg-red-50'}`}
                       variant={currentVote === 'no' ? 'default' : 'outline'}
@@ -295,30 +301,32 @@ export function SimpleImageVoting({
                       <span>Ja</span>
                     </button>
                     
-                    <button
-                      onClick={() => handleVoteClick(currentOption.id, 'maybe')}
-                      disabled={disabled}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '12px 16px',
-                        border: `2px solid ${currentVote === 'maybe' ? '#f59e0b' : 'rgba(255, 255, 255, 0.3)'}`,
-                        borderRadius: '10px',
-                        backgroundColor: currentVote === 'maybe' ? '#f59e0b' : 'rgba(255, 255, 255, 0.1)',
-                        color: currentVote === 'maybe' ? 'black' : 'white',
-                        fontSize: '13px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        minWidth: '70px',
-                        minHeight: '70px',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      <span style={{ fontSize: '20px' }}>−</span>
-                      <span>Vielleicht</span>
-                    </button>
+                    {allowMaybe && (
+                      <button
+                        onClick={() => handleVoteClick(currentOption.id, 'maybe')}
+                        disabled={disabled}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '12px 16px',
+                          border: `2px solid ${currentVote === 'maybe' ? '#f59e0b' : 'rgba(255, 255, 255, 0.3)'}`,
+                          borderRadius: '10px',
+                          backgroundColor: currentVote === 'maybe' ? '#f59e0b' : 'rgba(255, 255, 255, 0.1)',
+                          color: currentVote === 'maybe' ? 'black' : 'white',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          minWidth: '70px',
+                          minHeight: '70px',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '20px' }}>−</span>
+                        <span>Vielleicht</span>
+                      </button>
+                    )}
                     
                     <button
                       onClick={() => handleVoteClick(currentOption.id, 'no')}

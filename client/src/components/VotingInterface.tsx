@@ -692,6 +692,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   Object.entries(votes).map(([id, response]) => [id, response])
                 )}
                 disabled={!canVote}
+                allowMaybe={poll.allowMaybe ?? true}
               />
             ) : (
               <SimpleImageVoting
@@ -700,6 +701,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 existingVotes={{}}
                 disabled={true}
                 adminPreview={true}
+                allowMaybe={poll.allowMaybe ?? true}
               />
             )
           )}

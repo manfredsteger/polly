@@ -214,6 +214,9 @@ export class EmailService {
 
     try {
       const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
+      const confirmationText = pollType === 'schedule' 
+        ? 'Ihre Auswahl wurde erfolgreich gespeichert.' 
+        : 'Ihre Stimme wurde erfolgreich gespeichert.';
       const subject = `Polly - ${pollTitle}`;
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
@@ -222,7 +225,7 @@ export class EmailService {
           <p>Hallo ${voterName},</p>
           
           <p>vielen Dank für Ihre Teilnahme an der ${pollTypeText} "<strong>${pollTitle}</strong>".</p>
-          <p>Ihre Stimme wurde erfolgreich gespeichert.</p>
+          <p>${confirmationText}</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="color: #495057; margin-top: 0;">Ihr persönlicher Link:</h3>
@@ -252,7 +255,7 @@ export class EmailService {
         text: `Hallo ${voterName},
 
 vielen Dank für Ihre Teilnahme an der ${pollTypeText} "${pollTitle}".
-Ihre Stimme wurde erfolgreich gespeichert.
+${confirmationText}
 
 IHR PERSÖNLICHER LINK:
 ${publicLink}

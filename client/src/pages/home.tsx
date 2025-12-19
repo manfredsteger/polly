@@ -10,8 +10,8 @@ export default function Home() {
       <section className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-16">
         <div className="text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-            Einfach <span className="text-schedule">abstimmen</span>,{" "}
-            <span className="text-survey">planen</span> und<br />
+            Einfach <span className="text-schedule">planen</span>,{" "}
+            <span className="text-survey">abstimmen</span> und<br />
             <span className="text-organization">organisieren</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">

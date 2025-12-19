@@ -359,7 +359,8 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             }}
             modifiersStyles={{
               hasOptions: {
-                backgroundColor: 'hsl(var(--primary) / 0.15)',
+                backgroundColor: 'hsl(25, 95%, 53%)',
+                color: 'white',
                 borderRadius: '50%',
                 fontWeight: 'bold',
               },
@@ -369,10 +370,21 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             className="rounded-md border"
             data-testid="calendar-picker"
           />
-          {datesWithOptions.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-              <span className="inline-block w-3 h-3 rounded-full bg-primary/20"></span>
-              Tage mit bereits gewählten Optionen
+          {/* Counter and Legend */}
+          {existingOptions.length > 0 ? (
+            <div className="mt-3 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-700 rounded-lg">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                <span className="text-lg">✓</span>
+                <span className="font-medium">{existingOptions.length} {existingOptions.length === 1 ? 'Termin' : 'Termine'} hinzugefügt</span>
+              </div>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-schedule"></span>
+                Orange markierte Tage haben Terminoptionen
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-2">
+              Wählen Sie Tage im Kalender oder nutzen Sie eine Schnellvorlage
             </p>
           )}
         </div>

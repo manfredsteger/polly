@@ -38,15 +38,15 @@
   --color-schedule-foreground: hsl(0, 0%, 100%);
   --color-schedule-light: hsl(25, 95%, 95%);
   
-  /* Umfrage (Survey): Light Blue/Teal #72BEB7 */
-  --color-survey: hsl(174, 37%, 60%);
+  /* Umfrage (Survey): Green #22C55E */
+  --color-survey: hsl(142, 71%, 45%);
   --color-survey-foreground: hsl(0, 0%, 100%);
-  --color-survey-light: hsl(174, 37%, 95%);
+  --color-survey-light: hsl(142, 71%, 95%);
   
-  /* Orga (Organization): Green #7DB942 */
-  --color-organization: hsl(88, 48%, 49%);
+  /* Orga (Organization): Light Blue #38BDF8 */
+  --color-organization: hsl(199, 89%, 60%);
   --color-organization-foreground: hsl(0, 0%, 100%);
-  --color-organization-light: hsl(88, 48%, 95%);
+  --color-organization-light: hsl(199, 89%, 95%);
 }
 
 .dark {
@@ -76,15 +76,15 @@
   --color-schedule-foreground: hsl(0, 0%, 100%);
   --color-schedule-light: hsl(25, 95%, 20%);
   
-  /* Umfrage (Survey): Light Blue/Teal - slightly dimmed for dark mode */
-  --color-survey: hsl(174, 37%, 50%);
+  /* Umfrage (Survey): Green - slightly dimmed for dark mode */
+  --color-survey: hsl(142, 71%, 40%);
   --color-survey-foreground: hsl(0, 0%, 100%);
-  --color-survey-light: hsl(174, 37%, 20%);
+  --color-survey-light: hsl(142, 71%, 20%);
   
-  /* Orga (Organization): Green - slightly dimmed for dark mode */
-  --color-organization: hsl(88, 48%, 40%);
+  /* Orga (Organization): Light Blue - slightly dimmed for dark mode */
+  --color-organization: hsl(199, 89%, 50%);
   --color-organization-foreground: hsl(0, 0%, 100%);
-  --color-organization-light: hsl(88, 48%, 20%);
+  --color-organization-light: hsl(199, 89%, 20%);
 }
 
 @layer base {

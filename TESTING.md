@@ -1,10 +1,10 @@
-# KITA Poll System - Testing Guide
+# Polly - Testing Guide
 
 ## Permanent Example URLs for Development
 
 Save these URLs as bookmarks for easy testing of all features:
 
-### 📊 Example Survey - "KITA Sommerfest Aktivitäten 2025"
+### 📊 Example Survey - "Team Sommerfest Aktivitäten 2025"
 A classic survey where users vote for their favorite summer festival activities. **Now with beautiful SVG images!**
 
 - **Public URL (for voting)**: http://localhost:3080/poll/example-survey-public-2HBD_6QRkmWXAFW0C1dE
@@ -73,7 +73,7 @@ The examples include:
   - Lightbox functionality with voting controls
 - **Date poll with 4 time slot options** for next week
 - **Complete German localization** throughout
-- **KITA brand styling** with authentic colors
+- **Polly brand styling** with modern colors
 - **Full accessibility features** including screen reader support
 
 **SVG Images Include:**

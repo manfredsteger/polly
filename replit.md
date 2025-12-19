@@ -1,7 +1,7 @@
-# KITA Poll System
+# Polly - Open-Source Polling System
 
 ## Overview
-KITA Poll is a modern polling and scheduling application designed for Kindergarten (KITA) teams in Bavaria, Germany. It enables users to create and manage polls for schedule coordination, surveys, and organization/slot booking, supporting both anonymous and authenticated voting. The application features a clean, responsive design and is fully localized for German users.
+Polly is a modern, open-source polling and scheduling platform for teams. It enables users to create and manage polls for schedule coordination, surveys, and organization/slot booking, supporting both anonymous and authenticated voting. The application features a clean, responsive design and is fully localized for German users.
 
 **Key Capabilities:**
 - Streamlined poll creation with three types: Terminumfragen (Schedule), Umfragen (Survey), Orga-Listen (Organization/Booking)
@@ -9,6 +9,7 @@ KITA Poll is a modern polling and scheduling application designed for Kindergart
 - Robust administration tools with data export (CSV, PDF)
 - QR code sharing for easy poll distribution
 - Comprehensive branding/customization via admin panel
+- 100% self-hosted with zero cloud dependencies
 
 ## User Preferences
 Preferred communication style: Simple, everyday language (German).
@@ -168,7 +169,7 @@ docker compose up -d
 
 ### Required Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string
-- `BASE_URL`: Public URL (e.g., `https://poll.kita.bayern`)
+- `BASE_URL`: Public URL (e.g., `https://polly.example.com`)
 - `SESSION_SECRET`: 32+ character random string
 
 See `PRODUCTION-SETUP.md` for complete deployment documentation.

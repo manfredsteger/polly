@@ -320,7 +320,7 @@ export default function Profile() {
                       id="organization"
                       value={organization}
                       onChange={(e) => setOrganization(e.target.value)}
-                      placeholder="z.B. KITA Sonnenschein"
+                      placeholder="z.B. Mein Team"
                       className="mt-1"
                       data-testid="input-organization"
                     />

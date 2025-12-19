@@ -249,7 +249,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">KITA Poll</CardTitle>
+          <CardTitle className="text-2xl">Poll<span className="text-kita-orange">y</span></CardTitle>
           <CardDescription>
             Melden Sie sich an, um Ihre Umfragen zu verwalten
           </CardDescription>

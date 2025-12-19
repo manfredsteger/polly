@@ -1,6 +1,6 @@
-# KITA Poll 🗳️
+# Polly 🗳️
 
-A modern, German-language polling and scheduling application designed for Kindergarten (KITA) teams in Bavaria, Germany. Create surveys, schedule meetings, and manage event signups with ease.
+A modern, open-source polling and scheduling platform for teams. Create surveys, schedule meetings, and manage event signups with ease. Fully German-language interface, GDPR-compliant, and self-hosted.
 
 ---
 
@@ -8,8 +8,8 @@ A modern, German-language polling and scheduling application designed for Kinder
 
 ```bash
 # Clone & Start - No configuration needed!
-git clone https://github.com/your-org/kita-poll.git
-cd kita-poll
+git clone https://github.com/manfredsteger/polly.git
+cd polly
 docker compose up -d
 
 # With demo polls for instant testing:
@@ -24,7 +24,7 @@ SEED_DEMO_DATA=true docker compose up -d
 |-------|-------|
 | **Username** | `admin` |
 | **Password** | `Admin123!` |
-| **Email** | `admin@kita-poll.local` |
+| **Email** | `admin@polly.local` |
 
 > ⚠️ **Security Warning**: After first login, create a new admin account and delete the default admin!
 
@@ -36,7 +36,7 @@ SEED_DEMO_DATA=true docker compose up -d
 
 ---
 
-![KITA Poll](hero.png)
+![Polly](hero.png)
 
 ## ✨ Features
 
@@ -70,8 +70,8 @@ SEED_DEMO_DATA=true docker compose up -d
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/kita-poll.git
-cd kita-poll
+git clone https://github.com/manfredsteger/polly.git
+cd polly
 
 # Copy and customize environment
 cp .env.example .env
@@ -89,8 +89,8 @@ docker compose up -d
 # Prerequisites: Node.js 20+, PostgreSQL 16+
 
 # Clone and install
-git clone https://github.com/your-org/kita-poll.git
-cd kita-poll
+git clone https://github.com/manfredsteger/polly.git
+cd polly
 npm install
 
 # Set up environment
@@ -111,7 +111,7 @@ npm run dev
 ### Required Environment Variables
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/kitapoll
+DATABASE_URL=postgresql://user:password@localhost:5432/polly
 SESSION_SECRET=your-secure-random-string-min-32-chars
 ```
 
@@ -130,7 +130,7 @@ EMAIL_FROM=noreply@yourdomain.com
 
 ```env
 KEYCLOAK_REALM=your-realm
-KEYCLOAK_CLIENT_ID=kita-poll
+KEYCLOAK_CLIENT_ID=polly
 KEYCLOAK_CLIENT_SECRET=your-client-secret
 KEYCLOAK_AUTH_SERVER_URL=https://keycloak.example.com
 ```
@@ -236,7 +236,7 @@ make db-push
 make shell-db
 
 # Build and publish to Docker Hub
-make publish IMAGE_NAME=yourusername/kita-poll
+make publish IMAGE_NAME=yourusername/polly
 ```
 
 ### Manual Docker Commands
@@ -262,7 +262,7 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 Pull the official image:
 ```bash
-docker pull yourusername/kita-poll:latest
+docker pull yourusername/polly:latest
 ```
 
 ## 📖 API Documentation

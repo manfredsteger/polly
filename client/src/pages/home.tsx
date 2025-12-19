@@ -16,7 +16,7 @@ export default function Home() {
           </h1>
           <p className="text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
             Erstelle schnell und unkompliziert Terminumfragen oder Umfragen für dein Team. 
-            Ohne Registrierung starten oder mit deinem KITA-Account für erweiterte Funktionen.
+            Ohne Registrierung starten oder mit deinem Account für erweiterte Funktionen.
           </p>
           
           {/* Main Action Buttons - Order matches title: abstimmen (Orange), planen (Green), organisieren (Teal) */}
@@ -48,7 +48,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-foreground mb-4">Alles was du brauchst</h2>
-            <p className="text-lg text-muted-foreground">Professionelle Abstimmungstools für KITA-Teams</p>
+            <p className="text-lg text-muted-foreground">Professionelle Abstimmungstools für Teams</p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">

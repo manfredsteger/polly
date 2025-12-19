@@ -143,7 +143,7 @@ export default function Admin() {
           <div>
             <h1 className="text-3xl font-bold text-foreground" data-testid="title-admin">Administration</h1>
             <p className="text-muted-foreground mt-1">
-              Systemverwaltung und Konfiguration für KITA Poll
+              Systemverwaltung und Konfiguration für Polly
             </p>
           </div>
         </div>

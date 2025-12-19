@@ -1,6 +1,6 @@
-# KITA Poll - Production Deployment Guide
+# Polly - Production Deployment Guide
 
-Dieses Dokument beschreibt die Installation und Konfiguration von KITA Poll für den Produktionsbetrieb.
+Dieses Dokument beschreibt die Installation und Konfiguration von Polly für den Produktionsbetrieb.
 
 ## Inhaltsverzeichnis
 
@@ -23,7 +23,7 @@ docker compose up -d
 
 Das startet:
 - PostgreSQL 16 Datenbank
-- KITA Poll Anwendung auf Port 3080 (extern)
+- Polly Anwendung auf Port 3080 (extern)
 
 Öffnen Sie http://localhost:3080 im Browser.
 
@@ -38,7 +38,7 @@ POSTGRES_PASSWORD=ihr-datenbank-passwort
 SMTP_HOST=mail.ihre-domain.de
 SMTP_USER=noreply@ihre-domain.de
 SMTP_PASSWORD=ihr-smtp-passwort
-EMAIL_FROM=KITA Poll <noreply@ihre-domain.de>
+EMAIL_FROM=Polly <noreply@ihre-domain.de>
 EOF
 
 docker compose up -d
@@ -96,8 +96,8 @@ sudo dnf install -y chromium
 
 ```bash
 # Repository klonen
-git clone https://github.com/ihr-org/kita-poll.git
-cd kita-poll
+git clone https://github.com/manfredsteger/polly.git
+cd polly
 
 # Dependencies installieren
 npm ci
@@ -111,13 +111,13 @@ npm run build
 ```bash
 # PostgreSQL Benutzer und Datenbank erstellen
 sudo -u postgres psql << 'EOF'
-CREATE USER kitapoll WITH PASSWORD 'ihr-sicheres-passwort';
-CREATE DATABASE kitapoll OWNER kitapoll;
-GRANT ALL PRIVILEGES ON DATABASE kitapoll TO kitapoll;
+CREATE USER polly WITH PASSWORD 'ihr-sicheres-passwort';
+CREATE DATABASE polly OWNER polly;
+GRANT ALL PRIVILEGES ON DATABASE polly TO polly;
 EOF
 
 # Schema erstellen
-DATABASE_URL="postgresql://kitapoll:ihr-passwort@localhost:5432/kitapoll" \
+DATABASE_URL="postgresql://polly:ihr-passwort@localhost:5432/polly" \
   npx drizzle-kit push
 ```
 
@@ -125,8 +125,8 @@ DATABASE_URL="postgresql://kitapoll:ihr-passwort@localhost:5432/kitapoll" \
 
 ```bash
 # Umgebungsvariablen setzen
-export DATABASE_URL="postgresql://kitapoll:passwort@localhost:5432/kitapoll"
-export BASE_URL="https://poll.ihre-domain.de"
+export DATABASE_URL="postgresql://polly:passwort@localhost:5432/polly"
+export BASE_URL="https://polly.ihre-domain.de"
 export SESSION_SECRET="$(openssl rand -hex 32)"
 export NODE_ENV="production"
 
@@ -144,7 +144,7 @@ npm start
 |----------|-------------|----------|
 | `DATABASE_URL` | PostgreSQL Verbindung | `postgresql://user:pass@host:5432/db` |
 | `SESSION_SECRET` | Geheimer Schlüssel für Sessions (min. 32 Zeichen) | `openssl rand -hex 32` |
-| `BASE_URL` | Öffentliche URL der Anwendung | `https://poll.kita.bayern` |
+| `BASE_URL` | Öffentliche URL der Anwendung | `https://polly.example.com` |
 
 ### E-Mail-Konfiguration
 
@@ -155,7 +155,7 @@ npm start
 | `SMTP_SECURE` | TLS verwenden | `false` (STARTTLS) oder `true` (TLS) |
 | `SMTP_USER` | SMTP Benutzername | `noreply@ihre-domain.de` |
 | `SMTP_PASSWORD` | SMTP Passwort | |
-| `EMAIL_FROM` | Absender-Adresse | `KITA Poll <noreply@ihre-domain.de>` |
+| `EMAIL_FROM` | Absender-Adresse | `Polly <noreply@ihre-domain.de>` |
 
 ### Keycloak/OIDC (optional)
 
@@ -207,7 +207,7 @@ RUN apk add --no-cache \
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kita-poll
+  name: polly
 spec:
   replicas: 2
   template:
@@ -218,19 +218,19 @@ spec:
         fsGroup: 1001
       containers:
       - name: app
-        image: ihr-registry/kita-poll:latest
+        image: ihr-registry/polly:latest
         ports:
         - containerPort: 5000
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: kita-poll-secrets
+              name: polly-secrets
               key: database-url
         - name: SESSION_SECRET
           valueFrom:
             secretKeyRef:
-              name: kita-poll-secrets
+              name: polly-secrets
               key: session-secret
         - name: BASE_URL
           value: "https://poll.ihre-domain.de"
@@ -254,7 +254,7 @@ spec:
       volumes:
       - name: uploads
         persistentVolumeClaim:
-          claimName: kita-poll-uploads
+          claimName: polly-uploads
       - name: tmp
         emptyDir: {}
 ```
@@ -272,10 +272,10 @@ spec:
 
 ```bash
 # Auf Internet-System: Images exportieren
-docker save kita-poll:latest postgres:16-alpine | gzip > kita-poll-bundle.tar.gz
+docker save polly:latest postgres:16-alpine | gzip > polly-bundle.tar.gz
 
 # Auf Air-Gapped System: Images importieren
-gunzip -c kita-poll-bundle.tar.gz | docker load
+gunzip -c polly-bundle.tar.gz | docker load
 docker compose up -d
 ```
 
@@ -318,5 +318,5 @@ docker compose logs app | grep -i smtp
 ## Support
 
 Bei Fragen oder Problemen:
-- GitHub Issues: https://github.com/ihr-org/kita-poll/issues
-- E-Mail: support@kita.bayern
+- GitHub Issues: https://github.com/manfredsteger/polly/issues
+- E-Mail: support@polly.example.com

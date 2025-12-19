@@ -1104,8 +1104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customization = await storage.getCustomizationSettings();
       const pdfOptions = {
         logoUrl: customization.branding?.logoUrl || undefined,
-        siteName: customization.branding?.siteName || 'KITA ',
-        siteNameAccent: customization.branding?.siteNameAccent || 'Poll',
+        siteName: customization.branding?.siteName || 'Poll',
+        siteNameAccent: customization.branding?.siteNameAccent || 'y',
       };
       
       const pdfBuffer = await pdfService.generatePollResultsPDF(results, pdfOptions);
@@ -1200,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseUrl = getBaseUrl();
       const pollUrl = `${baseUrl}/poll/${poll.publicToken}`;
       
-      const inviterName = poll.user?.name || 'Ein KITA-Team Mitglied';
+      const inviterName = poll.user?.name || 'Ein Team-Mitglied';
 
       // Send emails to all invitees
       const emailPromises = inviteData.emails.map(email => 
@@ -2602,14 +2602,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = await storage.getCustomizationSettings();
       const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || `https://${req.get('host')}`;
       
-      const siteName = settings.branding?.siteName || 'KITA Poll';
-      const siteNameAccent = settings.branding?.siteNameAccent || 'Poll';
+      const siteName = settings.branding?.siteName || 'Polly';
+      const siteNameAccent = settings.branding?.siteNameAccent || 'y';
       const siteNameFirst = siteName.replace(siteNameAccent, '').trim();
       
       const mobileTheme = {
         branding: {
           siteName: siteName,
-          siteNameFirstPart: siteNameFirst || 'KITA',
+          siteNameFirstPart: siteNameFirst || 'Poll',
           siteNameSecondPart: siteNameAccent,
           logoUrl: settings.branding?.logoUrl ? `${baseUrl}${settings.branding.logoUrl}` : null,
           footerText: settings.footer?.description || '',

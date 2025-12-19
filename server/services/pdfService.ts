@@ -82,8 +82,8 @@ function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): s
   const bestOptionData = bestOption ? results.options.find(opt => opt.id === bestOption.optionId) : null;
   
   // Site branding
-  const siteName = options.siteName || 'KITA ';
-  const siteNameAccent = options.siteNameAccent || 'Poll';
+  const siteName = options.siteName || 'Poll';
+  const siteNameAccent = options.siteNameAccent || 'y';
 
   // Generate options HTML with safe handling for empty data
   const optionsHtml = hasStats ? results.stats.map((stat, index) => {
@@ -135,7 +135,7 @@ function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): s
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KITA Poll - ${results.poll.title}</title>
+  <title>Polly - ${results.poll.title}</title>
   <style>
     * {
       margin: 0;
@@ -710,7 +710,7 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
 </head>
 <body>
   <div class="header">
-    <div class="title">KITA Poll - Test-Report</div>
+    <div class="title">Polly - Test-Report</div>
     <div class="subtitle">Automatisierte Backend-Tests</div>
     <div class="status-badge ${statusClass}">
       ${statusIcon} ${testRun.status === 'completed' && failedCount === 0 ? 'Alle Tests bestanden' : testRun.status === 'failed' || failedCount > 0 ? 'Fehlgeschlagene Tests' : 'In Bearbeitung'}
@@ -750,7 +750,7 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
   ${resultsByCategory}
   
   <div class="footer">
-    Generiert am ${formatDateTime(new Date())} | KITA Poll Automated Testing
+    Generiert am ${formatDateTime(new Date())} | Polly Automated Testing
   </div>
 </body>
 </html>

@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 const INITIAL_ADMIN = {
   username: "admin",
-  email: "admin@kita-poll.local",
+  email: "admin@polly.local",
   password: "Admin123!",
   name: "Initial Administrator",
 };

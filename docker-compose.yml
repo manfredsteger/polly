@@ -1,4 +1,4 @@
-# KITA Poll - Docker Compose Configuration
+# Polly - Docker Compose Configuration
 # Zero-config deployment for quick evaluation
 # Compatible with Docker Compose V2+
 #
@@ -8,6 +8,11 @@
 #
 # With Demo Data:
 #   SEED_DEMO_DATA=true docker compose up -d
+#
+# Data Persistence:
+#   - postgres_data: Database (survives rebuilds)
+#   - uploads_data: Uploaded files (logos, etc.)
+#   - Use 'make purge' to delete all data
 
 services:
   # ============================================
@@ -15,37 +20,37 @@ services:
   # ============================================
   postgres:
     image: postgres:16-alpine
-    container_name: kita-poll-db
+    container_name: polly-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-kitapoll}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kitapoll_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-kitapoll}
+      POSTGRES_USER: ${POSTGRES_USER:-polly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-polly_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-polly}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kitapoll} -d ${POSTGRES_DB:-kitapoll}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
   # ============================================
-  # KITA Poll Application
+  # Polly Application
   # ============================================
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: kita-poll-app
+    container_name: polly-app
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-kitapoll}:${POSTGRES_PASSWORD:-kitapoll_secret}@postgres:5432/${POSTGRES_DB:-kitapoll}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-polly}:${POSTGRES_PASSWORD:-polly_secret}@postgres:5432/${POSTGRES_DB:-polly}
       SESSION_SECRET: ${SESSION_SECRET:-change-this-in-production-to-a-secure-random-string}
       BASE_URL: ${BASE_URL:-http://localhost:3080}
       APP_URL: ${APP_URL:-http://localhost:3080}
@@ -79,4 +84,4 @@ volumes:
 
 networks:
   default:
-    name: kita-poll-network
+    name: polly-network

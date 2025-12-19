@@ -72,7 +72,7 @@ export class EmailService {
     const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga' : 'Umfrage';
     
     // Admin email
-    const adminSubject = `[KITA Poll] Ihre ${pollTypeText} wurde erstellt: ${pollTitle}`;
+    const adminSubject = `[Polly] Ihre ${pollTypeText} wurde erstellt: ${pollTitle}`;
     const adminHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #FF6B35;">Ihre ${pollTypeText} wurde erfolgreich erstellt!</h2>
@@ -97,23 +97,23 @@ export class EmailService {
         
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
         <p style="color: #6c757d; font-size: 14px;">
-          Diese E-Mail wurde automatisch von KITA Poll erstellt.<br>
-          Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+          Diese E-Mail wurde automatisch von Polly erstellt.<br>
+          Open-Source Abstimmungsplattform für Teams
         </p>
       </div>
     `;
 
     await this.transporter.sendMail({
-      from: `"KITA Poll" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+      from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
       to: creatorEmail,
       subject: adminSubject,
       html: adminHtml,
       text: adminHtml.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(),
       headers: {
-        'X-Mailer': 'KITA Poll System',
+        'X-Mailer': 'Polly System',
         'X-Priority': '3',
         'X-MSMail-Priority': 'Normal',
-        'Reply-To': process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de',
+        'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
       },
     });
     } catch (error) {
@@ -175,23 +175,23 @@ export class EmailService {
         
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
         <p style="color: #6c757d; font-size: 14px;">
-          Diese E-Mail wurde automatisch von KITA Poll erstellt.<br>
-          Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+          Diese E-Mail wurde automatisch von Polly erstellt.<br>
+          Open-Source Abstimmungsplattform für Teams
         </p>
       </div>
     `;
 
     await this.transporter.sendMail({
-      from: `"KITA Poll" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+      from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
       to: inviteeEmail,
       subject,
       html,
-      text: `Sie wurden zur Abstimmung "${pollTitle}" eingeladen.\n\nLink: ${pollLink}\n\n${customMessage ? 'Nachricht: ' + customMessage + '\n\n' : ''}Diese E-Mail wurde automatisch von KITA Poll erstellt.`,
+      text: `Sie wurden zur Abstimmung "${pollTitle}" eingeladen.\n\nLink: ${pollLink}\n\n${customMessage ? 'Nachricht: ' + customMessage + '\n\n' : ''}Diese E-Mail wurde automatisch von Polly erstellt.`,
       headers: {
-        'X-Mailer': 'KITA Poll System',
+        'X-Mailer': 'Polly System',
         'X-Priority': '3',
         'X-MSMail-Priority': 'Normal',
-        'Reply-To': process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de',
+        'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
       },
     });
     } catch (error) {
@@ -214,7 +214,7 @@ export class EmailService {
 
     try {
       const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
-      const subject = `KITA Poll - ${pollTitle}`;
+      const subject = `Polly - ${pollTitle}`;
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <h2 style="color: #FF6B35;">Vielen Dank für Ihre Teilnahme!</h2>
@@ -238,14 +238,14 @@ export class EmailService {
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von KITA Poll erstellt.<br>
-            Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
       `;
 
       await this.transporter.sendMail({
-        from: `"KITA Poll" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: voterEmail,
         subject,
         html,
@@ -260,10 +260,10 @@ ${publicLink}
 ERGEBNISSE ANSEHEN:
 ${resultsLink}
 
-Diese E-Mail wurde automatisch von KITA Poll erstellt.
-Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
+Diese E-Mail wurde automatisch von Polly erstellt.
+Open-Source Abstimmungsplattform für Teams`,
         headers: {
-          'Reply-To': process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de',
+          'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
         },
       });
     } catch (error) {
@@ -327,23 +327,23 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von KITA Poll erstellt.<br>
-            Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
       `;
 
       await this.transporter.sendMail({
-        from: `"KITA Poll" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: recipientEmail,
         subject,
         html,
-        text: `Erinnerung: Ihre Teilnahme wird benötigt\n\n${senderName} erinnert Sie an die Umfrage "${pollTitle}".\n\n${expiresAt ? 'Die Umfrage endet am ' + new Date(expiresAt).toLocaleDateString('de-DE') + '!\n\n' : ''}Link: ${pollLink}\n\nDiese E-Mail wurde automatisch von KITA Poll erstellt.`,
+        text: `Erinnerung: Ihre Teilnahme wird benötigt\n\n${senderName} erinnert Sie an die Umfrage "${pollTitle}".\n\n${expiresAt ? 'Die Umfrage endet am ' + new Date(expiresAt).toLocaleDateString('de-DE') + '!\n\n' : ''}Link: ${pollLink}\n\nDiese E-Mail wurde automatisch von Polly erstellt.`,
         headers: {
-          'X-Mailer': 'KITA Poll System',
+          'X-Mailer': 'Polly System',
           'X-Priority': '3',
           'X-MSMail-Priority': 'Normal',
-          'Reply-To': process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de',
+          'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
         },
       });
     } catch (error) {
@@ -374,14 +374,14 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
     }
 
     try {
-      const subject = '[KITA Poll] Passwort zurücksetzen';
+      const subject = '[Polly] Passwort zurücksetzen';
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #FF6B35;">Passwort zurücksetzen</h2>
           
           <p>Hallo,</p>
           
-          <p>Sie haben angefordert, Ihr Passwort für Ihren KITA Poll Account zurückzusetzen.</p>
+          <p>Sie haben angefordert, Ihr Passwort für Ihren Polly Account zurückzusetzen.</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p>Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben:</p>
@@ -394,20 +394,20 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von KITA Poll erstellt.<br>
-            Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
       `;
 
       await this.transporter.sendMail({
-        from: `"KITA Poll" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: email,
         subject,
         html,
         text: `Passwort zurücksetzen\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nKlicken Sie auf den folgenden Link:\n${resetLink}\n\nDieser Link ist 1 Stunde gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.`,
         headers: {
-          'X-Mailer': 'KITA Poll System',
+          'X-Mailer': 'Polly System',
           'X-Priority': '3',
         },
       });
@@ -425,14 +425,14 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
     }
 
     try {
-      const subject = '[KITA Poll] E-Mail-Adresse bestätigen';
+      const subject = '[Polly] E-Mail-Adresse bestätigen';
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #FF6B35;">E-Mail-Adresse bestätigen</h2>
           
           <p>Hallo,</p>
           
-          <p>Sie haben angefordert, Ihre E-Mail-Adresse für Ihren KITA Poll Account zu ändern.</p>
+          <p>Sie haben angefordert, Ihre E-Mail-Adresse für Ihren Polly Account zu ändern.</p>
           
           <p><strong>Alte E-Mail:</strong> ${oldEmail}<br>
           <strong>Neue E-Mail:</strong> ${newEmail}</p>
@@ -448,20 +448,20 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von KITA Poll erstellt.<br>
-            Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
       `;
 
       await this.transporter.sendMail({
-        from: `"KITA Poll" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: newEmail,
         subject,
         html,
         text: `E-Mail-Adresse bestätigen\n\nSie haben angefordert, Ihre E-Mail-Adresse zu ändern.\n\nAlte E-Mail: ${oldEmail}\nNeue E-Mail: ${newEmail}\n\nKlicken Sie auf den folgenden Link:\n${confirmLink}\n\nDieser Link ist 24 Stunden gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.`,
         headers: {
-          'X-Mailer': 'KITA Poll System',
+          'X-Mailer': 'Polly System',
           'X-Priority': '3',
         },
       });
@@ -478,33 +478,33 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
     }
 
     try {
-      const subject = '[KITA Poll] Ihr Passwort wurde geändert';
+      const subject = '[Polly] Ihr Passwort wurde geändert';
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #FF6B35;">Passwort wurde geändert</h2>
           
           <p>Hallo,</p>
           
-          <p>Ihr Passwort für Ihren KITA Poll Account wurde erfolgreich geändert.</p>
+          <p>Ihr Passwort für Ihren Polly Account wurde erfolgreich geändert.</p>
           
           <p style="color: #6c757d;">Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Support.</p>
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von KITA Poll erstellt.<br>
-            Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
       `;
 
       await this.transporter.sendMail({
-        from: `"KITA Poll" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: email,
         subject,
         html,
-        text: `Passwort wurde geändert\n\nIhr Passwort für Ihren KITA Poll Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Support.`,
+        text: `Passwort wurde geändert\n\nIhr Passwort für Ihren Polly Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Support.`,
         headers: {
-          'X-Mailer': 'KITA Poll System',
+          'X-Mailer': 'Polly System',
           'X-Priority': '3',
         },
       });
@@ -553,7 +553,7 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
         minute: '2-digit',
       });
 
-      const subject = `${statusEmoji} [KITA Poll] Testbericht #${testRun.id}: ${statusText}`;
+      const subject = `${statusEmoji} [Polly] Testbericht #${testRun.id}: ${statusText}`;
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: ${statusColor};">${statusEmoji} Automatischer Testbericht</h2>
@@ -613,8 +613,8 @@ Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)`,
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch vom KITA Poll Testsystem erstellt.<br>
-            Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP)
+            Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
       `;
@@ -632,16 +632,16 @@ Ausgelöst durch: ${testRun.triggeredBy === 'scheduled' ? 'Zeitplan' : 'Manuell'
 
 ${pdfBuffer ? 'Der vollständige Testbericht ist als PDF angehängt.' : ''}
 
-Diese E-Mail wurde automatisch vom KITA Poll Testsystem erstellt.`;
+Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
 
       const mailOptions: nodemailer.SendMailOptions = {
-        from: `"KITA Poll Tests" <${process.env.FROM_EMAIL || 'noreply@kita-poll.bayern.de'}>`,
+        from: `"Polly Tests" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: recipientEmail,
         subject,
         html,
         text: textContent,
         headers: {
-          'X-Mailer': 'KITA Poll Test System',
+          'X-Mailer': 'Polly Test System',
           'X-Priority': testRun.failed > 0 ? '1' : '3',
           'X-MSMail-Priority': testRun.failed > 0 ? 'High' : 'Normal',
         },

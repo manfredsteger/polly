@@ -2668,7 +2668,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
             <div className="flex items-start space-x-3">
               <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
               <div>
-                <p className="font-medium text-blue-800 dark:text-blue-200">KITA HUB Integration</p>
+                <p className="font-medium text-blue-800 dark:text-blue-200">Identity Provider Integration</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   Bei aktivierter OIDC/Keycloak-Authentifizierung werden Benutzer automatisch über den zentralen 
                   Identity Provider verwaltet. Die lokale Registrierung kann dann deaktiviert werden.
@@ -2909,7 +2909,7 @@ function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
 
           <div>
             <Label htmlFor="from-name">Absender Name</Label>
-            <Input id="from-name" placeholder="KITA Poll System" data-testid="input-from-name" />
+            <Input id="from-name" placeholder="Polly System" data-testid="input-from-name" />
           </div>
 
           <div className="flex items-center space-x-2 pt-2">
@@ -3597,7 +3597,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               data-testid="tab-kitahub-users"
             >
               <Building2 className="w-4 h-4" />
-              <span>KITA HUB Nutzer</span>
+              <span>SSO-Nutzer</span>
               <Badge variant="secondary" className="ml-1 text-xs bg-kita-orange/10 text-kita-orange">Authentifiziert</Badge>
             </button>
           </div>
@@ -3680,12 +3680,12 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
-          {/* KITA HUB Users Settings */}
+          {/* SSO Users Settings */}
           {userTypeTab === 'kitahub' && (
             <div className="space-y-4" data-testid="kitahub-retention-settings">
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>KITA HUB Nutzer</strong> sind authentifizierte Benutzer über Keycloak/OIDC. 
+                  <strong>SSO-Nutzer</strong> sind authentifizierte Benutzer über Keycloak/OIDC. 
                   Ihre Daten können länger aufbewahrt werden, da sie einer Organisation zugeordnet sind.
                 </p>
               </div>
@@ -4587,10 +4587,10 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                 <div className="flex items-start space-x-3">
                   <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                   <div>
-                    <p className="font-medium text-blue-800 dark:text-blue-200">Bundesmessenger / KITA Matrix</p>
+                    <p className="font-medium text-blue-800 dark:text-blue-200">Matrix Homeserver</p>
                     <p className="text-sm text-blue-700 dark:text-blue-300">
                       Diese Integration funktioniert mit jedem Matrix-kompatiblen Homeserver, inkl. dem Bundesmessenger (BUM) 
-                      und Ihrem KITA Matrix unter matrix.kita.bayern.
+                      oder Ihrem eigenen Matrix-Server.
                     </p>
                   </div>
                 </div>
@@ -4601,7 +4601,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                   <Label htmlFor="matrix-homeserver">Homeserver URL</Label>
                   <Input 
                     id="matrix-homeserver" 
-                    placeholder="https://matrix.kita.bayern"
+                    placeholder="https://matrix.example.com"
                     value={homeserverUrl}
                     onChange={(e) => setHomeserverUrl(e.target.value)}
                     data-testid="input-matrix-homeserver"
@@ -4612,7 +4612,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                   <Label htmlFor="matrix-bot-user">Bot User ID</Label>
                   <Input 
                     id="matrix-bot-user" 
-                    placeholder="@pollbot:matrix.kita.bayern"
+                    placeholder="@pollbot:matrix.example.com"
                     value={botUserId}
                     onChange={(e) => setBotUserId(e.target.value)}
                     data-testid="input-matrix-bot-user"
@@ -4730,7 +4730,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                 <span className="font-bold text-kita-orange">1.</span>
                 <div>
                   <p className="font-medium">Bot-Account erstellen</p>
-                  <p className="text-muted-foreground">Erstellen Sie einen Matrix-Benutzer (z.B. @pollbot:matrix.kita.bayern) mit einem sicheren Passwort.</p>
+                  <p className="text-muted-foreground">Erstellen Sie einen Matrix-Benutzer (z.B. @pollbot:matrix.example.com) mit einem sicheren Passwort.</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-muted rounded-lg">
@@ -4790,8 +4790,8 @@ function CustomizationPanel() {
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
   const [footerSettings, setFooterSettings] = useState({
-    description: 'Die professionelle Abstimmungsplattform für KITA-Teams in Bayern. Sicher, einfach und DSGVO-konform.',
-    copyrightText: '© 2025 KITA Bayern. Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP).',
+    description: 'Die professionelle Open-Source Abstimmungsplattform für Teams. Sicher, einfach und DSGVO-konform.',
+    copyrightText: '© 2025 Polly. Open-Source Software unter MIT-Lizenz.',
     supportLinks: [
       { label: 'Hilfe & FAQ', url: '#' },
       { label: 'Kontakt', url: '#' },
@@ -5194,7 +5194,7 @@ function CustomizationPanel() {
                   id="site-name"
                   value={brandingSettings.siteName}
                   onChange={(e) => setBrandingSettings(prev => ({ ...prev, siteName: e.target.value }))}
-                  placeholder="KITA Poll"
+                  placeholder="Poll"
                   data-testid="input-site-name"
                 />
               </div>
@@ -5216,7 +5216,7 @@ function CustomizationPanel() {
                   <span style={{ color: themeSettings.primaryColor }}>{brandingSettings.siteNameAccent}</span>
                 </h3>
                 {!brandingSettings.siteName && !brandingSettings.siteNameAccent && (
-                  <p className="text-xs text-muted-foreground mt-1">Standard: KITA Poll</p>
+                  <p className="text-xs text-muted-foreground mt-1">Standard: Polly</p>
                 )}
               </div>
             </div>
@@ -5389,7 +5389,7 @@ function CustomizationPanel() {
                       <span style={{ color: themeSettings.primaryColor }}>{brandingSettings.siteNameAccent}</span>
                     </>
                   ) : (
-                    <>KITA <span style={{ color: themeSettings.primaryColor }}>Poll</span></>
+                    <>Poll<span style={{ color: themeSettings.primaryColor }}>y</span></>
                   )}
                 </h3>
                 <p className="text-gray-300 text-sm">{footerSettings.description}</p>

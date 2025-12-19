@@ -36,13 +36,14 @@ export default function Layout({ children }: LayoutProps) {
 
   // Site name: base part (normal color) + accent part (primary color)
   // Both can be empty - use defaults only if BOTH are empty
+  // Default branding: "Poll" + "y" (orange) = "Polly"
   const rawSiteName = settings?.branding?.siteName ?? '';
   const rawSiteNameAccent = settings?.branding?.siteNameAccent ?? '';
-  const siteName = (rawSiteName || rawSiteNameAccent) ? rawSiteName : 'KITA ';
-  const siteNameAccent = (rawSiteName || rawSiteNameAccent) ? rawSiteNameAccent : 'Poll';
+  const siteName = (rawSiteName || rawSiteNameAccent) ? rawSiteName : 'Poll';
+  const siteNameAccent = (rawSiteName || rawSiteNameAccent) ? rawSiteNameAccent : 'y';
   const logoUrl = settings?.branding?.logoUrl;
-  const footerDescription = settings?.footer?.description || 'Die professionelle Abstimmungsplattform für KITA-Teams in Bayern. Sicher, einfach und DSGVO-konform.';
-  const footerCopyright = settings?.footer?.copyrightText || '© 2025 KITA Bayern. Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP).';
+  const footerDescription = settings?.footer?.description || 'Die professionelle Open-Source Abstimmungsplattform für Teams. Sicher, einfach und DSGVO-konform.';
+  const footerCopyright = settings?.footer?.copyrightText || '© 2025 Polly. Open-Source Software unter MIT-Lizenz.';
   const footerLinks = settings?.footer?.supportLinks || [
     { label: 'Hilfe & FAQ', url: '#' },
     { label: 'Kontakt', url: '#' },

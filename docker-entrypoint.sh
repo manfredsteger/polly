@@ -14,6 +14,10 @@ echo "✅ Database is ready"
 echo "📦 Applying database schema..."
 npx drizzle-kit push --force 2>&1 || true
 
+# Create initial admin if not exists
+echo "👤 Checking initial admin..."
+npx tsx server/seed-admin.ts 2>&1 || echo "⚠️ Admin seeding skipped"
+
 # Seed demo data if requested
 if [ "$SEED_DEMO_DATA" = "true" ]; then
   echo "🌱 Seeding demo data..."

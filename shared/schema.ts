@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   provider: text("provider").default("local"), // 'local' or 'keycloak'
   themePreference: text("theme_preference").default("system"), // 'light', 'dark', or 'system'
   isTestData: boolean("is_test_data").default(false).notNull(), // Test accounts cannot log in
+  isInitialAdmin: boolean("is_initial_admin").default(false).notNull(), // Initial admin created on first start - shows warning banner
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

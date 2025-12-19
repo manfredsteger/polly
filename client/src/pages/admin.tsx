@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Shield, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Shield, AlertTriangle, ShieldAlert } from "lucide-react";
 import type { User, PollWithOptions, SystemSetting } from "@shared/schema";
 
 interface ExtendedStats {
@@ -119,6 +120,22 @@ export default function Admin() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Initial Admin Warning Banner */}
+      {user.isInitialAdmin && (
+        <Alert variant="destructive" className="mb-6 border-2 border-destructive" data-testid="initial-admin-warning">
+          <ShieldAlert className="h-5 w-5" />
+          <AlertTitle className="font-bold">Standard-Administratorkonto</AlertTitle>
+          <AlertDescription className="mt-2">
+            <p className="mb-2">
+              Sie sind mit dem Standard-Administratorkonto angemeldet. Dieses Konto ist nur für die Ersteinrichtung gedacht.
+            </p>
+            <p className="font-semibold">
+              Bitte erstellen Sie ein neues Administrator-Konto unter "Benutzer" und löschen Sie anschließend dieses Standard-Konto.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center space-x-3">

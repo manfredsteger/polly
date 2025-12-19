@@ -18,8 +18,19 @@ SEED_DEMO_DATA=true docker compose up -d
 
 **That's it!** Open http://localhost:3080 and start exploring.
 
+### Default Admin Credentials
+
+| Field | Value |
+|-------|-------|
+| **Username** | `admin` |
+| **Password** | `Admin123!` |
+| **Email** | `admin@kita-poll.local` |
+
+> ⚠️ **Security Warning**: After first login, create a new admin account and delete the default admin!
+
 - ✅ Database auto-configured (PostgreSQL included)
 - ✅ Schema auto-applied on first start
+- ✅ Initial admin account created automatically
 - ✅ Works out of the box - no `.env` file needed
 - ✅ Demo data shows all three poll types
 

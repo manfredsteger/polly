@@ -127,6 +127,7 @@ export const createPollSchema = z.object({
   expiryReminderHours: z.number().min(1).max(168).optional().default(24),
   allowMultipleSlots: z.boolean().optional().default(true),
   allowVoteEdit: z.boolean().optional().default(false),
+  allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
   options: z.array(z.object({
     text: z.string().min(1),
@@ -294,6 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiryReminderHours,
         allowMultipleSlots: data.allowMultipleSlots,
         allowVoteEdit: data.allowVoteEdit,
+        allowVoteWithdrawal: data.allowVoteWithdrawal,
         resultsPublic: data.resultsPublic,
         isTestData: req.isTestMode === true, // Mark as test data if in test mode
       };
@@ -653,6 +655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           voterEditToken: v.voterEditToken
         })),
         allowVoteEdit: poll.allowVoteEdit,
+        allowVoteWithdrawal: poll.allowVoteWithdrawal,
         voterKey,
         voterSource
       });
@@ -1003,6 +1006,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errorCode: 'DUPLICATE_EMAIL_VOTE'
         });
       }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Withdraw all votes for a poll (delete votes)
+  v1Router.delete('/polls/:token/vote', async (req, res) => {
+    try {
+      const poll = await storage.getPollByPublicToken(req.params.token);
+      if (!poll) {
+        return res.status(404).json({ error: 'Umfrage nicht gefunden' });
+      }
+
+      // Check if vote withdrawal is allowed for this poll
+      if (!poll.allowVoteWithdrawal) {
+        return res.status(403).json({ 
+          error: 'Das Zurückziehen von Stimmen ist bei dieser Umfrage nicht erlaubt.',
+          errorCode: 'WITHDRAWAL_NOT_ALLOWED'
+        });
+      }
+
+      // Check if poll is still active
+      if (!poll.isActive) {
+        return res.status(400).json({ 
+          error: 'Diese Umfrage ist bereits beendet.',
+          errorCode: 'POLL_INACTIVE'
+        });
+      }
+
+      const { voterEmail, voterEditToken } = req.body;
+      
+      // Get user session if available
+      const currentUserId = await extractUserId(req);
+      
+      let votesToDelete: any[] = [];
+      
+      // For authenticated users, find votes by user ID
+      if (currentUserId) {
+        const user = await storage.getUser(currentUserId);
+        if (user) {
+          // Get votes by the user's email
+          votesToDelete = await storage.getVotesByEmail(poll.id, user.email);
+          // Filter to only votes linked to this user
+          votesToDelete = votesToDelete.filter(v => v.userId === currentUserId);
+        }
+      }
+      
+      // For guests with edit token
+      if (votesToDelete.length === 0 && voterEditToken) {
+        const votesByToken = await storage.getVotesByEditToken(voterEditToken);
+        votesToDelete = votesByToken.filter(v => v.pollId === poll.id);
+      }
+      
+      // For guests with email (legacy)
+      if (votesToDelete.length === 0 && voterEmail) {
+        const votesByEmail = await storage.getVotesByEmail(poll.id, voterEmail);
+        // Only allow deletion if no edit token was provided (simple email lookup)
+        if (votesByEmail.length > 0 && !votesByEmail[0].voterEditToken) {
+          votesToDelete = votesByEmail;
+        }
+      }
+      
+      if (votesToDelete.length === 0) {
+        return res.status(404).json({ 
+          error: 'Keine Stimmen gefunden, die zurückgezogen werden können.',
+          errorCode: 'NO_VOTES_FOUND'
+        });
+      }
+      
+      // Delete all votes
+      for (const vote of votesToDelete) {
+        await storage.deleteVote(vote.id);
+      }
+      
+      console.log(`[Vote] Withdrew ${votesToDelete.length} votes from poll ${poll.id}`);
+      
+      res.json({ 
+        success: true, 
+        message: `${votesToDelete.length} Stimme(n) erfolgreich zurückgezogen.`,
+        withdrawnCount: votesToDelete.length
+      });
+    } catch (error) {
+      console.error('Error withdrawing votes:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

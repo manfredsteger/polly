@@ -37,6 +37,7 @@ interface PollFormData {
   creatorEmail: string;
   options: PollOption[];
   allowVoteEdit: boolean;
+  allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   expiresAt: string | null;
 }
@@ -53,6 +54,7 @@ export default function CreatePoll() {
   const [enableExpiryReminder, setEnableExpiryReminder] = useState(false);
   const [expiryReminderHours, setExpiryReminderHours] = useState(24);
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
+  const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
   const [options, setOptions] = useState<PollOption[]>([]);
   
@@ -80,6 +82,7 @@ export default function CreatePoll() {
       setCreatorEmail(stored.data.creatorEmail || "");
       setOptions(stored.data.options || []);
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
+      setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
@@ -120,6 +123,7 @@ export default function CreatePoll() {
           type: "schedule" as const,
           expiresAt: storedExpiresAt || undefined,
           allowVoteEdit: allowVoteEdit,
+          allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
           options: options.map((option) => {
             const opt: any = {
@@ -186,7 +190,7 @@ export default function CreatePoll() {
       if (requiresLogin) {
         // Save form data before redirect
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-poll'
         );
         
@@ -297,6 +301,7 @@ export default function CreatePoll() {
       enableExpiryReminder: expiresAt ? enableExpiryReminder : false,
       expiryReminderHours: expiresAt && enableExpiryReminder ? expiryReminderHours : undefined,
       allowVoteEdit,
+      allowVoteWithdrawal,
       resultsPublic,
       options: options.map((option) => {
         const opt: any = {
@@ -451,6 +456,20 @@ export default function CreatePoll() {
                 checked={allowVoteEdit}
                 onCheckedChange={setAllowVoteEdit}
                 data-testid="switch-allow-vote-edit"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="space-y-0.5">
+                <Label>Stimmen zurückziehen erlauben</Label>
+                <p className="text-sm text-muted-foreground">
+                  Dürfen Teilnehmende ihre Abstimmung komplett zurückziehen?
+                </p>
+              </div>
+              <Switch
+                checked={allowVoteWithdrawal}
+                onCheckedChange={setAllowVoteWithdrawal}
+                data-testid="switch-allow-vote-withdrawal"
               />
             </div>
             

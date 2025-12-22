@@ -36,6 +36,7 @@ export const polls = pgTable("polls", {
   allowMultipleSlots: boolean("allow_multiple_slots").default(true).notNull(), // for organization polls: can one person sign up for multiple slots?
   maxSlotsPerUser: integer("max_slots_per_user"), // for organization polls: max number of slots per user (null = unlimited when allowMultipleSlots is true)
   allowVoteEdit: boolean("allow_vote_edit").default(false).notNull(), // allow voters to edit their votes after submission
+  allowVoteWithdrawal: boolean("allow_vote_withdrawal").default(false).notNull(), // allow voters to completely withdraw/delete their votes
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
@@ -309,14 +310,29 @@ export type InsertTestConfiguration = z.infer<typeof insertTestConfigurationSche
 export const themePreferenceSchema = z.enum(['light', 'dark', 'system']);
 export type ThemePreference = z.infer<typeof themePreferenceSchema>;
 
-// Customization Settings Schemas
+// Customization Settings Schemas - Maximum 12 theme colors
 export const themeSettingsSchema = z.object({
+  // Core branding colors (1-2)
   primaryColor: z.string().default('#f97316'), // KITA orange
   secondaryColor: z.string().default('#1e40af'), // Blue
-  // Feature-specific colors from Design Manual (Default values)
+  
+  // Poll type colors (3-5)
   scheduleColor: z.string().default('#F97316'), // Orange - for Termin polls
   surveyColor: z.string().default('#72BEB7'), // Light Blue/Teal - for Umfrage polls  
   organizationColor: z.string().default('#7DB942'), // Green - for Orga polls
+  
+  // Semantic status colors (6-9)
+  successColor: z.string().default('#22c55e'), // Green - success states
+  warningColor: z.string().default('#f59e0b'), // Amber - warnings
+  errorColor: z.string().default('#ef4444'), // Red - errors/critical
+  infoColor: z.string().default('#3b82f6'), // Blue - informational
+  
+  // UI accent colors (10-12)
+  accentColor: z.string().default('#8b5cf6'), // Purple - highlights, active states
+  mutedColor: z.string().default('#64748b'), // Slate - muted/secondary text
+  neutralColor: z.string().default('#f1f5f9'), // Light gray - backgrounds, borders
+  
+  // Mode setting
   defaultThemeMode: themePreferenceSchema.default('system'), // System default theme mode
 });
 

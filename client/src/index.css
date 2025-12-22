@@ -47,6 +47,17 @@
   --color-organization: hsl(199, 89%, 60%);
   --color-organization-foreground: hsl(0, 0%, 100%);
   --color-organization-light: hsl(199, 89%, 95%);
+  
+  /* Semantic Status Colors (configurable via admin) */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  /* UI Accent Colors (configurable via admin) */
+  --color-accent: #8b5cf6;
+  --color-muted-theme: #64748b;
+  --color-neutral: #f1f5f9;
 }
 
 .dark {
@@ -85,6 +96,17 @@
   --color-organization: hsl(199, 89%, 50%);
   --color-organization-foreground: hsl(0, 0%, 100%);
   --color-organization-light: hsl(199, 89%, 20%);
+  
+  /* Semantic Status Colors (dark mode adjustments) */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #2563eb;
+  
+  /* UI Accent Colors (dark mode adjustments) */
+  --color-accent: #7c3aed;
+  --color-muted-theme: #94a3b8;
+  --color-neutral: #1e293b;
 }
 
 @layer base {

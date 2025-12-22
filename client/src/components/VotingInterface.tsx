@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Check, X, HelpCircle, Calendar, Clock, Mail, AlertTriangle, ListChecks, LogIn, User } from "lucide-react";
+import { Check, X, HelpCircle, Calendar, Clock, Mail, AlertTriangle, ListChecks, LogIn, User, Trash2 } from "lucide-react";
 import type { PollWithOptions } from "@shared/schema";
 import { SimpleImageVoting } from "./SimpleImageVoting";
 import { OrganizationSlotVoting } from "./OrganizationSlotVoting";
@@ -39,6 +39,7 @@ interface MyVotesResponse {
     voterEditToken?: string;
   }>;
   allowVoteEdit: boolean;
+  allowVoteWithdrawal: boolean;
   voterKey: string;
   voterSource: 'user' | 'device';
 }
@@ -287,6 +288,48 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       toast({
         title: "Fehler",
         description: "Die E-Mail konnte nicht versendet werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const withdrawVoteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/v1/polls/${poll.publicToken}/vote`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Stimme zurückgezogen",
+        description: "Ihre Stimme wurde erfolgreich entfernt.",
+        variant: "default",
+      });
+      // Reset form state
+      setVotes({});
+      setOrgaBookings([]);
+      setHasOrgaChanges(false);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
+    },
+    onError: (error) => {
+      let errorMessage = "Ihre Stimme konnte nicht zurückgezogen werden.";
+      if (error instanceof Error && error.message) {
+        try {
+          const match = error.message.match(/\d+:\s*(.+)/);
+          if (match && match[1]) {
+            const errorData = JSON.parse(match[1]);
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+          }
+        } catch (parseError) {
+          console.error('Error parsing error message:', parseError);
+        }
+      }
+      toast({
+        title: "Fehler",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -557,6 +600,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   }
 
   if (showAlreadyVotedMessage) {
+    const canWithdraw = poll.allowVoteWithdrawal && myVotesData?.allowVoteWithdrawal;
     return (
       <div ref={containerRef} className="space-y-6">
         <Alert className="border-green-200 bg-green-50" data-testid="alert-already-voted">
@@ -583,6 +627,21 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       );
                     })}
                   </div>
+                </div>
+              )}
+              {canWithdraw && (
+                <div className="mt-4 pt-3 border-t border-green-200">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => withdrawVoteMutation.mutate()}
+                    disabled={withdrawVoteMutation.isPending}
+                    className="text-red-600 border-red-300 hover:bg-red-50"
+                    data-testid="button-withdraw-vote"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Stimme zurückziehen'}
+                  </Button>
                 </div>
               )}
             </div>
@@ -853,6 +912,25 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 <p className="text-sm text-orange-600 mt-2 text-center">
                   Bitte melden Sie sich an, um mit dieser E-Mail abzustimmen.
                 </p>
+              )}
+              {/* Show withdraw button for users who have voted and poll allows withdrawal */}
+              {hasAlreadyVoted && poll.allowVoteWithdrawal && (
+                <div className="mt-4 pt-4 border-t border-border w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => withdrawVoteMutation.mutate()}
+                    disabled={withdrawVoteMutation.isPending}
+                    className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                    data-testid="button-withdraw-vote-editable"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Stimme zurückziehen'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">
+                    Entfernt alle Ihre Stimmen aus dieser Umfrage
+                  </p>
+                </div>
               )}
             </div>
           )}

@@ -30,6 +30,7 @@ interface OrgaFormData {
   creatorEmail: string;
   allowMultipleSlots: boolean;
   allowVoteEdit: boolean;
+  allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   slots: OrgaSlot[];
   expiresAt: string | null;
@@ -50,6 +51,7 @@ export default function CreateOrganization() {
   const [expiryReminderHours, setExpiryReminderHours] = useState(24);
   const [allowMultipleSlots, setAllowMultipleSlots] = useState(true);
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
+  const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
   const [isDayMode, setIsDayMode] = useState(false);
   const [dayModeDate, setDayModeDate] = useState<string>("");
@@ -74,6 +76,7 @@ export default function CreateOrganization() {
       setCreatorEmail(stored.data.creatorEmail || "");
       setAllowMultipleSlots(stored.data.allowMultipleSlots ?? true);
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
+      setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
       setIsDayMode(stored.data.isDayMode ?? false);
       setDayModeDate(stored.data.dayModeDate ?? "");
@@ -171,6 +174,7 @@ export default function CreateOrganization() {
           expiresAt: storedExpiresAt || undefined,
           allowMultipleSlots: allowMultipleSlots,
           allowVoteEdit: allowVoteEdit,
+          allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
           options: buildOptionsPayload(validSlots, storedIsDayMode, storedDayModeDate),
         };
@@ -223,7 +227,7 @@ export default function CreateOrganization() {
       if (requiresLogin) {
         // Save form data before redirect
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, allowMultipleSlots, allowVoteEdit, resultsPublic, slots, expiresAt: expiresAt ? expiresAt.toISOString() : null, isDayMode, dayModeDate },
+          { title, description, creatorEmail, allowMultipleSlots, allowVoteEdit, allowVoteWithdrawal, resultsPublic, slots, expiresAt: expiresAt ? expiresAt.toISOString() : null, isDayMode, dayModeDate },
           '/create-organization'
         );
         
@@ -313,6 +317,7 @@ export default function CreateOrganization() {
       expiryReminderHours: expiresAt && enableExpiryReminder ? expiryReminderHours : undefined,
       allowMultipleSlots,
       allowVoteEdit,
+      allowVoteWithdrawal,
       resultsPublic,
       options: buildOptionsPayload(validSlots, isDayMode, dayModeDate),
     };
@@ -533,6 +538,20 @@ export default function CreateOrganization() {
                 checked={allowVoteEdit}
                 onCheckedChange={setAllowVoteEdit}
                 data-testid="switch-allow-vote-edit"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="space-y-0.5">
+                <Label>Stimmen zurückziehen erlauben</Label>
+                <p className="text-sm text-muted-foreground">
+                  Dürfen Teilnehmende ihre Eintragungen komplett zurückziehen?
+                </p>
+              </div>
+              <Switch
+                checked={allowVoteWithdrawal}
+                onCheckedChange={setAllowVoteWithdrawal}
+                data-testid="switch-allow-vote-withdrawal"
               />
             </div>
             

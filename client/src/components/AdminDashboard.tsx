@@ -5066,18 +5066,29 @@ function CustomizationPanel() {
     queryKey: ['/api/v1/admin/customization'],
   });
 
-  // Default feature colors: Termin=Orange, Umfrage=Hellblau, Orga=Grün
-  const DEFAULT_FEATURE_COLORS = {
+  // Default theme colors for all 12 configurable colors
+  const DEFAULT_THEME_COLORS = {
+    // Core branding
+    primaryColor: '#f97316',
+    secondaryColor: '#1e40af',
+    // Poll types
     scheduleColor: '#F97316',   // Orange - for Termin
     surveyColor: '#72BEB7',     // Light Blue/Teal - for Umfrage
     organizationColor: '#7DB942', // Green - for Orga
+    // Semantic status colors
+    successColor: '#22c55e',
+    warningColor: '#f59e0b',
+    errorColor: '#ef4444',
+    infoColor: '#3b82f6',
+    // UI accent colors
+    accentColor: '#8b5cf6',
+    mutedColor: '#64748b',
+    neutralColor: '#f1f5f9',
   };
 
   const [themeSettings, setThemeSettings] = useState({
-    primaryColor: '#f97316',
-    secondaryColor: '#1e40af',
+    ...DEFAULT_THEME_COLORS,
     defaultThemeMode: 'system' as 'light' | 'dark' | 'system',
-    ...DEFAULT_FEATURE_COLORS,
   });
 
   const [brandingSettings, setBrandingSettings] = useState({
@@ -5106,12 +5117,19 @@ function CustomizationPanel() {
     // Only load initial data once to prevent race conditions while user is typing
     if (customization && !initialDataLoaded) {
       setThemeSettings({
-        primaryColor: customization.theme?.primaryColor || '#f97316',
-        secondaryColor: customization.theme?.secondaryColor || '#1e40af',
+        primaryColor: customization.theme?.primaryColor || DEFAULT_THEME_COLORS.primaryColor,
+        secondaryColor: customization.theme?.secondaryColor || DEFAULT_THEME_COLORS.secondaryColor,
         defaultThemeMode: customization.theme?.defaultThemeMode || 'system',
-        scheduleColor: customization.theme?.scheduleColor || DEFAULT_FEATURE_COLORS.scheduleColor,
-        surveyColor: customization.theme?.surveyColor || DEFAULT_FEATURE_COLORS.surveyColor,
-        organizationColor: customization.theme?.organizationColor || DEFAULT_FEATURE_COLORS.organizationColor,
+        scheduleColor: customization.theme?.scheduleColor || DEFAULT_THEME_COLORS.scheduleColor,
+        surveyColor: customization.theme?.surveyColor || DEFAULT_THEME_COLORS.surveyColor,
+        organizationColor: customization.theme?.organizationColor || DEFAULT_THEME_COLORS.organizationColor,
+        successColor: customization.theme?.successColor || DEFAULT_THEME_COLORS.successColor,
+        warningColor: customization.theme?.warningColor || DEFAULT_THEME_COLORS.warningColor,
+        errorColor: customization.theme?.errorColor || DEFAULT_THEME_COLORS.errorColor,
+        infoColor: customization.theme?.infoColor || DEFAULT_THEME_COLORS.infoColor,
+        accentColor: customization.theme?.accentColor || DEFAULT_THEME_COLORS.accentColor,
+        mutedColor: customization.theme?.mutedColor || DEFAULT_THEME_COLORS.mutedColor,
+        neutralColor: customization.theme?.neutralColor || DEFAULT_THEME_COLORS.neutralColor,
       });
       setBrandingSettings({
         logoUrl: customization.branding?.logoUrl || null,
@@ -5402,8 +5420,179 @@ function CustomizationPanel() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Semantic Status Colors */}
+          <div className="pt-4 border-t">
+            <h4 className="font-medium mb-4 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Status-Farben (4 Farben)
+            </h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Diese Farben werden für Status-Badges, Benachrichtigungen und Feedback-Elemente verwendet.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Success Color */}
+              <div className="space-y-2">
+                <Label htmlFor="success-color" className="text-sm">Erfolg</Label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    id="success-color"
+                    value={themeSettings.successColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, successColor: e.target.value }))}
+                    className="w-8 h-8 rounded border cursor-pointer"
+                    data-testid="input-success-color"
+                  />
+                  <Input 
+                    value={themeSettings.successColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, successColor: e.target.value }))}
+                    placeholder="#22c55e"
+                    className="flex-1 text-xs"
+                  />
+                </div>
+              </div>
+              
+              {/* Warning Color */}
+              <div className="space-y-2">
+                <Label htmlFor="warning-color" className="text-sm">Warnung</Label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    id="warning-color"
+                    value={themeSettings.warningColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, warningColor: e.target.value }))}
+                    className="w-8 h-8 rounded border cursor-pointer"
+                    data-testid="input-warning-color"
+                  />
+                  <Input 
+                    value={themeSettings.warningColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, warningColor: e.target.value }))}
+                    placeholder="#f59e0b"
+                    className="flex-1 text-xs"
+                  />
+                </div>
+              </div>
+              
+              {/* Error Color */}
+              <div className="space-y-2">
+                <Label htmlFor="error-color" className="text-sm">Fehler</Label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    id="error-color"
+                    value={themeSettings.errorColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, errorColor: e.target.value }))}
+                    className="w-8 h-8 rounded border cursor-pointer"
+                    data-testid="input-error-color"
+                  />
+                  <Input 
+                    value={themeSettings.errorColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, errorColor: e.target.value }))}
+                    placeholder="#ef4444"
+                    className="flex-1 text-xs"
+                  />
+                </div>
+              </div>
+              
+              {/* Info Color */}
+              <div className="space-y-2">
+                <Label htmlFor="info-color" className="text-sm">Info</Label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    id="info-color"
+                    value={themeSettings.infoColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, infoColor: e.target.value }))}
+                    className="w-8 h-8 rounded border cursor-pointer"
+                    data-testid="input-info-color"
+                  />
+                  <Input 
+                    value={themeSettings.infoColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, infoColor: e.target.value }))}
+                    placeholder="#3b82f6"
+                    className="flex-1 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* UI Accent Colors */}
+          <div className="pt-4 border-t">
+            <h4 className="font-medium mb-4 flex items-center gap-2">
+              <Palette className="w-4 h-4" />
+              Akzent-Farben (3 Farben)
+            </h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Zusätzliche Farben für aktive Zustände, gedämpfte Texte und Hintergründe.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Accent Color */}
+              <div className="space-y-2">
+                <Label htmlFor="accent-color" className="text-sm">Akzent (Highlights)</Label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    id="accent-color"
+                    value={themeSettings.accentColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, accentColor: e.target.value }))}
+                    className="w-8 h-8 rounded border cursor-pointer"
+                    data-testid="input-accent-color"
+                  />
+                  <Input 
+                    value={themeSettings.accentColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, accentColor: e.target.value }))}
+                    placeholder="#8b5cf6"
+                    className="flex-1 text-xs"
+                  />
+                </div>
+              </div>
+              
+              {/* Muted Color */}
+              <div className="space-y-2">
+                <Label htmlFor="muted-color" className="text-sm">Gedämpft (Texte)</Label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    id="muted-color"
+                    value={themeSettings.mutedColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, mutedColor: e.target.value }))}
+                    className="w-8 h-8 rounded border cursor-pointer"
+                    data-testid="input-muted-color"
+                  />
+                  <Input 
+                    value={themeSettings.mutedColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, mutedColor: e.target.value }))}
+                    placeholder="#64748b"
+                    className="flex-1 text-xs"
+                  />
+                </div>
+              </div>
+              
+              {/* Neutral Color */}
+              <div className="space-y-2">
+                <Label htmlFor="neutral-color" className="text-sm">Neutral (Hintergründe)</Label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    id="neutral-color"
+                    value={themeSettings.neutralColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, neutralColor: e.target.value }))}
+                    className="w-8 h-8 rounded border cursor-pointer"
+                    data-testid="input-neutral-color"
+                  />
+                  <Input 
+                    value={themeSettings.neutralColor}
+                    onChange={(e) => setThemeSettings(prev => ({ ...prev, neutralColor: e.target.value }))}
+                    placeholder="#f1f5f9"
+                    className="flex-1 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
             
-            {/* Reset Feature Colors Button */}
+            {/* Reset All Colors Button */}
             <div className="mt-4 flex justify-end">
               <Button 
                 variant="outline" 
@@ -5411,17 +5600,17 @@ function CustomizationPanel() {
                 onClick={() => {
                   setThemeSettings(prev => ({
                     ...prev,
-                    ...DEFAULT_FEATURE_COLORS
+                    ...DEFAULT_THEME_COLORS
                   }));
                   toast({ 
                     title: "Farben zurückgesetzt", 
-                    description: "Feature-Farben wurden auf die Standardwerte zurückgesetzt. Klicken Sie auf 'Speichern' um die Änderungen zu übernehmen." 
+                    description: "Alle Farben wurden auf die Standardwerte zurückgesetzt. Klicken Sie auf 'Speichern' um die Änderungen zu übernehmen." 
                   });
                 }}
-                data-testid="button-reset-feature-colors"
+                data-testid="button-reset-all-colors"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                Auf Standard zurücksetzen
+                Alle Farben zurücksetzen
               </Button>
             </div>
           </div>

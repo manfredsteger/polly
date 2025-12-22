@@ -28,6 +28,7 @@ interface SurveyFormData {
   creatorEmail: string;
   options: SurveyOption[];
   allowVoteEdit: boolean;
+  allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   allowMaybe: boolean;
   expiresAt: string | null;
@@ -45,6 +46,7 @@ export default function CreateSurvey() {
   const [enableExpiryReminder, setEnableExpiryReminder] = useState(false);
   const [expiryReminderHours, setExpiryReminderHours] = useState(24);
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
+  const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
   const [allowMaybe, setAllowMaybe] = useState(true);
   const [options, setOptions] = useState<SurveyOption[]>([
@@ -68,6 +70,7 @@ export default function CreateSurvey() {
       setDescription(stored.data.description || "");
       setCreatorEmail(stored.data.creatorEmail || "");
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
+      setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
       if (stored.data.options && stored.data.options.length >= 2) {
@@ -113,6 +116,7 @@ export default function CreateSurvey() {
           type: "survey" as const,
           expiresAt: storedExpiresAt || undefined,
           allowVoteEdit: allowVoteEdit,
+          allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
           options: validOptions.map((option, index) => ({
             text: option.text,
@@ -173,7 +177,7 @@ export default function CreateSurvey() {
       if (requiresLogin) {
         // Save form data before redirect
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, resultsPublic, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-survey'
         );
         
@@ -261,6 +265,7 @@ export default function CreateSurvey() {
       enableExpiryReminder: expiresAt ? enableExpiryReminder : false,
       expiryReminderHours: expiresAt && enableExpiryReminder ? expiryReminderHours : undefined,
       allowVoteEdit,
+      allowVoteWithdrawal,
       resultsPublic,
       allowMaybe,
       options: validOptions.map((option, index) => {
@@ -417,6 +422,20 @@ export default function CreateSurvey() {
                 checked={allowVoteEdit}
                 onCheckedChange={setAllowVoteEdit}
                 data-testid="switch-allow-vote-edit"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="space-y-0.5">
+                <Label>Stimmen zurückziehen erlauben</Label>
+                <p className="text-sm text-muted-foreground">
+                  Dürfen Teilnehmende ihre Abstimmung komplett zurückziehen?
+                </p>
+              </div>
+              <Switch
+                checked={allowVoteWithdrawal}
+                onCheckedChange={setAllowVoteWithdrawal}
+                data-testid="switch-allow-vote-withdrawal"
               />
             </div>
             

@@ -226,10 +226,10 @@ export function OrganizationSlotVoting({
                     variant={isBooked ? 'default' : 'outline'}
                     className={`w-full md:w-auto ${
                       isBooked 
-                        ? 'bg-green-600 hover:bg-green-700' 
+                        ? 'kita-button-success' 
                         : isFull
                           ? 'opacity-50 cursor-not-allowed'
-                          : 'border-green-600 text-green-600 hover:bg-green-50'
+                          : 'kita-button-organization-outline'
                     }`}
                     onClick={() => toggleSlot(option.id)}
                     disabled={disabled || (isFull && !isBooked)}

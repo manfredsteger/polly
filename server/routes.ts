@@ -1041,14 +1041,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let votesToDelete: any[] = [];
       
-      // For authenticated users, find votes by user ID
+      // For authenticated users, find votes by user ID or email
       if (currentUserId) {
         const user = await storage.getUser(currentUserId);
         if (user) {
-          // Get votes by the user's email
-          votesToDelete = await storage.getVotesByEmail(poll.id, user.email);
-          // Filter to only votes linked to this user
-          votesToDelete = votesToDelete.filter(v => v.userId === currentUserId);
+          // Get votes by the user's email (regardless of userId linkage)
+          const votesByEmail = await storage.getVotesByEmail(poll.id, user.email);
+          // Include votes that are either linked to this user OR have matching email
+          votesToDelete = votesByEmail;
+          console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes for user ${user.email} in poll ${poll.id}`);
         }
       }
       
@@ -1056,15 +1057,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (votesToDelete.length === 0 && voterEditToken) {
         const votesByToken = await storage.getVotesByEditToken(voterEditToken);
         votesToDelete = votesByToken.filter(v => v.pollId === poll.id);
+        console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes by edit token in poll ${poll.id}`);
       }
       
-      // For guests with email (legacy)
-      if (votesToDelete.length === 0 && voterEmail) {
+      // For guests with email (when not authenticated)
+      if (votesToDelete.length === 0 && voterEmail && !currentUserId) {
         const votesByEmail = await storage.getVotesByEmail(poll.id, voterEmail);
-        // Only allow deletion if no edit token was provided (simple email lookup)
-        if (votesByEmail.length > 0 && !votesByEmail[0].voterEditToken) {
-          votesToDelete = votesByEmail;
-        }
+        votesToDelete = votesByEmail;
+        console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes by email ${voterEmail} in poll ${poll.id}`);
       }
       
       if (votesToDelete.length === 0) {

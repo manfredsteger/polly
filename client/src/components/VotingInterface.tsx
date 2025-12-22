@@ -648,7 +648,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     size="sm"
                     onClick={() => withdrawVoteMutation.mutate()}
                     disabled={withdrawVoteMutation.isPending}
-                    className="text-red-600 border-red-300 hover:bg-red-50"
+                    className="kita-button-danger-outline"
                     data-testid="button-withdraw-vote"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -933,7 +933,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     size="sm"
                     onClick={() => withdrawVoteMutation.mutate()}
                     disabled={withdrawVoteMutation.isPending}
-                    className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                    className="w-full kita-button-danger-outline"
                     data-testid="button-withdraw-vote-editable"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />

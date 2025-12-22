@@ -14,6 +14,31 @@ export default function VoteSuccess() {
   const queryClient = useQueryClient();
   const [voteData, setVoteData] = useState<any>(null);
 
+  // All hooks must be called before any early returns
+  const withdrawVoteMutation = useMutation({
+    mutationFn: async () => {
+      if (!voteData?.publicToken) throw new Error('No poll token');
+      const response = await apiRequest("DELETE", `/api/v1/polls/${voteData.publicToken}/vote`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Stimme zurückgezogen",
+        description: "Ihre Stimme wurde erfolgreich entfernt.",
+      });
+      if (voteData?.publicToken) {
+        navigate(`/poll/${voteData.publicToken}`);
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Ihre Stimme konnte nicht zurückgezogen werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     // Scroll to top when page loads
     window.scrollTo(0, 0);
@@ -68,27 +93,6 @@ export default function VoteSuccess() {
       });
     }
   };
-
-  const withdrawVoteMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/v1/polls/${publicToken}/vote`);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Stimme zurückgezogen",
-        description: "Ihre Stimme wurde erfolgreich entfernt.",
-      });
-      navigate(`/poll/${publicToken}`);
-    },
-    onError: () => {
-      toast({
-        title: "Fehler",
-        description: "Ihre Stimme konnte nicht zurückgezogen werden.",
-        variant: "destructive",
-      });
-    },
-  });
 
   const canWithdraw = voteData?.allowVoteWithdrawal;
 

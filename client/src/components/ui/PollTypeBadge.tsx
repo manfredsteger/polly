@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type PollType = 'schedule' | 'survey' | 'organization';
@@ -21,11 +20,15 @@ export function PollTypeBadge({ type, variant = 'solid', className }: PollTypeBa
     : `kita-badge-${type}`;
 
   return (
-    <Badge 
-      className={cn(badgeClass, className)}
+    <div 
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+        badgeClass,
+        className
+      )}
       data-testid={`badge-poll-type-${type}`}
     >
       {typeLabels[type]}
-    </Badge>
+    </div>
   );
 }

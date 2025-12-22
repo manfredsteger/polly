@@ -281,38 +281,50 @@
     @apply text-blue-600 dark:text-blue-400;
   }
 
-  /* Poll type badges - solid background versions (use !important to override shadcn defaults) */
+  /* Poll type badges - solid background versions (high specificity to override shadcn) */
+  span.kita-badge-schedule-solid,
+  div.kita-badge-schedule-solid,
   .kita-badge-schedule-solid {
     background-color: var(--color-schedule) !important;
-    color: var(--color-schedule-foreground) !important;
+    color: white !important;
     border-color: transparent !important;
   }
 
+  span.kita-badge-survey-solid,
+  div.kita-badge-survey-solid,
   .kita-badge-survey-solid {
     background-color: var(--color-survey) !important;
-    color: var(--color-survey-foreground) !important;
+    color: white !important;
     border-color: transparent !important;
   }
 
+  span.kita-badge-organization-solid,
+  div.kita-badge-organization-solid,
   .kita-badge-organization-solid {
     background-color: var(--color-organization) !important;
-    color: var(--color-organization-foreground) !important;
+    color: white !important;
     border-color: transparent !important;
   }
 
   /* Feature badges - outline versions */
+  span.kita-badge-schedule,
+  div.kita-badge-schedule,
   .kita-badge-schedule {
     background-color: var(--color-schedule-light) !important;
     color: var(--color-schedule) !important;
     border: 1px solid var(--color-schedule) !important;
   }
 
+  span.kita-badge-survey,
+  div.kita-badge-survey,
   .kita-badge-survey {
     background-color: var(--color-survey-light) !important;
     color: var(--color-survey) !important;
     border: 1px solid var(--color-survey) !important;
   }
 
+  span.kita-badge-organization,
+  div.kita-badge-organization,
   .kita-badge-organization {
     background-color: var(--color-organization-light) !important;
     color: var(--color-organization) !important;

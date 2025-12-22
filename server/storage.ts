@@ -116,6 +116,7 @@ export interface IStorage {
       message: string;
       timestamp: Date;
       actor?: string;
+      pollToken?: string;
     }>;
   }>;
 
@@ -795,6 +796,7 @@ export class DatabaseStorage implements IStorage {
       message: string;
       timestamp: Date;
       actor?: string;
+      pollToken?: string;
     }>;
   }> {
     // Exclude test data from all statistics
@@ -827,19 +829,11 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(polls.type, 'organization'), eq(polls.isTestData, false)));
 
     // Get recent activity (recent polls and votes) - excluding test data
-    const recentPolls = await db.select({
-      id: polls.id,
-      title: polls.title,
-      type: polls.type,
-      createdAt: polls.createdAt,
-      userId: polls.userId,
-    }).from(polls).where(eq(polls.isTestData, false)).orderBy(desc(polls.createdAt)).limit(5);
+    const recentPolls = await db.select().from(polls).where(eq(polls.isTestData, false)).orderBy(desc(polls.createdAt)).limit(5);
 
-    const recentVotes = await db.select({
-      id: votes.id,
-      pollId: votes.pollId,
-      voterName: votes.voterName,
-      createdAt: votes.createdAt,
+    const recentVotesWithPolls = await db.select({
+      vote: votes,
+      poll: polls,
     }).from(votes)
       .innerJoin(polls, eq(votes.pollId, polls.id))
       .where(eq(polls.isTestData, false))
@@ -852,7 +846,7 @@ export class DatabaseStorage implements IStorage {
     }).from(users).where(eq(users.isTestData, false)).orderBy(desc(users.createdAt)).limit(3);
 
     // Build activity list
-    const activity: Array<{ type: string; message: string; timestamp: Date; actor?: string }> = [];
+    const activity: Array<{ type: string; message: string; timestamp: Date; actor?: string; pollToken?: string }> = [];
 
     for (const poll of recentPolls) {
       let actor: string | undefined;
@@ -867,15 +861,17 @@ export class DatabaseStorage implements IStorage {
         message: `Neue ${typeLabel} erstellt: "${poll.title}"`,
         timestamp: poll.createdAt,
         actor,
+        pollToken: poll.publicToken,
       });
     }
 
-    for (const vote of recentVotes) {
+    for (const { vote, poll } of recentVotesWithPolls) {
       activity.push({
         type: 'vote',
         message: `Neue Abstimmung abgegeben`,
         timestamp: vote.createdAt,
         actor: vote.voterName,
+        pollToken: poll.publicToken,
       });
     }
 

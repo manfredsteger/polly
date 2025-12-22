@@ -165,6 +165,7 @@ interface ExtendedStats {
     message: string;
     timestamp: string;
     actor?: string;
+    pollToken?: string;
   }>;
 }
 
@@ -1106,7 +1107,18 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       <div key={index} className="relative">
                         <div className="absolute -left-6 top-1 w-3 h-3 bg-kita-orange rounded-full" />
                         <div className="ml-2">
-                          <p className="text-sm font-medium">{activity.message}</p>
+                          {activity.pollToken ? (
+                            <a 
+                              href={`/poll/${activity.pollToken}`}
+                              className="text-sm font-medium hover:text-kita-orange hover:underline cursor-pointer transition-colors"
+                              data-testid={`activity-link-${index}`}
+                            >
+                              {activity.message}
+                              <ExternalLink className="inline-block w-3 h-3 ml-1 opacity-50" />
+                            </a>
+                          ) : (
+                            <p className="text-sm font-medium">{activity.message}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             {activity.actor && <span className="font-medium">{activity.actor} • </span>}
                             {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: de })}

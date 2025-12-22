@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,6 +44,11 @@ export function OrganizationSlotVoting({
   const [bookings, setBookings] = useState<SlotBookingInfo[]>(existingBookings);
   const [comments, setComments] = useState<Record<number, string>>({});
 
+  // Sync internal bookings state with parent when existingBookings changes
+  useEffect(() => {
+    setBookings(existingBookings);
+  }, [existingBookings]);
+
   const isSlotBooked = (optionId: number) => {
     return bookings.some(b => b.optionId === optionId);
   };
@@ -71,20 +76,14 @@ export function OrganizationSlotVoting({
   };
 
   const toggleSlot = (optionId: number) => {
-    console.log('[OrganizationSlotVoting] toggleSlot called:', { optionId, disabled, adminPreview, isSlotFull: isSlotFull(optionId), isSlotBooked: isSlotBooked(optionId) });
-    if (disabled || adminPreview) {
-      console.log('[OrganizationSlotVoting] toggleSlot blocked: disabled or adminPreview');
-      return;
-    }
+    if (disabled || adminPreview) return;
     
     let newBookings: SlotBookingInfo[];
     
     if (isSlotBooked(optionId)) {
       newBookings = bookings.filter(b => b.optionId !== optionId);
-      console.log('[OrganizationSlotVoting] Removing booking:', optionId);
     } else {
       if (isSlotFull(optionId)) {
-        console.log('[OrganizationSlotVoting] Slot is full, cannot book');
         return;
       }
       
@@ -93,12 +92,10 @@ export function OrganizationSlotVoting({
       } else {
         newBookings = [...bookings, { optionId, comment: comments[optionId] }];
       }
-      console.log('[OrganizationSlotVoting] Adding booking:', optionId, newBookings);
     }
     
     setBookings(newBookings);
     onBookingChange(newBookings);
-    console.log('[OrganizationSlotVoting] Bookings updated:', newBookings);
   };
 
   const updateComment = (optionId: number, comment: string) => {

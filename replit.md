@@ -121,6 +121,19 @@ The project is organized into `client/` (React frontend), `server/` (Express bac
 - **Service**: `server/services/pentestToolsService.ts` - REST API client with config caching
 - **API Endpoints**: `/api/v1/admin/pentest-tools/*` (all secured with requireAdmin)
 
+### Calendar Integration
+- **ICS Export**: Download schedule poll options as .ics calendar files with vote counts
+- **Calendar Subscription**: Users can subscribe to their participations via webcal:// URL
+- **Token-Based Access**: Unique calendar tokens per user for subscription authentication
+- **Supported Apps**: Outlook, Google Calendar, Apple Calendar, and any app supporting webcal:// or https:// ICS feeds
+- **Service**: `server/services/icsService.ts` - RFC 5545 compliant ICS generation
+- **API Endpoints**:
+  - `GET /api/v1/polls/:token/export/ics` - Download poll as ICS file
+  - `GET /api/v1/calendar/token` - Get user's calendar subscription token
+  - `POST /api/v1/calendar/token/regenerate` - Regenerate subscription token
+  - `GET /api/v1/calendar/:calendarToken/feed.ics` - Calendar subscription feed
+- **UI**: ICS export button in poll export section, subscription card on "Meine Umfragen" page
+
 ### PDF Export
 - **Technology**: Puppeteer (Headless Chrome) for professional HTML/CSS-based PDF generation
 - **Features**: Colored vote bars, best option highlighting, clean A4 layout with print optimization

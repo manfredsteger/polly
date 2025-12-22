@@ -71,14 +71,20 @@ export function OrganizationSlotVoting({
   };
 
   const toggleSlot = (optionId: number) => {
-    if (disabled || adminPreview) return;
+    console.log('[OrganizationSlotVoting] toggleSlot called:', { optionId, disabled, adminPreview, isSlotFull: isSlotFull(optionId), isSlotBooked: isSlotBooked(optionId) });
+    if (disabled || adminPreview) {
+      console.log('[OrganizationSlotVoting] toggleSlot blocked: disabled or adminPreview');
+      return;
+    }
     
     let newBookings: SlotBookingInfo[];
     
     if (isSlotBooked(optionId)) {
       newBookings = bookings.filter(b => b.optionId !== optionId);
+      console.log('[OrganizationSlotVoting] Removing booking:', optionId);
     } else {
       if (isSlotFull(optionId)) {
+        console.log('[OrganizationSlotVoting] Slot is full, cannot book');
         return;
       }
       
@@ -87,10 +93,12 @@ export function OrganizationSlotVoting({
       } else {
         newBookings = [...bookings, { optionId, comment: comments[optionId] }];
       }
+      console.log('[OrganizationSlotVoting] Adding booking:', optionId, newBookings);
     }
     
     setBookings(newBookings);
     onBookingChange(newBookings);
+    console.log('[OrganizationSlotVoting] Bookings updated:', newBookings);
   };
 
   const updateComment = (optionId: number, comment: string) => {

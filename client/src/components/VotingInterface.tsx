@@ -600,7 +600,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           <CardTitle className="flex items-center justify-between">
             <span>Ihre Angaben</span>
             {isAdminAccess && (
-              <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+              <Badge className="kita-badge-admin">
                 Admin
               </Badge>
             )}
@@ -643,7 +643,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 <Label htmlFor="voterEmail" className="flex items-center gap-2">
                   E-Mail *
                   {isUserEmailLocked && (
-                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                    <Badge className="text-xs kita-badge-user">
                       <User className="w-3 h-3 mr-1" />
                       Angemeldet
                     </Badge>
@@ -812,6 +812,11 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             <div className="mt-6 pt-6 border-t border-border flex flex-col items-center">
               {poll.type === 'organization' ? (
                 <>
+                  {orgaBookings.length === 0 && (
+                    <p className="text-sm text-muted-foreground mb-3 text-center">
+                      Bitte wählen Sie mindestens einen Slot aus
+                    </p>
+                  )}
                   {hasOrgaChanges && orgaBookings.length > 0 && (
                     <p className="text-sm text-red-600 mb-3 text-center font-medium">
                       Sie haben ungespeicherte Änderungen
@@ -821,16 +826,15 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     onClick={handleSubmitVotes}
                     className={`px-8 ${
                       orgaBookings.length === 0 
-                        ? 'bg-gray-500 hover:bg-gray-600 text-white' 
+                        ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
                         : hasOrgaChanges 
-                          ? 'bg-red-600 hover:bg-red-700 text-white' 
-                          : 'bg-gray-500 hover:bg-gray-600 text-white'
+                          ? 'kita-button-organization' 
+                          : 'kita-button-organization'
                     }`}
-                    style={{ textShadow: 'rgba(0,0,0,0.2) 0px 1px 2px' }}
                     disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
                     data-testid="button-submit-vote"
                   >
-                    {voteMutation.isPending ? "Speichere..." : "Speichern"}
+                    {voteMutation.isPending ? "Speichere..." : orgaBookings.length > 0 ? "Eintragen" : "Slot auswählen"}
                   </Button>
                 </>
               ) : (

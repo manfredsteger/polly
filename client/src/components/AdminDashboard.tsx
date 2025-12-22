@@ -371,11 +371,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
 
   const getImpactBadgeColor = (area: ImpactArea) => {
     switch (area) {
-      case 'development': return 'bg-slate-500 text-white border-0';
-      case 'frontend': return 'bg-blue-500 text-white border-0';
-      case 'backend': return 'bg-purple-500 text-white border-0';
-      case 'shared': return 'bg-indigo-500 text-white border-0';
-      default: return 'bg-gray-500 text-white border-0';
+      case 'development': return 'kita-badge-dev-only';
+      case 'frontend': return 'kita-badge-frontend';
+      case 'backend': return 'kita-badge-backend';
+      case 'shared': return 'kita-badge-fullstack';
+      default: return 'kita-badge-info';
     }
   };
 
@@ -727,19 +727,19 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                             </td>
                             <td className="py-2">
                               {component.status === 'current' && (
-                                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                                <Badge className="kita-badge-success">
                                   <CheckCircle className="w-3 h-3 mr-1" />
                                   Aktuell
                                 </Badge>
                               )}
                               {component.status === 'warning' && (
-                                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">
+                                <Badge className="kita-badge-warning">
                                   <AlertTriangle className="w-3 h-3 mr-1" />
                                   Bald EOL
                                 </Badge>
                               )}
                               {component.status === 'eol' && (
-                                <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">
+                                <Badge className="kita-badge-error">
                                   <XCircle className="w-3 h-3 mr-1" />
                                   EOL
                                 </Badge>
@@ -788,17 +788,17 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     {vulnerabilities?.summary && vulnerabilities.summary.total > 0 && (
                       <div className="flex gap-1 flex-wrap">
                         {vulnerabilities.summary.critical > 0 && (
-                          <Badge className="bg-red-600 text-white border-0" data-testid="badge-critical">
+                          <Badge className="kita-badge-critical" data-testid="badge-critical">
                             {vulnerabilities.summary.critical} Kritisch
                           </Badge>
                         )}
                         {vulnerabilities.summary.high > 0 && (
-                          <Badge className="bg-orange-500 text-white border-0" data-testid="badge-high">
+                          <Badge className="kita-badge-high" data-testid="badge-high">
                             {vulnerabilities.summary.high} Hoch
                           </Badge>
                         )}
                         {vulnerabilities.summary.moderate > 0 && (
-                          <Badge className="bg-amber-500 text-white border-0" data-testid="badge-moderate">
+                          <Badge className="kita-badge-moderate" data-testid="badge-moderate">
                             {vulnerabilities.summary.moderate} Mittel
                           </Badge>
                         )}
@@ -863,13 +863,13 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                             </td>
                             <td className="py-2">
                               {vuln.severity === 'critical' && (
-                                <Badge className="bg-red-600 text-white border-0">Kritisch</Badge>
+                                <Badge className="kita-badge-critical">Kritisch</Badge>
                               )}
                               {vuln.severity === 'high' && (
-                                <Badge className="bg-orange-500 text-white border-0">Hoch</Badge>
+                                <Badge className="kita-badge-high">Hoch</Badge>
                               )}
                               {vuln.severity === 'moderate' && (
-                                <Badge className="bg-amber-500 text-white border-0">Mittel</Badge>
+                                <Badge className="kita-badge-moderate">Mittel</Badge>
                               )}
                               {vuln.severity === 'low' && (
                                 <Badge variant="secondary">Niedrig</Badge>

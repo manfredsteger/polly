@@ -74,7 +74,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
                 <><ClipboardList className="h-3 w-3 mr-1" />Umfrage</>
               )}
             </Badge>
-            <Badge variant={isActive ? 'default' : 'outline'} className={isActive ? 'bg-purple-500 hover:bg-purple-600' : ''}>
+            <Badge className={isActive ? 'kita-badge-active' : 'kita-badge-inactive'}>
               {isActive ? (
                 <><CheckCircle className="h-3 w-3 mr-1" />Aktiv</>
               ) : (

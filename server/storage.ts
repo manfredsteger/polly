@@ -28,11 +28,13 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByKeycloakId(keycloakId: string): Promise<User | undefined>;
+  getUserByCalendarToken(calendarToken: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User>;
   updateUserLastLogin(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getUserParticipatedPolls(userId: number): Promise<PollWithOptions[]>;
+  getUserParticipations(userId: number, userEmail: string): Promise<Array<{ poll: Poll; options: PollOption[]; votes: Vote[] }>>;
   deleteUser(id: number): Promise<void>;
 
   // Poll management
@@ -176,6 +178,11 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserByCalendarToken(calendarToken: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.calendarToken, calendarToken));
+    return user || undefined;
+  }
+
   async updateUserLastLogin(id: number): Promise<void> {
     await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, id));
   }
@@ -200,6 +207,39 @@ export class DatabaseStorage implements IStorage {
     );
 
     return participatedPolls.filter((p): p is PollWithOptions => p !== undefined);
+  }
+
+  async getUserParticipations(userId: number, userEmail: string): Promise<Array<{ poll: Poll; options: PollOption[]; votes: Vote[] }>> {
+    // Get all votes by this user (by email or userId)
+    const userVotes = await db.select()
+      .from(votes)
+      .where(sql`${votes.voterEmail} = ${userEmail} OR ${votes.userId} = ${userId}`);
+
+    if (userVotes.length === 0) return [];
+
+    // Group votes by poll
+    const votesByPoll = new Map<string, Vote[]>();
+    for (const vote of userVotes) {
+      const existing = votesByPoll.get(vote.pollId) || [];
+      existing.push(vote);
+      votesByPoll.set(vote.pollId, existing);
+    }
+
+    // Get all relevant polls and their options
+    const pollIds = Array.from(votesByPoll.keys());
+    const participations: Array<{ poll: Poll; options: PollOption[]; votes: Vote[] }> = [];
+
+    for (const pollId of pollIds) {
+      const [poll] = await db.select().from(polls).where(eq(polls.id, pollId));
+      if (!poll) continue;
+
+      const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, pollId));
+      const userPollVotes = votesByPoll.get(pollId) || [];
+
+      participations.push({ poll, options, votes: userPollVotes });
+    }
+
+    return participations;
   }
 
   async createPoll(insertPoll: InsertPoll, options: InsertPollOption[]): Promise<{ poll: Poll; adminToken: string; publicToken: string }> {

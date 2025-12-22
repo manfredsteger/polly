@@ -13,6 +13,7 @@ import { loginRateLimiter } from "./services/rateLimiterService";
 import { clamavService } from "./services/clamavService";
 import { deviceTokenService } from "./services/deviceTokenService";
 import { pentestToolsService, TOOL_IDS, TOOL_NAMES, SCAN_TYPES } from "./services/pentestToolsService";
+import * as icsService from "./services/icsService";
 import * as matrixService from "./matrix";
 import { z } from "zod";
 import path from "path";
@@ -1260,6 +1261,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(csv);
     } catch (error) {
       console.error('Error generating CSV:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Export poll results as ICS (calendar file)
+  v1Router.get('/polls/:token/export/ics', async (req, res) => {
+    try {
+      let poll;
+      
+      poll = await storage.getPollByAdminToken(req.params.token);
+      if (!poll) {
+        poll = await storage.getPollByPublicToken(req.params.token);
+      }
+      
+      if (!poll) {
+        return res.status(404).json({ error: 'Poll not found' });
+      }
+
+      const results = await storage.getPollResults(poll.id);
+      
+      const { getBaseUrl } = await import('./utils/baseUrl');
+      const baseUrl = getBaseUrl();
+      
+      const icsContent = icsService.generatePollIcs(
+        poll,
+        results.options,
+        results.votes,
+        baseUrl
+      );
+      
+      const sanitizedTitle = poll.title.replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g, '_').substring(0, 50);
+      
+      res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedTitle}.ics"`);
+      res.send(icsContent);
+    } catch (error) {
+      console.error('Error generating ICS:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get calendar subscription token for authenticated user
+  v1Router.get('/calendar/token', requireAuth, async (req, res) => {
+    try {
+      const userId = await extractUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: 'Nicht angemeldet' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      let calendarToken = user.calendarToken;
+      
+      // Generate token if not exists
+      if (!calendarToken) {
+        calendarToken = randomBytes(32).toString('hex');
+        await storage.updateUser(userId, { calendarToken });
+      }
+
+      const { getBaseUrl } = await import('./utils/baseUrl');
+      const baseUrl = getBaseUrl();
+      const webcalUrl = `webcal://${baseUrl.replace(/^https?:\/\//, '')}/api/${API_VERSION}/calendar/${calendarToken}/feed.ics`;
+      const httpsUrl = `${baseUrl}/api/${API_VERSION}/calendar/${calendarToken}/feed.ics`;
+
+      res.json({ 
+        calendarToken,
+        webcalUrl,
+        httpsUrl
+      });
+    } catch (error) {
+      console.error('Error getting calendar token:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Regenerate calendar subscription token
+  v1Router.post('/calendar/token/regenerate', requireAuth, async (req, res) => {
+    try {
+      const userId = await extractUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: 'Nicht angemeldet' });
+      }
+
+      const calendarToken = randomBytes(32).toString('hex');
+      await storage.updateUser(userId, { calendarToken });
+
+      const { getBaseUrl } = await import('./utils/baseUrl');
+      const baseUrl = getBaseUrl();
+      const webcalUrl = `webcal://${baseUrl.replace(/^https?:\/\//, '')}/api/${API_VERSION}/calendar/${calendarToken}/feed.ics`;
+      const httpsUrl = `${baseUrl}/api/${API_VERSION}/calendar/${calendarToken}/feed.ics`;
+
+      res.json({ 
+        calendarToken,
+        webcalUrl,
+        httpsUrl
+      });
+    } catch (error) {
+      console.error('Error regenerating calendar token:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Calendar subscription feed (public endpoint with token auth)
+  v1Router.get('/calendar/:calendarToken/feed.ics', async (req, res) => {
+    try {
+      const { calendarToken } = req.params;
+      
+      // Find user by calendar token
+      const user = await storage.getUserByCalendarToken(calendarToken);
+      if (!user) {
+        return res.status(404).json({ error: 'Invalid calendar token' });
+      }
+
+      // Get all participations for this user
+      const participations = await storage.getUserParticipations(user.id, user.email);
+      
+      const { getBaseUrl } = await import('./utils/baseUrl');
+      const baseUrl = getBaseUrl();
+      
+      const icsContent = icsService.generateUserCalendarFeed(
+        participations,
+        user.name,
+        baseUrl
+      );
+      
+      res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.send(icsContent);
+    } catch (error) {
+      console.error('Error generating calendar feed:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

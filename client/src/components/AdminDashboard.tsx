@@ -566,6 +566,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <NavButton collapsed={sidebarCollapsed} active={activeTab === "customize"} onClick={() => { setActiveTab("customize"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Paintbrush className="w-4 h-4" />} label="Anpassen" testId="nav-customize" />
                 <NavButton collapsed={sidebarCollapsed} active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Settings className="w-4 h-4" />} label="Einstellungen" testId="nav-settings" />
                 <NavButton collapsed={sidebarCollapsed} active={activeTab === "tests"} onClick={() => { setActiveTab("tests"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<FlaskConical className="w-4 h-4" />} label="Tests" testId="nav-tests" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "deletion-requests"} onClick={() => { setActiveTab("deletion-requests"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<UserX className="w-4 h-4" />} label="Löschanträge" testId="nav-deletion-requests" />
               </nav>
             </CardContent>
           </Card>
@@ -1860,6 +1861,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         {/* Customization Panel */}
         {activeTab === "customize" && (
           <CustomizationPanel />
+        )}
+
+        {/* GDPR Deletion Requests Panel */}
+        {activeTab === "deletion-requests" && (
+          <DeletionRequestsPanel onBack={() => setActiveTab("overview")} />
         )}
       </div>
       </div>
@@ -6632,6 +6638,293 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// GDPR Deletion Requests Panel Component
+function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  interface DeletionRequestUser {
+    id: number;
+    username: string;
+    email: string;
+    name: string;
+    organization: string | null;
+    role: string;
+    provider: string;
+    createdAt: string;
+    deletionRequestedAt: string | null;
+  }
+
+  const { data: requests, isLoading, refetch } = useQuery<DeletionRequestUser[]>({
+    queryKey: ['/api/v1/admin/deletion-requests'],
+  });
+
+  const confirmDeletionMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest('POST', `/api/v1/admin/deletion-requests/${userId}/confirm`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Benutzer gelöscht",
+        description: "Der Benutzer und alle zugehörigen Daten wurden gemäß DSGVO Art. 17 gelöscht.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/deletion-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Der Benutzer konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectDeletionMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest('POST', `/api/v1/admin/deletion-requests/${userId}/reject`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Löschantrag abgelehnt",
+        description: "Der Löschantrag wurde abgelehnt und der Benutzer wurde benachrichtigt.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/deletion-requests'] });
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Der Löschantrag konnte nicht abgelehnt werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-back-deletion">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <UserX className="w-5 h-5 text-destructive" />
+              Löschanträge (DSGVO Art. 17)
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Benutzeranträge auf Löschung personenbezogener Daten
+            </p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={() => refetch()} data-testid="button-refresh-deletion-requests">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Aktualisieren
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Offene Löschanträge</CardTitle>
+          <CardDescription>
+            Benutzer, die die Löschung ihres Kontos beantragt haben
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !requests || requests.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500" />
+              <p className="font-medium">Keine offenen Löschanträge</p>
+              <p className="text-sm mt-1">Alle Löschanträge wurden bearbeitet.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Benutzer</TableHead>
+                  <TableHead>E-Mail</TableHead>
+                  <TableHead>Rolle</TableHead>
+                  <TableHead>Anbieter</TableHead>
+                  <TableHead>Registriert am</TableHead>
+                  <TableHead>Antrag gestellt am</TableHead>
+                  <TableHead className="text-right">Aktionen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((user) => (
+                  <TableRow key={user.id} data-testid={`row-deletion-request-${user.id}`}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{user.name || user.username}</p>
+                        <p className="text-sm text-muted-foreground">@{user.username}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.role === 'admin' ? 'destructive' : user.role === 'manager' ? 'default' : 'secondary'}>
+                        {user.role === 'admin' ? 'Admin' : user.role === 'manager' ? 'Manager' : 'Benutzer'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {user.provider === 'local' ? 'Lokal' : user.provider === 'keycloak' ? 'Keycloak' : user.provider}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(user.createdAt), 'dd.MM.yyyy', { locale: de })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-500" />
+                        {user.deletionRequestedAt && format(new Date(user.deletionRequestedAt), 'dd.MM.yyyy HH:mm', { locale: de })}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              data-testid={`button-reject-deletion-${user.id}`}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Ablehnen
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Löschantrag ablehnen?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Sind Sie sicher, dass Sie den Löschantrag von {user.name || user.username} ablehnen möchten?
+                                Der Benutzer kann den Antrag erneut stellen.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => rejectDeletionMutation.mutate(user.id)}
+                                className="bg-amber-600 hover:bg-amber-700"
+                              >
+                                Ablehnen
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              data-testid={`button-confirm-deletion-${user.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Löschen
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-destructive">Benutzer unwiderruflich löschen?</AlertDialogTitle>
+                              <AlertDialogDescription asChild>
+                                <div className="space-y-3">
+                                  <p>
+                                    Sie sind dabei, den Benutzer <strong>{user.name || user.username}</strong> ({user.email}) 
+                                    gemäß DSGVO Art. 17 zu löschen.
+                                  </p>
+                                  <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                                    <p className="text-sm font-medium text-destructive">Folgende Daten werden unwiderruflich gelöscht:</p>
+                                    <ul className="mt-2 text-sm list-disc list-inside space-y-1">
+                                      <li>Benutzerkonto und Profildaten</li>
+                                      <li>Alle vom Benutzer erstellten Umfragen</li>
+                                      <li>Alle abgegebenen Stimmen</li>
+                                      <li>Alle zugehörigen Tokens und Sessions</li>
+                                    </ul>
+                                  </div>
+                                  <p className="text-sm font-medium">Diese Aktion kann nicht rückgängig gemacht werden!</p>
+                                </div>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => confirmDeletionMutation.mutate(user.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Unwiderruflich löschen
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Shield className="w-5 h-5 text-blue-500" />
+            Hinweise zur DSGVO-Konformität
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="p-4 border rounded-lg">
+              <h4 className="font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                Recht auf Löschung (Art. 17)
+              </h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Benutzer haben das Recht, die Löschung ihrer personenbezogenen Daten zu verlangen.
+              </p>
+            </div>
+            <div className="p-4 border rounded-lg">
+              <h4 className="font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-500" />
+                Bearbeitungsfrist
+              </h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Löschanträge sollten innerhalb eines Monats bearbeitet werden (Art. 12 Abs. 3 DSGVO).
+              </p>
+            </div>
+            <div className="p-4 border rounded-lg">
+              <h4 className="font-medium flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-orange-500" />
+                Ausnahmen beachten
+              </h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Prüfen Sie, ob gesetzliche Aufbewahrungspflichten der Löschung entgegenstehen.
+              </p>
+            </div>
+            <div className="p-4 border rounded-lg">
+              <h4 className="font-medium flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-500" />
+                Dokumentation
+              </h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Löschvorgänge werden im Server-Log protokolliert für Nachweiszwecke.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

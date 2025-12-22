@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   calendarToken: text("calendar_token").unique(), // Secret token for calendar subscription feed
   isTestData: boolean("is_test_data").default(false).notNull(), // Test accounts cannot log in
   isInitialAdmin: boolean("is_initial_admin").default(false).notNull(), // Initial admin created on first start - shows warning banner
+  deletionRequestedAt: timestamp("deletion_requested_at"), // GDPR: User requested account deletion
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

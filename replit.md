@@ -65,6 +65,22 @@ The project is organized into `client/` (React frontend), `server/` (Express bac
 - **OIDC Users**: Redirected to Keycloak account management for password/email changes
 - **Token Tables**: `password_reset_tokens` and `email_change_tokens` tables with automatic cleanup of expired tokens
 
+### GDPR Account Deletion (Art. 17)
+- **Right to Erasure**: Users can request deletion of their account and all personal data
+- **Request Flow**: User requests deletion via Profile page → Admin reviews in "Löschanträge" tab → Admin confirms or rejects
+- **User UI**: "Konto löschen" card on profile page with request/cancel functionality
+- **Admin UI**: Located in Admin Panel > Löschanträge with list of pending requests
+- **Data Deleted**: User account, all created polls, all votes, sessions, and tokens
+- **Safety**: Admins cannot delete their own accounts; only users with pending requests can be deleted via this flow
+- **Logging**: All deletion confirmations are logged for GDPR compliance documentation
+- **Schema Field**: `deletionRequestedAt` timestamp on users table
+- **API Endpoints**:
+  - `POST /api/v1/auth/request-deletion` - User requests deletion
+  - `DELETE /api/v1/auth/request-deletion` - User cancels request
+  - `GET /api/v1/admin/deletion-requests` - List pending requests
+  - `POST /api/v1/admin/deletion-requests/:id/confirm` - Admin confirms deletion
+  - `POST /api/v1/admin/deletion-requests/:id/reject` - Admin rejects request
+
 ### ClamAV Virus Scanner Integration
 - **Security Compliance**: All file uploads are scanned BEFORE persistence (government pentest requirement)
 - **Upload Flow**: User uploads → ClamAV scans in memory → Only clean files are saved to disk

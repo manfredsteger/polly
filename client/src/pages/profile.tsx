@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, User, Mail, Building, Shield, Moon, Sun, Monitor, Calendar, Save, Key, ExternalLink, AlertCircle } from "lucide-react";
+import { ArrowLeft, User, Mail, Building, Shield, Moon, Sun, Monitor, Calendar, Save, Key, ExternalLink, AlertCircle, Trash2, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { ThemePreference } from "@shared/schema";
 import {
@@ -33,6 +33,7 @@ interface UserProfile {
   themePreference: ThemePreference;
   createdAt: string;
   lastLoginAt: string | null;
+  deletionRequestedAt: string | null;
 }
 
 export default function Profile() {
@@ -55,6 +56,9 @@ export default function Profile() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
+
+  // Account deletion state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ['/api/v1/user/profile'],
@@ -150,6 +154,49 @@ export default function Profile() {
       setEmailDialogOpen(false);
       setNewEmail("");
       setEmailPassword("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler",
+        description: parseErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const requestDeletionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/v1/auth/request-deletion');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Löschantrag übermittelt",
+        description: "Ein Administrator wird Ihren Antrag bearbeiten.",
+      });
+      setDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler",
+        description: parseErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelDeletionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', '/api/v1/auth/request-deletion');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Löschantrag zurückgezogen",
+        description: "Ihr Konto wird nicht mehr gelöscht.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
     },
     onError: (error: any) => {
       toast({
@@ -458,6 +505,65 @@ export default function Profile() {
               </CardContent>
             </Card>
 
+            {/* GDPR Account Deletion Card */}
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <Trash2 className="w-5 h-5" />
+                  Konto löschen
+                </CardTitle>
+                <CardDescription>
+                  Gemäß DSGVO Art. 17 haben Sie das Recht auf Löschung Ihrer personenbezogenen Daten.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {profile?.deletionRequestedAt ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+                      <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-medium text-amber-800 dark:text-amber-200">Löschantrag eingereicht</p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          Ihr Löschantrag wurde am {new Date(profile.deletionRequestedAt).toLocaleDateString('de-DE', { 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })} Uhr eingereicht und wartet auf Bearbeitung durch einen Administrator.
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline"
+                      onClick={() => cancelDeletionMutation.mutate()}
+                      disabled={cancelDeletionMutation.isPending}
+                      data-testid="button-cancel-deletion"
+                    >
+                      {cancelDeletionMutation.isPending ? "Zurückziehen..." : "Löschantrag zurückziehen"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg">
+                    <div>
+                      <p className="font-medium">Konto und alle Daten löschen</p>
+                      <p className="text-sm text-muted-foreground">
+                        Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre persönlichen Daten werden gelöscht.
+                      </p>
+                    </div>
+                    <Button 
+                      variant="destructive"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      data-testid="button-request-deletion"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Löschung beantragen
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <div className="flex justify-end">
               <Button 
                 onClick={handleSave}
@@ -472,6 +578,48 @@ export default function Profile() {
           </>
         )}
       </div>
+
+      {/* GDPR Deletion Request Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Konto löschen beantragen
+            </DialogTitle>
+            <DialogDescription>
+              Sie sind dabei, die Löschung Ihres Kontos zu beantragen. Diese Aktion ist unwiderruflich.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <p className="text-sm font-medium text-destructive">Was wird gelöscht:</p>
+              <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside space-y-1">
+                <li>Ihr Benutzerkonto und Profildaten</li>
+                <li>Alle von Ihnen erstellten Umfragen</li>
+                <li>Alle Ihre abgegebenen Stimmen</li>
+                <li>Alle E-Mail-Bestätigungen und Tokens</li>
+              </ul>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Ein Administrator wird Ihren Antrag prüfen und Ihre Daten gemäß DSGVO Art. 17 löschen.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => requestDeletionMutation.mutate()}
+              disabled={requestDeletionMutation.isPending}
+              data-testid="button-confirm-deletion"
+            >
+              {requestDeletionMutation.isPending ? "Beantragen..." : "Löschung unwiderruflich beantragen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Password Change Dialog */}
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>

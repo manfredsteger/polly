@@ -138,6 +138,12 @@ export interface IStorage {
   // Test data management
   purgeTestData(): Promise<{ deletedPolls: number; deletedUsers: number; deletedVotes: number; deletedOptions: number }>;
   getTestDataStats(): Promise<{ testPolls: number; testUsers: number; testVotes: number; testOptions: number }>;
+
+  // GDPR deletion requests
+  requestDeletion(userId: number): Promise<User>;
+  cancelDeletionRequest(userId: number): Promise<User>;
+  getUsersWithDeletionRequests(): Promise<User[]>;
+  confirmDeletion(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1201,6 +1207,37 @@ export class DatabaseStorage implements IStorage {
       testVotes: testVotesResult.count,
       testOptions: testOptionsResult.count,
     };
+  }
+
+  // GDPR deletion requests
+  async requestDeletion(userId: number): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ deletionRequestedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async cancelDeletionRequest(userId: number): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ deletionRequestedAt: null })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getUsersWithDeletionRequests(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(sql`${users.deletionRequestedAt} IS NOT NULL`)
+      .orderBy(users.deletionRequestedAt);
+  }
+
+  async confirmDeletion(userId: number): Promise<void> {
+    await this.deleteUser(userId);
   }
 }
 

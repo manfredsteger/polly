@@ -1,11 +1,11 @@
 #!/bin/sh
 set -e
 
-echo "🏫 KITA Poll - Starting..."
+echo "🏫 Polly - Starting..."
 
 # Wait for PostgreSQL to be ready
 echo "⏳ Waiting for database..."
-until pg_isready -h postgres -U ${POSTGRES_USER:-kitapoll} -d ${POSTGRES_DB:-kitapoll} 2>/dev/null; do
+until pg_isready -h postgres -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly} 2>/dev/null; do
   sleep 1
 done
 echo "✅ Database is ready"

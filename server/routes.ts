@@ -1938,6 +1938,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GDPR: Get all users with deletion requests
+  v1Router.get('/admin/deletion-requests', requireAdmin, async (req, res) => {
+    try {
+      const usersWithRequests = await storage.getUsersWithDeletionRequests();
+      res.json(usersWithRequests.map(u => authService.sanitizeUser(u)));
+    } catch (error) {
+      console.error('Error fetching deletion requests:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // GDPR: Confirm deletion request (delete the user)
+  v1Router.post('/admin/deletion-requests/:id/confirm', requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+      }
+
+      if (!user.deletionRequestedAt) {
+        return res.status(400).json({ error: 'Benutzer hat keine Löschung beantragt' });
+      }
+
+      // Prevent deleting yourself
+      if (req.session.userId === userId) {
+        return res.status(400).json({ error: 'Sie können sich selbst nicht löschen' });
+      }
+
+      await storage.confirmDeletion(userId);
+      console.log(`[GDPR] Admin ${req.session.userId} confirmed deletion of user ${user.email} (ID: ${userId})`);
+      
+      res.json({ success: true, message: 'Benutzer wurde gemäß DSGVO Art. 17 gelöscht.' });
+    } catch (error) {
+      console.error('Error confirming deletion:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // GDPR: Reject deletion request
+  v1Router.post('/admin/deletion-requests/:id/reject', requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+      }
+
+      if (!user.deletionRequestedAt) {
+        return res.status(400).json({ error: 'Benutzer hat keine Löschung beantragt' });
+      }
+
+      const updatedUser = await storage.cancelDeletionRequest(userId);
+      console.log(`[GDPR] Admin ${req.session.userId} rejected deletion request of user ${user.email} (ID: ${userId})`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Löschantrag wurde abgelehnt.',
+        user: authService.sanitizeUser(updatedUser)
+      });
+    } catch (error) {
+      console.error('Error rejecting deletion request:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
   // List ALL polls (not just active)
   v1Router.get('/admin/polls', requireAdmin, async (req, res) => {
     try {
@@ -3117,6 +3185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         themePreference: user.themePreference || 'system',
         createdAt: user.createdAt,
         lastLoginAt: user.lastLoginAt,
+        deletionRequestedAt: user.deletionRequestedAt,
       });
     } catch (error) {
       console.error('Error getting user profile:', error);
@@ -3273,6 +3342,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ user: authService.sanitizeUser(user) });
     } catch (error) {
       console.error('Error getting current user:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Request account deletion (GDPR Art. 17)
+  v1Router.post('/auth/request-deletion', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Nicht autorisiert' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+      }
+
+      // Check if already requested
+      if (user.deletionRequestedAt) {
+        return res.status(400).json({ 
+          error: 'Löschung wurde bereits beantragt',
+          deletionRequestedAt: user.deletionRequestedAt 
+        });
+      }
+
+      const updatedUser = await storage.requestDeletion(userId);
+      console.log(`[GDPR] User ${user.email} requested account deletion`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Ihr Löschantrag wurde erfolgreich übermittelt. Ein Administrator wird Ihren Antrag bearbeiten.',
+        deletionRequestedAt: updatedUser.deletionRequestedAt
+      });
+    } catch (error) {
+      console.error('Error requesting deletion:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Cancel deletion request
+  v1Router.delete('/auth/request-deletion', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Nicht autorisiert' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+      }
+
+      if (!user.deletionRequestedAt) {
+        return res.status(400).json({ error: 'Kein Löschantrag vorhanden' });
+      }
+
+      const updatedUser = await storage.cancelDeletionRequest(userId);
+      console.log(`[GDPR] User ${user.email} cancelled deletion request`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Ihr Löschantrag wurde zurückgezogen.',
+        user: authService.sanitizeUser(updatedUser)
+      });
+    } catch (error) {
+      console.error('Error cancelling deletion request:', error);
       res.status(500).json({ error: 'Interner Fehler' });
     }
   });

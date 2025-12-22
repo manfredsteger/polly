@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { 
@@ -235,7 +236,11 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
             <div className="flex items-center space-x-3 mb-2">
               <Crown className={poll.type === 'schedule' ? 'w-5 h-5 text-orange-600 dark:text-orange-400' : 'w-5 h-5 text-teal-600 dark:text-teal-400'} />
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Beliebteste Option</h3>
-              <Badge className={poll.type === 'schedule' ? 'kita-badge-schedule' : 'kita-badge-survey'}>
+              <Badge className={
+                poll.type === 'schedule' ? 'kita-badge-schedule-solid' : 
+                poll.type === 'organization' ? 'kita-badge-organization-solid' :
+                'kita-badge-survey-solid'
+              }>
                 {bestOption.score} Punkte
               </Badge>
             </div>

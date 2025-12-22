@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -1193,14 +1194,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                         >
                           <TableCell className="font-medium">{poll.title}</TableCell>
                           <TableCell>
-                            <Badge className={
-                              poll.type === 'schedule' ? 'kita-badge-schedule' : 
-                              poll.type === 'organization' ? 'kita-badge-organization' : 
-                              'kita-badge-survey'
-                            }>
-                              {poll.type === 'schedule' ? 'Termin' : 
-                               poll.type === 'organization' ? 'Orga' : 'Umfrage'}
-                            </Badge>
+                            <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
                           </TableCell>
                           <TableCell>
                             {poll.user ? (
@@ -2163,20 +2157,13 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onDele
                   >
                     <TableCell className="font-medium">{poll.title}</TableCell>
                     <TableCell>
-                      <Badge className={
-                        poll.type === 'schedule' ? 'kita-badge-schedule' : 
-                        poll.type === 'organization' ? 'kita-badge-organization' : 
-                        'kita-badge-survey'
-                      }>
-                        {poll.type === 'schedule' ? 'Termin' : 
-                         poll.type === 'organization' ? 'Orga' : 'Umfrage'}
-                      </Badge>
+                      <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
                     </TableCell>
                     <TableCell>
                       {new Set(poll.votes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)).size}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={poll.isActive ? 'default' : 'secondary'}>
+                      <Badge className={poll.isActive ? 'kita-badge-active' : 'kita-badge-inactive'}>
                         {poll.isActive ? 'Aktiv' : 'Inaktiv'}
                       </Badge>
                     </TableCell>
@@ -2234,18 +2221,8 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
           {/* Title and Badges */}
           <div className="space-y-3">
             <div className="flex items-center flex-wrap gap-2">
-              <Badge className={
-                poll.type === 'schedule' ? 'kita-badge-schedule' : 
-                poll.type === 'organization' ? 'kita-badge-organization' : 
-                'kita-badge-survey'
-              }>
-                {poll.type === 'schedule' ? <Calendar className="w-3 h-3 mr-1" /> : 
-                 poll.type === 'organization' ? <ClipboardList className="w-3 h-3 mr-1" /> : 
-                 <Vote className="w-3 h-3 mr-1" />}
-                {poll.type === 'schedule' ? 'Terminumfrage' : 
-                 poll.type === 'organization' ? 'Orga-Liste' : 'Umfrage'}
-              </Badge>
-              <Badge variant={poll.isActive ? 'default' : 'secondary'}>
+              <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
+              <Badge className={poll.isActive ? 'kita-badge-active' : 'kita-badge-inactive'}>
                 {poll.isActive ? 'Aktiv' : 'Inaktiv'}
               </Badge>
             </div>

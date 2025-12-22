@@ -3206,7 +3206,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         poll: securePoll,
         votes: voterVotes,
         voterName: voterVotes[0].voterName,
-        voterEmail: voterVotes[0].voterEmail
+        voterEmail: voterVotes[0].voterEmail,
+        allowVoteWithdrawal: fullPoll.allowVoteWithdrawal
       });
     } catch (error) {
       console.error('Error getting voter votes:', error);

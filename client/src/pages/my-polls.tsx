@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PollTypeBadge } from '@/components/ui/PollTypeBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown } from 'lucide-react';
@@ -61,19 +62,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
             )}
           </div>
           <div className="flex items-center gap-2 ml-2">
-            <Badge className={
-              poll.type === 'schedule' ? 'kita-badge-schedule' : 
-              poll.type === 'organization' ? 'kita-badge-organization' : 
-              'kita-badge-survey'
-            }>
-              {poll.type === 'schedule' ? (
-                <><Calendar className="h-3 w-3 mr-1" />Termin</>
-              ) : poll.type === 'organization' ? (
-                <><ListChecks className="h-3 w-3 mr-1" />Orga</>
-              ) : (
-                <><ClipboardList className="h-3 w-3 mr-1" />Umfrage</>
-              )}
-            </Badge>
+            <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
             <Badge className={isActive ? 'kita-badge-active' : 'kita-badge-inactive'}>
               {isActive ? (
                 <><CheckCircle className="h-3 w-3 mr-1" />Aktiv</>

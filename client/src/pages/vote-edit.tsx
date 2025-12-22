@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, AlertCircle, Edit3 } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Edit3, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Vote } from "@shared/schema";
@@ -35,6 +35,7 @@ interface VoterEditData {
   votes: Vote[];
   voterName: string;
   voterEmail: string;
+  allowVoteWithdrawal?: boolean;
 }
 
 export default function VoteEditPage() {
@@ -65,6 +66,27 @@ export default function VoteEditPage() {
       toast({
         title: "Fehler",
         description: "Ihre Stimme konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const withdrawVoteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/v1/votes/edit/${editToken}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Stimme zurückgezogen",
+        description: "Ihre Stimme wurde erfolgreich entfernt.",
+      });
+      setLocation('/');
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Ihre Stimme konnte nicht zurückgezogen werden.",
         variant: "destructive",
       });
     },
@@ -212,11 +234,11 @@ export default function VoteEditPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 justify-center">
+        <div className="flex gap-3 justify-center flex-wrap">
           <Button
             onClick={handleSaveChanges}
             disabled={!hasChanges || updateVotesMutation.isPending}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="kita-button-primary"
           >
             {updateVotesMutation.isPending ? (
               <>
@@ -234,9 +256,32 @@ export default function VoteEditPage() {
           <Button
             variant="outline"
             onClick={handleGoBack}
+            className="kita-button-neutral"
           >
             Zur Startseite
           </Button>
+          
+          {voterData?.allowVoteWithdrawal && (
+            <Button
+              variant="destructive"
+              onClick={() => withdrawVoteMutation.mutate()}
+              disabled={withdrawVoteMutation.isPending}
+              className="kita-button-danger"
+              data-testid="button-withdraw-vote"
+            >
+              {withdrawVoteMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Wird zurückgezogen...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Stimme zurückziehen
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
         {hasChanges && (

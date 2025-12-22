@@ -178,6 +178,91 @@
     filter: brightness(0.9);
   }
 
+  /* Unified Button Schema - using CSS variables */
+  button.kita-button-danger,
+  .kita-button-danger {
+    background-color: var(--color-error) !important;
+    color: white !important;
+    @apply focus:ring-2 focus:ring-offset-2 focus:ring-red-500;
+  }
+  button.kita-button-danger:hover,
+  .kita-button-danger:hover {
+    filter: brightness(0.9);
+  }
+
+  button.kita-button-success,
+  .kita-button-success {
+    background-color: var(--color-success) !important;
+    color: white !important;
+    @apply focus:ring-2 focus:ring-offset-2 focus:ring-green-500;
+  }
+  button.kita-button-success:hover,
+  .kita-button-success:hover {
+    filter: brightness(0.9);
+  }
+
+  button.kita-button-neutral,
+  .kita-button-neutral {
+    @apply bg-gray-100 text-gray-800 border border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600;
+    @apply focus:ring-2 focus:ring-offset-2 focus:ring-gray-400;
+  }
+  button.kita-button-neutral:hover,
+  .kita-button-neutral:hover {
+    @apply bg-gray-200 dark:bg-gray-700;
+  }
+
+  /* Alert banners with proper dark mode contrast */
+  .kita-alert-error {
+    @apply bg-red-50 border border-red-200 text-red-800;
+    @apply dark:bg-red-950/50 dark:border-red-800 dark:text-red-200;
+  }
+  .kita-alert-error .kita-alert-icon {
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  .kita-alert-success {
+    @apply bg-green-50 border border-green-200 text-green-800;
+    @apply dark:bg-green-950/50 dark:border-green-800 dark:text-green-200;
+  }
+  .kita-alert-success .kita-alert-icon {
+    @apply text-green-600 dark:text-green-400;
+  }
+
+  .kita-alert-warning {
+    @apply bg-amber-50 border border-amber-200 text-amber-800;
+    @apply dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-200;
+  }
+  .kita-alert-warning .kita-alert-icon {
+    @apply text-amber-600 dark:text-amber-400;
+  }
+
+  .kita-alert-info {
+    @apply bg-blue-50 border border-blue-200 text-blue-800;
+    @apply dark:bg-blue-950/50 dark:border-blue-800 dark:text-blue-200;
+  }
+  .kita-alert-info .kita-alert-icon {
+    @apply text-blue-600 dark:text-blue-400;
+  }
+
+  /* Poll type badges - solid background versions */
+  .kita-badge-schedule-solid {
+    background-color: var(--color-schedule);
+    color: var(--color-schedule-foreground);
+    @apply border-transparent;
+  }
+
+  .kita-badge-survey-solid {
+    background-color: var(--color-survey);
+    color: var(--color-survey-foreground);
+    @apply border-transparent;
+  }
+
+  .kita-badge-organization-solid {
+    background-color: var(--color-organization);
+    color: var(--color-organization-foreground);
+    @apply border-transparent;
+  }
+
   /* Feature badges */
   .kita-badge-schedule {
     background-color: var(--color-schedule-light);

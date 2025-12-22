@@ -451,7 +451,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           },
           pollType: poll.type,
           publicToken: poll.publicToken,
-          voterName: voterName.trim()
+          voterName: voterName.trim(),
+          allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else if (poll.type === 'survey') {
@@ -478,7 +479,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           pollType: poll.type,
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
-          voterEditToken: result.voterEditToken // Include the edit token from bulk vote response
+          voterEditToken: result.voterEditToken, // Include the edit token from bulk vote response
+          allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else {
@@ -502,7 +504,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           },
           pollType: poll.type,
           publicToken: poll.publicToken,
-          voterName: voterName.trim()
+          voterName: voterName.trim(),
+          allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       }

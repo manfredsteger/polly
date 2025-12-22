@@ -3,12 +3,15 @@ import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, BarChart3, Edit, ExternalLink, ArrowLeft, Copy, Link as LinkIcon } from 'lucide-react';
+import { CheckCircle, BarChart3, Edit, ExternalLink, ArrowLeft, Copy, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
 export default function VoteSuccess() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [voteData, setVoteData] = useState<any>(null);
 
   useEffect(() => {
@@ -65,6 +68,29 @@ export default function VoteSuccess() {
       });
     }
   };
+
+  const withdrawVoteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/v1/polls/${publicToken}/vote`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Stimme zurückgezogen",
+        description: "Ihre Stimme wurde erfolgreich entfernt.",
+      });
+      navigate(`/poll/${publicToken}`);
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Ihre Stimme konnte nicht zurückgezogen werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const canWithdraw = voteData?.allowVoteWithdrawal;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 p-4">
@@ -140,7 +166,7 @@ export default function VoteSuccess() {
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
           <Button
             onClick={() => window.open(resultsLink, '_blank')}
             className="flex items-center justify-center kita-button-primary"
@@ -153,10 +179,22 @@ export default function VoteSuccess() {
             <Button
               onClick={() => window.open(editLink, '_blank')}
               variant="outline"
-              className="flex items-center justify-center"
+              className="flex items-center justify-center kita-button-neutral"
             >
               <Edit className="w-4 h-4 mr-2" />
               Stimme bearbeiten
+            </Button>
+          )}
+          
+          {canWithdraw && (
+            <Button
+              onClick={() => withdrawVoteMutation.mutate()}
+              disabled={withdrawVoteMutation.isPending}
+              className="flex items-center justify-center kita-button-danger"
+              data-testid="button-withdraw-vote"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Stimme zurückziehen'}
             </Button>
           )}
         </div>

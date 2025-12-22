@@ -256,10 +256,10 @@ export default function Login() {
         </CardHeader>
         <CardContent>
           {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <div className="kita-alert-error rounded-lg p-4 flex items-start gap-3 mb-4">
+              <AlertCircle className="kita-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">{error}</div>
+            </div>
           )}
 
           {authMethods.registrationEnabled ? (

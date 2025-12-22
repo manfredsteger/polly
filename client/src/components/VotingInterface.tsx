@@ -430,8 +430,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     try {
       if (poll.type === 'organization') {
         // For organization polls: Submit slot bookings
+        let lastVoterEditToken: string | undefined;
         for (const booking of orgaBookings) {
-          await voteMutation.mutateAsync({
+          const result = await voteMutation.mutateAsync({
             pollId: poll.id,
             optionId: booking.optionId,
             voterName: voterName.trim(),
@@ -439,6 +440,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             response: 'yes',
             comment: booking.comment?.trim() || undefined,
           });
+          // Capture the edit token from the response
+          if (result && typeof result === 'object' && 'voterEditToken' in result) {
+            lastVoterEditToken = result.voterEditToken;
+          }
         }
         
         // Reset unsaved changes state
@@ -452,6 +457,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           pollType: poll.type,
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          voterEditToken: lastVoterEditToken,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
@@ -479,6 +486,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           pollType: poll.type,
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
           voterEditToken: result.voterEditToken, // Include the edit token from bulk vote response
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
@@ -505,6 +513,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           pollType: poll.type,
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));

@@ -18,7 +18,10 @@ export default function VoteSuccess() {
   const withdrawVoteMutation = useMutation({
     mutationFn: async () => {
       if (!voteData?.publicToken) throw new Error('No poll token');
-      const response = await apiRequest("DELETE", `/api/v1/polls/${voteData.publicToken}/vote`);
+      const response = await apiRequest("DELETE", `/api/v1/polls/${voteData.publicToken}/vote`, {
+        voterEditToken: voteData.voterEditToken,
+        voterEmail: voteData.voterEmail
+      });
       return response.json();
     },
     onSuccess: () => {

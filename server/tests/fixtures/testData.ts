@@ -20,18 +20,35 @@ export function createTestPoll(overrides: Partial<{
   type: 'schedule' | 'survey' | 'organization';
   isActive: boolean;
   resultsPublic: boolean;
+  allowVoteWithdrawal: boolean;
+  allowVoteEdit: boolean;
+  creatorEmail: string;
 }> = {}) {
+  const pollType = overrides.type || 'survey';
+  
+  // For organization polls, add maxCapacity to options
+  const options = pollType === 'organization'
+    ? [
+        { text: 'Slot 1', maxCapacity: 3 },
+        { text: 'Slot 2', maxCapacity: 2 },
+        { text: 'Slot 3', maxCapacity: 5 },
+      ]
+    : [
+        { text: 'Option 1' },
+        { text: 'Option 2' },
+        { text: 'Option 3' },
+      ];
+  
   return {
     title: overrides.title || `Test Poll ${nanoid(6)}`,
     description: overrides.description || 'Test description',
-    type: overrides.type || 'survey',
+    type: pollType,
     isActive: overrides.isActive ?? true,
     resultsPublic: overrides.resultsPublic ?? true,
-    options: [
-      { text: 'Option 1' },
-      { text: 'Option 2' },
-      { text: 'Option 3' },
-    ],
+    allowVoteWithdrawal: overrides.allowVoteWithdrawal ?? true,
+    allowVoteEdit: overrides.allowVoteEdit ?? true,
+    creatorEmail: overrides.creatorEmail || `creator-${nanoid(8)}@example.com`,
+    options,
   };
 }
 

@@ -233,4 +233,226 @@ describe('Polls - Voting', () => {
     expect(firstOption.noCount).toBe(1);
     expect(firstOption.maybeCount).toBe(1);
   });
+
+  describe('Vote Withdrawal', () => {
+    it('should withdraw a vote from organization poll', async () => {
+      // Create organization poll with withdrawal enabled
+      const pollData = createTestPoll({ 
+        type: 'organization', 
+        allowVoteWithdrawal: true,
+        resultsPublic: true 
+      });
+      const createResponse = await request(app)
+        .post('/api/v1/polls')
+        .send(pollData);
+      
+      const testPublicToken = createResponse.body.publicToken;
+      
+      // Fetch poll to get options
+      const pollResponse = await request(app)
+        .get(`/api/v1/polls/public/${testPublicToken}`);
+      const testOptionIds = pollResponse.body.options.map((o: any) => o.id);
+      
+      const timestamp = Date.now();
+      const voterEmail = `withdraw-test-${timestamp}@example.com`;
+      
+      // Submit a vote (booking a slot)
+      const voteResponse = await request(app)
+        .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
+        .send({
+          voterName: 'Withdrawal Tester',
+          voterEmail: voterEmail,
+          votes: [{ optionId: testOptionIds[0], response: 'yes' }],
+        });
+      
+      expect(voteResponse.status).toBe(200);
+      const voterEditToken = voteResponse.body.voterEditToken;
+      
+      // Verify vote exists in results
+      let resultsResponse = await request(app)
+        .get(`/api/v1/polls/${testPublicToken}/results`);
+      let stats = resultsResponse.body.stats;
+      let firstOption = stats.find((o: any) => o.optionId === testOptionIds[0]);
+      expect(firstOption.yesCount).toBe(1);
+      
+      // Withdraw the vote using edit token (sent in body)
+      const withdrawResponse = await request(app)
+        .delete(`/api/v1/polls/${testPublicToken}/vote`)
+        .send({ voterEditToken });
+      
+      expect(withdrawResponse.status).toBe(200);
+      expect(withdrawResponse.body.withdrawnCount).toBe(1);
+      
+      // Verify vote is removed from results
+      resultsResponse = await request(app)
+        .get(`/api/v1/polls/${testPublicToken}/results`);
+      stats = resultsResponse.body.stats;
+      firstOption = stats.find((o: any) => o.optionId === testOptionIds[0]);
+      expect(firstOption.yesCount).toBe(0);
+    });
+
+    it('should allow re-voting after withdrawal', async () => {
+      // Create organization poll with withdrawal enabled
+      const pollData = createTestPoll({ 
+        type: 'organization', 
+        allowVoteWithdrawal: true,
+        resultsPublic: true 
+      });
+      const createResponse = await request(app)
+        .post('/api/v1/polls')
+        .send(pollData);
+      
+      const testPublicToken = createResponse.body.publicToken;
+      
+      // Fetch poll to get options
+      const pollResponse = await request(app)
+        .get(`/api/v1/polls/public/${testPublicToken}`);
+      const testOptionIds = pollResponse.body.options.map((o: any) => o.id);
+      
+      const timestamp = Date.now();
+      const voterEmail = `revote-test-${timestamp}@example.com`;
+      
+      // Submit initial vote
+      const voteResponse = await request(app)
+        .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
+        .send({
+          voterName: 'Revote Tester',
+          voterEmail: voterEmail,
+          votes: [{ optionId: testOptionIds[0], response: 'yes' }],
+        });
+      
+      expect(voteResponse.status).toBe(200);
+      const voterEditToken = voteResponse.body.voterEditToken;
+      
+      // Withdraw the vote (send token in body)
+      const withdrawResponse = await request(app)
+        .delete(`/api/v1/polls/${testPublicToken}/vote`)
+        .send({ voterEditToken });
+      
+      expect(withdrawResponse.status).toBe(200);
+      
+      // Re-vote on a different option
+      const revoteResponse = await request(app)
+        .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
+        .send({
+          voterName: 'Revote Tester',
+          voterEmail: voterEmail,
+          votes: [{ optionId: testOptionIds[1], response: 'yes' }],
+        });
+      
+      expect(revoteResponse.status).toBe(200);
+      
+      // Verify new vote is in results and old one is not
+      const resultsResponse = await request(app)
+        .get(`/api/v1/polls/${testPublicToken}/results`);
+      const stats = resultsResponse.body.stats;
+      
+      const firstOption = stats.find((o: any) => o.optionId === testOptionIds[0]);
+      const secondOption = stats.find((o: any) => o.optionId === testOptionIds[1]);
+      
+      expect(firstOption.yesCount).toBe(0);
+      expect(secondOption.yesCount).toBe(1);
+    });
+
+    it('should reject withdrawal when disabled on poll', async () => {
+      // Create poll with withdrawal disabled
+      const pollData = createTestPoll({ 
+        type: 'organization', 
+        allowVoteWithdrawal: false,
+        resultsPublic: true 
+      });
+      const createResponse = await request(app)
+        .post('/api/v1/polls')
+        .send(pollData);
+      
+      const testPublicToken = createResponse.body.publicToken;
+      
+      // Fetch poll to get options
+      const pollResponse = await request(app)
+        .get(`/api/v1/polls/public/${testPublicToken}`);
+      const testOptionIds = pollResponse.body.options.map((o: any) => o.id);
+      
+      const timestamp = Date.now();
+      const voterEmail = `no-withdraw-${timestamp}@example.com`;
+      
+      // Submit a vote
+      const voteResponse = await request(app)
+        .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
+        .send({
+          voterName: 'No Withdraw Tester',
+          voterEmail: voterEmail,
+          votes: [{ optionId: testOptionIds[0], response: 'yes' }],
+        });
+      
+      expect(voteResponse.status).toBe(200);
+      const voterEditToken = voteResponse.body.voterEditToken;
+      
+      // Attempt to withdraw - should fail
+      const withdrawResponse = await request(app)
+        .delete(`/api/v1/polls/${testPublicToken}/vote`)
+        .send({ voterEditToken });
+      
+      expect(withdrawResponse.status).toBe(403);
+      expect(withdrawResponse.body.error).toContain('nicht erlaubt');
+    });
+
+    it('should update slot capacity after withdrawal', async () => {
+      // Create organization poll
+      const pollData = createTestPoll({ 
+        type: 'organization', 
+        allowVoteWithdrawal: true,
+        resultsPublic: true 
+      });
+      const createResponse = await request(app)
+        .post('/api/v1/polls')
+        .send(pollData);
+      
+      const testPublicToken = createResponse.body.publicToken;
+      
+      // Fetch poll to get options (Slot 1 has maxCapacity: 3)
+      const pollResponse = await request(app)
+        .get(`/api/v1/polls/public/${testPublicToken}`);
+      const testOptionIds = pollResponse.body.options.map((o: any) => o.id);
+      const slotOption = pollResponse.body.options[0];
+      expect(slotOption.maxCapacity).toBe(3);
+      
+      const timestamp = Date.now();
+      
+      // Book 2 slots
+      const voters = ['capacity-test-1', 'capacity-test-2'];
+      const editTokens: string[] = [];
+      
+      for (let i = 0; i < voters.length; i++) {
+        const voteResponse = await request(app)
+          .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
+          .send({
+            voterName: voters[i],
+            voterEmail: `${voters[i]}-${timestamp}@example.com`,
+            votes: [{ optionId: testOptionIds[0], response: 'yes' }],
+          });
+        editTokens.push(voteResponse.body.voterEditToken);
+      }
+      
+      // Verify 2 slots taken
+      let resultsResponse = await request(app)
+        .get(`/api/v1/polls/${testPublicToken}/results`);
+      let stats = resultsResponse.body.stats;
+      let firstOption = stats.find((o: any) => o.optionId === testOptionIds[0]);
+      expect(firstOption.yesCount).toBe(2);
+      
+      // First voter withdraws (send token in body)
+      const withdrawResponse = await request(app)
+        .delete(`/api/v1/polls/${testPublicToken}/vote`)
+        .send({ voterEditToken: editTokens[0] });
+      
+      expect(withdrawResponse.status).toBe(200);
+      
+      // Verify only 1 slot taken now (1 slot freed up)
+      resultsResponse = await request(app)
+        .get(`/api/v1/polls/${testPublicToken}/results`);
+      stats = resultsResponse.body.stats;
+      firstOption = stats.find((o: any) => o.optionId === testOptionIds[0]);
+      expect(firstOption.yesCount).toBe(1);
+    });
+  });
 });

@@ -308,8 +308,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       setVotes({});
       setOrgaBookings([]);
       setHasOrgaChanges(false);
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken] });
+      // Invalidate queries to refresh data - use exact query keys from poll.tsx
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/public/${poll.publicToken}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/admin/${poll.publicToken}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${poll.publicToken}/results`] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
     },
     onError: (error) => {

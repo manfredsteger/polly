@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,12 +28,43 @@ interface VotingInterfaceProps {
 
 type VoteResponse = 'yes' | 'maybe' | 'no';
 
+interface MyVotesResponse {
+  hasVoted: boolean;
+  votes: Array<{
+    optionId: number;
+    response: string;
+    voterName: string;
+    voterEmail: string;
+    comment?: string;
+    voterEditToken?: string;
+  }>;
+  allowVoteEdit: boolean;
+  voterKey: string;
+  voterSource: 'user' | 'device';
+}
+
 export function VotingInterface({ poll, isAdminAccess = false }: VotingInterfaceProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated } = useAuth();
+  
+  const { data: myVotesData, isLoading: isLoadingMyVotes } = useQuery<MyVotesResponse>({
+    queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'],
+    queryFn: async () => {
+      const response = await fetch(`/api/v1/polls/${poll.publicToken}/my-votes`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch my votes');
+      return response.json();
+    },
+    staleTime: 30000,
+  });
+
+  const hasAlreadyVoted = myVotesData?.hasVoted ?? false;
+  const canEdit = poll.allowVoteEdit;
+  const showAlreadyVotedMessage = hasAlreadyVoted && !canEdit;
   
   const [voterName, setVoterName] = useState("");
   const [voterEmail, setVoterEmail] = useState("");
@@ -94,6 +125,33 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       setEmailRequiresLogin(false);
     }
   }, [isAuthenticated, user]);
+
+  // Pre-fill votes from existing data when editing is allowed
+  useEffect(() => {
+    if (myVotesData?.hasVoted && canEdit && myVotesData.votes.length > 0) {
+      // Pre-fill voter info
+      const firstVote = myVotesData.votes[0];
+      if (firstVote.voterName && !voterName) {
+        setVoterName(firstVote.voterName);
+      }
+      if (firstVote.voterEmail && !voterEmail) {
+        setVoterEmail(firstVote.voterEmail);
+      }
+      
+      // Pre-fill vote responses for schedule/survey polls
+      if (poll.type !== 'organization') {
+        const existingVotes: Record<number, VoteResponse> = {};
+        myVotesData.votes.forEach(v => {
+          if (v.response === 'yes' || v.response === 'maybe' || v.response === 'no') {
+            existingVotes[v.optionId] = v.response as VoteResponse;
+          }
+        });
+        if (Object.keys(existingVotes).length > 0) {
+          setVotes(existingVotes);
+        }
+      }
+    }
+  }, [myVotesData, canEdit, poll.type, voterName, voterEmail]);
 
   // Check if email belongs to a registered user
   const checkEmailRegistration = async (email: string) => {
@@ -489,6 +547,50 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
   const isPollExpired = poll.expiresAt && new Date() > new Date(poll.expiresAt);
   const canVote = poll.isActive && !isPollExpired;
+
+  if (isLoadingMyVotes) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (showAlreadyVotedMessage) {
+    return (
+      <div ref={containerRef} className="space-y-6">
+        <Alert className="border-green-200 bg-green-50" data-testid="alert-already-voted">
+          <Check className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <div className="space-y-2">
+              <p className="font-medium">Sie haben bereits abgestimmt!</p>
+              <p className="text-sm">
+                Ihre Stimme wurde erfolgreich gespeichert. Bei dieser Umfrage kann die Stimme nicht geändert werden.
+              </p>
+              {myVotesData?.votes && myVotesData.votes.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-green-200">
+                  <p className="text-sm font-medium mb-2">Ihre Antworten:</p>
+                  <div className="space-y-1">
+                    {myVotesData.votes.map(vote => {
+                      const option = poll.options.find(o => o.id === vote.optionId);
+                      return (
+                        <div key={vote.optionId} className="text-sm flex items-center gap-2">
+                          {vote.response === 'yes' && <Check className="w-4 h-4 text-green-600" />}
+                          {vote.response === 'maybe' && <HelpCircle className="w-4 h-4 text-yellow-600" />}
+                          {vote.response === 'no' && <X className="w-4 h-4 text-red-600" />}
+                          <span>{option?.text || (option?.startTime ? new Date(option.startTime).toLocaleString('de-DE') : `Option ${vote.optionId}`)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="space-y-6">

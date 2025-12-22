@@ -6,8 +6,11 @@ interface LiveVoter {
   name: string;
   sessionId: string;
   joinedAt: Date;
+  lastActivity: Date;
   inProgressVotes: Record<string, 'yes' | 'no' | 'maybe' | null>;
 }
+
+const INACTIVITY_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
 interface PollRoom {
   pollToken: string;
@@ -19,6 +22,7 @@ class LiveVotingService {
   private wss: WebSocketServer | null = null;
   private pollRooms: Map<string, PollRoom> = new Map();
   private wsToSession: Map<WebSocket, { pollToken: string; sessionId: string; isPresenter: boolean }> = new Map();
+  private inactivityCheckInterval: NodeJS.Timeout | null = null;
 
   // Use noServer mode to avoid interfering with Vite's HMR WebSocket
   initializeWithUpgrade(server: Server) {
@@ -73,9 +77,60 @@ class LiveVotingService {
     });
 
     console.log('[LiveVoting] WebSocket server initialized on /ws/live-voting');
+    
+    // Start periodic inactivity check (every 30 seconds)
+    if (!this.inactivityCheckInterval) {
+      this.inactivityCheckInterval = setInterval(() => {
+        this.cleanupInactiveVoters();
+      }, 30000);
+    }
+  }
+
+  private cleanupInactiveVoters() {
+    const now = Date.now();
+    
+    this.pollRooms.forEach((room, pollToken) => {
+      let hasChanges = false;
+      
+      room.liveVoters.forEach((voter, sessionId) => {
+        const inactiveMs = now - voter.lastActivity.getTime();
+        if (inactiveMs > INACTIVITY_TIMEOUT_MS) {
+          room.liveVoters.delete(sessionId);
+          hasChanges = true;
+          console.log(`[LiveVoting] Removed inactive voter ${voter.name} from poll ${pollToken} (inactive for ${Math.round(inactiveMs / 1000)}s)`);
+        }
+      });
+      
+      if (hasChanges) {
+        this.broadcastToRoom(pollToken, {
+          type: 'presence_update',
+          activeVoters: this.getActiveVoters(pollToken),
+          liveVotes: this.getLiveVotes(pollToken),
+          viewerCount: room.viewers.size,
+        });
+      }
+    });
+  }
+
+  private updateVoterActivity(ws: WebSocket) {
+    const session = this.wsToSession.get(ws);
+    if (!session) return;
+    
+    const room = this.pollRooms.get(session.pollToken);
+    if (!room) return;
+    
+    const voter = room.liveVoters.get(session.sessionId);
+    if (voter) {
+      voter.lastActivity = new Date();
+    }
   }
 
   private handleMessage(ws: WebSocket, message: any) {
+    // Update activity for most message types
+    if (['vote_in_progress', 'vote_submitted', 'ping', 'update_name'].includes(message.type)) {
+      this.updateVoterActivity(ws);
+    }
+    
     switch (message.type) {
       case 'join_poll':
         this.handleJoinPoll(ws, message);
@@ -123,11 +178,13 @@ class LiveVotingService {
     this.wsToSession.set(ws, { pollToken, sessionId, isPresenter });
 
     if (voterName && !isPresenter) {
+      const now = new Date();
       room.liveVoters.set(sessionId, {
         odId: sessionId,
         name: voterName,
         sessionId,
-        joinedAt: new Date(),
+        joinedAt: now,
+        lastActivity: now,
         inProgressVotes: {},
       });
     }
@@ -271,11 +328,13 @@ class LiveVotingService {
     if (voter) {
       voter.name = message.voterName;
     } else if (message.voterName) {
+      const now = new Date();
       room.liveVoters.set(sessionId, {
         odId: sessionId,
         name: message.voterName,
         sessionId,
-        joinedAt: new Date(),
+        joinedAt: now,
+        lastActivity: now,
         inProgressVotes: {},
       });
     }

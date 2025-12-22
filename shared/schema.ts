@@ -33,6 +33,7 @@ export const polls = pgTable("polls", {
   isAnonymous: boolean("is_anonymous").default(false).notNull(),
   allowAnonymousVoting: boolean("allow_anonymous_voting").default(true).notNull(),
   allowMultipleSlots: boolean("allow_multiple_slots").default(true).notNull(), // for organization polls: can one person sign up for multiple slots?
+  maxSlotsPerUser: integer("max_slots_per_user"), // for organization polls: max number of slots per user (null = unlimited when allowMultipleSlots is true)
   allowVoteEdit: boolean("allow_vote_edit").default(false).notNull(), // allow voters to edit their votes after submission
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
@@ -66,6 +67,8 @@ export const votes = pgTable("votes", {
   voterName: text("voter_name").notNull(),
   voterEmail: text("voter_email").notNull(),
   userId: integer("user_id"), // null for anonymous votes
+  voterKey: text("voter_key"), // Unique voter identifier: "user:123" or "device:abc123" (for deduplication)
+  voterSource: text("voter_source"), // "user" (logged in) or "device" (guest with device token)
   response: text("response").notNull(), // "yes", "maybe", "no", or "signup" for organization polls
   comment: text("comment"), // optional comment (e.g., contact info, which cake they bring)
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes

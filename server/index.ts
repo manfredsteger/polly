@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
@@ -19,6 +20,7 @@ if (process.env.NODE_ENV === 'production') {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 // Security Headers Middleware - Required for Pentest compliance
 app.use((req, res, next) => {

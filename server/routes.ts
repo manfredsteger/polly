@@ -11,6 +11,7 @@ import { authService } from "./services/authService";
 import { tokenService } from "./services/tokenService";
 import { loginRateLimiter } from "./services/rateLimiterService";
 import { clamavService } from "./services/clamavService";
+import { deviceTokenService } from "./services/deviceTokenService";
 import { pentestToolsService, TOOL_IDS, TOOL_NAMES, SCAN_TYPES } from "./services/pentestToolsService";
 import * as matrixService from "./matrix";
 import { z } from "zod";
@@ -601,6 +602,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const recentEmailSends = new Map<string, number>();
   const EMAIL_COOLDOWN = 60000; // 1 minute cooldown
 
+  // Check if current user/device has already voted on a poll
+  v1Router.get('/polls/:token/my-votes', async (req, res) => {
+    try {
+      const poll = await storage.getPollByPublicToken(req.params.token);
+      if (!poll) {
+        return res.status(404).json({ error: 'Poll not found' });
+      }
+      
+      // Calculate voterKey from session or device token
+      const deviceToken = req.cookies?.deviceToken;
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      const { voterKey, voterSource, newDeviceToken } = deviceTokenService.getVoterKey(
+        req.session.userId || null,
+        deviceToken,
+        userAgent
+      );
+      
+      // Set device token cookie if a new one was generated
+      if (newDeviceToken) {
+        res.cookie('deviceToken', newDeviceToken, deviceTokenService.getCookieOptions());
+      }
+      
+      // Find existing votes by voterKey
+      const existingVotes = await storage.getVotesByVoterKey(poll.id, voterKey);
+      
+      // Also check by userId if logged in (for backwards compatibility)
+      let userVotes: typeof existingVotes = [];
+      if (req.session.userId) {
+        userVotes = await storage.getVotesByUserId(poll.id, req.session.userId);
+      }
+      
+      // Merge votes (remove duplicates by optionId)
+      const allVotes = [...existingVotes];
+      for (const userVote of userVotes) {
+        if (!allVotes.some(v => v.optionId === userVote.optionId)) {
+          allVotes.push(userVote);
+        }
+      }
+      
+      res.json({
+        hasVoted: allVotes.length > 0,
+        votes: allVotes.map(v => ({
+          optionId: v.optionId,
+          response: v.response,
+          voterName: v.voterName,
+          voterEmail: v.voterEmail,
+          comment: v.comment,
+          voterEditToken: v.voterEditToken
+        })),
+        allowVoteEdit: poll.allowVoteEdit,
+        voterKey,
+        voterSource
+      });
+    } catch (error) {
+      console.error('Error checking votes:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Vote on poll (single vote - for backward compatibility and schedule polls)
   v1Router.post('/polls/:token/vote', async (req, res) => {
     try {
@@ -660,11 +720,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Add poll ID and userId to vote data
+      // Calculate voterKey for deduplication
+      const deviceToken = req.cookies?.deviceToken;
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      const { voterKey, voterSource, newDeviceToken } = deviceTokenService.getVoterKey(
+        currentUserId,
+        deviceToken,
+        userAgent
+      );
+      
+      // Set device token cookie if a new one was generated
+      if (newDeviceToken) {
+        res.cookie('deviceToken', newDeviceToken, deviceTokenService.getCookieOptions());
+      }
+
+      // Add poll ID, userId, and voterKey to vote data
       const voteWithPollId = {
         ...voteData,
         pollId: poll.id,
-        userId: currentUserId
+        userId: currentUserId,
+        voterKey,
+        voterSource
       };
       
       // For authenticated users with existing votes: allow edit if poll.allowVoteEdit
@@ -821,6 +897,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique voter edit token ONLY if poll allows vote editing
       const voterEditToken = poll.allowVoteEdit ? `edit-${randomBytes(16).toString('hex')}` : null;
       
+      // Calculate voterKey for deduplication
+      const deviceToken = req.cookies?.deviceToken;
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      const { voterKey, voterSource, newDeviceToken } = deviceTokenService.getVoterKey(
+        currentUserId,
+        deviceToken,
+        userAgent
+      );
+      
+      // Set device token cookie if a new one was generated
+      if (newDeviceToken) {
+        res.cookie('deviceToken', newDeviceToken, deviceTokenService.getCookieOptions());
+      }
+      
       // Submit all votes atomically using transaction-based storage method
       const voteItems = bulkVoteData.votes.map(v => ({
         optionId: v.optionId,
@@ -833,7 +923,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bulkVoteData.voterEmail,
         currentUserId,
         voterEditToken,
-        voteItems
+        voteItems,
+        voterKey,
+        voterSource
       );
       
       // If votes already existed (race condition caught by transaction), return appropriate error

@@ -129,6 +129,13 @@ export function OrganizationSlotVoting({
         </div>
       )}
       
+      {/* Column Headers */}
+      <div className="hidden md:grid md:grid-cols-[1fr_auto_auto] gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+        <span>Bezeichnung</span>
+        <span className="w-24 text-center">Freie Plätze</span>
+        <span className="w-32 text-center">Aktion</span>
+      </div>
+      
       {options.map((option) => {
         const isBooked = isSlotBooked(option.id);
         const capacity = getSlotCapacity(option.id);

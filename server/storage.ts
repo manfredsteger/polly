@@ -59,6 +59,7 @@ export interface IStorage {
   deleteVote(id: number): Promise<void>;
   getUserVoteForOption(userId: number | undefined, optionId: number, voterName?: string): Promise<Vote | undefined>;
   getVotesByEmail(pollId: string, voterEmail: string): Promise<Vote[]>;
+  getVotesByVoterKey(pollId: string, voterKey: string): Promise<Vote[]>;
   getVotesByEditToken(editToken: string): Promise<Vote[]>;
   getPollResults(pollId: string): Promise<PollResults>;
 
@@ -497,24 +498,35 @@ export class DatabaseStorage implements IStorage {
     voterEmail: string,
     userId: number | null,
     voterEditToken: string | null,
-    voteItems: Array<{ optionId: number; response: string }>
+    voteItems: Array<{ optionId: number; response: string }>,
+    voterKey?: string,
+    voterSource?: 'user' | 'device'
   ): Promise<{ votes: Vote[]; alreadyVoted: boolean }> {
     return await db.transaction(async (tx) => {
-      // Use advisory lock on poll+email combination to prevent concurrent inserts
-      // This creates a session-level lock that serializes concurrent vote attempts
-      const lockKey = `${pollId}-${voterEmail}`.split('').reduce((a, b) => {
+      // Use advisory lock on poll+voterKey (or email as fallback) to prevent concurrent inserts
+      const lockIdentifier = voterKey || voterEmail;
+      const lockKey = `${pollId}-${lockIdentifier}`.split('').reduce((a, b) => {
         a = ((a << 5) - a) + b.charCodeAt(0);
         return a & a;
       }, 0);
       
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
       
-      // Now check for existing votes (with lock held, no other transaction can insert)
-      const existingVotes = await tx.select().from(votes)
-        .where(and(
-          eq(votes.pollId, pollId),
-          eq(votes.voterEmail, voterEmail)
-        ));
+      // Check for existing votes by voterKey (preferred) or email (fallback)
+      let existingVotes;
+      if (voterKey) {
+        existingVotes = await tx.select().from(votes)
+          .where(and(
+            eq(votes.pollId, pollId),
+            eq(votes.voterKey, voterKey)
+          ));
+      } else {
+        existingVotes = await tx.select().from(votes)
+          .where(and(
+            eq(votes.pollId, pollId),
+            eq(votes.voterEmail, voterEmail)
+          ));
+      }
       
       if (existingVotes.length > 0) {
         return { votes: existingVotes, alreadyVoted: true };
@@ -527,7 +539,9 @@ export class DatabaseStorage implements IStorage {
         voterEmail,
         response: item.response,
         userId,
-        voterEditToken
+        voterEditToken,
+        voterKey: voterKey || null,
+        voterSource: voterSource || null
       }));
       
       const createdVotes = await tx.insert(votes).values(votesToInsert).returning();
@@ -566,6 +580,11 @@ export class DatabaseStorage implements IStorage {
   async getVotesByEmail(pollId: string, voterEmail: string): Promise<Vote[]> {
     return await db.select().from(votes)
       .where(and(eq(votes.pollId, pollId), eq(votes.voterEmail, voterEmail)));
+  }
+
+  async getVotesByVoterKey(pollId: string, voterKey: string): Promise<Vote[]> {
+    return await db.select().from(votes)
+      .where(and(eq(votes.pollId, pollId), eq(votes.voterKey, voterKey)));
   }
 
   async getVotesByUserId(pollId: string, userId: number): Promise<Vote[]> {

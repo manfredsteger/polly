@@ -137,7 +137,7 @@ interface CalendarTokenResponse {
   httpsUrl: string;
 }
 
-function CalendarSubscriptionCard() {
+function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
@@ -146,6 +146,7 @@ function CalendarSubscriptionCard() {
   const { data: calendarData, isLoading } = useQuery<CalendarTokenResponse>({
     queryKey: ['/api/v1/calendar/token'],
     staleTime: 1000 * 60 * 60,
+    enabled,
   });
 
   const regenerateMutation = useMutation({
@@ -409,7 +410,7 @@ export default function MyPolls() {
         </div>
       </div>
 
-      <CalendarSubscriptionCard />
+      <CalendarSubscriptionCard enabled={queriesEnabled} />
 
       <Tabs defaultValue="created" className="w-full">
         <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>

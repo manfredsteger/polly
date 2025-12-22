@@ -104,12 +104,7 @@ export function generatePollIcs(
 ): string {
   const events: CalendarEvent[] = [];
   
-  const yesVotes = votes.filter(v => v.response === 'yes');
-  const votedOptionIds = new Set(yesVotes.map(v => v.optionId));
-  
   for (const option of options) {
-    if (!votedOptionIds.has(option.id)) continue;
-    
     let startTime: Date;
     let endTime: Date | undefined;
     
@@ -130,12 +125,18 @@ export function generatePollIcs(
       }
     }
 
+    const yesCount = votes.filter(v => v.optionId === option.id && v.response === 'yes').length;
+    const maybeCount = votes.filter(v => v.optionId === option.id && v.response === 'maybe').length;
     const uid = `poll-${poll.id}-option-${option.id}@polly`;
+    
+    const description = poll.description 
+      ? `${poll.description}\n\nStimmen: ${yesCount} Ja, ${maybeCount} Vielleicht`
+      : `Stimmen: ${yesCount} Ja, ${maybeCount} Vielleicht`;
     
     events.push({
       uid,
       title: `${poll.title}: ${option.text}`,
-      description: poll.description || undefined,
+      description,
       startTime,
       endTime,
       url: `${baseUrl}/poll/${poll.publicToken}`,

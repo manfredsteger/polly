@@ -883,7 +883,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             <div className="mt-6 pt-6 border-t border-border flex flex-col items-center">
               {poll.type === 'organization' ? (
                 <>
-                  {orgaBookings.length === 0 && (
+                  {orgaBookings.length === 0 && !hasAlreadyVoted && (
                     <p className="text-sm text-muted-foreground mb-3 text-center">
                       Bitte wählen Sie mindestens einen Slot aus
                     </p>
@@ -893,56 +893,67 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       Sie haben ungespeicherte Änderungen
                     </p>
                   )}
-                  <Button
-                    onClick={handleSubmitVotes}
-                    className={`px-8 ${
-                      orgaBookings.length === 0 
-                        ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
-                        : hasOrgaChanges 
-                          ? 'kita-button-organization' 
-                          : 'kita-button-organization'
-                    }`}
-                    disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
-                    data-testid="button-submit-vote"
-                  >
-                    {voteMutation.isPending ? "Speichere..." : orgaBookings.length > 0 ? "Eintragen" : "Slot auswählen"}
-                  </Button>
+                  <div className="flex gap-3 items-center">
+                    <Button
+                      onClick={handleSubmitVotes}
+                      className={`px-8 ${
+                        orgaBookings.length === 0 
+                          ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
+                          : hasOrgaChanges 
+                            ? 'kita-button-organization' 
+                            : 'kita-button-organization'
+                      }`}
+                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
+                      data-testid="button-submit-vote"
+                    >
+                      {voteMutation.isPending ? "Speichere..." : orgaBookings.length > 0 ? "Eintragen" : "Slot auswählen"}
+                    </Button>
+                    {hasAlreadyVoted && poll.allowVoteWithdrawal && (
+                      <Button
+                        variant="outline"
+                        onClick={() => withdrawVoteMutation.mutate()}
+                        disabled={withdrawVoteMutation.isPending}
+                        className="px-8 kita-button-danger-outline"
+                        data-testid="button-withdraw-vote-editable"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Zurückziehen'}
+                      </Button>
+                    )}
+                  </div>
                 </>
               ) : (
-                <Button
-                  onClick={handleSubmitVotes}
-                  className={`w-full ${
-                    poll.type === 'survey' ? 'kita-button-survey' : 'kita-button-schedule'
-                  }`}
-                  disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || Object.keys(votes).length === 0}
-                  data-testid="button-submit-vote"
-                >
-                  {voteMutation.isPending ? "Speichere..." : "Abstimmung abgeben"}
-                </Button>
+                <>
+                  <div className="flex gap-3 items-center w-full">
+                    <Button
+                      onClick={handleSubmitVotes}
+                      className={`flex-1 ${
+                        poll.type === 'survey' ? 'kita-button-survey' : 'kita-button-schedule'
+                      }`}
+                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || Object.keys(votes).length === 0}
+                      data-testid="button-submit-vote"
+                    >
+                      {voteMutation.isPending ? "Speichere..." : "Abstimmung abgeben"}
+                    </Button>
+                    {hasAlreadyVoted && poll.allowVoteWithdrawal && (
+                      <Button
+                        variant="outline"
+                        onClick={() => withdrawVoteMutation.mutate()}
+                        disabled={withdrawVoteMutation.isPending}
+                        className="px-6 kita-button-danger-outline"
+                        data-testid="button-withdraw-vote-editable"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Zurückziehen'}
+                      </Button>
+                    )}
+                  </div>
+                </>
               )}
               {emailRequiresLogin && (
                 <p className="text-sm text-orange-600 mt-2 text-center">
                   Bitte melden Sie sich an, um mit dieser E-Mail abzustimmen.
                 </p>
-              )}
-              {/* Show withdraw button for users who have voted and poll allows withdrawal */}
-              {hasAlreadyVoted && poll.allowVoteWithdrawal && (
-                <div className="mt-4 pt-4 border-t border-border w-full">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => withdrawVoteMutation.mutate()}
-                    disabled={withdrawVoteMutation.isPending}
-                    className="w-full kita-button-danger-outline"
-                    data-testid="button-withdraw-vote-editable"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Stimme zurückziehen'}
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1 text-center">
-                    Entfernt alle Ihre Stimmen aus dieser Umfrage
-                  </p>
-                </div>
               )}
             </div>
           )}

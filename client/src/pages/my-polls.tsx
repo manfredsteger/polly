@@ -1,12 +1,20 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks } from 'lucide-react';
+import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import type { PollWithOptions, User, SystemSetting } from '@shared/schema';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -120,6 +128,150 @@ function PollListSkeleton() {
         </Card>
       ))}
     </div>
+  );
+}
+
+interface CalendarTokenResponse {
+  calendarToken: string;
+  webcalUrl: string;
+  httpsUrl: string;
+}
+
+function CalendarSubscriptionCard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [copied, setCopied] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const { data: calendarData, isLoading } = useQuery<CalendarTokenResponse>({
+    queryKey: ['/api/v1/calendar/token'],
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const regenerateMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/v1/calendar/token/regenerate'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/calendar/token'] });
+      toast({
+        title: 'Kalender-Token erneuert',
+        description: 'Der alte Link funktioniert nicht mehr. Bitte aktualisieren Sie Ihre Kalender-App.',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Fehler',
+        description: 'Token konnte nicht erneuert werden.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const copyToClipboard = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast({
+        title: 'Kopiert!',
+        description: 'Der Link wurde in die Zwischenablage kopiert.',
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: 'Fehler',
+        description: 'Link konnte nicht kopiert werden.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-4 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="mb-6">
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-kita-orange" />
+                Kalender-Abonnement
+              </CardTitle>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+            <CardDescription>
+              Synchronisieren Sie Ihre Umfrage-Termine mit Ihrem Kalender
+            </CardDescription>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="space-y-4 pt-0">
+            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <p>
+                  Abonnieren Sie diesen Kalender in Ihrer Kalender-App (Outlook, Google Calendar, Apple Calendar), 
+                  um Terminumfragen automatisch zu synchronisieren.
+                </p>
+              </div>
+              
+              {calendarData && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Abonnement-Link</label>
+                    <div className="flex gap-2">
+                      <code className="flex-1 bg-background border rounded px-3 py-2 text-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                        {calendarData.webcalUrl}
+                      </code>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copyToClipboard(calendarData.webcalUrl)}
+                        data-testid="button-copy-calendar-url"
+                      >
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => window.open(calendarData.webcalUrl, '_blank')}
+                      data-testid="button-open-calendar"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      In Kalender öffnen
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => regenerateMutation.mutate()}
+                      disabled={regenerateMutation.isPending}
+                      data-testid="button-regenerate-token"
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${regenerateMutation.isPending ? 'animate-spin' : ''}`} />
+                      Token erneuern
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 
@@ -256,6 +408,8 @@ export default function MyPolls() {
           </Button>
         </div>
       </div>
+
+      <CalendarSubscriptionCard />
 
       <Tabs defaultValue="created" className="w-full">
         <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>

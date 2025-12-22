@@ -751,6 +751,7 @@ export default function Poll() {
                   variant="outline" 
                   className="w-full justify-start"
                   onClick={() => window.open(`/api/v1/polls/${poll.publicToken}/export/csv`, '_blank')}
+                  data-testid="button-export-csv"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   CSV exportieren
@@ -759,10 +760,22 @@ export default function Poll() {
                   variant="outline" 
                   className="w-full justify-start"
                   onClick={() => window.open(`/api/v1/polls/${poll.publicToken}/export/pdf`, '_blank')}
+                  data-testid="button-export-pdf"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   PDF-Bericht erstellen
                 </Button>
+                {poll.type === 'schedule' && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.open(`/api/v1/polls/${poll.publicToken}/export/ics`, '_blank')}
+                    data-testid="button-export-ics"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Kalender-Datei (ICS)
+                  </Button>
+                )}
               </CardContent>
             </Card>
 

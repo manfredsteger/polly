@@ -780,15 +780,15 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
       {/* Duplicate Email Alert */}
       {duplicateEmailError && (
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800">
+        <Alert className="kita-alert-warning">
+          <AlertTriangle className="h-4 w-4 kita-alert-icon" />
+          <AlertDescription>
             <div className="space-y-3">
               <p>
                 <strong>Diese E-Mail-Adresse wurde bereits verwendet.</strong>
               </p>
               <p>
-                Die E-Mail-Adresse <code className="bg-amber-100 px-1 py-0.5 rounded text-sm">{duplicateEmailError}</code> 
+                Die E-Mail-Adresse <code className="bg-amber-100 dark:bg-amber-900/50 px-1 py-0.5 rounded text-sm">{duplicateEmailError}</code> 
                 {' '}hat bereits bei dieser Umfrage abgestimmt. Falls Sie Ihre Stimme ändern möchten, können Sie:
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -797,12 +797,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   size="sm"
                   onClick={() => resendEmailMutation.mutate()}
                   disabled={resendEmailMutation.isPending}
-                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                  className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   {resendEmailMutation.isPending ? 'Sende...' : 'E-Mail zum Ändern senden'}
                 </Button>
-                <span className="text-sm text-amber-700 self-center">
+                <span className="text-sm opacity-90 self-center">
                   oder eine andere E-Mail-Adresse verwenden
                 </span>
               </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AlertBanner } from "@/components/ui/AlertBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -2858,20 +2859,15 @@ function DatabaseSettingsPanel({ onBack }: { onBack: () => void }) {
         </CardContent>
       </Card>
 
-      <Card className="kita-card border-amber-200 bg-amber-50/30">
-        <CardContent className="p-4">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-            <div>
-              <p className="font-medium text-amber-800">Hinweis</p>
-              <p className="text-sm text-amber-700">
-                Die Datenbankverbindung wird über Umgebungsvariablen konfiguriert und kann nicht über die Oberfläche geändert werden. 
-                Änderungen erfordern einen Neustart der Anwendung.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AlertBanner variant="warning" data-testid="alert-database-info">
+        <div>
+          <p className="font-medium">Hinweis</p>
+          <p className="text-sm opacity-90">
+            Die Datenbankverbindung wird über Umgebungsvariablen konfiguriert und kann nicht über die Oberfläche geändert werden. 
+            Änderungen erfordern einen Neustart der Anwendung.
+          </p>
+        </div>
+      </AlertBanner>
     </div>
   );
 }
@@ -4382,12 +4378,12 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
           {/* Guest Users Settings */}
           {userTypeTab === 'guest' && (
             <div className="space-y-4" data-testid="guest-retention-settings">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
+              <AlertBanner variant="info">
+                <p className="text-sm">
                   <strong>Gastnutzer</strong> sind anonyme Benutzer, die ohne Anmeldung an Umfragen teilnehmen. 
                   Ihre Daten sollten gemäß DSGVO-Grundsätzen zeitnah gelöscht werden.
                 </p>
-              </div>
+              </AlertBanner>
               
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
@@ -5094,12 +5090,11 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-              <p className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <AlertBanner variant="warning">
+              <p className="text-sm">
                 Gäste können die App für Spam-Angriffe missbrauchen. Strenge Limits empfohlen!
               </p>
-            </div>
+            </AlertBanner>
 
             <div className="flex items-center justify-between">
               <div>

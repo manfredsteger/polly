@@ -665,6 +665,36 @@ Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
       throw error;
     }
   }
+
+  async sendCustomEmail(
+    recipientEmail: string,
+    subject: string,
+    html: string,
+    text: string
+  ): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.log(`[Email] Custom email would be sent to ${recipientEmail}`);
+      console.log(`[Email] Subject: ${subject}`);
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        to: recipientEmail,
+        subject,
+        html,
+        text,
+        headers: {
+          'X-Mailer': 'Polly System',
+        },
+      });
+      console.log(`[Email] Custom email sent to ${recipientEmail}`);
+    } catch (error) {
+      console.error('Failed to send custom email:', error);
+      throw error;
+    }
+  }
 }
 
 export const emailService = new EmailService();

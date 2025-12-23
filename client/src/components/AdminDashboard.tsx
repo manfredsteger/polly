@@ -127,8 +127,11 @@ import {
   ChevronDown,
   ToggleLeft,
   ToggleRight,
-  Info
+  Info,
+  PlusCircle,
+  Send
 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -251,7 +254,7 @@ interface AdminDashboardProps {
   userRole: 'admin' | 'manager';
 }
 
-type SettingsPanel = 'oidc' | 'database' | 'email' | 'security' | 'matrix' | 'roles' | 'notifications' | 'session-timeout' | 'pentest' | 'tests' | null;
+type SettingsPanel = 'oidc' | 'database' | 'email' | 'email-templates' | 'security' | 'matrix' | 'roles' | 'notifications' | 'session-timeout' | 'pentest' | 'tests' | null;
 
 export function AdminDashboard({ stats, users, polls, settings, userRole }: AdminDashboardProps) {
   const { toast } = useToast();
@@ -1737,6 +1740,16 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               />
               
               <SettingCard
+                title="E-Mail-Vorlagen"
+                description="Gestalten Sie Ihre E-Mail-Benachrichtigungen"
+                icon={<FileText className="w-6 h-6" />}
+                status="8 Vorlagen"
+                statusType="neutral"
+                onClick={() => setSelectedSettingsPanel('email-templates')}
+                testId="settings-email-templates"
+              />
+              
+              <SettingCard
                 title="Sicherheit & DSGVO"
                 description="Datenschutz, Verschlüsselung & Datenaufbewahrung"
                 icon={<ShieldCheck className="w-6 h-6" />}
@@ -1821,6 +1834,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         {/* Email Settings Panel */}
         {activeTab === "settings" && selectedSettingsPanel === 'email' && (
           <EmailSettingsPanel onBack={() => setSelectedSettingsPanel(null)} />
+        )}
+
+        {/* Email Templates Panel */}
+        {activeTab === "settings" && selectedSettingsPanel === 'email-templates' && (
+          <EmailTemplatesPanel onBack={() => setSelectedSettingsPanel(null)} />
         )}
 
         {/* Security/GDPR Settings Panel */}
@@ -2939,6 +2957,311 @@ function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
             >
               Einstellungen speichern
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+interface EmailTemplate {
+  id: number;
+  type: string;
+  name: string;
+  subject: string;
+  jsonContent: Record<string, unknown>;
+  htmlContent: string | null;
+  textContent: string | null;
+  variables: Array<{ key: string; description: string }>;
+  isDefault: boolean;
+  isActive: boolean;
+  updatedAt: string;
+  createdAt: string;
+}
+
+function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
+  const { toast } = useToast();
+  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [testEmail, setTestEmail] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+
+  const { data: templates, isLoading, refetch } = useQuery<EmailTemplate[]>({
+    queryKey: ['/api/v1/admin/email-templates'],
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: async (type: string) => {
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/preview`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setPreviewHtml(data.html);
+      setShowPreview(true);
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'Vorschau konnte nicht geladen werden', variant: 'destructive' });
+    },
+  });
+
+  const testEmailMutation = useMutation({
+    mutationFn: async ({ type, recipientEmail }: { type: string; recipientEmail: string }) => {
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/test`, { recipientEmail });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Gesendet', description: 'Test-E-Mail wurde erfolgreich gesendet' });
+      setTestEmail('');
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'Test-E-Mail konnte nicht gesendet werden', variant: 'destructive' });
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async (type: string) => {
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/reset`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Zurückgesetzt', description: 'Vorlage wurde auf Standard zurückgesetzt' });
+      refetch();
+      setSelectedTemplate(null);
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'Vorlage konnte nicht zurückgesetzt werden', variant: 'destructive' });
+    },
+  });
+
+  const templateTypeLabels: Record<string, { name: string; icon: React.ReactNode; description: string }> = {
+    poll_created: { name: 'Umfrage erstellt', icon: <PlusCircle className="w-4 h-4" />, description: 'Bestätigung nach Erstellung einer Umfrage' },
+    invitation: { name: 'Einladung', icon: <UserPlus className="w-4 h-4" />, description: 'Einladung zur Teilnahme an einer Umfrage' },
+    vote_confirmation: { name: 'Abstimmungsbestätigung', icon: <CheckCircle className="w-4 h-4" />, description: 'Bestätigung nach erfolgreicher Abstimmung' },
+    reminder: { name: 'Erinnerung', icon: <Bell className="w-4 h-4" />, description: 'Erinnerung an ausstehende Abstimmung' },
+    password_reset: { name: 'Passwort zurücksetzen', icon: <Key className="w-4 h-4" />, description: 'Link zum Zurücksetzen des Passworts' },
+    email_change: { name: 'E-Mail ändern', icon: <Mail className="w-4 h-4" />, description: 'Bestätigung der neuen E-Mail-Adresse' },
+    password_changed: { name: 'Passwort geändert', icon: <Shield className="w-4 h-4" />, description: 'Benachrichtigung über Passwortänderung' },
+    test_report: { name: 'Testbericht', icon: <FileText className="w-4 h-4" />, description: 'Automatischer Testbericht per E-Mail' },
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Zurück zu Einstellungen
+        </Button>
+        <ChevronRight className="w-4 h-4" />
+        <span className="font-medium text-foreground">E-Mail-Vorlagen</span>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-foreground">E-Mail-Vorlagen</h2>
+          <p className="text-muted-foreground">Gestalten Sie Ihre E-Mail-Benachrichtigungen</p>
+        </div>
+        <Badge variant="outline" className="text-blue-600 border-blue-600">
+          <FileText className="w-3 h-3 mr-1" />
+          {templates?.length || 0} Vorlagen
+        </Badge>
+      </div>
+
+      {!selectedTemplate ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {templates?.map((template) => {
+            const typeInfo = templateTypeLabels[template.type] || { name: template.name, icon: <Mail className="w-4 h-4" />, description: '' };
+            return (
+              <Card 
+                key={template.type} 
+                className="kita-card cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => setSelectedTemplate(template)}
+                data-testid={`template-card-${template.type}`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                        {typeInfo.icon}
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-foreground">{typeInfo.name}</h3>
+                        <p className="text-sm text-muted-foreground">{typeInfo.description}</p>
+                      </div>
+                    </div>
+                    <Badge variant={template.isDefault ? "secondary" : "default"} className="text-xs">
+                      {template.isDefault ? 'Standard' : 'Angepasst'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <Button variant="ghost" size="sm" onClick={() => setSelectedTemplate(null)} data-testid="button-back-templates">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Zurück zur Übersicht
+          </Button>
+
+          <Card className="kita-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    {templateTypeLabels[selectedTemplate.type]?.icon || <Mail className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <CardTitle>{templateTypeLabels[selectedTemplate.type]?.name || selectedTemplate.name}</CardTitle>
+                    <CardDescription>{templateTypeLabels[selectedTemplate.type]?.description}</CardDescription>
+                  </div>
+                </div>
+                <Badge variant={selectedTemplate.isDefault ? "secondary" : "default"}>
+                  {selectedTemplate.isDefault ? 'Standard-Vorlage' : 'Angepasst'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label className="text-sm font-medium">Betreff</Label>
+                <div className="p-3 bg-muted rounded-lg mt-1">
+                  <code className="text-sm">{selectedTemplate.subject}</code>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Verfügbare Variablen</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedTemplate.variables?.map((variable: { key: string; description: string }) => (
+                    <Tooltip key={variable.key}>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="cursor-help font-mono text-xs">
+                          {"{{" + variable.key + "}}"}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{variable.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => previewMutation.mutate(selectedTemplate.type)}
+                  disabled={previewMutation.isPending}
+                  data-testid="button-preview-template"
+                >
+                  {previewMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+                  Vorschau
+                </Button>
+                
+                {!selectedTemplate.isDefault && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" data-testid="button-reset-template">
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Auf Standard zurücksetzen
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Vorlage zurücksetzen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Möchten Sie diese Vorlage wirklich auf die Standard-Version zurücksetzen? 
+                          Alle Ihre Anpassungen gehen dabei verloren.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => resetMutation.mutate(selectedTemplate.type)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Zurücksetzen
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+
+              <Separator />
+
+              <div>
+                <Label className="text-sm font-medium">Test-E-Mail senden</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    type="email"
+                    placeholder="test@example.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    data-testid="input-test-email"
+                  />
+                  <Button
+                    onClick={() => testEmailMutation.mutate({ type: selectedTemplate.type, recipientEmail: testEmail })}
+                    disabled={!testEmail || testEmailMutation.isPending}
+                    data-testid="button-send-test-email"
+                  >
+                    {testEmailMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sendet eine Test-E-Mail mit Beispieldaten an die angegebene Adresse
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {showPreview && previewHtml && (
+            <Card className="kita-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center">
+                    <Eye className="w-5 h-5 mr-2" />
+                    Vorschau
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden bg-white">
+                  <iframe
+                    srcDoc={previewHtml}
+                    className="w-full h-96 border-0"
+                    title="E-Mail Vorschau"
+                    data-testid="iframe-email-preview"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      <Card className="kita-card border-blue-200 bg-blue-50/30 dark:bg-blue-950/30 dark:border-blue-800">
+        <CardContent className="p-4">
+          <div className="flex items-start space-x-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-800 dark:text-blue-200">Visueller Editor</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Ein visueller Drag & Drop Editor für E-Mail-Vorlagen ist in Planung. 
+                Aktuell können Sie die Vorlagen anzeigen, testen und auf Standard zurücksetzen.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

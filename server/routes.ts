@@ -13,6 +13,7 @@ import { loginRateLimiter } from "./services/rateLimiterService";
 import { clamavService } from "./services/clamavService";
 import { deviceTokenService } from "./services/deviceTokenService";
 import { pentestToolsService, TOOL_IDS, TOOL_NAMES, SCAN_TYPES } from "./services/pentestToolsService";
+import { emailTemplateService } from "./services/emailTemplateService";
 import * as icsService from "./services/icsService";
 import * as matrixService from "./matrix";
 import { z } from "zod";
@@ -2890,6 +2891,240 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(settings);
     } catch (error) {
       console.error('Error updating customization settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // ============== EMAIL TEMPLATE ROUTES ==============
+
+  // Get all email templates (admin only)
+  v1Router.get('/admin/email-templates', requireAdmin, async (req, res) => {
+    try {
+      const templates = await emailTemplateService.getAllTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error('Error fetching email templates:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Get single email template by type
+  v1Router.get('/admin/email-templates/:type', requireAdmin, async (req, res) => {
+    try {
+      const { type } = req.params;
+      const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+      
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: 'Ungültiger Template-Typ' });
+      }
+      
+      const template = await emailTemplateService.getTemplate(type as any);
+      res.json(template);
+    } catch (error) {
+      console.error('Error fetching email template:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Update email template
+  v1Router.put('/admin/email-templates/:type', requireAdmin, async (req, res) => {
+    try {
+      const { type } = req.params;
+      const { jsonContent, subject, name } = req.body;
+      const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+      
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: 'Ungültiger Template-Typ' });
+      }
+      
+      if (!jsonContent) {
+        return res.status(400).json({ error: 'Template-Inhalt erforderlich' });
+      }
+      
+      const template = await emailTemplateService.saveTemplate(type as any, jsonContent, subject, name);
+      res.json(template);
+    } catch (error) {
+      console.error('Error updating email template:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Reset email template to default
+  v1Router.post('/admin/email-templates/:type/reset', requireAdmin, async (req, res) => {
+    try {
+      const { type } = req.params;
+      const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+      
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: 'Ungültiger Template-Typ' });
+      }
+      
+      const template = await emailTemplateService.resetTemplate(type as any);
+      res.json(template);
+    } catch (error) {
+      console.error('Error resetting email template:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Preview email template with sample data
+  v1Router.post('/admin/email-templates/:type/preview', requireAdmin, async (req, res) => {
+    try {
+      const { type } = req.params;
+      const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+      
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: 'Ungültiger Template-Typ' });
+      }
+      
+      // Sample data for preview
+      const sampleVariables: Record<string, Record<string, string>> = {
+        poll_created: {
+          pollTitle: 'Beispiel-Umfrage',
+          pollType: 'Terminumfrage',
+          publicLink: 'https://example.com/poll/abc123',
+          adminLink: 'https://example.com/admin/poll/xyz789',
+          qrCodeUrl: 'https://example.com/qr/abc123.png',
+        },
+        invitation: {
+          pollTitle: 'Team-Meeting Terminabstimmung',
+          inviterName: 'Max Mustermann',
+          publicLink: 'https://example.com/poll/abc123',
+          message: 'Bitte stimmen Sie bis Freitag ab!',
+          qrCodeUrl: 'https://example.com/qr/abc123.png',
+        },
+        vote_confirmation: {
+          voterName: 'Anna Schmidt',
+          pollTitle: 'Sommerfeier Termin',
+          pollType: 'Terminumfrage',
+          publicLink: 'https://example.com/poll/abc123',
+          resultsLink: 'https://example.com/poll/abc123/results',
+        },
+        reminder: {
+          senderName: 'Max Mustermann',
+          pollTitle: 'Wichtige Abstimmung',
+          pollLink: 'https://example.com/poll/abc123',
+          expiresAt: 'Die Umfrage endet am 31.12.2025 um 23:59 Uhr',
+          qrCodeUrl: 'https://example.com/qr/abc123.png',
+        },
+        password_reset: {
+          resetLink: 'https://example.com/reset-password?token=abc123xyz',
+        },
+        email_change: {
+          oldEmail: 'alt@example.com',
+          newEmail: 'neu@example.com',
+          confirmLink: 'https://example.com/confirm-email?token=abc123xyz',
+        },
+        password_changed: {},
+        test_report: {
+          testRunId: '42',
+          status: '✅ Alle Tests bestanden',
+          totalTests: '25',
+          passed: '24',
+          failed: '0',
+          skipped: '1',
+          duration: '45 Sekunden',
+          startedAt: '23.12.2025, 14:30 Uhr',
+        },
+      };
+      
+      const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
+      res.json(rendered);
+    } catch (error) {
+      console.error('Error previewing email template:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Send test email (admin only)
+  v1Router.post('/admin/email-templates/:type/test', requireAdmin, async (req, res) => {
+    try {
+      const { type } = req.params;
+      const { recipientEmail } = req.body;
+      const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+      
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: 'Ungültiger Template-Typ' });
+      }
+      
+      if (!recipientEmail) {
+        return res.status(400).json({ error: 'E-Mail-Adresse erforderlich' });
+      }
+      
+      // Get sample variables
+      const sampleVariables: Record<string, Record<string, string>> = {
+        poll_created: {
+          pollTitle: 'Test-Umfrage',
+          pollType: 'Terminumfrage',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/poll/test',
+        },
+        invitation: {
+          pollTitle: 'Test-Einladung',
+          inviterName: 'Test Admin',
+          publicLink: 'https://example.com/poll/test',
+          message: 'Dies ist eine Test-E-Mail.',
+        },
+        vote_confirmation: {
+          voterName: 'Test Nutzer',
+          pollTitle: 'Test-Umfrage',
+          pollType: 'Umfrage',
+          publicLink: 'https://example.com/poll/test',
+          resultsLink: 'https://example.com/poll/test/results',
+        },
+        reminder: {
+          senderName: 'Test Admin',
+          pollTitle: 'Test-Erinnerung',
+          pollLink: 'https://example.com/poll/test',
+          expiresAt: 'Die Umfrage endet am 31.12.2025',
+        },
+        password_reset: {
+          resetLink: 'https://example.com/reset-password?token=test',
+        },
+        email_change: {
+          oldEmail: 'alt@test.com',
+          newEmail: 'neu@test.com',
+          confirmLink: 'https://example.com/confirm-email?token=test',
+        },
+        password_changed: {},
+        test_report: {
+          testRunId: '0',
+          status: '✅ Test-Bericht',
+          totalTests: '10',
+          passed: '10',
+          failed: '0',
+          skipped: '0',
+          duration: '5 Sekunden',
+          startedAt: new Date().toLocaleString('de-DE'),
+        },
+      };
+      
+      const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
+      
+      // Send using emailService
+      await emailService.sendCustomEmail(recipientEmail, rendered.subject, rendered.html, rendered.text);
+      
+      res.json({ success: true, message: 'Test-E-Mail gesendet' });
+    } catch (error: any) {
+      console.error('Error sending test email:', error);
+      res.status(500).json({ error: error.message || 'Fehler beim Senden der Test-E-Mail' });
+    }
+  });
+
+  // Get available variables for a template type
+  v1Router.get('/admin/email-templates/:type/variables', requireAdmin, async (req, res) => {
+    try {
+      const { type } = req.params;
+      const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+      
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: 'Ungültiger Template-Typ' });
+      }
+      
+      const variables = emailTemplateService.getVariables(type as any);
+      res.json(variables);
+    } catch (error) {
+      console.error('Error fetching template variables:', error);
       res.status(500).json({ error: 'Interner Fehler' });
     }
   });

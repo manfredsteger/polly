@@ -9,6 +9,14 @@
 # With Demo Data:
 #   SEED_DEMO_DATA=true docker compose up -d
 #
+# Mobile Testing (QR-Code/Smartphone):
+#   Use start-mobile.sh to auto-detect host IP:
+#   ./start-mobile.sh        # Start with detected IP
+#   ./start-mobile.sh demo   # With demo data
+#   
+#   Or set BASE_URL manually:
+#   BASE_URL=http://192.168.1.100:3080 docker compose up -d
+#
 # Data Persistence:
 #   - postgres_data: Database (survives rebuilds)
 #   - uploads_data: Uploaded files (logos, etc.)

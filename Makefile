@@ -12,7 +12,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m # No Color
 
-.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge
+.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge
 
 # Default target
 help:
@@ -21,6 +21,8 @@ help:
         @echo "$(YELLOW)Quick Setup:$(NC)"
         @echo "  make setup        - Zero-config start (just works!)"
         @echo "  make setup-demo   - Start with demo polls"
+        @echo "  make setup-mobile - Start with auto-detected IP (for QR/smartphone)"
+        @echo "  make setup-mobile-demo - Mobile + demo data"
         @echo ""
         @echo "$(YELLOW)Development:$(NC)"
         @echo "  make dev          - Start development environment with hot-reload"
@@ -76,6 +78,14 @@ setup-demo:
         SEED_DEMO_DATA=true docker compose up -d
         @echo "$(GREEN)App running at http://localhost:3080$(NC)"
         @echo "$(GREEN)Demo polls created for testing$(NC)"
+
+setup-mobile:
+        @echo "$(GREEN)Starting Polly for mobile testing...$(NC)"
+        ./start-mobile.sh
+
+setup-mobile-demo:
+        @echo "$(GREEN)Starting Polly for mobile testing with demo data...$(NC)"
+        ./start-mobile.sh demo
 
 # ============================================
 # Development

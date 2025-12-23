@@ -3,6 +3,16 @@ set -e
 
 echo "🏫 Polly - Starting..."
 
+# Show current BASE_URL configuration
+if [ -n "$BASE_URL" ]; then
+  echo "📱 BASE_URL: $BASE_URL"
+  if echo "$BASE_URL" | grep -qE "(localhost|127\.0\.0\.1)"; then
+    echo "   ⚠️ localhost detected - QR codes won't work from mobile devices"
+    echo "   💡 For mobile testing, use: ./start-mobile.sh"
+    echo "      Or set: BASE_URL=http://YOUR_IP:3080 docker compose up -d"
+  fi
+fi
+
 # Wait for PostgreSQL to be ready
 echo "⏳ Waiting for database..."
 MAX_RETRIES=30

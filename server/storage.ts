@@ -1,6 +1,6 @@
 import { 
   users, polls, pollOptions, votes, systemSettings, notificationLogs,
-  passwordResetTokens, emailChangeTokens,
+  passwordResetTokens, emailChangeTokens, emailTemplates,
   type User, type InsertUser,
   type Poll, type InsertPoll, type PollWithOptions,
   type PollOption, type InsertPollOption,
@@ -9,6 +9,8 @@ import {
   type NotificationLog, type InsertNotificationLog,
   type PasswordResetToken, type InsertPasswordResetToken,
   type EmailChangeToken, type InsertEmailChangeToken,
+  type EmailTemplate, type InsertEmailTemplate,
+  type EmailTemplateType,
   type PollResults, type VoteStats,
   type CustomizationSettings, customizationSettingsSchema,
   type SecuritySettings, securitySettingsSchema,
@@ -144,6 +146,12 @@ export interface IStorage {
   cancelDeletionRequest(userId: number): Promise<User>;
   getUsersWithDeletionRequests(): Promise<User[]>;
   confirmDeletion(userId: number): Promise<void>;
+
+  // Email templates
+  getEmailTemplates(): Promise<EmailTemplate[]>;
+  getEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
+  upsertEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
+  resetEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1238,6 +1246,38 @@ export class DatabaseStorage implements IStorage {
 
   async confirmDeletion(userId: number): Promise<void> {
     await this.deleteUser(userId);
+  }
+
+  // Email templates
+  async getEmailTemplates(): Promise<EmailTemplate[]> {
+    return await db.select().from(emailTemplates).orderBy(emailTemplates.type);
+  }
+
+  async getEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined> {
+    const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.type, type));
+    return template || undefined;
+  }
+
+  async upsertEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const existing = await this.getEmailTemplate(template.type as EmailTemplateType);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(emailTemplates)
+        .set({ ...template, updatedAt: new Date() })
+        .where(eq(emailTemplates.type, template.type))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(emailTemplates).values(template).returning();
+      return created;
+    }
+  }
+
+  async resetEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined> {
+    // This will be handled by the email template service which knows the defaults
+    await db.delete(emailTemplates).where(eq(emailTemplates.type, type));
+    return undefined;
   }
 }
 

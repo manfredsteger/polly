@@ -149,6 +149,22 @@ export const testResults = pgTable("test_results", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Email templates - customizable email designs stored as JSON
+export const emailTemplates = pgTable("email_templates", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull().unique(), // Template type: poll_created, invitation, vote_confirmation, reminder, password_reset, email_change, password_changed, test_report
+  name: text("name").notNull(), // Display name in admin panel
+  subject: text("subject").notNull(), // Email subject line (supports variables)
+  jsonContent: jsonb("json_content").notNull(), // email-builder-js JSON structure
+  htmlContent: text("html_content"), // Pre-rendered HTML (optional cache)
+  textContent: text("text_content"), // Plain text version
+  variables: jsonb("variables").notNull().default([]), // Available variables for this template type
+  isDefault: boolean("is_default").default(false).notNull(), // Is this the system default?
+  isActive: boolean("is_active").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Test configurations - stores which tests are enabled/disabled
 export const testConfigurations = pgTable("test_configurations", {
   id: serial("id").primaryKey(),
@@ -273,6 +289,12 @@ export const insertTestConfigurationSchema = createInsertSchema(testConfiguratio
   updatedAt: true,
 });
 
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -306,6 +328,83 @@ export type InsertTestResult = z.infer<typeof insertTestResultSchema>;
 
 export type TestConfiguration = typeof testConfigurations.$inferSelect;
 export type InsertTestConfiguration = z.infer<typeof insertTestConfigurationSchema>;
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+
+// Email template types
+export const EMAIL_TEMPLATE_TYPES = [
+  'poll_created',
+  'invitation', 
+  'vote_confirmation',
+  'reminder',
+  'password_reset',
+  'email_change',
+  'password_changed',
+  'test_report',
+] as const;
+
+export type EmailTemplateType = typeof EMAIL_TEMPLATE_TYPES[number];
+
+// Email template variable definitions per type
+export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; description: string }[]> = {
+  poll_created: [
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'pollType', description: 'Umfragetyp (Terminumfrage, Umfrage, Orga-Liste)' },
+    { key: 'publicLink', description: 'Öffentlicher Link zur Umfrage' },
+    { key: 'adminLink', description: 'Admin-Link zur Umfrage' },
+    { key: 'qrCodeUrl', description: 'QR-Code als Bild-URL' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  invitation: [
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'inviterName', description: 'Name des Einladenden' },
+    { key: 'publicLink', description: 'Link zur Umfrage' },
+    { key: 'message', description: 'Optionale Nachricht' },
+    { key: 'qrCodeUrl', description: 'QR-Code als Bild-URL' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  vote_confirmation: [
+    { key: 'voterName', description: 'Name des Abstimmenden' },
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'pollType', description: 'Umfragetyp' },
+    { key: 'publicLink', description: 'Link zur Umfrage' },
+    { key: 'resultsLink', description: 'Link zu den Ergebnissen' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  reminder: [
+    { key: 'senderName', description: 'Name des Absenders' },
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'pollLink', description: 'Link zur Umfrage' },
+    { key: 'expiresAt', description: 'Ablaufdatum (formatiert)' },
+    { key: 'qrCodeUrl', description: 'QR-Code als Bild-URL' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  password_reset: [
+    { key: 'resetLink', description: 'Link zum Passwort zurücksetzen' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  email_change: [
+    { key: 'oldEmail', description: 'Bisherige E-Mail-Adresse' },
+    { key: 'newEmail', description: 'Neue E-Mail-Adresse' },
+    { key: 'confirmLink', description: 'Bestätigungslink' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  password_changed: [
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  test_report: [
+    { key: 'testRunId', description: 'Testlauf-ID' },
+    { key: 'status', description: 'Status (bestanden/fehlgeschlagen)' },
+    { key: 'totalTests', description: 'Gesamtzahl der Tests' },
+    { key: 'passed', description: 'Anzahl bestandener Tests' },
+    { key: 'failed', description: 'Anzahl fehlgeschlagener Tests' },
+    { key: 'skipped', description: 'Anzahl übersprungener Tests' },
+    { key: 'duration', description: 'Testdauer' },
+    { key: 'startedAt', description: 'Startzeit' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+};
 
 // Theme preference type
 export const themePreferenceSchema = z.enum(['light', 'dark', 'system']);

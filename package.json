@@ -50,6 +50,7 @@
     "@types/pg": "^8.16.0",
     "@types/qrcode": "^1.5.6",
     "@types/supertest": "^6.0.3",
+    "@usewaypoint/email-builder": "^0.0.8",
     "@vitest/coverage-v8": "^4.0.15",
     "bcryptjs": "^3.0.3",
     "canvas": "^3.2.0",

@@ -1,5 +1,5 @@
 export interface TestMeta {
-  category: 'auth' | 'api' | 'polls' | 'security' | 'database' | 'fixtures';
+  category: 'auth' | 'api' | 'polls' | 'security' | 'database' | 'fixtures' | 'data';
   name: string;
   description: string;
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';

@@ -105,7 +105,7 @@ function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): s
         </div>
         ${option.startTime && option.endTime ? `
           <div class="option-time">
-            <span class="meta-icon">&#128197;</span> ${formatDateTime(option.startTime)} - ${formatDateTime(option.endTime)}
+            <span class="meta-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> ${formatDateTime(option.startTime)} - ${formatDateTime(option.endTime)}
           </div>
         ` : ''}
         <div class="vote-bars">
@@ -183,7 +183,23 @@ function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): s
     }
     
     .meta-icon {
-      font-family: "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    
+    .meta-icon svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     
     .header .subtitle {
@@ -393,16 +409,16 @@ function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): s
   
   <div class="meta-info">
     <div class="meta-item">
-      <span class="meta-icon">&#9776;</span> <strong>${getPollTypeName(results.poll.type)}</strong>
+      <span class="meta-icon"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg></span> <strong>${getPollTypeName(results.poll.type)}</strong>
     </div>
     <div class="meta-item">
-      <span class="meta-icon">&#128197;</span> Erstellt: <strong>${formatDate(results.poll.createdAt)}</strong>
+      <span class="meta-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> Erstellt: <strong>${formatDate(results.poll.createdAt)}</strong>
     </div>
     <div class="meta-item">
-      <span class="meta-icon">&#128101;</span> Teilnehmer: <strong>${results.participantCount}</strong>
+      <span class="meta-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Teilnehmer: <strong>${results.participantCount}</strong>
     </div>
     <div class="meta-item">
-      <span class="meta-icon">&#128200;</span> Rücklaufquote: <strong>${Math.round(results.responseRate)}%</strong>
+      <span class="meta-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Rücklaufquote: <strong>${Math.round(results.responseRate)}%</strong>
     </div>
   </div>
   
@@ -414,11 +430,11 @@ function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): s
   
   ${bestOptionData ? `
     <div class="summary-box">
-      <h3>&#9733; Beste Option</h3>
+      <h3><svg viewBox="0 0 24 24" style="width:16px;height:16px;display:inline;vertical-align:middle;fill:#fbbf24;stroke:none;margin-right:4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> Beste Option</h3>
       <div class="winner">${bestOptionData.text}</div>
       ${bestOptionData.startTime && bestOptionData.endTime ? `
         <div class="winner-time">
-          <span class="meta-icon">&#128197;</span> ${formatDateTime(bestOptionData.startTime)} - ${formatDateTime(bestOptionData.endTime)}
+          <span class="meta-icon"><svg viewBox="0 0 24 24" style="stroke:white;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> ${formatDateTime(bestOptionData.startTime)} - ${formatDateTime(bestOptionData.endTime)}
         </div>
       ` : ''}
     </div>

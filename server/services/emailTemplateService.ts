@@ -676,6 +676,75 @@ export class EmailTemplateService {
     return this.getTemplate(type);
   }
 
+  // Get email footer from system settings
+  async getEmailFooter(): Promise<{ html: string; text: string }> {
+    const setting = await storage.getSetting('email_footer');
+    if (setting?.value) {
+      const footerData = setting.value as { html?: string; text?: string };
+      return {
+        html: footerData.html || 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.',
+        text: footerData.text || 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
+      };
+    }
+    return {
+      html: 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.',
+      text: 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
+    };
+  }
+
+  // Set email footer in system settings
+  async setEmailFooter(footer: { html: string; text: string }): Promise<{ html: string; text: string }> {
+    await storage.setSetting({
+      key: 'email_footer',
+      value: footer
+    });
+    return footer;
+  }
+
+  // Generate email header HTML with branding
+  private generateHeaderHtml(branding: {
+    siteName: string;
+    siteNameAccent: string;
+    logoUrl?: string;
+    primaryColor?: string;
+  }): string {
+    const fullName = `${branding.siteName}${branding.siteNameAccent}`;
+    const primaryColor = branding.primaryColor || '#FF6B35';
+    
+    let logoHtml = '';
+    if (branding.logoUrl) {
+      logoHtml = `<img src="${branding.logoUrl}" alt="${fullName}" style="max-height: 50px; max-width: 200px; margin-bottom: 8px;" />`;
+    }
+    
+    return `
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${primaryColor}; padding: 16px 24px;">
+        <tr>
+          <td style="text-align: center;">
+            ${logoHtml}
+            <h1 style="color: #FFFFFF; font-size: 24px; font-weight: bold; margin: 0; font-family: Arial, sans-serif;">
+              ${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span>
+            </h1>
+          </td>
+        </tr>
+      </table>
+    `;
+  }
+
+  // Generate email footer HTML
+  private generateFooterHtml(footerText: string, primaryColor: string): string {
+    return `
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #e0e0e0; margin-top: 24px;">
+        <tr>
+          <td style="padding: 16px 24px; text-align: center;">
+            <p style="color: #6c757d; font-size: 12px; margin: 0; font-family: Arial, sans-serif;">
+              ${footerText}
+            </p>
+          </td>
+        </tr>
+      </table>
+    `;
+  }
+
   // Render a template with variables
   async renderEmail(
     type: EmailTemplateType,
@@ -683,9 +752,13 @@ export class EmailTemplateService {
   ): Promise<{ subject: string; html: string; text: string }> {
     const template = await this.getTemplate(type);
     
-    // Get branding settings for siteName
+    // Get branding settings
     const customization = await storage.getCustomizationSettings();
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
+    const primaryColor = customization.theme?.primaryColor || '#FF6B35';
+    
+    // Get centralized footer
+    const footer = await this.getEmailFooter();
     
     // Add siteName to variables if not provided
     const allVariables = { siteName, ...variables };
@@ -693,19 +766,69 @@ export class EmailTemplateService {
     // Render subject
     const subject = renderTemplate(template.subject, allVariables);
     
-    // Render HTML
-    let html: string;
+    // Render body HTML
+    let bodyHtml: string;
     if (template.htmlContent) {
-      html = renderTemplate(template.htmlContent, allVariables);
+      bodyHtml = renderTemplate(template.htmlContent, allVariables);
     } else {
       const renderedJson = JSON.parse(
         renderTemplate(JSON.stringify(template.jsonContent), allVariables)
       ) as EmailBuilderDocument;
-      html = jsonToHtml(renderedJson);
+      bodyHtml = jsonToHtml(renderedJson);
     }
     
-    // Render text
-    const text = renderTemplate(template.textContent || '', allVariables);
+    // Generate header with branding
+    const headerHtml = this.generateHeaderHtml({
+      siteName: customization.branding.siteName,
+      siteNameAccent: customization.branding.siteNameAccent,
+      logoUrl: customization.branding.logoUrl || undefined,
+      primaryColor
+    });
+    
+    // Render footer with variables
+    const footerHtmlRendered = renderTemplate(footer.html, allVariables);
+    const footerHtml = this.generateFooterHtml(footerHtmlRendered, primaryColor);
+    
+    // Compose full HTML email
+    const html = `
+      <!DOCTYPE html>
+      <html lang="de">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${htmlEscape(subject)}</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #F5F5F5; font-family: Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F5F5F5; padding: 20px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <tr>
+                  <td>
+                    ${headerHtml}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 0;">
+                    ${bodyHtml}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    ${footerHtml}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+    
+    // Render text with footer
+    const footerTextRendered = renderTemplate(footer.text, allVariables);
+    const text = `${renderTemplate(template.textContent || '', allVariables)}\n\n---\n${footerTextRendered}`;
     
     return { subject, html, text };
   }

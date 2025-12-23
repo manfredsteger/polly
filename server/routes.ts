@@ -3129,6 +3129,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== EMAIL FOOTER ROUTES ==============
+
+  // Get email footer
+  v1Router.get('/admin/email-footer', requireAdmin, async (req, res) => {
+    try {
+      const footer = await emailTemplateService.getEmailFooter();
+      res.json(footer);
+    } catch (error) {
+      console.error('Error fetching email footer:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Update email footer
+  v1Router.put('/admin/email-footer', requireAdmin, async (req, res) => {
+    try {
+      const { html, text } = req.body;
+      
+      if (!html && !text) {
+        return res.status(400).json({ error: 'Fußzeilen-Text erforderlich' });
+      }
+      
+      const footer = await emailTemplateService.setEmailFooter({
+        html: html || text || '',
+        text: text || html || ''
+      });
+      res.json(footer);
+    } catch (error) {
+      console.error('Error updating email footer:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
   // ============== MATRIX CHAT ROUTES ==============
 
   // Test Matrix connection (admin only)

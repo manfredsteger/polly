@@ -38,6 +38,12 @@ Preferred communication style: Simple, everyday language (German).
     -   **Pentest-Tools.com**: Integration for automated vulnerability scanning with real-time results.
 - **System Package Monitoring**: Displays Nix package information and versions for core dependencies.
 
+## API Documentation
+
+-   **OpenAPI Spec**: `docs/openapi.yaml` - Vollständige API-Spezifikation im OpenAPI 3.0 Format
+-   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` - Detaillierte Dokumentation für Mobile App Integration
+-   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` - Anleitung für Docker/Production Deployment
+
 ## External Dependencies
 
 -   **PostgreSQL**: Main database for all application data.

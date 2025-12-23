@@ -1,8 +1,10 @@
 openapi: 3.0.3
 info:
-  title: KITA Poll (Polly) API
+  title: Polly API
   description: |
-    API für die KITA Poll Anwendung zur Integration in Flutter/Native Apps.
+    API für die Polly Polling-Plattform zur Integration in Flutter/Native Apps.
+    
+    Polly ist eine Open-Source, selbst-gehostete Abstimmungsplattform für Teams.
     
     ## Authentifizierung
     Die API unterstützt zwei Authentifizierungsmethoden:
@@ -15,17 +17,15 @@ info:
     - `organization`: Orga-Liste mit Kapazitäten
   version: 1.0.0
   contact:
-    name: KITA Bayern
-    url: https://kita.bayern
+    name: Polly Project
+    url: https://github.com/manfredsteger/polly
 servers:
-  - url: https://polly.kita.bayern/api/v1
-    description: Production (versioned)
+  - url: https://your-polly-instance.com/api/v1
+    description: Production (versioned) - Replace with your domain
   - url: http://localhost:5000/api/v1
     description: Development (versioned)
-  - url: https://polly.kita.bayern/api
-    description: Production (legacy - redirects to v1)
-  - url: http://localhost:5000/api
-    description: Development (legacy - redirects to v1)
+  - url: http://localhost:3080/api/v1
+    description: Docker Development (versioned)
 
 tags:
   - name: Auth

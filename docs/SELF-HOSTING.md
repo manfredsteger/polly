@@ -1,6 +1,6 @@
-# KITA Poll - Self-Hosting Guide
+# Polly - Self-Hosting Guide
 
-This guide covers deploying KITA Poll on your own infrastructure, including universities, government organizations, and private data centers.
+This guide covers deploying Polly on your own infrastructure, including universities, government organizations, and private data centers.
 
 ## Table of Contents
 
@@ -20,8 +20,8 @@ This guide covers deploying KITA Poll on your own infrastructure, including univ
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/kita-poll.git
-cd kita-poll
+git clone https://github.com/manfredsteger/polly.git
+cd polly
 
 # Start with zero configuration
 docker compose up -d
@@ -71,12 +71,12 @@ Best for: Organizations with existing PostgreSQL infrastructure
 ```bash
 # Use external database
 docker run -d \
-  --name kita-poll \
+  --name polly \
   -p 3080:5000 \
-  -e DATABASE_URL=postgresql://user:pass@your-db-host:5432/kitapoll \
+  -e DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly \
   -e SESSION_SECRET=your-secure-secret \
-  -v kita-uploads:/app/uploads \
-  kita-poll:latest
+  -v polly-uploads:/app/uploads \
+  polly:latest
 ```
 
 ### Option 3: Kubernetes / Helm
@@ -88,32 +88,32 @@ Best for: Large-scale enterprise deployments
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kita-poll
+  name: polly
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: kita-poll
+      app: polly
   template:
     metadata:
       labels:
-        app: kita-poll
+        app: polly
     spec:
       containers:
-      - name: kita-poll
-        image: kita-poll:latest
+      - name: polly
+        image: polly:latest
         ports:
         - containerPort: 5000
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: kita-poll-secrets
+              name: polly-secrets
               key: database-url
         - name: SESSION_SECRET
           valueFrom:
             secretKeyRef:
-              name: kita-poll-secrets
+              name: polly-secrets
               key: session-secret
         volumeMounts:
         - name: uploads
@@ -121,7 +121,7 @@ spec:
       volumes:
       - name: uploads
         persistentVolumeClaim:
-          claimName: kita-poll-uploads
+          claimName: polly-uploads
 ```
 
 ### Option 4: Manual Deployment
@@ -176,7 +176,7 @@ npm start
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `KEYCLOAK_REALM` | Keycloak realm name | `university` |
-| `KEYCLOAK_CLIENT_ID` | Client ID | `kita-poll` |
+| `KEYCLOAK_CLIENT_ID` | Client ID | `polly` |
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
 | `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
 
@@ -208,9 +208,9 @@ openssl rand -base64 32
 
 ```sql
 -- Create dedicated user
-CREATE USER kitapoll WITH PASSWORD 'secure-password';
-CREATE DATABASE kitapoll OWNER kitapoll;
-GRANT ALL PRIVILEGES ON DATABASE kitapoll TO kitapoll;
+CREATE USER polly WITH PASSWORD 'secure-password';
+CREATE DATABASE polly OWNER polly;
+GRANT ALL PRIVILEGES ON DATABASE polly TO polly;
 ```
 
 ### 3. Network Security
@@ -284,10 +284,10 @@ services:
   app:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.kita-poll.rule=Host(`poll.example.com`)"
-      - "traefik.http.routers.kita-poll.entrypoints=websecure"
-      - "traefik.http.routers.kita-poll.tls.certresolver=letsencrypt"
-      - "traefik.http.services.kita-poll.loadbalancer.server.port=5000"
+      - "traefik.http.routers.polly.rule=Host(`poll.example.com`)"
+      - "traefik.http.routers.polly.entrypoints=websecure"
+      - "traefik.http.routers.polly.tls.certresolver=letsencrypt"
+      - "traefik.http.services.polly.loadbalancer.server.port=5000"
 ```
 
 ---
@@ -298,10 +298,10 @@ services:
 
 ```bash
 # Backup
-docker compose exec postgres pg_dump -U kitapoll kitapoll > backup.sql
+docker compose exec postgres pg_dump -U polly polly > backup.sql
 
 # Restore
-docker compose exec -T postgres psql -U kitapoll kitapoll < backup.sql
+docker compose exec -T postgres psql -U polly polly < backup.sql
 ```
 
 ### Automated Backups
@@ -310,7 +310,7 @@ Add to crontab:
 
 ```bash
 # Daily backup at 2 AM
-0 2 * * * docker compose -f /path/to/docker-compose.yml exec -T postgres pg_dump -U kitapoll kitapoll | gzip > /backups/kitapoll-$(date +\%Y\%m\%d).sql.gz
+0 2 * * * docker compose -f /path/to/docker-compose.yml exec -T postgres pg_dump -U polly polly | gzip > /backups/polly-$(date +\%Y\%m\%d).sql.gz
 ```
 
 ### File Backup
@@ -335,7 +335,7 @@ curl http://localhost:3080/api/health
 
 ```bash
 docker compose ps
-docker inspect --format='{{.State.Health.Status}}' kita-poll-app
+docker inspect --format='{{.State.Health.Status}}' polly-app
 ```
 
 ### Prometheus Metrics (Optional)
@@ -362,7 +362,7 @@ docker compose logs app
 
 ```bash
 # Test connection from app container
-docker compose exec app sh -c "pg_isready -h postgres -U kitapoll"
+docker compose exec app sh -c "pg_isready -h postgres -U polly"
 
 # Check environment variable
 docker compose exec app sh -c "echo \$DATABASE_URL"
@@ -391,7 +391,7 @@ docker compose exec app sh -c "nc -zv smtp.example.com 587"
 
 ```bash
 # Connect to database
-docker compose exec postgres psql -U kitapoll kitapoll
+docker compose exec postgres psql -U polly polly
 
 # Reset password (use bcrypt hash)
 UPDATE users SET password = '$2b$10$...' WHERE role = 'admin';
@@ -406,7 +406,7 @@ UPDATE users SET password = '$2b$10$...' WHERE role = 'admin';
 Use Keycloak as an OIDC bridge to integrate with your existing LDAP/AD infrastructure:
 
 1. Set up Keycloak with User Federation pointing to your LDAP
-2. Configure KITA Poll with Keycloak OIDC settings
+2. Configure Polly with Keycloak OIDC settings
 3. Users can then log in with their university credentials
 
 ### Network Restrictions
@@ -436,4 +436,4 @@ If deploying in a restricted network:
 
 ## License
 
-KITA Poll is open source software licensed under the MIT License.
+Polly is open source software licensed under the MIT License.

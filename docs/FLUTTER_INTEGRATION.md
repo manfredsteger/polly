@@ -1,10 +1,10 @@
-# KITA Poll (Polly) - Flutter/KH App Integration Guide
+# Polly - Flutter/Mobile App Integration Guide
 
-Diese Dokumentation beschreibt die API-Integration für die native Flutter-Anbindung der KITA Poll Anwendung in die KH App (KITA Hub).
+Diese Dokumentation beschreibt die API-Integration für die native Flutter-Anbindung von Polly in externe Mobile Apps.
 
 ## Übersicht
 
-Die Polly-API ermöglicht es der KH App, alle Polling-Funktionen nativ in Flutter zu implementieren:
+Die Polly-API ermöglicht es externen Apps, alle Polling-Funktionen nativ in Flutter zu implementieren:
 - Umfragen erstellen (Termin, Umfrage, Orga-Liste)
 - Abstimmen mit Ja/Vielleicht/Nein
 - Ergebnisse anzeigen
@@ -22,7 +22,7 @@ Die API unterstützt zwei Authentifizierungsmethoden:
 
 ### Keycloak SSO Integration
 
-Die KH App nutzt bereits Keycloak für SSO. Die Polly-API validiert Keycloak Access-Tokens:
+Wenn deine App bereits Keycloak für SSO nutzt, validiert die Polly-API Keycloak Access-Tokens:
 
 ```dart
 // Flutter: API-Request mit Keycloak Token
@@ -47,11 +47,12 @@ Der Server validiert das Token via:
 ### Base URL
 
 ```
-Production: https://polly.kita.bayern/api/v1
+Production: https://your-polly-instance.com/api/v1
 Development: http://localhost:3080/api/v1
+Docker:      http://localhost:3080/api/v1
 
 Legacy URLs (auto-redirect):
-https://polly.kita.bayern/api  -> 308 Redirect to /api/v1
+https://your-polly-instance.com/api  -> 308 Redirect to /api/v1
 ```
 
 **Hinweis:** Die API ist versioniert. Alle Endpunkte sollten unter `/api/v1/` aufgerufen werden. 
@@ -69,7 +70,7 @@ Prüft die aktuelle Session/Token und gibt User-Daten zurück.
 {
   "user": {
     "id": 1,
-    "email": "max@kita-beispiel.de",
+    "email": "max@example.com",
     "displayName": "Max Mustermann",
     "role": "user"
   }
@@ -147,7 +148,7 @@ Benutzerprofil abrufen.
 ```json
 {
   "id": 1,
-  "email": "max@kita-beispiel.de",
+  "email": "max@example.com",
   "displayName": "Max Mustermann",
   "role": "user",
   "themePreference": "system"
@@ -436,7 +437,7 @@ Matrix-Chat-Einladungen versenden.
 **Request:**
 ```json
 {
-  "userIds": ["@anna:matrix.kita.bayern", "@bob:matrix.kita.bayern"],
+  "userIds": ["@anna:matrix.example.com", "@bob:matrix.example.com"],
   "customMessage": "Bitte stimmt ab!"
 }
 ```
@@ -455,12 +456,12 @@ Branding-Konfiguration für Web-Frontend.
 ```json
 {
   "branding": {
-    "siteName": "KITA Poll",
-    "siteNameFirstPart": "KITA",
-    "siteNameSecondPart": "Poll",
-    "logoUrl": "https://polly.kita.bayern/uploads/logo.png",
+    "siteName": "Polly",
+    "siteNameFirstPart": "Poll",
+    "siteNameSecondPart": "y",
+    "logoUrl": "https://your-domain.com/uploads/logo.png",
     "footerText": "Die professionelle Abstimmungsplattform...",
-    "copyrightText": "© 2025 KITA Bayern"
+    "copyrightText": "© 2025 Your Organization"
   },
   "colors": {
     "primary": "#f97316",
@@ -569,9 +570,9 @@ Matrix-Benutzer suchen.
 {
   "results": [
     {
-      "userId": "@anna.schmidt:matrix.kita.bayern",
+      "userId": "@anna.schmidt:matrix.example.com",
       "displayName": "Anna Schmidt",
-      "avatarUrl": "mxc://matrix.kita.bayern/abc123"
+      "avatarUrl": "mxc://matrix.example.com/abc123"
     }
   ]
 }

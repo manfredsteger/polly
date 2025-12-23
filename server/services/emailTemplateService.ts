@@ -722,15 +722,15 @@ export class EmailTemplateService {
     
     let logoHtml = '';
     if (branding.logoUrl) {
-      logoHtml = `<img src="${branding.logoUrl}" alt="${fullName}" style="max-height: 50px; max-width: 200px; margin-bottom: 8px;" />`;
+      logoHtml = `<img src="${branding.logoUrl}" alt="${fullName}" style="max-height: 40px; max-width: 40px; vertical-align: middle;" />`;
     }
     
     return `
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${primaryColor}; padding: 16px 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${primaryColor}; padding: 12px 24px;">
         <tr>
-          <td style="text-align: center;">
-            ${logoHtml}
-            <h1 style="color: #FFFFFF; font-size: 24px; font-weight: bold; margin: 0; font-family: Arial, sans-serif;">
+          <td style="text-align: left; vertical-align: middle;">
+            ${logoHtml ? `<span style="display: inline-block; margin-right: 12px; vertical-align: middle;">${logoHtml}</span>` : ''}
+            <h1 style="color: #FFFFFF; font-size: 22px; font-weight: bold; margin: 0; font-family: Arial, sans-serif; display: inline-block; vertical-align: middle;">
               ${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span>
             </h1>
           </td>

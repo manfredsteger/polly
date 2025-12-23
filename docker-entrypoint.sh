@@ -20,11 +20,17 @@ echo "✅ Database is ready"
 # Run database migrations - FAIL HARD if this doesn't work
 echo "📦 Applying database schema..."
 # Use yes to auto-answer prompts, and --force for non-interactive mode
-if ! echo "n" | npx drizzle-kit push --force 2>&1; then
-  echo "❌ Database migration failed! Cannot start application."
-  exit 1
+if ! yes n | npx drizzle-kit push --force 2>&1; then
+  echo "⚠️ drizzle-kit push had issues, trying fallback..."
 fi
 echo "✅ Database schema applied"
+
+# Ensure all columns exist (fallback for drizzle-kit issues)
+echo "🔧 Ensuring schema completeness..."
+if ! npx tsx server/scripts/ensureSchema.ts 2>&1; then
+  echo "❌ Schema update failed!"
+  exit 1
+fi
 
 # Verify database schema integrity
 echo "🔍 Verifying database schema..."

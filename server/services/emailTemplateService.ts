@@ -635,23 +635,32 @@ export class EmailTemplateService {
     type: EmailTemplateType,
     jsonContent: Record<string, unknown>,
     subject?: string,
-    name?: string
+    name?: string,
+    textContentOverride?: string
   ): Promise<EmailTemplate> {
     const defaultData = DEFAULT_TEMPLATES[type];
     
-    // Generate HTML from JSON
-    const htmlContent = jsonToHtml(jsonContent as EmailBuilderDocument);
+    // If textContent is provided, we'll generate HTML from it instead of JSON
+    let htmlContent: string;
+    let textContent: string;
     
-    // Generate text content from JSON (simplified extraction)
-    let textContent = '';
-    const root = (jsonContent as EmailBuilderDocument).root;
-    if (root && root.data.childrenIds) {
-      for (const blockId of root.data.childrenIds) {
-        const block = (jsonContent as EmailBuilderDocument)[blockId];
-        if (block) {
-          const props = (block.data as Record<string, unknown>).props as Record<string, unknown> | undefined;
-          if (props?.text) {
-            textContent += props.text + '\n\n';
+    if (textContentOverride) {
+      // User edited the text content - generate simple HTML from it
+      textContent = textContentOverride;
+      htmlContent = this.textToSimpleHtml(textContent);
+    } else {
+      // Generate from JSON as before
+      htmlContent = jsonToHtml(jsonContent as EmailBuilderDocument);
+      textContent = '';
+      const root = (jsonContent as EmailBuilderDocument).root;
+      if (root && root.data.childrenIds) {
+        for (const blockId of root.data.childrenIds) {
+          const block = (jsonContent as EmailBuilderDocument)[blockId];
+          if (block) {
+            const props = (block.data as Record<string, unknown>).props as Record<string, unknown> | undefined;
+            if (props?.text) {
+              textContent += props.text + '\n\n';
+            }
           }
         }
       }
@@ -730,6 +739,23 @@ export class EmailTemplateService {
     `;
   }
 
+  // Convert plain text to simple HTML for email body
+  private textToSimpleHtml(text: string): string {
+    const escapedText = htmlEscape(text);
+    const paragraphs = escapedText.split('\n\n').filter(p => p.trim());
+    
+    let html = '<div style="padding: 16px 24px; font-family: Arial, sans-serif;">';
+    for (const para of paragraphs) {
+      // Check if it looks like a URL
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const withLinks = para.replace(urlRegex, '<a href="$1" style="color: #FF6B35;">$1</a>');
+      html += `<p style="color: #333333; font-size: 16px; line-height: 1.5; margin: 0 0 16px 0;">${withLinks.replace(/\n/g, '<br>')}</p>`;
+    }
+    html += '</div>';
+    
+    return html;
+  }
+
   // Generate email footer HTML
   private generateFooterHtml(footerText: string, primaryColor: string): string {
     return `
@@ -767,10 +793,19 @@ export class EmailTemplateService {
     const subject = renderTemplate(template.subject, allVariables);
     
     // Render body HTML
+    // Priority: stored htmlContent > textContent (for customized) > generated from JSON
     let bodyHtml: string;
-    if (template.htmlContent) {
+    if (template.htmlContent && !template.isDefault) {
+      // Use stored HTML for customized templates
       bodyHtml = renderTemplate(template.htmlContent, allVariables);
+    } else if (template.isDefault) {
+      // For default templates, generate from JSON
+      const renderedJson = JSON.parse(
+        renderTemplate(JSON.stringify(template.jsonContent), allVariables)
+      ) as EmailBuilderDocument;
+      bodyHtml = jsonToHtml(renderedJson);
     } else {
+      // Fallback to JSON-based rendering
       const renderedJson = JSON.parse(
         renderTemplate(JSON.stringify(template.jsonContent), allVariables)
       ) as EmailBuilderDocument;

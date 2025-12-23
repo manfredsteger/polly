@@ -2979,16 +2979,65 @@ interface EmailTemplate {
   createdAt: string;
 }
 
+interface EmailFooter {
+  html: string;
+  text: string;
+}
+
 function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [testEmail, setTestEmail] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  
+  // Editable fields
+  const [editSubject, setEditSubject] = useState('');
+  const [editTextContent, setEditTextContent] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  // Footer editing
+  const [showFooterEditor, setShowFooterEditor] = useState(false);
+  const [editFooterHtml, setEditFooterHtml] = useState('');
+  const [editFooterText, setEditFooterText] = useState('');
 
   const { data: templates, isLoading, refetch } = useQuery<EmailTemplate[]>({
     queryKey: ['/api/v1/admin/email-templates'],
   });
+  
+  // Fetch email footer
+  const { data: emailFooter } = useQuery<EmailFooter>({
+    queryKey: ['/api/v1/admin/email-footer'],
+  });
+  
+  // Reset preview and editable fields when switching templates
+  useEffect(() => {
+    if (selectedTemplate) {
+      setPreviewHtml('');
+      setShowPreview(false);
+      setEditSubject(selectedTemplate.subject);
+      setEditTextContent(selectedTemplate.textContent || '');
+      setHasChanges(false);
+    }
+  }, [selectedTemplate?.type]);
+  
+  // Initialize footer editor
+  useEffect(() => {
+    if (emailFooter) {
+      setEditFooterHtml(emailFooter.html);
+      setEditFooterText(emailFooter.text);
+    }
+  }, [emailFooter]);
+  
+  // Track changes
+  useEffect(() => {
+    if (selectedTemplate) {
+      const subjectChanged = editSubject !== selectedTemplate.subject;
+      const textChanged = editTextContent !== (selectedTemplate.textContent || '');
+      setHasChanges(subjectChanged || textChanged);
+    }
+  }, [editSubject, editTextContent, selectedTemplate]);
 
   const previewMutation = useMutation({
     mutationFn: async (type: string) => {
@@ -3030,6 +3079,42 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     },
     onError: () => {
       toast({ title: 'Fehler', description: 'Vorlage konnte nicht zurückgesetzt werden', variant: 'destructive' });
+    },
+  });
+
+  // Save template changes
+  const saveMutation = useMutation({
+    mutationFn: async ({ type, subject, textContent }: { type: string; subject: string; textContent: string }) => {
+      const response = await apiRequest('PUT', `/api/v1/admin/email-templates/${type}`, {
+        subject,
+        textContent,
+        jsonContent: selectedTemplate?.jsonContent
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Gespeichert', description: 'Vorlage wurde erfolgreich gespeichert' });
+      refetch();
+      setHasChanges(false);
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'Vorlage konnte nicht gespeichert werden', variant: 'destructive' });
+    },
+  });
+
+  // Save footer
+  const saveFooterMutation = useMutation({
+    mutationFn: async ({ html, text }: { html: string; text: string }) => {
+      const response = await apiRequest('PUT', '/api/v1/admin/email-footer', { html, text });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Gespeichert', description: 'E-Mail-Fußzeile wurde gespeichert' });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-footer'] });
+      setShowFooterEditor(false);
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'Fußzeile konnte nicht gespeichert werden', variant: 'destructive' });
     },
   });
 
@@ -3132,9 +3217,29 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
             <CardContent className="space-y-6">
               <div>
                 <Label className="text-sm font-medium">Betreff</Label>
-                <div className="p-3 bg-muted rounded-lg mt-1">
-                  <code className="text-sm">{selectedTemplate.subject}</code>
-                </div>
+                <Input
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  className="mt-1 font-mono text-sm"
+                  data-testid="input-template-subject"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Verwenden Sie Variablen wie {"{{siteName}}"} oder {"{{pollTitle}}"}
+                </p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">E-Mail-Inhalt (Text)</Label>
+                <Textarea
+                  value={editTextContent}
+                  onChange={(e) => setEditTextContent(e.target.value)}
+                  className="mt-1 font-mono text-sm min-h-[200px]"
+                  placeholder="Der E-Mail-Text mit Variablen..."
+                  data-testid="textarea-template-content"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Dies ist die reine Text-Version der E-Mail. HTML wird automatisch generiert.
+                </p>
               </div>
 
               <div>
@@ -3143,12 +3248,22 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   {selectedTemplate.variables?.map((variable: { key: string; description: string }) => (
                     <Tooltip key={variable.key}>
                       <TooltipTrigger asChild>
-                        <Badge variant="outline" className="cursor-help font-mono text-xs">
-                          {"{{" + variable.key + "}}"}
-                        </Badge>
+                        <span>
+                          <Badge 
+                            variant="outline" 
+                            className="cursor-pointer font-mono text-xs hover:bg-primary/10"
+                            onClick={() => {
+                              const varText = `{{${variable.key}}}`;
+                              setEditTextContent(prev => prev + varText);
+                            }}
+                          >
+                            {"{{" + variable.key + "}}"}
+                          </Badge>
+                        </span>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>{variable.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Klicken zum Einfügen</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}
@@ -3156,6 +3271,20 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => saveMutation.mutate({ 
+                    type: selectedTemplate.type, 
+                    subject: editSubject, 
+                    textContent: editTextContent 
+                  })}
+                  disabled={!hasChanges || saveMutation.isPending}
+                  className="kita-button-primary"
+                  data-testid="button-save-template"
+                >
+                  {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  Speichern
+                </Button>
+                
                 <Button
                   variant="outline"
                   onClick={() => previewMutation.mutate(selectedTemplate.type)}
@@ -3251,15 +3380,65 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
+      {/* Central Footer Editor */}
+      <Card className="kita-card">
+        <CardHeader className="cursor-pointer" onClick={() => setShowFooterEditor(!showFooterEditor)}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Zentrale E-Mail-Fußzeile</CardTitle>
+                <CardDescription>
+                  Diese Fußzeile wird automatisch an alle E-Mails angehängt
+                </CardDescription>
+              </div>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${showFooterEditor ? 'rotate-180' : ''}`} />
+          </div>
+        </CardHeader>
+        {showFooterEditor && (
+          <CardContent className="space-y-4 pt-0">
+            <div>
+              <Label className="text-sm font-medium">Fußzeilen-Text</Label>
+              <Textarea
+                value={editFooterHtml}
+                onChange={(e) => setEditFooterHtml(e.target.value)}
+                className="mt-1 font-mono text-sm min-h-[100px]"
+                placeholder="z.B. Diese E-Mail wurde automatisch von {{siteName}} erstellt."
+                data-testid="textarea-footer-html"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Sie können {"{{siteName}}"} als Variable verwenden
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={() => saveFooterMutation.mutate({ html: editFooterHtml, text: editFooterHtml })}
+                disabled={saveFooterMutation.isPending}
+                className="kita-button-primary"
+                data-testid="button-save-footer"
+              >
+                {saveFooterMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Fußzeile speichern
+              </Button>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Info card about email branding */}
       <Card className="kita-card border-blue-200 bg-blue-50/30 dark:bg-blue-950/30 dark:border-blue-800">
         <CardContent className="p-4">
           <div className="flex items-start space-x-3">
             <Info className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
-              <p className="font-medium text-blue-800 dark:text-blue-200">Visueller Editor</p>
+              <p className="font-medium text-blue-800 dark:text-blue-200">E-Mail-Branding</p>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                Ein visueller Drag & Drop Editor für E-Mail-Vorlagen ist in Planung. 
-                Aktuell können Sie die Vorlagen anzeigen, testen und auf Standard zurücksetzen.
+                Der E-Mail-Header mit Logo und Titel wird automatisch aus Ihren Branding-Einstellungen 
+                (Anpassen → Logo & Branding) übernommen. Die Fußzeile oben gilt für alle E-Mails.
               </p>
             </div>
           </div>

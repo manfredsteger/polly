@@ -2930,18 +2930,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   v1Router.put('/admin/email-templates/:type', requireAdmin, async (req, res) => {
     try {
       const { type } = req.params;
-      const { jsonContent, subject, name } = req.body;
+      const { jsonContent, subject, name, textContent } = req.body;
       const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
       
       if (!validTypes.includes(type)) {
         return res.status(400).json({ error: 'Ungültiger Template-Typ' });
       }
       
-      if (!jsonContent) {
+      // Get existing template to use its jsonContent if not provided
+      const existingTemplate = await emailTemplateService.getTemplate(type as any);
+      const finalJsonContent = jsonContent || existingTemplate.jsonContent;
+      
+      if (!finalJsonContent) {
         return res.status(400).json({ error: 'Template-Inhalt erforderlich' });
       }
       
-      const template = await emailTemplateService.saveTemplate(type as any, jsonContent, subject, name);
+      const template = await emailTemplateService.saveTemplate(
+        type as any, 
+        finalJsonContent, 
+        subject, 
+        name,
+        textContent
+      );
       res.json(template);
     } catch (error) {
       console.error('Error updating email template:', error);

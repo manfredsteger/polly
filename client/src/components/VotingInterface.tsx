@@ -901,14 +901,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       className={`px-8 ${
                         orgaBookings.length === 0 
                           ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
-                          : hasOrgaChanges 
-                            ? 'kita-button-organization' 
-                            : 'kita-button-organization'
+                          : 'bg-primary hover:bg-primary/90 text-primary-foreground'
                       }`}
                       disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
                       data-testid="button-submit-vote"
                     >
-                      {voteMutation.isPending ? "Speichere..." : orgaBookings.length > 0 ? "Eintragen" : "Slot auswählen"}
+                      {voteMutation.isPending ? "Speichere..." : orgaBookings.length > 0 ? "Absenden" : "Slot auswählen"}
                     </Button>
                     {hasAlreadyVoted && poll.allowVoteWithdrawal && (
                       <Button

@@ -75,4 +75,28 @@ describe('API - Email Templates Endpoints', () => {
       expect(response.status).toBe(401);
     });
   });
+
+  describe('Email Footer Endpoints', () => {
+    it('should reject GET email-footer without auth', async () => {
+      const response = await request(app).get('/api/v1/admin/email-footer');
+      
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject PUT email-footer without auth', async () => {
+      const response = await request(app)
+        .put('/api/v1/admin/email-footer')
+        .send({ footer: 'Test footer text' });
+      
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject PUT email-footer with invalid body', async () => {
+      const response = await request(app)
+        .put('/api/v1/admin/email-footer')
+        .send({});
+      
+      expect(response.status).toBe(401);
+    });
+  });
 });

@@ -177,4 +177,139 @@ describe('EmailTemplateService', () => {
       expect(sampleData).toEqual({});
     });
   });
+
+  describe('Text to HTML Conversion', () => {
+    it('should convert plain text paragraphs to HTML', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      
+      // Save with textContentOverride
+      const saved = await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Test Subject',
+        'Test Name',
+        'Erster Absatz.\n\nZweiter Absatz.'
+      );
+      
+      expect(saved.textContent).toBe('Erster Absatz.\n\nZweiter Absatz.');
+      expect(saved.htmlContent).toContain('<p');
+      expect(saved.htmlContent).toContain('Erster Absatz.');
+      expect(saved.htmlContent).toContain('Zweiter Absatz.');
+      expect(saved.isDefault).toBe(false);
+    });
+
+    it('should escape HTML entities in text content', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      
+      const saved = await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Test Subject',
+        'Test Name',
+        'Text mit <script>alert("XSS")</script>'
+      );
+      
+      expect(saved.htmlContent).toContain('&lt;script&gt;');
+      expect(saved.htmlContent).not.toContain('<script>');
+    });
+
+    it('should convert URLs to clickable links', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      
+      const saved = await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Test Subject',
+        'Test Name',
+        'Besuche https://example.com für mehr Info.'
+      );
+      
+      expect(saved.htmlContent).toContain('<a href="https://example.com"');
+      expect(saved.htmlContent).toContain('https://example.com</a>');
+    });
+  });
+
+  describe('Customized Template Rendering (renderEmail)', () => {
+    it('should use stored htmlContent for customized templates', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('invitation');
+      
+      // Save with custom text
+      await service.saveTemplate(
+        'invitation',
+        template.jsonContent,
+        'Einladung zu {{pollTitle}}',
+        'Einladung',
+        'Hallo {{userName}}, du wurdest eingeladen!'
+      );
+      
+      // Render using instance method (includes header/footer)
+      const result = await service.renderEmail('invitation', {
+        pollTitle: 'Teammeeting',
+        userName: 'Max',
+        inviterName: 'Anna',
+        publicLink: 'https://example.com/poll/123',
+        siteName: 'Polly'
+      });
+      
+      expect(result.html).toContain('Hallo Max, du wurdest eingeladen!');
+      expect(result.subject).toContain('Teammeeting');
+    });
+
+    it('should include header with branding in rendered email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Test-Umfrage',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+        siteName: 'Test-Instance'
+      });
+      
+      // Should have header table structure
+      expect(result.html).toContain('<table');
+      expect(result.html).toContain('Test-Instance');
+    });
+
+    it('should include footer in rendered email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Test-Umfrage',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+        siteName: 'MeineApp'
+      });
+      
+      // Footer should have footer styling with border-top
+      expect(result.html).toContain('border-top');
+      // Text version should include siteName
+      expect(result.text).toContain('MeineApp');
+    });
+  });
+
+  describe('Template Reset', () => {
+    it('should reset customized template to default', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      
+      // First customize it
+      await service.saveTemplate(
+        'vote_confirmation',
+        template.jsonContent,
+        'Custom Subject',
+        'Custom Name',
+        'Custom content'
+      );
+      
+      // Then reset
+      const reset = await service.resetTemplate('vote_confirmation');
+      
+      expect(reset.isDefault).toBe(true);
+      expect(reset.subject).toBe(template.subject);
+    });
+  });
 });

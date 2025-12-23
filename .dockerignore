@@ -1,10 +1,18 @@
-# Dependencies
+# ===========================================
+# OPTIMIZED .dockerignore for smaller builds
+# ===========================================
+
+# Dependencies (will be installed fresh)
 node_modules
 npm-debug.log
 yarn-error.log
+.npm
+.yarn
 
-# Build output
+# Build output (rebuilt in container)
 dist
+.cache
+.turbo
 
 # Development files
 .git
@@ -20,35 +28,71 @@ dist
 *.swo
 .DS_Store
 Thumbs.db
+*.sublime-*
 
-# Test files
-*.test.ts
-*.test.js
-*.spec.ts
-*.spec.js
-__tests__
+# Test files (not needed in production)
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/__tests__
+**/tests
 coverage
 .nyc_output
+playwright-report
+test-results
 
-# Documentation (keep essential files)
+# Documentation (not needed in container)
+*.md
+!README.md
+docs
 TESTING.md
+SELF-HOSTING.md
+CONTRIBUTING.md
 
-# Docker files (don't need to copy these into container)
+# Docker files (don't copy into container)
 Dockerfile
+Dockerfile.*
 docker-compose*.yml
 .dockerignore
 
-# Miscellaneous
+# Logs and temporary files
 *.log
 *.tmp
 *.tar.gz
 *.zip
+logs
 
 # Uploads (will be mounted as volume)
 uploads/*
 !uploads/.gitkeep
 
-# Replit specific
+# Replit specific (not needed in Docker)
 .replit
 replit.nix
+replit.md
 .cache
+.config
+.upm
+
+# Attached assets (development only)
+attached_assets
+
+# Scripts not needed in production
+scripts
+*.sh
+!docker-entrypoint.sh
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Package manager locks (use package-lock.json only)
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Misc
+*.bak
+*.orig
+.eslintcache
+.pretterrcache

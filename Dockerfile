@@ -1,9 +1,9 @@
 # KITA Poll - Docker Configuration
-# Multi-stage build for production deployment
-# Uses Debian-based images for better native module compatibility (canvas, puppeteer)
+# Optimized multi-stage build for smaller production image
+# Uses PUPPETEER_SKIP_CHROMIUM_DOWNLOAD to avoid 300MB bundled Chromium
 
 # ============================================
-# Stage 1: Dependencies
+# Stage 1: Dependencies (build tools + native modules)
 # ============================================
 FROM node:22-slim AS deps
 
@@ -19,18 +19,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpixman-1-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Skip Puppeteer Chromium download (we use system Chromium in production)
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
 # Install all dependencies
-RUN npm ci
+RUN npm ci && npm cache clean --force
 
 # ============================================
-# Stage 2: Builder
+# Stage 2: Builder (compile TypeScript + Vite)
 # ============================================
 FROM node:22-slim AS builder
+
+# Skip Puppeteer Chromium download
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 WORKDIR /app
 
@@ -38,7 +44,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 
-# Copy source files
+# Copy source files (only what's needed for build)
 COPY client ./client
 COPY server ./server
 COPY shared ./shared
@@ -53,14 +59,14 @@ COPY drizzle.config.ts ./
 RUN npm run build
 
 # ============================================
-# Stage 3: Production
+# Stage 3: Production Runtime
 # ============================================
 FROM node:22-slim AS production
 
-# Install runtime dependencies for:
+# Install minimal runtime dependencies
 # - canvas/pdfkit: libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 libpixman-1-0
-# - Puppeteer/Chromium: chromium and dependencies
-# - Database: postgresql-client (for pg_isready health checks)
+# - Puppeteer: chromium (system installation, not bundled)
+# - Database: postgresql-client (for pg_isready)
 # - Utilities: wget for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
@@ -70,12 +76,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgif7 \
     libpixman-1-0 \
     chromium \
-    fonts-freefont-ttf \
+    fonts-liberation \
     postgresql-client \
     wget \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/cache/apt/*
 
-# Configure Puppeteer to use system Chromium
+# Configure Puppeteer to use system Chromium (skip bundled download)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
@@ -88,21 +95,16 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Copy node_modules from deps stage (includes pre-built native modules like canvas)
+# Copy node_modules from deps stage (with Puppeteer Chromium skipped)
 COPY --from=deps /app/node_modules ./node_modules
-
-# Install additional runtime tools (tsx for TypeScript execution)
-RUN npm install tsx drizzle-kit && \
-    npm cache clean --force
 
 # Copy server source (needed for tsx runtime)
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/drizzle.config.ts ./
-COPY --from=builder /app/vite.config.ts ./
 
-# Copy built frontend to server/public (where serveStatic expects it)
+# Copy built frontend
 COPY --from=builder /app/dist/public ./server/public
 
 # Copy entrypoint script

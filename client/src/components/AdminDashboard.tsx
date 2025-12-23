@@ -1697,6 +1697,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             onBack={handleBackToUsers}
             onPollClick={handlePollClick}
             onUpdateRole={(role) => updateUserMutation.mutate({ userId: selectedUser.id, updates: { role } })}
+            onUpdateUser={(updates) => updateUserMutation.mutate({ userId: selectedUser.id, updates })}
             onDelete={() => deleteUserMutation.mutate(selectedUser.id)}
             isDeleting={deleteUserMutation.isPending}
             isUpdating={updateUserMutation.isPending}
@@ -2008,17 +2009,23 @@ function ActivityItem({ activity }: { activity: { type: string; message: string;
   );
 }
 
-function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onDelete, isDeleting, isUpdating, isDeprovisionEnabled = false }: {
+function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpdateUser, onDelete, isDeleting, isUpdating, isDeprovisionEnabled = false }: {
   user: User;
   polls: PollWithOptions[];
   onBack: () => void;
   onPollClick: (poll: PollWithOptions) => void;
   onUpdateRole: (role: string) => void;
+  onUpdateUser: (updates: { name?: string; email?: string }) => void;
   onDelete: () => void;
   isDeleting: boolean;
   isUpdating: boolean;
   isDeprovisionEnabled?: boolean;
 }) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editName, setEditName] = useState(user.name);
+  const [editEmail, setEditEmail] = useState(user.email);
+  
+  const isSSO = !!user.keycloakId;
   const schedulePolls = polls.filter(p => p.type === 'schedule');
   const surveyPolls = polls.filter(p => p.type === 'survey');
   const activePolls = polls.filter(p => p.isActive);
@@ -2059,8 +2066,30 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onDele
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Rolle ändern</DropdownMenuLabel>
+                  <DropdownMenuLabel>Benutzer verwalten</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {isSSO ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuItem disabled className="text-muted-foreground cursor-not-allowed">
+                            <Key className="w-4 h-4 mr-2" />
+                            Bearbeiten (SSO)
+                          </DropdownMenuItem>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Benutzerdaten werden zentral über das IDM (Keycloak) verwaltet</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <DropdownMenuItem onClick={() => setEditDialogOpen(true)} disabled={isUpdating}>
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Bearbeiten
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Rolle ändern</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => onUpdateRole('user')} disabled={user.role === 'user' || isUpdating}>
                     <Users className="w-4 h-4 mr-2" />
                     Benutzer
@@ -2214,6 +2243,71 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onDele
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Benutzer bearbeiten</DialogTitle>
+            <DialogDescription>
+              Ändern Sie die Benutzerdaten. Der Benutzername kann nicht geändert werden.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Vollständiger Name"
+                data-testid="input-edit-user-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">E-Mail</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="E-Mail-Adresse"
+                data-testid="input-edit-user-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">Benutzername</Label>
+              <Input
+                id="edit-username"
+                value={user.username}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">Der Benutzername kann nicht geändert werden.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => {
+                const updates: { name?: string; email?: string } = {};
+                if (editName !== user.name) updates.name = editName;
+                if (editEmail !== user.email) updates.email = editEmail;
+                if (Object.keys(updates).length > 0) {
+                  onUpdateUser(updates);
+                }
+                setEditDialogOpen(false);
+              }}
+              disabled={isUpdating || (editName === user.name && editEmail === user.email)}
+              data-testid="button-save-user"
+            >
+              {isUpdating ? 'Speichert...' : 'Speichern'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

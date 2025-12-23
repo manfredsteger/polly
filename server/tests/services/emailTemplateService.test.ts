@@ -111,11 +111,10 @@ describe('EmailTemplateService', () => {
     it('should render JSON template to HTML', async () => {
       const template = EmailTemplateService.getDefaultTemplate('poll_created');
       const variables = {
+        pollType: 'Terminumfrage',
         pollTitle: 'Test-Umfrage',
-        pollDescription: 'Eine Beschreibung',
-        pollUrl: 'https://example.com/poll/test',
-        adminUrl: 'https://example.com/admin/test',
-        deadline: '31.12.2025',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
         siteName: 'Polly'
       };
       
@@ -128,11 +127,10 @@ describe('EmailTemplateService', () => {
 
     it('should include siteName in rendered template', async () => {
       const html = await EmailTemplateService.renderTemplate('poll_created', {
+        pollType: 'Umfrage',
         pollTitle: 'Test',
-        pollDescription: 'Desc',
-        pollUrl: 'https://example.com',
-        adminUrl: 'https://example.com/admin',
-        deadline: '31.12.2025',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
         siteName: 'Polly-Test-Instance'
       });
       
@@ -145,7 +143,8 @@ describe('EmailTemplateService', () => {
       const sampleData = EmailTemplateService.getSampleDataForType('poll_created');
       
       expect(sampleData.pollTitle).toBeDefined();
-      expect(sampleData.pollUrl).toBeDefined();
+      expect(sampleData.publicLink).toBeDefined();
+      expect(sampleData.adminLink).toBeDefined();
       expect(sampleData.siteName).toBeDefined();
     });
 
@@ -153,16 +152,23 @@ describe('EmailTemplateService', () => {
       const sampleData = EmailTemplateService.getSampleDataForType('invitation');
       
       expect(sampleData.pollTitle).toBeDefined();
-      expect(sampleData.voterName).toBeDefined();
-      expect(sampleData.voteUrl).toBeDefined();
+      expect(sampleData.inviterName).toBeDefined();
+      expect(sampleData.publicLink).toBeDefined();
     });
 
     it('should generate sample data for password_reset template', () => {
       const sampleData = EmailTemplateService.getSampleDataForType('password_reset');
       
-      expect(sampleData.userName).toBeDefined();
-      expect(sampleData.resetUrl).toBeDefined();
-      expect(sampleData.expiryTime).toBeDefined();
+      expect(sampleData.resetLink).toBeDefined();
+      expect(sampleData.siteName).toBeDefined();
+    });
+
+    it('should generate sample data for email_change template', () => {
+      const sampleData = EmailTemplateService.getSampleDataForType('email_change');
+      
+      expect(sampleData.oldEmail).toBeDefined();
+      expect(sampleData.newEmail).toBeDefined();
+      expect(sampleData.confirmLink).toBeDefined();
     });
 
     it('should return empty object for unknown template type', () => {

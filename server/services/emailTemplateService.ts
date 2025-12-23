@@ -444,11 +444,11 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
 }
 
 // Sample data generators for each template type (for preview and testing)
+// NOTE: Variable names MUST match exactly with the placeholders in DEFAULT_TEMPLATES
 const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
   poll_created: {
     pollType: 'Terminumfrage',
     pollTitle: 'Teammeeting Q1 2025',
-    pollDescription: 'Wann passt es euch am besten?',
     publicLink: 'https://polly.example.com/poll/abc123',
     adminLink: 'https://polly.example.com/admin/abc123',
     siteName: 'Polly',
@@ -476,21 +476,16 @@ const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
     siteName: 'Polly',
   },
   password_reset: {
-    userName: 'Max Mustermann',
-    resetUrl: 'https://polly.example.com/auth/reset-password?token=xyz789',
-    expiryTime: '1 Stunde',
+    resetLink: 'https://polly.example.com/auth/reset-password?token=xyz789',
     siteName: 'Polly',
   },
   email_change: {
-    userName: 'Max Mustermann',
-    newEmail: 'neuemail@example.com',
-    confirmUrl: 'https://polly.example.com/auth/confirm-email?token=xyz789',
-    expiryTime: '24 Stunden',
+    oldEmail: 'alte-email@example.com',
+    newEmail: 'neue-email@example.com',
+    confirmLink: 'https://polly.example.com/auth/confirm-email?token=xyz789',
     siteName: 'Polly',
   },
   password_changed: {
-    userName: 'Max Mustermann',
-    changedAt: new Date().toLocaleString('de-DE'),
     siteName: 'Polly',
   },
   test_report: {

@@ -2871,7 +2871,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   v1Router.put('/admin/customization', requireAdmin, async (req, res) => {
     try {
       const updates = req.body;
+      console.log('[Customization] Received updates:', JSON.stringify(updates, null, 2));
       const settings = await storage.setCustomizationSettings(updates);
+      console.log('[Customization] Saved settings:', JSON.stringify(settings, null, 2));
       
       // Update Matrix config if it was changed
       if (updates.matrix) {

@@ -809,13 +809,30 @@ export class EmailTemplateService {
     return newTheme;
   }
 
-  // Reset email theme to default
+  // Reset email theme to defaults based on system branding settings
   async resetEmailTheme(): Promise<EmailTheme> {
+    // Get primary color from system branding settings
+    const primaryColorSetting = await storage.getSetting('primary_color');
+    const primaryColor = (primaryColorSetting?.value as string) || '#FF6B35';
+    
+    // Create theme based on branding
+    const brandedTheme: EmailTheme = {
+      backdropColor: '#F5F5F5',
+      canvasColor: '#FFFFFF',
+      textColor: '#333333',
+      headingColor: primaryColor,
+      linkColor: primaryColor,
+      buttonBackgroundColor: primaryColor,
+      buttonTextColor: '#FFFFFF',
+      buttonBorderRadius: 6,
+      fontFamily: 'Arial, sans-serif'
+    };
+    
     await storage.setSetting({
       key: 'email_theme',
-      value: DEFAULT_EMAIL_THEME
+      value: brandedTheme
     });
-    return { ...DEFAULT_EMAIL_THEME };
+    return brandedTheme;
   }
 
   // Extract theme from emailbuilder.js JSON with sanitization

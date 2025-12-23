@@ -391,21 +391,21 @@
     @apply bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800;
   }
 
-  /* Impact badges - solid backgrounds */
+  /* Impact badges - solid backgrounds (use !important to override Badge defaults) */
   .kita-badge-dev-only {
-    @apply bg-gray-500 text-white border-transparent;
+    @apply !bg-gray-500 text-white border-transparent;
   }
   
   .kita-badge-backend {
-    @apply bg-orange-500 text-white border-transparent;
+    @apply !bg-orange-500 text-white border-transparent;
   }
   
   .kita-badge-frontend {
-    @apply bg-red-500 text-white border-transparent;
+    @apply !bg-red-500 text-white border-transparent;
   }
   
   .kita-badge-fullstack {
-    @apply bg-indigo-500 text-white border-transparent;
+    @apply !bg-indigo-500 text-white border-transparent;
   }
 
   .kita-card {

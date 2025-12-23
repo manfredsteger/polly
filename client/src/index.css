@@ -393,15 +393,15 @@
 
   /* Impact badges - solid backgrounds */
   .kita-badge-dev-only {
-    @apply bg-slate-500 text-white border-transparent;
+    @apply bg-gray-500 text-white border-transparent;
   }
   
   .kita-badge-backend {
-    @apply bg-purple-500 text-white border-transparent;
+    @apply bg-orange-500 text-white border-transparent;
   }
   
   .kita-badge-frontend {
-    @apply bg-blue-500 text-white border-transparent;
+    @apply bg-red-500 text-white border-transparent;
   }
   
   .kita-badge-fullstack {

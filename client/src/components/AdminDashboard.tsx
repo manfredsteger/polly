@@ -912,13 +912,13 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       <div className="mt-4 pt-4 border-t flex flex-wrap gap-2 text-xs">
                         <span className="text-muted-foreground">Auswirkungsbereiche:</span>
                         {vulnerabilities.impactSummary.development > 0 && (
-                          <Badge className="bg-slate-500 text-white border-0">{vulnerabilities.impactSummary.development}x Entwicklung</Badge>
+                          <Badge className="bg-gray-500 text-white border-0">{vulnerabilities.impactSummary.development}x Entwicklung</Badge>
                         )}
                         {vulnerabilities.impactSummary.backend > 0 && (
-                          <Badge className="bg-purple-500 text-white border-0">{vulnerabilities.impactSummary.backend}x Backend</Badge>
+                          <Badge className="bg-orange-500 text-white border-0">{vulnerabilities.impactSummary.backend}x Backend</Badge>
                         )}
                         {vulnerabilities.impactSummary.frontend > 0 && (
-                          <Badge className="bg-blue-500 text-white border-0">{vulnerabilities.impactSummary.frontend}x Frontend</Badge>
+                          <Badge className="bg-red-500 text-white border-0">{vulnerabilities.impactSummary.frontend}x Frontend</Badge>
                         )}
                         {vulnerabilities.impactSummary.shared > 0 && (
                           <Badge className="bg-indigo-500 text-white border-0">{vulnerabilities.impactSummary.shared}x Shared</Badge>

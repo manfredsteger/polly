@@ -413,7 +413,7 @@ export type ThemePreference = z.infer<typeof themePreferenceSchema>;
 // Customization Settings Schemas - Maximum 12 theme colors
 export const themeSettingsSchema = z.object({
   // Core branding colors (1-2)
-  primaryColor: z.string().default('#f97316'), // KITA orange
+  primaryColor: z.string().default('#f97316'), // Polly orange
   secondaryColor: z.string().default('#1e40af'), // Blue
   
   // Poll type colors (3-5)
@@ -438,8 +438,8 @@ export const themeSettingsSchema = z.object({
 
 export const brandingSettingsSchema = z.object({
   logoUrl: z.string().nullable().default(null),
-  siteName: z.string().default('KITA Poll'),
-  siteNameAccent: z.string().default('Poll'), // The accented part of the name
+  siteName: z.string().default('Poll'),
+  siteNameAccent: z.string().default('y'), // The accented part of the name (Poll + y = Polly)
 });
 
 export const footerLinkSchema = z.object({
@@ -448,8 +448,8 @@ export const footerLinkSchema = z.object({
 });
 
 export const footerSettingsSchema = z.object({
-  description: z.string().default('Die professionelle Abstimmungsplattform für KITA-Teams in Bayern. Sicher, einfach und DSGVO-konform.'),
-  copyrightText: z.string().default('© 2025 KITA Bayern. Ein Projekt des Staatsinstituts für Frühpädagogik und Medienkompetenz (IFP).'),
+  description: z.string().default('Die Open-Source Abstimmungsplattform für Teams. Sicher, einfach und DSGVO-konform.'),
+  copyrightText: z.string().default('© 2025 Polly. Open Source unter MIT-Lizenz.'),
   supportLinks: z.array(footerLinkSchema).default([
     { label: 'Hilfe & FAQ', url: '#' },
     { label: 'Kontakt', url: '#' },

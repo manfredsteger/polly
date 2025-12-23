@@ -423,4 +423,224 @@ describe('EmailTemplateService', () => {
       expect(firstRender.subject).toContain('Neue Terminumfrage: Weihnachtsfeier');
     });
   });
+
+  describe('Email Theme Import and Validation', () => {
+    it('should extract valid theme colors from emailbuilder.js JSON', () => {
+      const service = new EmailTemplateService();
+      const emailBuilderJson = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            backdropColor: '#F0F0F0',
+            canvasColor: '#FFFFFF',
+            textColor: '#222222',
+            fontFamily: 'Helvetica, Arial, sans-serif',
+            childrenIds: []
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(emailBuilderJson);
+      
+      expect(theme.backdropColor).toBe('#F0F0F0');
+      expect(theme.canvasColor).toBe('#FFFFFF');
+      expect(theme.textColor).toBe('#222222');
+      expect(theme.fontFamily).toBe('Helvetica, Arial, sans-serif');
+    });
+
+    it('should extract button styles from blocks', () => {
+      const service = new EmailTemplateService();
+      const emailBuilderJson = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            backdropColor: '#F5F5F5',
+            childrenIds: ['button-1']
+          }
+        },
+        'button-1': {
+          type: 'Button',
+          data: {
+            style: {
+              backgroundColor: '#0066CC',
+              color: '#FFFFFF',
+              borderRadius: 8
+            }
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(emailBuilderJson);
+      
+      expect(theme.buttonBackgroundColor).toBe('#0066CC');
+      expect(theme.buttonTextColor).toBe('#FFFFFF');
+      expect(theme.buttonBorderRadius).toBe(8);
+      expect(theme.linkColor).toBe('#0066CC');
+    });
+
+    it('should reject malicious color values with script injection', () => {
+      const service = new EmailTemplateService();
+      const maliciousJson = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            backdropColor: '<script>alert("xss")</script>',
+            canvasColor: 'javascript:alert(1)',
+            textColor: '#333333',
+            childrenIds: []
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(maliciousJson);
+      
+      expect(theme.backdropColor).toBeUndefined();
+      expect(theme.canvasColor).toBeUndefined();
+      expect(theme.textColor).toBe('#333333');
+    });
+
+    it('should reject malicious font family with attribute injection', () => {
+      const service = new EmailTemplateService();
+      const maliciousJson = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            fontFamily: 'Arial" onmouseover="alert(1)',
+            backdropColor: '#F5F5F5',
+            childrenIds: []
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(maliciousJson);
+      
+      expect(theme.fontFamily).toBeUndefined();
+      expect(theme.backdropColor).toBe('#F5F5F5');
+    });
+
+    it('should reject font family with semicolons and braces', () => {
+      const service = new EmailTemplateService();
+      const maliciousJson = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            fontFamily: 'Arial; color: red; background: url(evil.js)',
+            childrenIds: []
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(maliciousJson);
+      
+      expect(theme.fontFamily).toBeUndefined();
+    });
+
+    it('should accept valid rgb and rgba colors', () => {
+      const service = new EmailTemplateService();
+      const jsonWithRgb = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            backdropColor: 'rgb(240, 240, 240)',
+            canvasColor: 'rgba(255, 255, 255, 0.9)',
+            childrenIds: []
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(jsonWithRgb);
+      
+      expect(theme.backdropColor).toBe('rgb(240, 240, 240)');
+      expect(theme.canvasColor).toBe('rgba(255, 255, 255, 0.9)');
+    });
+
+    it('should accept named colors', () => {
+      const service = new EmailTemplateService();
+      const jsonWithNamedColors = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            backdropColor: 'white',
+            canvasColor: 'transparent',
+            textColor: 'black',
+            childrenIds: []
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(jsonWithNamedColors);
+      
+      expect(theme.backdropColor).toBe('white');
+      expect(theme.canvasColor).toBe('transparent');
+      expect(theme.textColor).toBe('black');
+    });
+
+    it('should clamp border radius to valid range', () => {
+      const service = new EmailTemplateService();
+      const jsonWithInvalidRadius = {
+        root: {
+          type: 'EmailLayout',
+          data: {
+            childrenIds: ['button-1']
+          }
+        },
+        'button-1': {
+          type: 'Button',
+          data: {
+            style: {
+              backgroundColor: '#FF6B35',
+              borderRadius: 150
+            }
+          }
+        }
+      };
+      
+      const theme = service.extractThemeFromEmailBuilder(jsonWithInvalidRadius);
+      
+      expect(theme.buttonBorderRadius).toBeUndefined();
+    });
+
+    it('should return empty theme for invalid JSON structure', () => {
+      const service = new EmailTemplateService();
+      
+      const emptyTheme1 = service.extractThemeFromEmailBuilder(null);
+      const emptyTheme2 = service.extractThemeFromEmailBuilder('invalid string');
+      const emptyTheme3 = service.extractThemeFromEmailBuilder({ notRoot: {} });
+      
+      expect(Object.keys(emptyTheme1).length).toBe(0);
+      expect(Object.keys(emptyTheme2).length).toBe(0);
+      expect(Object.keys(emptyTheme3).length).toBe(0);
+    });
+
+    it('should reset theme using primary color from branding settings', async () => {
+      const service = new EmailTemplateService();
+      
+      await storage.setSetting({
+        key: 'primary_color',
+        value: '#123456'
+      });
+      
+      const resetTheme = await service.resetEmailTheme();
+      
+      expect(resetTheme.headingColor).toBe('#123456');
+      expect(resetTheme.linkColor).toBe('#123456');
+      expect(resetTheme.buttonBackgroundColor).toBe('#123456');
+      expect(resetTheme.backdropColor).toBe('#F5F5F5');
+      expect(resetTheme.canvasColor).toBe('#FFFFFF');
+    });
+
+    it('should use default orange when primary color is empty string', async () => {
+      const service = new EmailTemplateService();
+      
+      await storage.setSetting({
+        key: 'primary_color',
+        value: ''
+      });
+      
+      const resetTheme = await service.resetEmailTheme();
+      
+      expect(resetTheme.headingColor).toBe('#FF6B35');
+      expect(resetTheme.buttonBackgroundColor).toBe('#FF6B35');
+    });
+  });
 });

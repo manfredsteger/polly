@@ -294,7 +294,18 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, ReturnType<typeof createDefau
   ),
 };
 
+// HTML escape helper to prevent XSS
+function htmlEscape(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Template rendering - replace variables with actual values
+// Note: leaves unmatched variables as-is (does not remove them)
 export function renderTemplate(
   template: string,
   variables: Record<string, string | undefined>
@@ -302,12 +313,30 @@ export function renderTemplate(
   let result = template;
   
   for (const [key, value] of Object.entries(variables)) {
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-    result = result.replace(regex, value || '');
+    if (value !== undefined) {
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      result = result.replace(regex, value);
+    }
   }
   
-  // Remove any remaining unmatched variables
-  result = result.replace(/\{\{[^}]+\}\}/g, '');
+  return result;
+}
+
+// Substitute variables with HTML escaping (for safe HTML content)
+export function substituteVariables(
+  template: string,
+  variables: Record<string, string | undefined>,
+  escapeHtml: boolean = true
+): string {
+  let result = template;
+  
+  for (const [key, value] of Object.entries(variables)) {
+    if (value !== undefined) {
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      const safeValue = escapeHtml ? htmlEscape(value) : value;
+      result = result.replace(regex, safeValue);
+    }
+  }
   
   return result;
 }
@@ -414,7 +443,140 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
   return html;
 }
 
+// Sample data generators for each template type (for preview and testing)
+const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
+  poll_created: {
+    pollType: 'Terminumfrage',
+    pollTitle: 'Teammeeting Q1 2025',
+    pollDescription: 'Wann passt es euch am besten?',
+    publicLink: 'https://polly.example.com/poll/abc123',
+    adminLink: 'https://polly.example.com/admin/abc123',
+    siteName: 'Polly',
+  },
+  invitation: {
+    inviterName: 'Max Mustermann',
+    pollTitle: 'Teammeeting Q1 2025',
+    message: 'Bitte wähle die Termine aus, an denen du Zeit hast.',
+    publicLink: 'https://polly.example.com/poll/abc123',
+    siteName: 'Polly',
+  },
+  vote_confirmation: {
+    voterName: 'Anna Schmidt',
+    pollType: 'Terminumfrage',
+    pollTitle: 'Teammeeting Q1 2025',
+    publicLink: 'https://polly.example.com/poll/abc123',
+    resultsLink: 'https://polly.example.com/poll/abc123/results',
+    siteName: 'Polly',
+  },
+  reminder: {
+    senderName: 'Max Mustermann',
+    pollTitle: 'Teammeeting Q1 2025',
+    expiresAt: 'Die Umfrage endet am 31.12.2025 um 23:59 Uhr.',
+    pollLink: 'https://polly.example.com/poll/abc123',
+    siteName: 'Polly',
+  },
+  password_reset: {
+    userName: 'Max Mustermann',
+    resetUrl: 'https://polly.example.com/auth/reset-password?token=xyz789',
+    expiryTime: '1 Stunde',
+    siteName: 'Polly',
+  },
+  email_change: {
+    userName: 'Max Mustermann',
+    newEmail: 'neuemail@example.com',
+    confirmUrl: 'https://polly.example.com/auth/confirm-email?token=xyz789',
+    expiryTime: '24 Stunden',
+    siteName: 'Polly',
+  },
+  password_changed: {
+    userName: 'Max Mustermann',
+    changedAt: new Date().toLocaleString('de-DE'),
+    siteName: 'Polly',
+  },
+  test_report: {
+    testRunId: '42',
+    status: 'Bestanden',
+    totalTests: '24',
+    passed: '22',
+    failed: '1',
+    skipped: '1',
+    duration: '12.5 Sekunden',
+    startedAt: new Date().toLocaleString('de-DE'),
+    siteName: 'Polly',
+  },
+};
+
 export class EmailTemplateService {
+  // Static method: Get default template by type
+  static getDefaultTemplate(type: EmailTemplateType): {
+    type: EmailTemplateType;
+    name: string;
+    subject: string;
+    jsonContent: Record<string, unknown>;
+    textContent: string;
+    variables: { key: string; description: string }[];
+  } {
+    const defaultData = DEFAULT_TEMPLATES[type];
+    if (!defaultData) {
+      throw new Error(`Unknown template type: ${type}`);
+    }
+    return {
+      type,
+      name: defaultData.name,
+      subject: defaultData.subject,
+      jsonContent: defaultData.jsonContent as unknown as Record<string, unknown>,
+      textContent: defaultData.textContent,
+      variables: EMAIL_TEMPLATE_VARIABLES[type],
+    };
+  }
+
+  // Static method: Get all default templates
+  static getAllDefaultTemplates(): Array<{
+    type: EmailTemplateType;
+    name: string;
+    subject: string;
+    jsonContent: Record<string, unknown>;
+    textContent: string;
+    variables: { key: string; description: string }[];
+  }> {
+    return EMAIL_TEMPLATE_TYPES.map(type => EmailTemplateService.getDefaultTemplate(type));
+  }
+
+  // Static method: Substitute variables (with optional HTML escaping)
+  static substituteVariables(
+    template: string,
+    variables: Record<string, string | undefined>,
+    escapeHtml: boolean = true
+  ): string {
+    return substituteVariables(template, variables, escapeHtml);
+  }
+
+  // Static method: Get sample data for preview/testing
+  static getSampleDataForType(type: string): Record<string, string> {
+    return SAMPLE_DATA[type as EmailTemplateType] || {};
+  }
+
+  // Static method: Render template to HTML
+  static async renderTemplate(
+    type: EmailTemplateType,
+    variables: Record<string, string | undefined>
+  ): Promise<string> {
+    const defaultData = DEFAULT_TEMPLATES[type];
+    if (!defaultData) {
+      throw new Error(`Unknown template type: ${type}`);
+    }
+    
+    // Substitute variables in JSON content first
+    const jsonStr = substituteVariables(
+      JSON.stringify(defaultData.jsonContent),
+      variables,
+      true
+    );
+    const renderedJson = JSON.parse(jsonStr) as EmailBuilderDocument;
+    
+    return jsonToHtml(renderedJson);
+  }
+
   // Get all templates (from DB or defaults)
   async getAllTemplates(): Promise<EmailTemplate[]> {
     const dbTemplates = await storage.getEmailTemplates();

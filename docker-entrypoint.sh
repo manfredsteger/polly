@@ -5,18 +5,41 @@ echo "🏫 Polly - Starting..."
 
 # Wait for PostgreSQL to be ready
 echo "⏳ Waiting for database..."
+MAX_RETRIES=30
+RETRY_COUNT=0
 until pg_isready -h postgres -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly} 2>/dev/null; do
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    echo "❌ Database connection timeout after ${MAX_RETRIES} attempts"
+    exit 1
+  fi
   sleep 1
 done
 echo "✅ Database is ready"
 
-# Run database migrations on first start
+# Run database migrations - FAIL HARD if this doesn't work
 echo "📦 Applying database schema..."
-npx drizzle-kit push --force 2>&1 || true
+if ! npx drizzle-kit push --force 2>&1; then
+  echo "❌ Database migration failed! Cannot start application."
+  exit 1
+fi
+echo "✅ Database schema applied"
+
+# Verify database schema integrity
+echo "🔍 Verifying database schema..."
+if ! npx tsx server/scripts/dbHealthCheck.ts 2>&1; then
+  echo "❌ Database schema verification failed!"
+  echo "   Required tables or columns are missing."
+  echo "   Try running: npx drizzle-kit push --force"
+  exit 1
+fi
+echo "✅ Database schema verified"
 
 # Create initial admin if not exists
 echo "👤 Checking initial admin..."
-npx tsx server/seed-admin.ts 2>&1 || echo "⚠️ Admin seeding skipped"
+if ! npx tsx server/seed-admin.ts 2>&1; then
+  echo "⚠️ Admin seeding failed - continuing anyway"
+fi
 
 # Seed demo data if requested
 if [ "$SEED_DEMO_DATA" = "true" ]; then

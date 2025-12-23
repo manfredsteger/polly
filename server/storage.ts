@@ -1155,8 +1155,22 @@ export class DatabaseStorage implements IStorage {
 
   // Test data management
   async purgeTestData(): Promise<{ deletedPolls: number; deletedUsers: number; deletedVotes: number; deletedOptions: number }> {
-    // First get the test poll IDs
-    const testPolls = await db.select({ id: polls.id }).from(polls).where(eq(polls.isTestData, true));
+    // Delete polls that either:
+    // 1. Have is_test_data = true
+    // 2. Match common test patterns (for manually created test data)
+    const testPatternCondition = sql`
+      is_test_data = true 
+      OR title LIKE 'Test Poll%'
+      OR title LIKE 'Data Test Poll%'
+      OR title LIKE 'E2E:%'
+      OR (title = 'Schedule Poll' AND description IS NULL)
+      OR (title = 'Orga Poll' AND description IS NULL)
+      OR title LIKE 'Unlim-%'
+      OR title LIKE 'Sommerfest %' AND title ~ '[A-Z0-9_]{5,}$'
+    `;
+    
+    // Get all test poll IDs
+    const testPolls = await db.select({ id: polls.id }).from(polls).where(testPatternCondition);
     const testPollIds = testPolls.map(p => p.id);
     
     let deletedVotes = 0;
@@ -1167,47 +1181,62 @@ export class DatabaseStorage implements IStorage {
     if (testPollIds.length > 0) {
       // Count votes before deletion
       const [voteCount] = await db.select({ count: count() }).from(votes)
-        .where(sql`${votes.pollId} IN (SELECT id FROM polls WHERE is_test_data = true)`);
+        .where(sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
       deletedVotes = voteCount.count;
       
       // Count options before deletion
       const [optionCount] = await db.select({ count: count() }).from(pollOptions)
-        .where(sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE is_test_data = true)`);
+        .where(sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
       deletedOptions = optionCount.count;
       
       // Delete in correct order: votes first, then options, then polls
       await db.delete(votes).where(
-        sql`${votes.pollId} IN (SELECT id FROM polls WHERE is_test_data = true)`
+        sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
       );
       
       await db.delete(pollOptions).where(
-        sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE is_test_data = true)`
+        sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
       );
       
-      await db.delete(polls).where(eq(polls.isTestData, true));
+      await db.delete(polls).where(testPatternCondition);
       deletedPolls = testPollIds.length;
     }
     
-    // Delete test users
-    const testUsers = await db.select({ id: users.id }).from(users).where(eq(users.isTestData, true));
+    // Delete test users (by flag or pattern)
+    const testUserCondition = sql`is_test_data = true OR email LIKE 'test-%@example.com' OR email LIKE 'creator-%@example.com' OR email LIKE 'voter-%@example.com'`;
+    const testUsers = await db.select({ id: users.id }).from(users).where(testUserCondition);
     const deletedUsers = testUsers.length;
     
     if (testUsers.length > 0) {
-      await db.delete(users).where(eq(users.isTestData, true));
+      await db.delete(users).where(testUserCondition);
     }
     
     return { deletedPolls, deletedUsers, deletedVotes, deletedOptions };
   }
 
   async getTestDataStats(): Promise<{ testPolls: number; testUsers: number; testVotes: number; testOptions: number }> {
-    const [testPollsResult] = await db.select({ count: count() }).from(polls).where(eq(polls.isTestData, true));
-    const [testUsersResult] = await db.select({ count: count() }).from(users).where(eq(users.isTestData, true));
+    // Count polls matching test patterns (same as purgeTestData)
+    const testPatternCondition = sql`
+      is_test_data = true 
+      OR title LIKE 'Test Poll%'
+      OR title LIKE 'Data Test Poll%'
+      OR title LIKE 'E2E:%'
+      OR (title = 'Schedule Poll' AND description IS NULL)
+      OR (title = 'Orga Poll' AND description IS NULL)
+      OR title LIKE 'Unlim-%'
+      OR title LIKE 'Sommerfest %' AND title ~ '[A-Z0-9_]{5,}$'
+    `;
+    
+    const [testPollsResult] = await db.select({ count: count() }).from(polls).where(testPatternCondition);
+    
+    // Count users matching test patterns
+    const testUserCondition = sql`is_test_data = true OR email LIKE 'test-%@example.com' OR email LIKE 'creator-%@example.com' OR email LIKE 'voter-%@example.com'`;
+    const [testUsersResult] = await db.select({ count: count() }).from(users).where(testUserCondition);
+    
     const [testVotesResult] = await db.select({ count: count() }).from(votes)
-      .innerJoin(polls, eq(votes.pollId, polls.id))
-      .where(eq(polls.isTestData, true));
+      .where(sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
     const [testOptionsResult] = await db.select({ count: count() }).from(pollOptions)
-      .innerJoin(polls, eq(pollOptions.pollId, polls.id))
-      .where(eq(polls.isTestData, true));
+      .where(sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
     
     return {
       testPolls: testPollsResult.count,

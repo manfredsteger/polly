@@ -105,6 +105,9 @@ COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/vite.config.ts ./
 
+# Copy migrations for schema setup
+COPY migrations ./migrations
+
 # Copy built frontend
 COPY --from=builder /app/dist/public ./server/public
 

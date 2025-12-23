@@ -17,15 +17,11 @@ until pg_isready -h postgres -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly}
 done
 echo "✅ Database is ready"
 
-# Run database migrations - FAIL HARD if this doesn't work
+# Apply database schema using SQL migration (more reliable than interactive drizzle-kit)
 echo "📦 Applying database schema..."
-# Use yes to auto-answer prompts, and --force for non-interactive mode
-if ! yes n | npx drizzle-kit push --force 2>&1; then
-  echo "⚠️ drizzle-kit push had issues, trying fallback..."
-fi
-echo "✅ Database schema applied"
 
-# Ensure all columns exist (fallback for drizzle-kit issues)
+# Use ensureSchema.ts as primary migration method for Docker
+# This directly applies SQL changes without interactive prompts
 echo "🔧 Ensuring schema completeness..."
 if ! npx tsx server/scripts/ensureSchema.ts 2>&1; then
   echo "❌ Schema update failed!"

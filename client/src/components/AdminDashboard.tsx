@@ -129,7 +129,8 @@ import {
   ToggleRight,
   Info,
   PlusCircle,
-  Send
+  Send,
+  Check
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -2984,6 +2985,18 @@ interface EmailFooter {
   text: string;
 }
 
+interface EmailTheme {
+  backdropColor: string;
+  canvasColor: string;
+  textColor: string;
+  headingColor: string;
+  linkColor: string;
+  buttonBackgroundColor: string;
+  buttonTextColor: string;
+  buttonBorderRadius: number;
+  fontFamily: string;
+}
+
 function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -3001,6 +3014,11 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
   const [showFooterEditor, setShowFooterEditor] = useState(false);
   const [editFooterHtml, setEditFooterHtml] = useState('');
   const [editFooterText, setEditFooterText] = useState('');
+  
+  // Theme import
+  const [showThemeImport, setShowThemeImport] = useState(false);
+  const [themeJsonInput, setThemeJsonInput] = useState('');
+  const [themePreview, setThemePreview] = useState<Partial<EmailTheme> | null>(null);
 
   const { data: templates, isLoading, refetch } = useQuery<EmailTemplate[]>({
     queryKey: ['/api/v1/admin/email-templates'],
@@ -3009,6 +3027,11 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
   // Fetch email footer
   const { data: emailFooter } = useQuery<EmailFooter>({
     queryKey: ['/api/v1/admin/email-footer'],
+  });
+  
+  // Fetch email theme
+  const { data: emailTheme } = useQuery<EmailTheme>({
+    queryKey: ['/api/v1/admin/email-theme'],
   });
   
   // Reset preview and editable fields when switching templates
@@ -3118,6 +3141,65 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     },
   });
 
+  // Preview theme from JSON
+  const previewThemeMutation = useMutation({
+    mutationFn: async (jsonContent: unknown) => {
+      const response = await apiRequest('POST', '/api/v1/admin/email-theme/import', { jsonContent });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setThemePreview(data.preview);
+      toast({ title: 'Vorschau erstellt', description: 'Theme-Farben wurden extrahiert' });
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'JSON konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.', variant: 'destructive' });
+      setThemePreview(null);
+    },
+  });
+
+  // Confirm and save theme import
+  const confirmThemeImportMutation = useMutation({
+    mutationFn: async (jsonContent: unknown) => {
+      const response = await apiRequest('POST', '/api/v1/admin/email-theme/import/confirm', { jsonContent });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Importiert', description: 'Theme wurde erfolgreich gespeichert' });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-theme'] });
+      setShowThemeImport(false);
+      setThemeJsonInput('');
+      setThemePreview(null);
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'Theme konnte nicht gespeichert werden', variant: 'destructive' });
+    },
+  });
+
+  // Reset theme to default
+  const resetThemeMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/v1/admin/email-theme/reset');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Zurückgesetzt', description: 'Theme wurde auf Standard zurückgesetzt' });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-theme'] });
+    },
+    onError: () => {
+      toast({ title: 'Fehler', description: 'Theme konnte nicht zurückgesetzt werden', variant: 'destructive' });
+    },
+  });
+
+  // Handle theme JSON input and preview
+  const handleThemeJsonPreview = () => {
+    try {
+      const parsed = JSON.parse(themeJsonInput);
+      previewThemeMutation.mutate(parsed);
+    } catch {
+      toast({ title: 'Ungültiges JSON', description: 'Bitte überprüfen Sie die JSON-Syntax', variant: 'destructive' });
+    }
+  };
+
   const templateTypeLabels: Record<string, { name: string; icon: React.ReactNode; description: string }> = {
     poll_created: { name: 'Umfrage erstellt', icon: <PlusCircle className="w-4 h-4" />, description: 'Bestätigung nach Erstellung einer Umfrage' },
     invitation: { name: 'Einladung', icon: <UserPlus className="w-4 h-4" />, description: 'Einladung zur Teilnahme an einer Umfrage' },
@@ -3160,7 +3242,188 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       {!selectedTemplate ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <>
+          {/* Email Theme Settings */}
+          <Card className="kita-card">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <Palette className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">E-Mail-Theme</CardTitle>
+                    <CardDescription>Farben und Schriftarten für alle E-Mails</CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => resetThemeMutation.mutate()}
+                    disabled={resetThemeMutation.isPending}
+                    data-testid="button-reset-theme"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowThemeImport(true)}
+                    data-testid="button-import-theme"
+                  >
+                    <Upload className="w-4 h-4 mr-1" />
+                    Theme importieren
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {emailTheme && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Hintergrund</Label>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: emailTheme.backdropColor }}
+                      />
+                      <span className="text-xs font-mono">{emailTheme.backdropColor}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Inhaltsfläche</Label>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: emailTheme.canvasColor }}
+                      />
+                      <span className="text-xs font-mono">{emailTheme.canvasColor}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Textfarbe</Label>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: emailTheme.textColor }}
+                      />
+                      <span className="text-xs font-mono">{emailTheme.textColor}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Button-Farbe</Label>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: emailTheme.buttonBackgroundColor }}
+                      />
+                      <span className="text-xs font-mono">{emailTheme.buttonBackgroundColor}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Theme Import Dialog */}
+          <Dialog open={showThemeImport} onOpenChange={setShowThemeImport}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Theme von emailbuilder.js importieren</DialogTitle>
+                <DialogDescription>
+                  Fügen Sie den JSON-Export aus emailbuilder.js ein. Es werden nur Farben und Schriftarten importiert - Textinhalte bleiben unverändert.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Nur Design-Import:</strong> Nur Farben, Schriftarten und Button-Styles werden importiert. Ihre Vorlagen-Texte und Variablen bleiben erhalten.
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label>emailbuilder.js JSON</Label>
+                  <Textarea
+                    value={themeJsonInput}
+                    onChange={(e) => setThemeJsonInput(e.target.value)}
+                    placeholder='{"root": {"type": "EmailLayout", "data": {...}}, ...}'
+                    className="mt-1 font-mono text-xs min-h-[150px]"
+                    data-testid="textarea-theme-json"
+                  />
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={handleThemeJsonPreview}
+                  disabled={!themeJsonInput.trim() || previewThemeMutation.isPending}
+                  data-testid="button-preview-theme"
+                >
+                  {previewThemeMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Eye className="w-4 h-4 mr-1" />
+                  )}
+                  Vorschau
+                </Button>
+
+                {themePreview && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Extrahierte Farben:</Label>
+                    <div className="grid grid-cols-2 gap-3 p-3 bg-muted/50 rounded-lg">
+                      {Object.entries(themePreview).map(([key, value]) => (
+                        <div key={key} className="flex items-center space-x-2">
+                          {typeof value === 'string' && value.startsWith('#') && (
+                            <div 
+                              className="w-5 h-5 rounded border"
+                              style={{ backgroundColor: value }}
+                            />
+                          )}
+                          <span className="text-xs">
+                            <span className="text-muted-foreground">{key}:</span>{' '}
+                            <span className="font-mono">{String(value)}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setShowThemeImport(false);
+                  setThemeJsonInput('');
+                  setThemePreview(null);
+                }}>
+                  Abbrechen
+                </Button>
+                <Button
+                  onClick={() => {
+                    try {
+                      const parsed = JSON.parse(themeJsonInput);
+                      confirmThemeImportMutation.mutate(parsed);
+                    } catch {
+                      toast({ title: 'Fehler', description: 'Ungültiges JSON', variant: 'destructive' });
+                    }
+                  }}
+                  disabled={!themePreview || confirmThemeImportMutation.isPending}
+                  data-testid="button-confirm-import-theme"
+                >
+                  {confirmThemeImportMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4 mr-1" />
+                  )}
+                  Theme übernehmen
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {templates?.map((template) => {
             const typeInfo = templateTypeLabels[template.type] || { name: template.name, icon: <Mail className="w-4 h-4" />, description: '' };
             return (
@@ -3189,7 +3452,8 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
               </Card>
             );
           })}
-        </div>
+          </div>
+        </>
       ) : (
         <div className="space-y-6">
           <Button variant="ghost" size="sm" onClick={() => setSelectedTemplate(null)} data-testid="button-back-templates">

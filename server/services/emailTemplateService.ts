@@ -6,6 +6,85 @@ import {
   EMAIL_TEMPLATE_VARIABLES
 } from '@shared/schema';
 
+// Email theme settings that can be imported from emailbuilder.js
+export interface EmailTheme {
+  backdropColor: string;      // Background color behind the email
+  canvasColor: string;        // Email content box background
+  textColor: string;          // Body text color
+  headingColor: string;       // Heading color
+  linkColor: string;          // Link color
+  buttonBackgroundColor: string;
+  buttonTextColor: string;
+  buttonBorderRadius: number;
+  fontFamily: string;
+}
+
+// Default email theme
+const DEFAULT_EMAIL_THEME: EmailTheme = {
+  backdropColor: '#F5F5F5',
+  canvasColor: '#FFFFFF',
+  textColor: '#333333',
+  headingColor: '#FF6B35',
+  linkColor: '#FF6B35',
+  buttonBackgroundColor: '#FF6B35',
+  buttonTextColor: '#FFFFFF',
+  buttonBorderRadius: 6,
+  fontFamily: 'Arial, sans-serif'
+};
+
+// Validate and sanitize CSS color values (hex, rgb, rgba, named colors)
+function sanitizeColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  
+  // Hex color (3, 4, 6, or 8 chars)
+  if (/^#[0-9A-Fa-f]{3,8}$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // RGB/RGBA
+  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*[\d.]+\s*)?\)$/i.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Named colors (basic list)
+  const namedColors = ['white', 'black', 'red', 'green', 'blue', 'yellow', 'orange', 'purple', 'gray', 'grey', 'transparent'];
+  if (namedColors.includes(trimmed.toLowerCase())) {
+    return trimmed.toLowerCase();
+  }
+  
+  return null;
+}
+
+// Validate and sanitize font family strings - strict regex for safe fonts only
+function sanitizeFontFamily(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  
+  // Strict regex: only allow letters, numbers, spaces, commas, hyphens, and single quotes for font names
+  // This prevents injection attacks via quotes, semicolons, or other special characters
+  if (!/^[A-Za-z0-9 ,\-']+$/.test(trimmed)) {
+    return null;
+  }
+  
+  // Limit length
+  if (trimmed.length > 200) return null;
+  if (trimmed.length === 0) return null;
+  
+  // Must contain at least one letter
+  if (!/[a-zA-Z]/.test(trimmed)) return null;
+  
+  return trimmed;
+}
+
+// Validate border radius
+function sanitizeBorderRadius(value: unknown): number | null {
+  if (typeof value === 'number' && value >= 0 && value <= 100) {
+    return Math.round(value);
+  }
+  return null;
+}
+
 // Default email template JSON structures for email-builder-js
 // These follow the email-builder-js format with blocks
 
@@ -647,7 +726,7 @@ export class EmailTemplateService {
     if (textContentOverride) {
       // User edited the text content - generate simple HTML from it
       textContent = textContentOverride;
-      htmlContent = this.textToSimpleHtml(textContent);
+      htmlContent = this.textToSimpleHtmlWithTheme(textContent, DEFAULT_EMAIL_THEME);
     } else {
       // Generate from JSON as before
       htmlContent = jsonToHtml(jsonContent as EmailBuilderDocument);
@@ -710,6 +789,120 @@ export class EmailTemplateService {
     return footer;
   }
 
+  // Get email theme from system settings
+  async getEmailTheme(): Promise<EmailTheme> {
+    const setting = await storage.getSetting('email_theme');
+    if (setting?.value) {
+      return { ...DEFAULT_EMAIL_THEME, ...(setting.value as Partial<EmailTheme>) };
+    }
+    return { ...DEFAULT_EMAIL_THEME };
+  }
+
+  // Set email theme in system settings
+  async setEmailTheme(theme: Partial<EmailTheme>): Promise<EmailTheme> {
+    const currentTheme = await this.getEmailTheme();
+    const newTheme = { ...currentTheme, ...theme };
+    await storage.setSetting({
+      key: 'email_theme',
+      value: newTheme
+    });
+    return newTheme;
+  }
+
+  // Reset email theme to default
+  async resetEmailTheme(): Promise<EmailTheme> {
+    await storage.setSetting({
+      key: 'email_theme',
+      value: DEFAULT_EMAIL_THEME
+    });
+    return { ...DEFAULT_EMAIL_THEME };
+  }
+
+  // Extract theme from emailbuilder.js JSON with sanitization
+  extractThemeFromEmailBuilder(jsonContent: unknown): Partial<EmailTheme> {
+    const theme: Partial<EmailTheme> = {};
+    
+    try {
+      // Basic structure validation
+      if (!jsonContent || typeof jsonContent !== 'object') {
+        return theme;
+      }
+      
+      const doc = jsonContent as Record<string, unknown>;
+      const root = doc.root as { data?: Record<string, unknown> } | undefined;
+      
+      // Extract root-level theme settings with sanitization
+      if (root?.data && typeof root.data === 'object') {
+        const rootData = root.data;
+        
+        const backdrop = sanitizeColor(rootData.backdropColor);
+        if (backdrop) theme.backdropColor = backdrop;
+        
+        const canvas = sanitizeColor(rootData.canvasColor);
+        if (canvas) theme.canvasColor = canvas;
+        
+        const text = sanitizeColor(rootData.textColor);
+        if (text) theme.textColor = text;
+        
+        const font = sanitizeFontFamily(rootData.fontFamily);
+        if (font) theme.fontFamily = font;
+      }
+      
+      // Extract styles from blocks with sanitization
+      const childrenIds = (root?.data as Record<string, unknown>)?.childrenIds;
+      const blockIds = Array.isArray(childrenIds) ? childrenIds.filter(id => typeof id === 'string') : [];
+      
+      for (const blockId of blockIds) {
+        const block = doc[blockId] as { type?: string; data?: Record<string, unknown> } | undefined;
+        if (!block || typeof block !== 'object') continue;
+        
+        const blockData = block.data;
+        if (!blockData || typeof blockData !== 'object') continue;
+        
+        const style = blockData.style as Record<string, unknown> | undefined;
+        if (!style || typeof style !== 'object') continue;
+        
+        switch (block.type) {
+          case 'Heading': {
+            const color = sanitizeColor(style.color);
+            if (color) theme.headingColor = color;
+            break;
+          }
+          case 'Text': {
+            const color = sanitizeColor(style.color);
+            if (color && !theme.textColor) theme.textColor = color;
+            break;
+          }
+          case 'Button': {
+            const bgColor = sanitizeColor(style.backgroundColor);
+            if (bgColor) {
+              theme.buttonBackgroundColor = bgColor;
+              // Also use button color as link color if not set
+              if (!theme.linkColor) theme.linkColor = bgColor;
+            }
+            
+            const textColor = sanitizeColor(style.color);
+            if (textColor) theme.buttonTextColor = textColor;
+            
+            const radius = sanitizeBorderRadius(style.borderRadius);
+            if (radius !== null) theme.buttonBorderRadius = radius;
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting theme from emailbuilder JSON:', error);
+    }
+    
+    return theme;
+  }
+
+  // Import theme from emailbuilder.js JSON and save it
+  async importThemeFromEmailBuilder(jsonContent: unknown): Promise<EmailTheme> {
+    const extractedTheme = this.extractThemeFromEmailBuilder(jsonContent);
+    return await this.setEmailTheme(extractedTheme);
+  }
+
   // Generate email header HTML with branding
   private generateHeaderHtml(branding: {
     siteName: string;
@@ -739,30 +932,30 @@ export class EmailTemplateService {
     `;
   }
 
-  // Convert plain text to simple HTML for email body
-  private textToSimpleHtml(text: string): string {
+  // Convert plain text to simple HTML for email body (with theme support)
+  private textToSimpleHtmlWithTheme(text: string, theme: EmailTheme): string {
     const escapedText = htmlEscape(text);
     const paragraphs = escapedText.split('\n\n').filter(p => p.trim());
     
-    let html = '<div style="padding: 16px 24px; font-family: Arial, sans-serif;">';
+    let html = `<div style="padding: 16px 24px; font-family: ${theme.fontFamily};">`;
     for (const para of paragraphs) {
       // Check if it looks like a URL
       const urlRegex = /(https?:\/\/[^\s]+)/g;
-      const withLinks = para.replace(urlRegex, '<a href="$1" style="color: #FF6B35;">$1</a>');
-      html += `<p style="color: #333333; font-size: 16px; line-height: 1.5; margin: 0 0 16px 0;">${withLinks.replace(/\n/g, '<br>')}</p>`;
+      const withLinks = para.replace(urlRegex, `<a href="$1" style="color: ${theme.linkColor};">$1</a>`);
+      html += `<p style="color: ${theme.textColor}; font-size: 16px; line-height: 1.5; margin: 0 0 16px 0;">${withLinks.replace(/\n/g, '<br>')}</p>`;
     }
     html += '</div>';
     
     return html;
   }
 
-  // Generate email footer HTML
-  private generateFooterHtml(footerText: string, primaryColor: string): string {
+  // Generate email footer HTML (with theme support)
+  private generateFooterHtmlWithTheme(footerText: string, theme: EmailTheme): string {
     return `
       <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #e0e0e0; margin-top: 24px;">
         <tr>
           <td style="padding: 16px 24px; text-align: center;">
-            <p style="color: #6c757d; font-size: 12px; margin: 0; font-family: Arial, sans-serif;">
+            <p style="color: #6c757d; font-size: 12px; margin: 0; font-family: ${theme.fontFamily};">
               ${footerText}
             </p>
           </td>
@@ -783,6 +976,9 @@ export class EmailTemplateService {
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
     const primaryColor = customization.theme?.primaryColor || '#FF6B35';
     
+    // Get email theme settings
+    const emailTheme = await this.getEmailTheme();
+    
     // Get centralized footer
     const footer = await this.getEmailFooter();
     
@@ -798,6 +994,10 @@ export class EmailTemplateService {
     if (template.htmlContent && !template.isDefault) {
       // Use stored HTML for customized templates
       bodyHtml = renderTemplate(template.htmlContent, allVariables);
+    } else if (template.textContent && !template.isDefault) {
+      // Use textContent with theme for customized templates
+      const renderedText = renderTemplate(template.textContent, allVariables);
+      bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.isDefault) {
       // For default templates, generate from JSON
       const renderedJson = JSON.parse(
@@ -822,9 +1022,9 @@ export class EmailTemplateService {
     
     // Render footer with variables
     const footerHtmlRendered = renderTemplate(footer.html, allVariables);
-    const footerHtml = this.generateFooterHtml(footerHtmlRendered, primaryColor);
+    const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
     
-    // Compose full HTML email
+    // Compose full HTML email with theme colors
     const html = `
       <!DOCTYPE html>
       <html lang="de">
@@ -833,11 +1033,11 @@ export class EmailTemplateService {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${htmlEscape(subject)}</title>
       </head>
-      <body style="margin: 0; padding: 0; background-color: #F5F5F5; font-family: Arial, sans-serif;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F5F5F5; padding: 20px 0;">
+      <body style="margin: 0; padding: 0; background-color: ${emailTheme.backdropColor}; font-family: ${emailTheme.fontFamily};">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${emailTheme.backdropColor}; padding: 20px 0;">
           <tr>
             <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: ${emailTheme.canvasColor}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                 <tr>
                   <td>
                     ${headerHtml}

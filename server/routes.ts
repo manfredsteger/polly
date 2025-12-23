@@ -3172,6 +3172,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== EMAIL THEME ROUTES ==============
+
+  // Get email theme settings
+  v1Router.get('/admin/email-theme', requireAdmin, async (req, res) => {
+    try {
+      const theme = await emailTemplateService.getEmailTheme();
+      res.json(theme);
+    } catch (error) {
+      console.error('Error fetching email theme:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Update email theme settings (with validation)
+  v1Router.put('/admin/email-theme', requireAdmin, async (req, res) => {
+    try {
+      // Validate and sanitize theme input - only accept known fields
+      const validatedTheme: Record<string, unknown> = {};
+      const body = req.body;
+      
+      if (typeof body !== 'object' || body === null) {
+        return res.status(400).json({ error: 'Ungültiges Theme-Format' });
+      }
+      
+      // Color fields - validate each with regex
+      const colorFields = ['backdropColor', 'canvasColor', 'textColor', 'headingColor', 'linkColor', 'buttonBackgroundColor', 'buttonTextColor'];
+      const colorRegex = /^(#[0-9A-Fa-f]{3,8}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*[\d.]+\s*)?\)|white|black|red|green|blue|yellow|orange|purple|gray|grey|transparent)$/i;
+      
+      for (const field of colorFields) {
+        if (body[field] !== undefined) {
+          if (typeof body[field] === 'string' && colorRegex.test(body[field].trim())) {
+            validatedTheme[field] = body[field].trim();
+          }
+        }
+      }
+      
+      // Font family - strict validation
+      if (body.fontFamily !== undefined) {
+        if (typeof body.fontFamily === 'string' && /^[A-Za-z0-9 ,\-']+$/.test(body.fontFamily.trim()) && body.fontFamily.trim().length <= 200) {
+          validatedTheme.fontFamily = body.fontFamily.trim();
+        }
+      }
+      
+      // Border radius - number validation
+      if (body.buttonBorderRadius !== undefined) {
+        const radius = Number(body.buttonBorderRadius);
+        if (!isNaN(radius) && radius >= 0 && radius <= 100) {
+          validatedTheme.buttonBorderRadius = Math.round(radius);
+        }
+      }
+      
+      const theme = await emailTemplateService.setEmailTheme(validatedTheme);
+      res.json(theme);
+    } catch (error) {
+      console.error('Error updating email theme:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Reset email theme to default
+  v1Router.post('/admin/email-theme/reset', requireAdmin, async (req, res) => {
+    try {
+      const theme = await emailTemplateService.resetEmailTheme();
+      res.json(theme);
+    } catch (error) {
+      console.error('Error resetting email theme:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Import theme from emailbuilder.js JSON (preview)
+  v1Router.post('/admin/email-theme/import', requireAdmin, async (req, res) => {
+    try {
+      const { jsonContent } = req.body;
+      
+      if (!jsonContent) {
+        return res.status(400).json({ error: 'JSON-Inhalt erforderlich' });
+      }
+      
+      // Extract and preview theme without saving
+      const extractedTheme = emailTemplateService.extractThemeFromEmailBuilder(jsonContent);
+      
+      if (Object.keys(extractedTheme).length === 0) {
+        return res.status(400).json({ 
+          error: 'Keine Theme-Eigenschaften im JSON gefunden',
+          message: 'Das JSON enthält keine gültigen Farb- oder Schriftart-Einstellungen.'
+        });
+      }
+      
+      res.json({ 
+        preview: extractedTheme,
+        message: 'Theme-Vorschau erstellt.'
+      });
+    } catch (error) {
+      console.error('Error extracting email theme:', error);
+      res.status(500).json({ error: 'Fehler beim Extrahieren des Themes' });
+    }
+  });
+
+  // Confirm and save imported theme
+  v1Router.post('/admin/email-theme/import/confirm', requireAdmin, async (req, res) => {
+    try {
+      const { jsonContent } = req.body;
+      
+      if (!jsonContent) {
+        return res.status(400).json({ error: 'JSON-Inhalt erforderlich' });
+      }
+      
+      const theme = await emailTemplateService.importThemeFromEmailBuilder(jsonContent);
+      res.json({ 
+        theme,
+        message: 'Theme erfolgreich importiert und gespeichert.'
+      });
+    } catch (error) {
+      console.error('Error importing email theme:', error);
+      res.status(500).json({ error: 'Fehler beim Importieren des Themes' });
+    }
+  });
+
   // ============== MATRIX CHAT ROUTES ==============
 
   // Test Matrix connection (admin only)

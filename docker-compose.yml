@@ -67,6 +67,7 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: ${KEYCLOAK_AUTH_SERVER_URL:-}
       NODE_ENV: ${NODE_ENV:-production}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      DOCKER_ENV: "true"
     ports:
       - "${APP_PORT:-3080}:5000"
     volumes:

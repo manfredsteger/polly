@@ -924,10 +924,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 </>
               ) : (
                 <>
-                  <div className="flex gap-3 items-center w-full">
+                  <div className="flex gap-3 items-center justify-center">
                     <Button
                       onClick={handleSubmitVotes}
-                      className={`flex-1 ${
+                      className={`px-8 ${
                         poll.type === 'survey' ? 'kita-button-survey' : 'kita-button-schedule'
                       }`}
                       disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || Object.keys(votes).length === 0}

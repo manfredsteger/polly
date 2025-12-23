@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -538,18 +539,8 @@ export default function Poll() {
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center space-x-3 mb-2">
-              <Badge variant={poll.type === 'schedule' ? 'default' : poll.type === 'organization' ? 'default' : 'secondary'}
-                     className={poll.type === 'organization' ? 'bg-green-600' : ''}>
-                {poll.type === 'schedule' ? (
-                  <Calendar className="w-3 h-3 mr-1" />
-                ) : poll.type === 'organization' ? (
-                  <ListChecks className="w-3 h-3 mr-1" />
-                ) : (
-                  <BarChart3 className="w-3 h-3 mr-1" />
-                )}
-                {pollTypeLabel}
-              </Badge>
-              <Badge variant={poll.isActive && !isPollExpired ? 'default' : 'secondary'}>
+              <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
+              <Badge className={poll.isActive && !isPollExpired ? 'kita-badge-active' : 'kita-badge-inactive'}>
                 {poll.isActive && !isPollExpired ? 'Aktiv' : 'Beendet'}
               </Badge>
             </div>

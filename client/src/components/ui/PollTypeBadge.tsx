@@ -1,10 +1,12 @@
 import { cn } from "@/lib/utils";
+import { Calendar, BarChart3, ListChecks } from "lucide-react";
 
 type PollType = 'schedule' | 'survey' | 'organization';
 
 interface PollTypeBadgeProps {
   type: PollType;
   variant?: 'solid' | 'outline';
+  showIcon?: boolean;
   className?: string;
 }
 
@@ -14,10 +16,18 @@ const typeLabels: Record<PollType, string> = {
   organization: 'Orga',
 };
 
-export function PollTypeBadge({ type, variant = 'solid', className }: PollTypeBadgeProps) {
+const typeIcons: Record<PollType, typeof Calendar> = {
+  schedule: Calendar,
+  survey: BarChart3,
+  organization: ListChecks,
+};
+
+export function PollTypeBadge({ type, variant = 'solid', showIcon = true, className }: PollTypeBadgeProps) {
   const badgeClass = variant === 'solid' 
     ? `kita-badge-${type}-solid`
     : `kita-badge-${type}`;
+
+  const Icon = typeIcons[type];
 
   return (
     <div 
@@ -28,6 +38,7 @@ export function PollTypeBadge({ type, variant = 'solid', className }: PollTypeBa
       )}
       data-testid={`badge-poll-type-${type}`}
     >
+      {showIcon && <Icon className="w-3 h-3 mr-1" />}
       {typeLabels[type]}
     </div>
   );

@@ -19,7 +19,8 @@ echo "✅ Database is ready"
 
 # Run database migrations - FAIL HARD if this doesn't work
 echo "📦 Applying database schema..."
-if ! npx drizzle-kit push --force 2>&1; then
+# Use yes to auto-answer prompts, and --force for non-interactive mode
+if ! echo "n" | npx drizzle-kit push --force 2>&1; then
   echo "❌ Database migration failed! Cannot start application."
   exit 1
 fi

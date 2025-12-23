@@ -103,6 +103,7 @@ COPY --from=builder /app/server ./server
 COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/drizzle.config.ts ./
+COPY --from=builder /app/vite.config.ts ./
 
 # Copy built frontend
 COPY --from=builder /app/dist/public ./server/public

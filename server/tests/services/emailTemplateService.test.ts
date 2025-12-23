@@ -312,4 +312,115 @@ describe('EmailTemplateService', () => {
       expect(reset.subject).toBe(template.subject);
     });
   });
+
+  describe('End-to-End: Customized Template Email Sending', () => {
+    it('should render customized template content when preparing email for sending', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('reminder');
+      
+      // Step 1: Customize the template with new text content
+      const customText = 'WICHTIG: {{senderName}} erinnert Sie an die Umfrage "{{pollTitle}}".\n\nBitte stimmen Sie jetzt ab: {{pollLink}}';
+      await service.saveTemplate(
+        'reminder',
+        template.jsonContent,
+        'Dringende Erinnerung: {{pollTitle}}',
+        'Erinnerung',
+        customText
+      );
+      
+      // Step 2: Render the email (simulates what happens before sending)
+      const rendered = await service.renderEmail('reminder', {
+        senderName: 'Max Mustermann',
+        pollTitle: 'Teammeeting Dezember',
+        pollLink: 'https://polly.example.com/poll/abc123',
+        siteName: 'Polly'
+      });
+      
+      // Step 3: Verify the rendered email contains customized content
+      expect(rendered.subject).toBe('Dringende Erinnerung: Teammeeting Dezember');
+      expect(rendered.html).toContain('WICHTIG: Max Mustermann erinnert Sie an die Umfrage');
+      expect(rendered.html).toContain('Teammeeting Dezember');
+      expect(rendered.html).toContain('https://polly.example.com/poll/abc123');
+      
+      // Step 4: Verify text version also has customized content
+      expect(rendered.text).toContain('Max Mustermann');
+      expect(rendered.text).toContain('Teammeeting Dezember');
+    });
+
+    it('should include header branding and footer in customized email', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('password_reset');
+      
+      // Customize template
+      await service.saveTemplate(
+        'password_reset',
+        template.jsonContent,
+        'Passwort für {{siteName}} zurücksetzen',
+        'Passwort Reset',
+        'Klicken Sie hier um Ihr Passwort zurückzusetzen: {{resetLink}}'
+      );
+      
+      // Render email
+      const rendered = await service.renderEmail('password_reset', {
+        resetLink: 'https://polly.example.com/reset/xyz789',
+        siteName: 'MeineOrganisation'
+      });
+      
+      // Should have subject with substituted variables
+      expect(rendered.subject).toBe('Passwort für MeineOrganisation zurücksetzen');
+      
+      // Should have customized body content
+      expect(rendered.html).toContain('Klicken Sie hier um Ihr Passwort zurückzusetzen');
+      expect(rendered.html).toContain('https://polly.example.com/reset/xyz789');
+      
+      // Should have header structure (table for email layout)
+      expect(rendered.html).toContain('<table');
+      
+      // Should have footer with border-top
+      expect(rendered.html).toContain('border-top');
+    });
+
+    it('should preserve customized content across save and render cycles', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      
+      const customContent = 'Ihre neue Umfrage "{{pollTitle}}" ist bereit!\n\nTeilnehmer-Link: {{publicLink}}\nAdmin-Link: {{adminLink}}';
+      
+      // Save customized template
+      await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Neue {{pollType}}: {{pollTitle}}',
+        'Umfrage erstellt',
+        customContent
+      );
+      
+      // First render
+      const firstRender = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Weihnachtsfeier',
+        publicLink: 'https://polly.example.com/poll/xmas',
+        adminLink: 'https://polly.example.com/admin/xmas',
+        siteName: 'Polly'
+      });
+      
+      // Second render (should be consistent)
+      const secondRender = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Weihnachtsfeier',
+        publicLink: 'https://polly.example.com/poll/xmas',
+        adminLink: 'https://polly.example.com/admin/xmas',
+        siteName: 'Polly'
+      });
+      
+      // Both renders should have identical HTML
+      expect(firstRender.html).toBe(secondRender.html);
+      expect(firstRender.subject).toBe(secondRender.subject);
+      
+      // Should contain customized content
+      expect(firstRender.html).toContain('Ihre neue Umfrage');
+      expect(firstRender.html).toContain('Weihnachtsfeier');
+      expect(firstRender.subject).toContain('Neue Terminumfrage: Weihnachtsfeier');
+    });
+  });
 });

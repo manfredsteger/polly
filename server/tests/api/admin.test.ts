@@ -68,4 +68,40 @@ describe('API - Admin Endpoints', () => {
     
     expect(response.status).toBe(401);
   });
+
+  it('should reject access to customization settings without auth', async () => {
+    const response = await request(app).get('/api/v1/admin/customization');
+    
+    expect(response.status).toBe(401);
+  });
+
+  it('should reject updating customization settings without auth', async () => {
+    const response = await request(app)
+      .put('/api/v1/admin/customization')
+      .send({ 
+        branding: { siteName: 'Test', siteNameAccent: 'App' }
+      });
+    
+    expect(response.status).toBe(401);
+  });
+
+  it('should reject access to deletion requests without auth', async () => {
+    const response = await request(app).get('/api/v1/admin/deletion-requests');
+    
+    expect(response.status).toBe(401);
+  });
+
+  it('should reject confirming deletion without auth', async () => {
+    const response = await request(app)
+      .post('/api/v1/admin/deletion-requests/1/confirm');
+    
+    expect(response.status).toBe(401);
+  });
+
+  it('should reject rejecting deletion without auth', async () => {
+    const response = await request(app)
+      .post('/api/v1/admin/deletion-requests/1/reject');
+    
+    expect(response.status).toBe(401);
+  });
 });

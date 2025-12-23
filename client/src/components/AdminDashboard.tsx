@@ -5133,10 +5133,45 @@ function CustomizationPanel() {
       const response = await apiRequest('PUT', '/api/v1/admin/customization', settings);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (savedData) => {
       toast({ title: "Gespeichert", description: "Anpassungen wurden gespeichert." });
-      // Reset initial data flag to allow fresh reload after save
-      setInitialDataLoaded(false);
+      
+      // Directly update local state with saved data to ensure UI reflects changes immediately
+      if (savedData) {
+        if (savedData.theme) {
+          setThemeSettings({
+            primaryColor: savedData.theme.primaryColor || DEFAULT_THEME_COLORS.primaryColor,
+            secondaryColor: savedData.theme.secondaryColor || DEFAULT_THEME_COLORS.secondaryColor,
+            defaultThemeMode: savedData.theme.defaultThemeMode || 'system',
+            scheduleColor: savedData.theme.scheduleColor || DEFAULT_THEME_COLORS.scheduleColor,
+            surveyColor: savedData.theme.surveyColor || DEFAULT_THEME_COLORS.surveyColor,
+            organizationColor: savedData.theme.organizationColor || DEFAULT_THEME_COLORS.organizationColor,
+            successColor: savedData.theme.successColor || DEFAULT_THEME_COLORS.successColor,
+            warningColor: savedData.theme.warningColor || DEFAULT_THEME_COLORS.warningColor,
+            errorColor: savedData.theme.errorColor || DEFAULT_THEME_COLORS.errorColor,
+            infoColor: savedData.theme.infoColor || DEFAULT_THEME_COLORS.infoColor,
+            accentColor: savedData.theme.accentColor || DEFAULT_THEME_COLORS.accentColor,
+            mutedColor: savedData.theme.mutedColor || DEFAULT_THEME_COLORS.mutedColor,
+            neutralColor: savedData.theme.neutralColor || DEFAULT_THEME_COLORS.neutralColor,
+          });
+        }
+        if (savedData.branding) {
+          setBrandingSettings({
+            logoUrl: savedData.branding.logoUrl || null,
+            siteName: savedData.branding.siteName ?? '',
+            siteNameAccent: savedData.branding.siteNameAccent ?? '',
+          });
+        }
+        if (savedData.footer) {
+          setFooterSettings({
+            description: savedData.footer.description || '',
+            copyrightText: savedData.footer.copyrightText || '',
+            supportLinks: savedData.footer.supportLinks || [],
+          });
+        }
+      }
+      
+      // Invalidate caches to refresh other parts of the app
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
     },

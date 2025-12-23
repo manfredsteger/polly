@@ -40,7 +40,7 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
 
   // Poll management
-  createPoll(poll: InsertPoll, options: InsertPollOption[]): Promise<{ poll: Poll; adminToken: string; publicToken: string }>;
+  createPoll(poll: InsertPoll, options: InsertPollOption[]): Promise<{ poll: Poll; adminToken: string; publicToken: string; options: PollOption[] }>;
   getPoll(id: string): Promise<PollWithOptions | undefined>;
   getPollByAdminToken(token: string): Promise<PollWithOptions | undefined>;
   getPollByPublicToken(token: string): Promise<PollWithOptions | undefined>;
@@ -256,7 +256,7 @@ export class DatabaseStorage implements IStorage {
     return participations;
   }
 
-  async createPoll(insertPoll: InsertPoll, options: InsertPollOption[]): Promise<{ poll: Poll; adminToken: string; publicToken: string }> {
+  async createPoll(insertPoll: InsertPoll, options: InsertPollOption[]): Promise<{ poll: Poll; adminToken: string; publicToken: string; options: PollOption[] }> {
     const adminToken = randomBytes(32).toString('hex');
     const publicToken = randomBytes(32).toString('hex');
 
@@ -268,16 +268,17 @@ export class DatabaseStorage implements IStorage {
 
     const [poll] = await db.insert(polls).values(pollData).returning();
 
-    // Add options
+    // Add options and return them with IDs
+    let createdOptions: PollOption[] = [];
     if (options.length > 0) {
       const optionsWithPollId = options.map(option => ({
         ...option,
         pollId: poll.id,
       }));
-      await db.insert(pollOptions).values(optionsWithPollId);
+      createdOptions = await db.insert(pollOptions).values(optionsWithPollId).returning();
     }
 
-    return { poll, adminToken, publicToken };
+    return { poll, adminToken, publicToken, options: createdOptions };
   }
 
   async getPoll(id: string): Promise<PollWithOptions | undefined> {

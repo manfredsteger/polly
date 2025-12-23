@@ -331,7 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({
-        poll: result.poll,
+        poll: { ...result.poll, options: result.options },
         publicToken: result.publicToken,
         adminToken: result.adminToken,
       });

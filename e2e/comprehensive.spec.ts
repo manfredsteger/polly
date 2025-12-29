@@ -118,16 +118,20 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     
     // Click yes on first option
     const yesButton = popup.locator('[data-testid="vote-yes-0"]');
-    if (await yesButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await yesButton.click();
-    }
+    await expect(yesButton).toBeVisible({ timeout: 10000 });
+    await yesButton.click();
     
-    // Submit vote
+    // Wait for the vote to be registered
+    await popup.waitForTimeout(500);
+    
+    // Submit vote - wait for button to become enabled
     const submitButton = popup.locator('[data-testid="button-submit-vote"]');
-    if (await submitButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await submitButton.click();
-      await popup.waitForURL('**/vote-success**', { timeout: 30000 }).catch(() => {});
-    }
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
+    await expect(submitButton).toBeEnabled({ timeout: 10000 });
+    await submitButton.click();
+    
+    // Wait for success page
+    await popup.waitForURL('**/vote-success**', { timeout: 30000 });
     
     await popup.close();
   });
@@ -162,8 +166,11 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
     
-    // Results should be visible
-    await expect(page.locator('text=Voter 1').or(page.locator('text=2'))).toBeVisible({ timeout: 10000 });
+    // Poll should be visible with the correct title
+    await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
+    
+    // Results should show voter names (since resultsPublic is true)
+    await expect(page.locator('text=Voter 1')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -195,8 +202,11 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
     
-    // Vote should be visible
-    await expect(page.locator('text=Termin-Voter').or(page.locator('text=1'))).toBeVisible({ timeout: 10000 });
+    // Poll should be visible with the correct title
+    await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
+    
+    // Vote should be visible - check for voter name (since resultsPublic is true)
+    await expect(page.locator('text=Termin-Voter')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -225,6 +235,7 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     const pollData = await createPollViaAPI(page, 'organization', {
       title: `Orga-Capacity-${nanoid(6)}`,
       slots: [{ text: 'Limitierter Slot', maxCapacity: 2 }],
+      resultsPublic: true,
     });
     
     const optionId = pollData.poll.options[0].id;
@@ -239,8 +250,15 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
     
-    // Should show capacity info
-    await expect(page.locator('text=2').or(page.locator('text=voll'))).toBeVisible({ timeout: 10000 });
+    // Poll should be visible with the correct title
+    await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
+    
+    // Slot should be visible
+    await expect(page.locator('text=Limitierter Slot')).toBeVisible({ timeout: 10000 });
+    
+    // At least first two persons should be visible (capacity is 2)
+    await expect(page.locator('text=Person 1')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Person 2')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -372,7 +390,11 @@ test.describe('Gleichzeitige Abstimmungen (Stress Test)', () => {
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
     
-    await expect(page.locator('text=10').or(page.locator('text=Rapid Voter'))).toBeVisible({ timeout: 10000 });
+    // Poll should be visible with the correct title
+    await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
+    
+    // Check for rapid voters (since resultsPublic is true)
+    await expect(page.locator('text=Rapid Voter').first()).toBeVisible({ timeout: 10000 });
   });
 });
 

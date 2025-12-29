@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Calendar, BarChart3, ListChecks } from "lucide-react";
+import { Calendar, BarChart3, ListChecks, HelpCircle, type LucideIcon } from "lucide-react";
 
 type PollType = 'schedule' | 'survey' | 'organization';
 
@@ -16,18 +16,21 @@ const typeLabels: Record<PollType, string> = {
   organization: 'Orga',
 };
 
-const typeIcons: Record<PollType, typeof Calendar> = {
+const typeIcons: Record<PollType, LucideIcon> = {
   schedule: Calendar,
   survey: BarChart3,
   organization: ListChecks,
 };
 
 export function PollTypeBadge({ type, variant = 'solid', showIcon = true, className }: PollTypeBadgeProps) {
+  const validType = ['schedule', 'survey', 'organization'].includes(type) ? type : 'survey';
+  
   const badgeClass = variant === 'solid' 
-    ? `polly-badge-${type}-solid`
-    : `polly-badge-${type}`;
+    ? `polly-badge-${validType}-solid`
+    : `polly-badge-${validType}`;
 
-  const Icon = typeIcons[type];
+  const Icon = typeIcons[validType as PollType] || HelpCircle;
+  const label = typeLabels[validType as PollType] || type;
 
   return (
     <div 
@@ -38,8 +41,8 @@ export function PollTypeBadge({ type, variant = 'solid', showIcon = true, classN
       )}
       data-testid={`badge-poll-type-${type}`}
     >
-      {showIcon && <Icon className="w-3 h-3 mr-1" />}
-      {typeLabels[type]}
+      {showIcon && Icon && <Icon className="w-3 h-3 mr-1" />}
+      {label}
     </div>
   );
 }

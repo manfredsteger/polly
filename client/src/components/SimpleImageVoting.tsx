@@ -4,12 +4,13 @@ import "yet-another-react-lightbox/styles.css";
 import { Check, X, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { type PollOption } from '@shared/schema';
-import { formatScheduleOptionText } from '@/lib/utils';
+import { formatScheduleOptionWithGermanWeekday } from '@/lib/utils';
 
-function FormattedOptionText({ text }: { text: string }) {
-  const parsed = formatScheduleOptionText(text);
-  if (parsed) {
-    return <><span className="font-bold">{parsed.date}</span> {parsed.time}</>;
+function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+  const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
+  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  if (formatted.isSchedule) {
+    return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
   return <>{text}</>;
 }
@@ -116,7 +117,7 @@ export function SimpleImageVoting({
                 
                 {/* Title and voting buttons below each image */}
                 <div className="text-center">
-                  <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} /></h4>
+                  <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} /></h4>
                   {!adminPreview && (
                     <div className="flex gap-2">
                       <Button
@@ -163,12 +164,12 @@ export function SimpleImageVoting({
       {/* Text-only options */}
       {textOptions.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold mb-4">Text Options</h3>
+          <h3 className="text-lg font-semibold mb-4">Text Optionen</h3>
           {textOptions.map((option) => {
             const currentVote = votes[String(option.id)];
             return (
               <div key={option.id} className="p-4 border rounded-lg">
-                <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} /></h4>
+                <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} /></h4>
                 {!adminPreview && (
                   <div className="flex gap-2">
                     <Button

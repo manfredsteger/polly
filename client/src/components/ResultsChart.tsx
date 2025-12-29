@@ -24,12 +24,13 @@ import { useState, useEffect } from "react";
 import { Table } from "lucide-react";
 import type { PollResults } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { formatScheduleOptionText } from "@/lib/utils";
+import { formatScheduleOptionWithGermanWeekday } from "@/lib/utils";
 
-function FormattedOptionText({ text }: { text: string }) {
-  const parsed = formatScheduleOptionText(text);
-  if (parsed) {
-    return <><span className="font-bold">{parsed.date}</span> {parsed.time}</>;
+function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+  const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
+  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  if (formatted.isSchedule) {
+    return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
   return <>{text}</>;
 }
@@ -328,7 +329,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                               </span>
                             </div>
                           ) : (
-                            <span className="text-xs"><FormattedOptionText text={option.text} /></span>
+                            <span className="text-xs"><FormattedOptionText text={option.text} startTime={option.startTime} /></span>
                           )}
                         </th>
                       );
@@ -431,7 +432,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                           className="text-center py-2 px-2 font-medium text-foreground border-b border-border min-w-[120px]"
                         >
                           <div className="flex flex-col items-center text-xs">
-                            <span className="font-semibold"><FormattedOptionText text={option.text} /></span>
+                            <span className="font-semibold"><FormattedOptionText text={option.text} startTime={option.startTime} /></span>
                             {option.startTime && option.endTime && (
                               <span className="text-muted-foreground">
                                 {new Date(option.startTime).toLocaleDateString('de-DE', { 
@@ -551,7 +552,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                   <div key={option.id} className="border border-border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex-1">
-                        <div className="font-medium text-foreground"><FormattedOptionText text={option.text} /></div>
+                        <div className="font-medium text-foreground"><FormattedOptionText text={option.text} startTime={option.startTime} /></div>
                         {option.startTime && option.endTime && (
                           <div className="text-sm text-muted-foreground mt-1">
                             <Calendar className="w-3 h-3 inline mr-1" />
@@ -744,7 +745,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                             )}
                             <div className="flex-1">
                               <div className="font-medium text-foreground">
-                                <FormattedOptionText text={option.text} />
+                                <FormattedOptionText text={option.text} startTime={option.startTime} />
                               </div>
                               {option.startTime && option.endTime && (
                                 <div className="text-sm text-muted-foreground mt-1">

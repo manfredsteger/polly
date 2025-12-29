@@ -21,12 +21,13 @@ import {
 import { useLiveVoting } from '@/hooks/useLiveVoting';
 import type { PollWithOptions, PollResults } from '@shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { cn, formatScheduleOptionText } from '@/lib/utils';
+import { cn, formatScheduleOptionWithGermanWeekday } from '@/lib/utils';
 
-function FormattedOptionText({ text }: { text: string }) {
-  const parsed = formatScheduleOptionText(text);
-  if (parsed) {
-    return <><span className="font-bold">{parsed.date}</span> {parsed.time}</>;
+function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+  const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
+  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  if (formatted.isSchedule) {
+    return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
   return <>{text}</>;
 }
@@ -320,7 +321,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                             )} 
                             title={option.text}
                           >
-                            <FormattedOptionText text={option.text} />
+                            <FormattedOptionText text={option.text} startTime={option.startTime} />
                           </div>
                         </div>
                       </th>

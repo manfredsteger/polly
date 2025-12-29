@@ -7,12 +7,13 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Users, Clock, Check, MessageCircle } from 'lucide-react';
 import { type PollOption } from '@shared/schema';
-import { formatScheduleOptionText } from '@/lib/utils';
+import { formatScheduleOptionWithGermanWeekday } from '@/lib/utils';
 
-function FormattedOptionText({ text }: { text: string }) {
-  const parsed = formatScheduleOptionText(text);
-  if (parsed) {
-    return <><span className="font-bold">{parsed.date}</span> {parsed.time}</>;
+function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+  const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
+  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  if (formatted.isSchedule) {
+    return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
   return <>{text}</>;
 }
@@ -165,7 +166,7 @@ export function OrganizationSlotVoting({
               <div className="flex-1 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h4 className="font-medium text-lg"><FormattedOptionText text={option.text} /></h4>
+                    <h4 className="font-medium text-lg"><FormattedOptionText text={option.text} startTime={option.startTime} /></h4>
                     {(startTime || endTime) && (
                       <p className="text-sm text-muted-foreground flex items-center mt-1">
                         <Clock className="w-3 h-3 mr-1" />

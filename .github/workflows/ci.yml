@@ -39,7 +39,7 @@ jobs:
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: kita_poll_test
+          POSTGRES_DB: polly_test
         ports:
           - 5432:5432
         options: >-
@@ -70,18 +70,18 @@ jobs:
 
       - name: Setup test database
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_test
+          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
         run: npm run db:push
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_test
+          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
         run: npx vitest run --reporter=verbose
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_test
+          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
         run: npx vitest run --coverage || true
 
@@ -123,7 +123,7 @@ jobs:
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: kita_poll_e2e
+          POSTGRES_DB: polly_e2e
         ports:
           - 5432:5432
         options: >-
@@ -161,21 +161,21 @@ jobs:
 
       - name: Setup database
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_e2e
+          DATABASE_URL: postgresql://test:test@localhost:5432/polly_e2e
         run: |
           npm run db:push
           echo "Database schema pushed successfully"
 
       - name: Verify database connection
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_e2e
+          DATABASE_URL: postgresql://test:test@localhost:5432/polly_e2e
         run: |
-          PGPASSWORD=test psql -h localhost -U test -d kita_poll_e2e -c "SELECT 1 as connection_test;"
+          PGPASSWORD=test psql -h localhost -U test -d polly_e2e -c "SELECT 1 as connection_test;"
           echo "Database connection verified"
 
       - name: Run E2E tests
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/kita_poll_e2e
+          DATABASE_URL: postgresql://test:test@localhost:5432/polly_e2e
           NODE_ENV: test
           SESSION_SECRET: e2e-test-session-secret-minimum-32-characters-long
           BASE_URL: http://localhost:5000

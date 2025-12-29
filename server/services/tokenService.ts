@@ -26,21 +26,21 @@ interface KeycloakTokenClaims {
   resource_access?: Record<string, { roles?: string[] }>;
 }
 
-// Valid roles in KITA Poll system
-type KitaPollRole = 'user' | 'manager' | 'admin';
+// Valid roles in Polly system
+type PollyRole = 'user' | 'manager' | 'admin';
 
-// Normalize role name (supports both 'admin' and 'kita-poll-admin' formats)
-function normalizeRoleName(roleName: string): KitaPollRole | null {
-  const validRoles: KitaPollRole[] = ['admin', 'manager', 'user'];
+// Normalize role name (supports both 'admin' and 'polly-admin' formats)
+function normalizeRoleName(roleName: string): PollyRole | null {
+  const validRoles: PollyRole[] = ['admin', 'manager', 'user'];
   
   // Direct match
-  if (validRoles.includes(roleName as KitaPollRole)) {
-    return roleName as KitaPollRole;
+  if (validRoles.includes(roleName as PollyRole)) {
+    return roleName as PollyRole;
   }
   
-  // Match with kita-poll- prefix
+  // Match with polly- prefix
   for (const role of validRoles) {
-    if (roleName === `kita-poll-${role}`) {
+    if (roleName === `polly-${role}`) {
       return role;
     }
   }
@@ -49,8 +49,8 @@ function normalizeRoleName(roleName: string): KitaPollRole | null {
 }
 
 // Extract role from Keycloak token claims (same logic as authService)
-function extractRoleFromClaims(claims: KeycloakTokenClaims): KitaPollRole | null {
-  const validRoles: KitaPollRole[] = ['admin', 'manager', 'user'];
+function extractRoleFromClaims(claims: KeycloakTokenClaims): PollyRole | null {
+  const validRoles: PollyRole[] = ['admin', 'manager', 'user'];
   
   // Priority 1: Check for direct 'role' claim (custom mapper)
   if (typeof claims.role === 'string') {
@@ -61,7 +61,7 @@ function extractRoleFromClaims(claims: KeycloakTokenClaims): KitaPollRole | null
   // Priority 2: Check realm_access.roles (Keycloak realm roles)
   if (claims.realm_access?.roles) {
     for (const role of validRoles) {
-      if (claims.realm_access.roles.includes(role) || claims.realm_access.roles.includes(`kita-poll-${role}`)) {
+      if (claims.realm_access.roles.includes(role) || claims.realm_access.roles.includes(`polly-${role}`)) {
         return role;
       }
     }
@@ -72,7 +72,7 @@ function extractRoleFromClaims(claims: KeycloakTokenClaims): KitaPollRole | null
     for (const clientRoles of Object.values(claims.resource_access)) {
       if (clientRoles?.roles) {
         for (const role of validRoles) {
-          if (clientRoles.roles.includes(role) || clientRoles.roles.includes(`kita-poll-${role}`)) {
+          if (clientRoles.roles.includes(role) || clientRoles.roles.includes(`polly-${role}`)) {
             return role;
           }
         }
@@ -83,7 +83,7 @@ function extractRoleFromClaims(claims: KeycloakTokenClaims): KitaPollRole | null
   // Priority 4: Check 'roles' array claim (custom mapper with array)
   if (Array.isArray(claims.roles)) {
     for (const role of validRoles) {
-      if (claims.roles.includes(role) || claims.roles.includes(`kita-poll-${role}`)) {
+      if (claims.roles.includes(role) || claims.roles.includes(`polly-${role}`)) {
         return role;
       }
     }

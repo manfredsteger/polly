@@ -1,4 +1,4 @@
-# KITA Poll - Docker Compose Development Override
+# Polly - Docker Compose Development Override
 # Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 # Compatible with Docker Compose V2+
 

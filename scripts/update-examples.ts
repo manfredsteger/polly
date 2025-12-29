@@ -10,7 +10,7 @@ async function updateExamples() {
   // Update survey with example images and alt text
   const surveyOptions = await db.select().from(pollOptions)
     .innerJoin(polls, eq(pollOptions.pollId, polls.id))
-    .where(eq(polls.title, 'KITA Sommerfest Aktivitäten 2025'));
+    .where(eq(polls.title, 'Team Sommerfest Aktivitäten 2025'));
 
   console.log(`Found ${surveyOptions.length} survey options to update`);
 

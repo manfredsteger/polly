@@ -176,7 +176,7 @@ export default function VoteSuccess() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
           <Button
             onClick={() => window.open(resultsLink, '_blank')}
-            className="flex items-center justify-center kita-button-primary"
+            className="flex items-center justify-center polly-button-primary"
           >
             <BarChart3 className="w-4 h-4 mr-2" />
             Ergebnisse ansehen
@@ -186,7 +186,7 @@ export default function VoteSuccess() {
             <Button
               onClick={() => window.open(editLink, '_blank')}
               variant="outline"
-              className="flex items-center justify-center kita-button-neutral"
+              className="flex items-center justify-center polly-button-neutral"
             >
               <Edit className="w-4 h-4 mr-2" />
               Stimme bearbeiten
@@ -197,7 +197,7 @@ export default function VoteSuccess() {
             <Button
               onClick={() => withdrawVoteMutation.mutate()}
               disabled={withdrawVoteMutation.isPending}
-              className="flex items-center justify-center kita-button-danger"
+              className="flex items-center justify-center polly-button-danger"
               data-testid="button-withdraw-vote"
             >
               <Trash2 className="w-4 h-4 mr-2" />

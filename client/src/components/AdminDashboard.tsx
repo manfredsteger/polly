@@ -377,11 +377,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
 
   const getImpactBadgeColor = (area: ImpactArea) => {
     switch (area) {
-      case 'development': return 'kita-badge-dev-only';
-      case 'frontend': return 'kita-badge-frontend';
-      case 'backend': return 'kita-badge-backend';
-      case 'shared': return 'kita-badge-fullstack';
-      default: return 'kita-badge-info';
+      case 'development': return 'polly-badge-dev-only';
+      case 'frontend': return 'polly-badge-frontend';
+      case 'backend': return 'polly-badge-backend';
+      case 'shared': return 'polly-badge-fullstack';
+      default: return 'polly-badge-info';
     }
   };
 
@@ -545,7 +545,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
       <div className="flex gap-3">
         {/* Sidebar Navigation - Compact icons or expanded with labels */}
         <div className={`flex-shrink-0 transition-all duration-200 ${sidebarCollapsed ? 'w-14' : 'w-48'}`}>
-          <Card className="kita-card sticky top-24">
+          <Card className="polly-card sticky top-24">
             <CardContent className="p-2">
               <div className="flex items-center justify-center mb-2">
                 <Tooltip>
@@ -638,7 +638,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     <p className="text-sm text-muted-foreground">Terminumfragen</p>
                     <p className="text-xl font-bold">{displayStats.schedulePolls}</p>
                   </div>
-                  <Calendar className="w-6 h-6 text-kita-orange" />
+                  <Calendar className="w-6 h-6 text-polly-orange" />
                 </div>
               </Card>
               <Card 
@@ -651,7 +651,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     <p className="text-sm text-muted-foreground">Klassische Umfragen</p>
                     <p className="text-xl font-bold">{displayStats.surveyPolls}</p>
                   </div>
-                  <FileText className="w-6 h-6 text-kita-blue" />
+                  <FileText className="w-6 h-6 text-polly-blue" />
                 </div>
               </Card>
               <Card className="p-4" data-testid="stat-weekly">
@@ -675,7 +675,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             </div>
 
             {/* System Components Status */}
-            <Card className="kita-card" data-testid="system-components-card">
+            <Card className="polly-card" data-testid="system-components-card">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center">
@@ -734,19 +734,19 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                             </td>
                             <td className="py-2">
                               {component.status === 'current' && (
-                                <Badge className="kita-badge-success">
+                                <Badge className="polly-badge-success">
                                   <CheckCircle className="w-3 h-3 mr-1" />
                                   Aktuell
                                 </Badge>
                               )}
                               {component.status === 'warning' && (
-                                <Badge className="kita-badge-warning">
+                                <Badge className="polly-badge-warning">
                                   <AlertTriangle className="w-3 h-3 mr-1" />
                                   Bald EOL
                                 </Badge>
                               )}
                               {component.status === 'eol' && (
-                                <Badge className="kita-badge-error">
+                                <Badge className="polly-badge-error">
                                   <XCircle className="w-3 h-3 mr-1" />
                                   EOL
                                 </Badge>
@@ -784,7 +784,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             </Card>
 
             {/* Security Vulnerabilities */}
-            <Card className="kita-card" data-testid="vulnerabilities-card">
+            <Card className="polly-card" data-testid="vulnerabilities-card">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="flex items-center">
@@ -795,17 +795,17 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     {vulnerabilities?.summary && vulnerabilities.summary.total > 0 && (
                       <div className="flex gap-1 flex-wrap">
                         {vulnerabilities.summary.critical > 0 && (
-                          <Badge className="kita-badge-critical" data-testid="badge-critical">
+                          <Badge className="polly-badge-critical" data-testid="badge-critical">
                             {vulnerabilities.summary.critical} Kritisch
                           </Badge>
                         )}
                         {vulnerabilities.summary.high > 0 && (
-                          <Badge className="kita-badge-high" data-testid="badge-high">
+                          <Badge className="polly-badge-high" data-testid="badge-high">
                             {vulnerabilities.summary.high} Hoch
                           </Badge>
                         )}
                         {vulnerabilities.summary.moderate > 0 && (
-                          <Badge className="kita-badge-moderate" data-testid="badge-moderate">
+                          <Badge className="polly-badge-moderate" data-testid="badge-moderate">
                             {vulnerabilities.summary.moderate} Mittel
                           </Badge>
                         )}
@@ -870,13 +870,13 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                             </td>
                             <td className="py-2">
                               {vuln.severity === 'critical' && (
-                                <Badge className="kita-badge-critical">Kritisch</Badge>
+                                <Badge className="polly-badge-critical">Kritisch</Badge>
                               )}
                               {vuln.severity === 'high' && (
-                                <Badge className="kita-badge-high">Hoch</Badge>
+                                <Badge className="polly-badge-high">Hoch</Badge>
                               )}
                               {vuln.severity === 'moderate' && (
-                                <Badge className="kita-badge-moderate">Mittel</Badge>
+                                <Badge className="polly-badge-moderate">Mittel</Badge>
                               )}
                               {vuln.severity === 'low' && (
                                 <Badge variant="secondary">Niedrig</Badge>
@@ -938,7 +938,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             </Card>
 
             {/* System Packages (Nix) */}
-            <Card className="kita-card" data-testid="system-packages-card">
+            <Card className="polly-card" data-testid="system-packages-card">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="flex items-center">
@@ -1011,7 +1011,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             </Card>
 
             {/* Recent Activity */}
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Clock className="w-5 h-5 mr-2" />
@@ -1070,7 +1070,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             </div>
 
             {/* Poll Statistics */}
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <PieChart className="w-5 h-5 mr-2" />
@@ -1088,11 +1088,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     <p className="text-sm text-muted-foreground mt-1">Inaktiv</p>
                   </div>
                   <div className="text-center cursor-pointer hover:bg-muted/50 p-3 rounded-lg" onClick={() => handleStatCardClick("polls")} data-testid="chart-schedule-polls">
-                    <div className="text-4xl font-bold text-kita-orange">{displayStats.schedulePolls}</div>
+                    <div className="text-4xl font-bold text-polly-orange">{displayStats.schedulePolls}</div>
                     <p className="text-sm text-muted-foreground mt-1">Terminumfragen</p>
                   </div>
                   <div className="text-center cursor-pointer hover:bg-muted/50 p-3 rounded-lg" onClick={() => handleStatCardClick("polls")} data-testid="chart-survey-polls">
-                    <div className="text-4xl font-bold text-kita-blue">{displayStats.surveyPolls}</div>
+                    <div className="text-4xl font-bold text-polly-blue">{displayStats.surveyPolls}</div>
                     <p className="text-sm text-muted-foreground mt-1">Umfragen</p>
                   </div>
                 </div>
@@ -1100,7 +1100,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             </Card>
 
             {/* Activity Timeline */}
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardHeader>
                 <CardTitle>Aktivitäts-Timeline</CardTitle>
                 <CardDescription>Die letzten System-Aktivitäten in Echtzeit</CardDescription>
@@ -1112,12 +1112,12 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                   ) : (
                     displayStats.recentActivity.map((activity, index) => (
                       <div key={index} className="relative">
-                        <div className="absolute -left-6 top-1 w-3 h-3 bg-kita-orange rounded-full" />
+                        <div className="absolute -left-6 top-1 w-3 h-3 bg-polly-orange rounded-full" />
                         <div className="ml-2">
                           {activity.pollToken ? (
                             <a 
                               href={`/poll/${activity.pollToken}`}
-                              className="text-sm font-medium hover:text-kita-orange hover:underline cursor-pointer transition-colors"
+                              className="text-sm font-medium hover:text-polly-orange hover:underline cursor-pointer transition-colors"
                               data-testid={`activity-link-${index}`}
                             >
                               {activity.message}
@@ -1164,7 +1164,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               </Badge>
             </div>
             
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -1325,7 +1325,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               <div className="flex items-center gap-3">
                 <Button 
                   onClick={() => setShowAddUserDialog(true)}
-                  className="kita-button-primary"
+                  className="polly-button-primary"
                   data-testid="button-add-user"
                 >
                   <UserPlus className="w-4 h-4 mr-2" />
@@ -1445,7 +1445,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     </Button>
                     <Button 
                       type="submit" 
-                      className="kita-button-primary"
+                      className="polly-button-primary"
                       disabled={
                         createUserMutation.isPending || 
                         !newUserForm.name || 
@@ -1539,7 +1539,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     </Button>
                     <Button 
                       type="submit" 
-                      className="kita-button-primary"
+                      className="polly-button-primary"
                       disabled={updateUserMutation.isPending || !editUserForm.name || !editUserForm.email}
                       data-testid="button-save-user"
                     >
@@ -1557,7 +1557,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               </DialogContent>
             </Dialog>
             
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -1589,7 +1589,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                         >
                           <TableCell>
                             <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-kita-orange rounded-full flex items-center justify-center text-white text-sm font-medium">
+                              <div className="w-8 h-8 bg-polly-orange rounded-full flex items-center justify-center text-white text-sm font-medium">
                                 {user.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                               </div>
                               <span className="font-medium">{user.name}</span>
@@ -1984,9 +1984,9 @@ function ActivityItem({ activity }: { activity: { type: string; message: string;
 
   const getColor = () => {
     switch (activity.type) {
-      case 'poll_created': return 'bg-kita-orange';
+      case 'poll_created': return 'bg-polly-orange';
       case 'vote': return 'bg-green-500';
-      case 'user_registered': return 'bg-kita-blue';
+      case 'user_registered': return 'bg-polly-blue';
       default: return 'bg-gray-500';
     }
   };
@@ -2043,11 +2043,11 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
       </div>
 
       {/* User Header */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardContent className="p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-kita-orange rounded-full flex items-center justify-center text-white text-xl font-bold">
+              <div className="w-16 h-16 bg-polly-orange rounded-full flex items-center justify-center text-white text-xl font-bold">
                 {user.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
               </div>
               <div>
@@ -2164,20 +2164,20 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
         </Card>
         <Card className="p-4">
           <div className="text-center">
-            <p className="text-2xl font-bold text-kita-orange">{schedulePolls.length}</p>
+            <p className="text-2xl font-bold text-polly-orange">{schedulePolls.length}</p>
             <p className="text-sm text-muted-foreground">Terminumfragen</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
-            <p className="text-2xl font-bold text-kita-blue">{surveyPolls.length}</p>
+            <p className="text-2xl font-bold text-polly-blue">{surveyPolls.length}</p>
             <p className="text-sm text-muted-foreground">Umfragen</p>
           </div>
         </Card>
       </div>
 
       {/* User's Polls */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle>Umfragen von {user.name}</CardTitle>
           <CardDescription>Alle erstellten Umfragen und Terminumfragen</CardDescription>
@@ -2218,7 +2218,7 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
                       {new Set(poll.votes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)).size}
                     </TableCell>
                     <TableCell>
-                      <Badge className={poll.isActive ? 'kita-badge-active' : 'kita-badge-inactive'}>
+                      <Badge className={poll.isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
                         {poll.isActive ? 'Aktiv' : 'Inaktiv'}
                       </Badge>
                     </TableCell>
@@ -2336,13 +2336,13 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
       </div>
 
       {/* Poll Header */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardContent className="p-6 space-y-6">
           {/* Title and Badges */}
           <div className="space-y-3">
             <div className="flex items-center flex-wrap gap-2">
               <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
-              <Badge className={poll.isActive ? 'kita-badge-active' : 'kita-badge-inactive'}>
+              <Badge className={poll.isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
                 {poll.isActive ? 'Aktiv' : 'Inaktiv'}
               </Badge>
             </div>
@@ -2454,7 +2454,7 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
       </div>
 
       {/* Options / Slots */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle>{poll.type === 'organization' ? 'Slots' : 'Optionen'}</CardTitle>
           <CardDescription>
@@ -2535,7 +2535,7 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
       </Card>
 
       {/* Votes / Signups Table */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle>{poll.type === 'organization' ? 'Alle Eintragungen' : 'Alle Abstimmungen'}</CardTitle>
           <CardDescription>
@@ -2636,13 +2636,13 @@ function SettingCard({ title, description, icon, status, statusType, onClick, te
 
   return (
     <Card 
-      className={`kita-card ${onClick ? 'cursor-pointer hover:shadow-md hover:border-kita-orange transition-all' : ''}`}
+      className={`polly-card ${onClick ? 'cursor-pointer hover:shadow-md hover:border-polly-orange transition-all' : ''}`}
       onClick={onClick}
       data-testid={testId}
     >
       <CardContent className="p-4">
         <div className="flex items-start space-x-4">
-          <div className="text-kita-orange">{icon}</div>
+          <div className="text-polly-orange">{icon}</div>
           <div className="flex-1">
             <h3 className="font-medium text-foreground">{title}</h3>
             <p className="text-sm text-muted-foreground mb-2">{description}</p>
@@ -2733,7 +2733,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Registration Settings */}
-      <Card className={`kita-card ${registrationEnabled ? 'border-green-200' : 'border-red-200'}`}>
+      <Card className={`polly-card ${registrationEnabled ? 'border-green-200' : 'border-red-200'}`}>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center">
@@ -2805,7 +2805,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {/* Keycloak Settings */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Key className="w-5 h-5 mr-2" />
@@ -2828,7 +2828,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
               <Label htmlFor="keycloak-client">Client ID</Label>
               <Input 
                 id="keycloak-client" 
-                placeholder="kita-poll-client" 
+                placeholder="polly-poll-client" 
                 data-testid="input-keycloak-client"
               />
             </div>
@@ -2867,7 +2867,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
               Verbindung testen
             </Button>
             <Button 
-              className="kita-button-primary" 
+              className="polly-button-primary" 
               data-testid="button-save-oidc"
               onClick={() => toast({ title: "Gespeichert", description: "OIDC-Einstellungen wurden gespeichert." })}
             >
@@ -2877,14 +2877,14 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
         </CardContent>
       </Card>
 
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle>Hinweise zur Konfiguration</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
             <li>Die Admin-Rollenzuweisung erfolgt über Keycloak-Gruppen</li>
-            <li>Benutzer mit der Gruppe "kita-admins" erhalten automatisch Admin-Rechte</li>
+            <li>Benutzer mit der Gruppe "polly-admins" erhalten automatisch Admin-Rechte</li>
             <li>Die lokale Anmeldung bleibt als Fallback verfügbar</li>
             <li>Alle Sessions werden bei Konfigurationsänderungen invalidiert</li>
           </ul>
@@ -2917,7 +2917,7 @@ function DatabaseSettingsPanel({ onBack }: { onBack: () => void }) {
         </Badge>
       </div>
 
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Database className="w-5 h-5 mr-2" />
@@ -2991,7 +2991,7 @@ function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
         </Badge>
       </div>
 
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Mail className="w-5 h-5 mr-2" />
@@ -3024,7 +3024,7 @@ function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
           
           <div>
             <Label htmlFor="from-email">Absender E-Mail</Label>
-            <Input id="from-email" placeholder="noreply@kita-poll.bayern.de" data-testid="input-from-email" />
+            <Input id="from-email" placeholder="noreply@polly-poll.bayern.de" data-testid="input-from-email" />
           </div>
 
           <div>
@@ -3042,7 +3042,7 @@ function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
               Test-E-Mail senden
             </Button>
             <Button 
-              className="kita-button-primary" 
+              className="polly-button-primary" 
               data-testid="button-save-email"
               onClick={() => toast({ title: "Gespeichert", description: "E-Mail-Einstellungen wurden gespeichert." })}
             >
@@ -3334,7 +3334,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       {!selectedTemplate ? (
         <>
           {/* Email Theme Settings */}
-          <Card className="kita-card">
+          <Card className="polly-card">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -3519,7 +3519,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
             return (
               <Card 
                 key={template.type} 
-                className="kita-card cursor-pointer hover:border-primary/50 transition-colors"
+                className="polly-card cursor-pointer hover:border-primary/50 transition-colors"
                 onClick={() => setSelectedTemplate(template)}
                 data-testid={`template-card-${template.type}`}
               >
@@ -3551,7 +3551,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
             Zurück zur Übersicht
           </Button>
 
-          <Card className="kita-card">
+          <Card className="polly-card">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -3632,7 +3632,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     textContent: editTextContent 
                   })}
                   disabled={!hasChanges || saveMutation.isPending}
-                  className="kita-button-primary"
+                  className="polly-button-primary"
                   data-testid="button-save-template"
                 >
                   {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
@@ -3707,7 +3707,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
           </Card>
 
           {showPreview && previewHtml && (
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center">
@@ -3735,7 +3735,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       )}
 
       {/* Central Footer Editor */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader className="cursor-pointer" onClick={() => setShowFooterEditor(!showFooterEditor)}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -3772,7 +3772,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
               <Button
                 onClick={() => saveFooterMutation.mutate({ html: editFooterHtml, text: editFooterHtml })}
                 disabled={saveFooterMutation.isPending}
-                className="kita-button-primary"
+                className="polly-button-primary"
                 data-testid="button-save-footer"
               >
                 {saveFooterMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
@@ -3784,7 +3784,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {/* Info card about email branding */}
-      <Card className="kita-card border-blue-200 bg-blue-50/30 dark:bg-blue-950/30 dark:border-blue-800">
+      <Card className="polly-card border-blue-200 bg-blue-50/30 dark:bg-blue-950/30 dark:border-blue-800">
         <CardContent className="p-4">
           <div className="flex items-start space-x-3">
             <Info className="w-5 h-5 text-blue-600 mt-0.5" />
@@ -4042,7 +4042,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Encryption Info */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Lock className="w-5 h-5 mr-2" />
@@ -4089,7 +4089,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {/* Login Rate Limiter */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <ShieldCheck className="w-5 h-5 mr-2" />
@@ -4232,7 +4232,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <AlertDialogCancel>Abbrechen</AlertDialogCancel>
                       <AlertDialogAction 
                         onClick={() => clearRateLimitsMutation.mutate()}
-                        className="kita-button-primary"
+                        className="polly-button-primary"
                       >
                         Sperren aufheben
                       </AlertDialogAction>
@@ -4243,7 +4243,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <Button 
                   onClick={handleSaveRateLimit}
                   disabled={saveRateLimitMutation.isPending}
-                  className="kita-button-primary"
+                  className="polly-button-primary"
                   data-testid="button-save-rate-limit"
                 >
                   {saveRateLimitMutation.isPending ? (
@@ -4262,7 +4262,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {/* ClamAV Antivirus Scanner */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Shield className="w-5 h-5 mr-2" />
@@ -4411,7 +4411,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <Button 
                   onClick={handleSaveClamav}
                   disabled={saveClamavMutation.isPending}
-                  className="kita-button-primary"
+                  className="polly-button-primary"
                   data-testid="button-save-clamav"
                 >
                   {saveClamavMutation.isPending ? (
@@ -4430,7 +4430,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {/* Data Retention - Split by User Type */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Timer className="w-5 h-5 mr-2" />
@@ -4465,7 +4465,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
             >
               <Building2 className="w-4 h-4" />
               <span>SSO-Nutzer</span>
-              <Badge variant="secondary" className="ml-1 text-xs bg-kita-orange/10 text-kita-orange">Authentifiziert</Badge>
+              <Badge variant="secondary" className="ml-1 text-xs bg-polly-orange/10 text-polly-orange">Authentifiziert</Badge>
             </button>
           </div>
 
@@ -4646,7 +4646,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {/* External Deprovisioning (Kafka/Keycloak) */}
-      <Card className="kita-card" data-testid="deprovision-settings-card">
+      <Card className="polly-card" data-testid="deprovision-settings-card">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center">
@@ -4775,7 +4775,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <Button 
                   onClick={handleSaveDeprovision}
                   disabled={saveDeprovisionMutation.isPending || !deprovisionUsername}
-                  className="kita-button-primary"
+                  className="polly-button-primary"
                   data-testid="button-save-deprovision"
                 >
                   {saveDeprovisionMutation.isPending ? (
@@ -4794,7 +4794,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {/* GDPR Compliance */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Archive className="w-5 h-5 mr-2" />
@@ -4838,7 +4838,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
       <div className="flex justify-end">
         <Button 
-          className="kita-button-primary" 
+          className="polly-button-primary" 
           data-testid="button-save-security"
           onClick={() => toast({ title: "Gespeichert", description: "Sicherheitseinstellungen wurden gespeichert." })}
         >
@@ -4939,7 +4939,7 @@ function RoleManagementPanel({ onBack }: { onBack: () => void }) {
 
       <div className="grid gap-6">
         {roles.map((role) => (
-          <Card key={role.id} className="kita-card">
+          <Card key={role.id} className="polly-card">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -4979,7 +4979,7 @@ function RoleManagementPanel({ onBack }: { onBack: () => void }) {
         ))}
       </div>
 
-      <Card className="kita-card border-blue-200 dark:border-blue-800">
+      <Card className="polly-card border-blue-200 dark:border-blue-800">
         <CardHeader>
           <CardTitle className="flex items-center text-blue-700 dark:text-blue-400">
             <AlertCircle className="w-5 h-5 mr-2" />
@@ -4998,9 +4998,9 @@ function RoleManagementPanel({ onBack }: { onBack: () => void }) {
               Unterstützte Rollennamen in Keycloak:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li><code className="bg-muted px-1 rounded">admin</code> oder <code className="bg-muted px-1 rounded">kita-poll-admin</code></li>
-              <li><code className="bg-muted px-1 rounded">manager</code> oder <code className="bg-muted px-1 rounded">kita-poll-manager</code></li>
-              <li><code className="bg-muted px-1 rounded">user</code> oder <code className="bg-muted px-1 rounded">kita-poll-user</code></li>
+              <li><code className="bg-muted px-1 rounded">admin</code> oder <code className="bg-muted px-1 rounded">polly-poll-admin</code></li>
+              <li><code className="bg-muted px-1 rounded">manager</code> oder <code className="bg-muted px-1 rounded">polly-poll-manager</code></li>
+              <li><code className="bg-muted px-1 rounded">user</code> oder <code className="bg-muted px-1 rounded">polly-poll-user</code></li>
             </ul>
             <p className="text-xs">
               Rollen können als Realm Roles, Client Roles oder über einen Custom Protocol Mapper konfiguriert werden.
@@ -5092,7 +5092,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Master Switch */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="w-5 h-5" />
@@ -5118,7 +5118,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Reminder Types */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BellRing className="w-5 h-5" />
@@ -5173,7 +5173,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Guest Restrictions */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5" />
@@ -5252,7 +5252,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Integration Hint */}
-        <Card className="kita-card border-dashed">
+        <Card className="polly-card border-dashed">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
               <MessageSquare className="w-5 h-5 text-muted-foreground mt-0.5" />
@@ -5375,7 +5375,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Master Switch */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Timer className="w-5 h-5" />
@@ -5407,7 +5407,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Role-based Timeouts */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
@@ -5496,7 +5496,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Warning Settings */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
@@ -5527,7 +5527,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Info Box */}
-        <Card className="kita-card border-dashed">
+        <Card className="polly-card border-dashed">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-muted-foreground mt-0.5" />
@@ -5683,7 +5683,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
         </Badge>
       </div>
 
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center">
@@ -5836,7 +5836,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                 <Button 
                   onClick={handleSave}
                   disabled={saveMutation.isPending || !homeserverUrl || !botUserId}
-                  className="kita-button-primary"
+                  className="polly-button-primary"
                   data-testid="button-save-matrix"
                 >
                   {saveMutation.isPending ? (
@@ -5855,7 +5855,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
       </Card>
 
       {matrixEnabled && (
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <AlertCircle className="w-5 h-5 mr-2" />
@@ -5865,21 +5865,21 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
           <CardContent className="space-y-4">
             <div className="space-y-3 text-sm">
               <div className="flex items-start space-x-3 p-3 bg-muted rounded-lg">
-                <span className="font-bold text-kita-orange">1.</span>
+                <span className="font-bold text-polly-orange">1.</span>
                 <div>
                   <p className="font-medium">Bot-Account erstellen</p>
                   <p className="text-muted-foreground">Erstellen Sie einen Matrix-Benutzer (z.B. @pollbot:matrix.example.com) mit einem sicheren Passwort.</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-muted rounded-lg">
-                <span className="font-bold text-kita-orange">2.</span>
+                <span className="font-bold text-polly-orange">2.</span>
                 <div>
                   <p className="font-medium">Access Token generieren</p>
                   <p className="text-muted-foreground">Melden Sie sich als Bot an und generieren Sie einen Access Token über Element oder die Admin-API.</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-muted rounded-lg">
-                <span className="font-bold text-kita-orange">3.</span>
+                <span className="font-bold text-polly-orange">3.</span>
                 <div>
                   <p className="font-medium">User Directory Suche</p>
                   <p className="text-muted-foreground">
@@ -6108,7 +6108,7 @@ function CustomizationPanel() {
           <p className="text-muted-foreground">Design, Branding und Footer individualisieren</p>
         </div>
         <Button 
-          className="kita-button-primary" 
+          className="polly-button-primary" 
           onClick={handleSaveAll}
           disabled={saveMutation.isPending}
           data-testid="button-save-customization"
@@ -6119,7 +6119,7 @@ function CustomizationPanel() {
       </div>
 
       {/* Theme Colors */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Palette className="w-5 h-5 mr-2" />
@@ -6539,7 +6539,7 @@ function CustomizationPanel() {
       </Card>
 
       {/* Branding / Logo */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Image className="w-5 h-5 mr-2" />
@@ -6650,7 +6650,7 @@ function CustomizationPanel() {
       </Card>
 
       {/* Footer Settings */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <FileText className="w-5 h-5 mr-2" />
@@ -6733,7 +6733,7 @@ function CustomizationPanel() {
       </Card>
 
       {/* Preview */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Eye className="w-5 h-5 mr-2" />
@@ -7020,7 +7020,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
             Zurück
           </Button>
         </div>
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardContent className="p-8 flex justify-center">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </CardContent>
@@ -7040,7 +7040,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Connection Status */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
@@ -7141,7 +7141,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
       {status?.configured && status.connected && (
         <>
           {/* Polly Target Info */}
-          <Card className="kita-card">
+          <Card className="polly-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="w-5 h-5" />
@@ -7257,7 +7257,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
           </Card>
 
           {/* Recent Scans */}
-          <Card className="kita-card">
+          <Card className="polly-card">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Search className="w-5 h-5" />
@@ -8012,7 +8012,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FlaskConical className="w-8 h-8 text-kita-orange" />
+          <FlaskConical className="w-8 h-8 text-polly-orange" />
           <div>
             <h2 className="text-2xl font-bold">Automatisierte Tests</h2>
             <p className="text-muted-foreground">Backend-Integrationstests ausführen und überwachen</p>

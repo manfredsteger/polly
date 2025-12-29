@@ -10,8 +10,8 @@ async function createExamples() {
   // Create example user if not exists
   const exampleUser = await db.insert(users).values({
     username: 'example-creator',
-    name: 'KITA Beispiel-Ersteller',
-    email: 'creator@kita-example.de',
+    name: 'Polly Beispiel-Ersteller',
+    email: 'creator@example.com',
     role: 'user'
   }).onConflictDoNothing().returning();
 
@@ -22,12 +22,12 @@ async function createExamples() {
 
   await db.insert(polls).values({
     id: surveyId,
-    title: 'KITA Sommerfest Aktivitäten 2025',
+    title: 'Team Sommerfest Aktivitäten 2025',
     description: 'Welche Aktivitäten sollen wir beim diesjährigen Sommerfest anbieten? Stimmen Sie für Ihre Favoriten ab!',
     type: 'survey',
     publicToken: surveyPublicToken,
     adminToken: surveyAdminToken,
-    creatorEmail: 'sommerfest@kita-bayern.de',
+    creatorEmail: 'events@example.com',
     userId: exampleUser[0]?.id || null,
     isAnonymous: true
   }).onConflictDoNothing();
@@ -82,7 +82,7 @@ async function createExamples() {
     type: 'poll',
     publicToken: pollPublicToken,
     adminToken: pollAdminToken,
-    creatorEmail: 'leitung@kita-bayern.de',
+    creatorEmail: 'team@example.com',
     userId: exampleUser[0]?.id || null,
     isAnonymous: true
   }).onConflictDoNothing();

@@ -321,4 +321,4 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
-Made with ❤️ for KITA teams in Bavaria
+Made with ❤️ for teams everywhere

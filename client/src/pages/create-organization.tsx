@@ -344,7 +344,7 @@ export default function CreateOrganization() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <ClipboardList className="w-5 h-5 mr-2 text-green-600" />
@@ -493,7 +493,7 @@ export default function CreateOrganization() {
                       type="email"
                       value={creatorEmail}
                       onChange={(e) => setCreatorEmail(e.target.value)}
-                      placeholder="ihre.email@kita-bayern.de"
+                      placeholder="ihre.email@polly-bayern.de"
                       className="mt-3"
                       required
                       data-testid="input-creator-email"
@@ -505,7 +505,7 @@ export default function CreateOrganization() {
           </CardContent>
         </Card>
 
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Users className="w-5 h-5 mr-2 text-green-600" />
@@ -571,7 +571,7 @@ export default function CreateOrganization() {
           </CardContent>
         </Card>
 
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center">

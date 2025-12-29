@@ -249,15 +249,15 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Poll<span className="text-kita-orange">y</span></CardTitle>
+          <CardTitle className="text-2xl">Poll<span className="text-polly-orange">y</span></CardTitle>
           <CardDescription>
             Melden Sie sich an, um Ihre Umfragen zu verwalten
           </CardDescription>
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="kita-alert-error rounded-lg p-4 flex items-start gap-3 mb-4">
-              <AlertCircle className="kita-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
+            <div className="polly-alert-error rounded-lg p-4 flex items-start gap-3 mb-4">
+              <AlertCircle className="polly-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
               <div className="flex-1">{error}</div>
             </div>
           )}

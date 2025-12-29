@@ -85,7 +85,7 @@ app.use((req, res, next) => {
 const isSecureConnection = (process.env.BASE_URL || '').startsWith('https://');
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'kita-poll-dev-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET || 'polly-dev-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {

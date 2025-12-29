@@ -24,13 +24,13 @@
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.75rem;
 
-  /* KITA Bayern Custom Colors */
-  --kita-orange: hsl(17, 100%, 60%);
-  --kita-blue: hsl(198, 38%, 47%);
-  --kita-gray-50: hsl(210, 20%, 98%);
-  --kita-gray-100: hsl(220, 14%, 96%);
-  --kita-gray-500: hsl(220, 9%, 46%);
-  --kita-gray-900: hsl(224, 71%, 4%);
+  /* Polly Custom Colors */
+  --polly-orange: hsl(17, 100%, 60%);
+  --polly-blue: hsl(198, 38%, 47%);
+  --polly-gray-50: hsl(210, 20%, 98%);
+  --polly-gray-100: hsl(220, 14%, 96%);
+  --polly-gray-500: hsl(220, 9%, 46%);
+  --polly-gray-900: hsl(224, 71%, 4%);
 
   /* Feature Colors - Default values based on design manual */
   /* Termin (Schedule): Orange #F97316 */
@@ -125,298 +125,298 @@
 }
 
 @layer components {
-  .kita-button-primary {
-    background-color: var(--kita-orange);
+  .polly-button-primary {
+    background-color: var(--polly-orange);
     @apply text-white focus:ring-2 focus:ring-offset-2;
   }
-  .kita-button-primary:hover {
+  .polly-button-primary:hover {
     filter: brightness(0.9);
   }
 
-  .kita-button-secondary {
-    background-color: var(--kita-blue);
+  .polly-button-secondary {
+    background-color: var(--polly-blue);
     @apply text-white focus:ring-2 focus:ring-offset-2;
   }
-  .kita-button-secondary:hover {
+  .polly-button-secondary:hover {
     filter: brightness(0.9);
   }
 
   /* Feature-specific button styles - higher specificity to override shadcn defaults */
-  button.kita-button-schedule,
-  .kita-button-schedule {
+  button.polly-button-schedule,
+  .polly-button-schedule {
     background-color: var(--color-schedule) !important;
     color: white !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     @apply focus:ring-2 focus:ring-offset-2;
   }
-  button.kita-button-schedule:hover,
-  .kita-button-schedule:hover {
+  button.polly-button-schedule:hover,
+  .polly-button-schedule:hover {
     filter: brightness(0.9);
   }
 
-  button.kita-button-survey,
-  .kita-button-survey {
+  button.polly-button-survey,
+  .polly-button-survey {
     background-color: var(--color-survey) !important;
     color: white !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     @apply focus:ring-2 focus:ring-offset-2;
   }
-  button.kita-button-survey:hover,
-  .kita-button-survey:hover {
+  button.polly-button-survey:hover,
+  .polly-button-survey:hover {
     filter: brightness(0.9);
   }
 
-  button.kita-button-organization,
-  .kita-button-organization {
+  button.polly-button-organization,
+  .polly-button-organization {
     background-color: var(--color-organization) !important;
     color: white !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     @apply focus:ring-2 focus:ring-offset-2;
   }
-  button.kita-button-organization:hover,
-  .kita-button-organization:hover {
+  button.polly-button-organization:hover,
+  .polly-button-organization:hover {
     filter: brightness(0.9);
   }
 
   /* Unified Button Schema - using CSS variables */
-  button.kita-button-danger,
-  .kita-button-danger {
+  button.polly-button-danger,
+  .polly-button-danger {
     background-color: var(--color-error) !important;
     color: white !important;
     @apply focus:ring-2 focus:ring-offset-2 focus:ring-red-500;
   }
-  button.kita-button-danger:hover,
-  .kita-button-danger:hover {
+  button.polly-button-danger:hover,
+  .polly-button-danger:hover {
     filter: brightness(0.9);
   }
 
-  button.kita-button-success,
-  .kita-button-success {
+  button.polly-button-success,
+  .polly-button-success {
     background-color: var(--color-success) !important;
     color: white !important;
     @apply focus:ring-2 focus:ring-offset-2 focus:ring-green-500;
   }
-  button.kita-button-success:hover,
-  .kita-button-success:hover {
+  button.polly-button-success:hover,
+  .polly-button-success:hover {
     filter: brightness(0.9);
   }
 
-  button.kita-button-neutral,
-  .kita-button-neutral {
+  button.polly-button-neutral,
+  .polly-button-neutral {
     @apply bg-gray-100 text-gray-800 border border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600;
     @apply focus:ring-2 focus:ring-offset-2 focus:ring-gray-400;
   }
-  button.kita-button-neutral:hover,
-  .kita-button-neutral:hover {
+  button.polly-button-neutral:hover,
+  .polly-button-neutral:hover {
     @apply bg-gray-200 dark:bg-gray-700;
   }
 
   /* Outline button variants */
-  button.kita-button-danger-outline,
-  .kita-button-danger-outline {
+  button.polly-button-danger-outline,
+  .polly-button-danger-outline {
     background-color: transparent !important;
     color: var(--color-error) !important;
     border: 1px solid var(--color-error) !important;
     @apply focus:ring-2 focus:ring-offset-2 focus:ring-red-500;
   }
-  button.kita-button-danger-outline:hover,
-  .kita-button-danger-outline:hover {
+  button.polly-button-danger-outline:hover,
+  .polly-button-danger-outline:hover {
     background-color: rgba(239, 68, 68, 0.1) !important;
   }
 
-  button.kita-button-organization-outline,
-  .kita-button-organization-outline {
+  button.polly-button-organization-outline,
+  .polly-button-organization-outline {
     background-color: transparent !important;
     color: var(--color-organization) !important;
     border: 1px solid var(--color-organization) !important;
     @apply focus:ring-2 focus:ring-offset-2;
   }
-  button.kita-button-organization-outline:hover,
-  .kita-button-organization-outline:hover {
+  button.polly-button-organization-outline:hover,
+  .polly-button-organization-outline:hover {
     background-color: rgba(var(--color-organization-rgb, 34, 197, 94), 0.1) !important;
   }
 
-  button.kita-button-success-outline,
-  .kita-button-success-outline {
+  button.polly-button-success-outline,
+  .polly-button-success-outline {
     background-color: transparent !important;
     color: var(--color-success) !important;
     border: 1px solid var(--color-success) !important;
     @apply focus:ring-2 focus:ring-offset-2 focus:ring-green-500;
   }
-  button.kita-button-success-outline:hover,
-  .kita-button-success-outline:hover {
+  button.polly-button-success-outline:hover,
+  .polly-button-success-outline:hover {
     background-color: rgba(34, 197, 94, 0.1) !important;
   }
 
   /* Alert banners with proper dark mode contrast */
-  .kita-alert-error {
+  .polly-alert-error {
     @apply bg-red-50 border border-red-200 text-red-800;
     @apply dark:bg-red-950/50 dark:border-red-800 dark:text-red-200;
   }
-  .kita-alert-error .kita-alert-icon {
+  .polly-alert-error .polly-alert-icon {
     @apply text-red-600 dark:text-red-400;
   }
 
-  .kita-alert-success {
+  .polly-alert-success {
     @apply bg-green-50 border border-green-200 text-green-800;
     @apply dark:bg-green-950/50 dark:border-green-800 dark:text-green-200;
   }
-  .kita-alert-success .kita-alert-icon {
+  .polly-alert-success .polly-alert-icon {
     @apply text-green-600 dark:text-green-400;
   }
 
-  .kita-alert-warning {
+  .polly-alert-warning {
     @apply bg-amber-50 border border-amber-200 text-amber-800;
     @apply dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-200;
   }
-  .kita-alert-warning .kita-alert-icon {
+  .polly-alert-warning .polly-alert-icon {
     @apply text-amber-600 dark:text-amber-400;
   }
 
-  .kita-alert-info {
+  .polly-alert-info {
     @apply bg-blue-50 border border-blue-200 text-blue-800;
     @apply dark:bg-blue-950/50 dark:border-blue-800 dark:text-blue-200;
   }
-  .kita-alert-info .kita-alert-icon {
+  .polly-alert-info .polly-alert-icon {
     @apply text-blue-600 dark:text-blue-400;
   }
 
   /* Poll type badges - solid background versions (high specificity to override shadcn) */
-  span.kita-badge-schedule-solid,
-  div.kita-badge-schedule-solid,
-  .kita-badge-schedule-solid {
+  span.polly-badge-schedule-solid,
+  div.polly-badge-schedule-solid,
+  .polly-badge-schedule-solid {
     background-color: var(--color-schedule) !important;
     color: white !important;
     border-color: transparent !important;
   }
 
-  span.kita-badge-survey-solid,
-  div.kita-badge-survey-solid,
-  .kita-badge-survey-solid {
+  span.polly-badge-survey-solid,
+  div.polly-badge-survey-solid,
+  .polly-badge-survey-solid {
     background-color: var(--color-survey) !important;
     color: white !important;
     border-color: transparent !important;
   }
 
-  span.kita-badge-organization-solid,
-  div.kita-badge-organization-solid,
-  .kita-badge-organization-solid {
+  span.polly-badge-organization-solid,
+  div.polly-badge-organization-solid,
+  .polly-badge-organization-solid {
     background-color: var(--color-organization) !important;
     color: white !important;
     border-color: transparent !important;
   }
 
   /* Feature badges - outline versions */
-  span.kita-badge-schedule,
-  div.kita-badge-schedule,
-  .kita-badge-schedule {
+  span.polly-badge-schedule,
+  div.polly-badge-schedule,
+  .polly-badge-schedule {
     background-color: var(--color-schedule-light) !important;
     color: var(--color-schedule) !important;
     border: 1px solid var(--color-schedule) !important;
   }
 
-  span.kita-badge-survey,
-  div.kita-badge-survey,
-  .kita-badge-survey {
+  span.polly-badge-survey,
+  div.polly-badge-survey,
+  .polly-badge-survey {
     background-color: var(--color-survey-light) !important;
     color: var(--color-survey) !important;
     border: 1px solid var(--color-survey) !important;
   }
 
-  span.kita-badge-organization,
-  div.kita-badge-organization,
-  .kita-badge-organization {
+  span.polly-badge-organization,
+  div.polly-badge-organization,
+  .polly-badge-organization {
     background-color: var(--color-organization-light) !important;
     color: var(--color-organization) !important;
     border: 1px solid var(--color-organization) !important;
   }
 
   /* Status badges */
-  .kita-badge-active {
+  .polly-badge-active {
     @apply bg-purple-500 text-white border-transparent;
   }
   
-  .kita-badge-inactive {
+  .polly-badge-inactive {
     @apply bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600;
   }
   
-  .kita-badge-expired {
+  .polly-badge-expired {
     @apply bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800;
   }
 
   /* Severity badges */
-  .kita-badge-critical {
+  .polly-badge-critical {
     @apply bg-red-600 text-white border-transparent;
   }
   
-  .kita-badge-high {
+  .polly-badge-high {
     @apply bg-orange-500 text-white border-transparent;
   }
   
-  .kita-badge-moderate {
+  .polly-badge-moderate {
     @apply bg-amber-500 text-white border-transparent;
   }
   
-  .kita-badge-low {
+  .polly-badge-low {
     @apply bg-yellow-400 text-yellow-900 border-transparent;
   }
   
-  .kita-badge-info {
+  .polly-badge-info {
     @apply bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800;
   }
 
   /* Role badges */
-  .kita-badge-admin {
+  .polly-badge-admin {
     @apply bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800;
   }
   
-  .kita-badge-user {
+  .polly-badge-user {
     @apply bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800;
   }
   
-  .kita-badge-manager {
+  .polly-badge-manager {
     @apply bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800;
   }
 
   /* Common state badges */
-  .kita-badge-success {
+  .polly-badge-success {
     @apply bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800;
   }
   
-  .kita-badge-warning {
+  .polly-badge-warning {
     @apply bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800;
   }
   
-  .kita-badge-error {
+  .polly-badge-error {
     @apply bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800;
   }
 
   /* Impact badges - solid backgrounds (use !important to override Badge defaults) */
-  .kita-badge-dev-only {
+  .polly-badge-dev-only {
     @apply !bg-gray-500 text-white border-transparent;
   }
   
-  .kita-badge-backend {
+  .polly-badge-backend {
     @apply !bg-orange-500 text-white border-transparent;
   }
   
-  .kita-badge-frontend {
+  .polly-badge-frontend {
     @apply !bg-red-500 text-white border-transparent;
   }
   
-  .kita-badge-fullstack {
+  .polly-badge-fullstack {
     @apply !bg-indigo-500 text-white border-transparent;
   }
 
-  .kita-card {
+  .polly-card {
     @apply bg-white border border-[hsl(220,14%,96%)] rounded-xl shadow-sm hover:shadow-md transition-shadow;
   }
 
-  .kita-gradient-orange {
+  .polly-gradient-orange {
     background: linear-gradient(135deg, hsl(17, 100%, 60%) 0%, hsl(25, 95%, 53%) 100%);
   }
 
-  .kita-gradient-blue {
+  .polly-gradient-blue {
     background: linear-gradient(135deg, hsl(198, 38%, 47%) 0%, hsl(210, 50%, 45%) 100%);
   }
 
@@ -438,12 +438,12 @@
 }
 
 @layer utilities {
-  .text-kita-orange {
-    color: var(--kita-orange);
+  .text-polly-orange {
+    color: var(--polly-orange);
   }
 
-  .text-kita-blue {
-    color: var(--kita-blue);
+  .text-polly-blue {
+    color: var(--polly-blue);
   }
 
   /* Feature color text utilities */
@@ -472,27 +472,27 @@
     background-color: var(--color-organization);
   }
 
-  .bg-kita-orange {
-    background-color: var(--kita-orange);
+  .bg-polly-orange {
+    background-color: var(--polly-orange);
   }
 
-  .bg-kita-blue {
-    background-color: var(--kita-blue);
+  .bg-polly-blue {
+    background-color: var(--polly-blue);
   }
 
-  .border-kita-orange {
-    border-color: var(--kita-orange);
+  .border-polly-orange {
+    border-color: var(--polly-orange);
   }
 
-  .border-kita-blue {
-    border-color: var(--kita-blue);
+  .border-polly-blue {
+    border-color: var(--polly-blue);
   }
 
-  .hover\:bg-kita-orange:hover {
+  .hover\:bg-polly-orange:hover {
     background-color: hsl(17, 100%, 55%);
   }
 
-  .hover\:bg-kita-blue:hover {
+  .hover\:bg-polly-blue:hover {
     background-color: hsl(198, 38%, 42%);
   }
 }

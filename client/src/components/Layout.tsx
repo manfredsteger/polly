@@ -63,7 +63,7 @@ export default function Layout({ children }: LayoutProps) {
                     <img src={logoUrl} alt={siteName} className="h-10 mr-2" />
                   ) : null}
                   <h1 className="text-2xl font-bold text-foreground">
-                    {siteName}<span className="text-kita-orange">{siteNameAccent}</span>
+                    {siteName}<span className="text-polly-orange">{siteNameAccent}</span>
                   </h1>
                 </div>
               </Link>
@@ -151,7 +151,7 @@ export default function Layout({ children }: LayoutProps) {
                   <img src={logoUrl} alt={siteName} className="h-10 mr-2" />
                 ) : null}
                 <h3 className="text-2xl font-bold">
-                  {siteName}<span className="text-kita-orange">{siteNameAccent}</span>
+                  {siteName}<span className="text-polly-orange">{siteNameAccent}</span>
                 </h3>
               </div>
               <p className="text-gray-300 mb-6 max-w-md">

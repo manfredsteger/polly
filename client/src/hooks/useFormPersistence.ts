@@ -12,7 +12,7 @@ interface UseFormPersistenceOptions<T> {
   expirationMs?: number;
 }
 
-const STORAGE_PREFIX = 'kita-form-';
+const STORAGE_PREFIX = 'polly-form-';
 const DEFAULT_EXPIRATION_MS = 30 * 60 * 1000;
 
 export function useFormPersistence<T>({ key, expirationMs = DEFAULT_EXPIRATION_MS }: UseFormPersistenceOptions<T>) {

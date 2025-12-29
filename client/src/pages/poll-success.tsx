@@ -233,7 +233,7 @@ export default function PollSuccess() {
           </Link>
           <Button
             onClick={() => window.open(fullPublicLink, '_blank')}
-            className="w-full sm:w-auto kita-button-primary"
+            className="w-full sm:w-auto polly-button-primary"
           >
             Zur Abstimmung
           </Button>

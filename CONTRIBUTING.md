@@ -1,6 +1,6 @@
-# Beitragen zu KITA Poll
+# Beitragen zu Polly
 
-Vielen Dank für Ihr Interesse, zu KITA Poll beizutragen! Diese Anleitung erklärt, wie Sie Tests schreiben und zum Projekt beitragen können.
+Vielen Dank für Ihr Interesse, zu Polly beizutragen! Diese Anleitung erklärt, wie Sie Tests schreiben und zum Projekt beitragen können.
 
 ## Inhaltsverzeichnis
 
@@ -23,8 +23,8 @@ Vielen Dank für Ihr Interesse, zu KITA Poll beizutragen! Diese Anleitung erklä
 
 ```bash
 # Repository klonen
-git clone https://github.com/your-org/kita-poll.git
-cd kita-poll
+git clone https://github.com/manfredsteger/polly.git
+cd polly
 
 # Dependencies installieren
 npm install
@@ -43,7 +43,7 @@ npm run dev
 ## Projektstruktur
 
 ```
-kita-poll/
+polly/
 ├── client/                 # React Frontend
 │   └── src/
 │       ├── components/     # UI-Komponenten
@@ -67,7 +67,7 @@ kita-poll/
 
 ## Tests schreiben
 
-KITA Poll verwendet [Vitest](https://vitest.dev/) für Backend-Tests und [Playwright](https://playwright.dev/) für E2E-Tests.
+Polly verwendet [Vitest](https://vitest.dev/) für Backend-Tests und [Playwright](https://playwright.dev/) für E2E-Tests.
 
 ### Backend-Tests ausführen
 

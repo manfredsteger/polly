@@ -24,8 +24,8 @@ const typeIcons: Record<PollType, typeof Calendar> = {
 
 export function PollTypeBadge({ type, variant = 'solid', showIcon = true, className }: PollTypeBadgeProps) {
   const badgeClass = variant === 'solid' 
-    ? `kita-badge-${type}-solid`
-    : `kita-badge-${type}`;
+    ? `polly-badge-${type}-solid`
+    : `polly-badge-${type}`;
 
   const Icon = typeIcons[type];
 

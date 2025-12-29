@@ -9,7 +9,7 @@ async function addImagesToExamples() {
 
   // Find the survey poll
   const survey = await db.select().from(polls)
-    .where(eq(polls.title, 'KITA Sommerfest Aktivitäten 2025'))
+    .where(eq(polls.title, 'Team Sommerfest Aktivitäten 2025'))
     .limit(1);
 
   if (survey.length === 0) {

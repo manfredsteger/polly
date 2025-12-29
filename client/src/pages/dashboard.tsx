@@ -83,13 +83,13 @@ export default function Dashboard() {
           </div>
           <div className="flex space-x-3">
             <Link href="/create-poll">
-              <Button className="kita-button-primary">
+              <Button className="polly-button-primary">
                 <Plus className="w-4 h-4 mr-2" />
                 Termin
               </Button>
             </Link>
             <Link href="/create-survey">
-              <Button className="kita-button-secondary">
+              <Button className="polly-button-secondary">
                 <Plus className="w-4 h-4 mr-2" />
                 Umfrage
               </Button>
@@ -100,7 +100,7 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card className="kita-gradient-orange text-white">
+        <Card className="polly-gradient-orange text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -112,7 +112,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
         
-        <Card className="kita-gradient-blue text-white">
+        <Card className="polly-gradient-blue text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -165,7 +165,7 @@ export default function Dashboard() {
 
         <TabsContent value="my-polls" className="space-y-4">
           {userPolls.length === 0 ? (
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardContent className="p-8 text-center">
                 <Vote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -176,13 +176,13 @@ export default function Dashboard() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Link href="/create-poll">
-                    <Button className="kita-button-primary">
+                    <Button className="polly-button-primary">
                       <Plus className="w-4 h-4 mr-2" />
                       Termin
                     </Button>
                   </Link>
                   <Link href="/create-survey">
-                    <Button className="kita-button-secondary">
+                    <Button className="polly-button-secondary">
                       <Plus className="w-4 h-4 mr-2" />
                       Umfrage
                     </Button>
@@ -201,7 +201,7 @@ export default function Dashboard() {
 
         <TabsContent value="shared-polls" className="space-y-4">
           {sharedPolls.length === 0 ? (
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardContent className="p-8 text-center">
                 <Share2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -222,7 +222,7 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="archived" className="space-y-4">
-          <Card className="kita-card">
+          <Card className="polly-card">
             <CardContent className="p-8 text-center">
               <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -265,20 +265,20 @@ function PollCard({ poll, isOwner }: PollCardProps) {
       return {
         icon: <Calendar className="w-4 h-4" />,
         label: 'Termin',
-        color: 'bg-kita-orange text-white'
+        color: 'bg-polly-orange text-white'
       };
     }
     return {
       icon: <Vote className="w-4 h-4" />,
       label: 'Umfrage',
-      color: 'bg-kita-blue text-white'
+      color: 'bg-polly-blue text-white'
     };
   };
 
   const typeInfo = getPollTypeInfo();
 
   return (
-    <Card className="kita-card hover:shadow-md transition-shadow">
+    <Card className="polly-card hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">

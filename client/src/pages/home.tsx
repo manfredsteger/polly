@@ -22,19 +22,19 @@ export default function Home() {
           {/* Main Action Buttons - Order matches title: abstimmen (Orange), planen (Green), organisieren (Teal) */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
             <Link href="/create-poll">
-              <Button className="kita-button-schedule text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200" data-testid="button-create-poll">
+              <Button className="polly-button-schedule text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200" data-testid="button-create-poll">
                 <Calendar className="w-5 h-5 mr-3" />
                 Termin finden
               </Button>
             </Link>
             <Link href="/create-survey">
-              <Button className="kita-button-survey text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200" data-testid="button-create-survey">
+              <Button className="polly-button-survey text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200" data-testid="button-create-survey">
                 <Vote className="w-5 h-5 mr-3" />
                 Umfrage erstellen
               </Button>
             </Link>
             <Link href="/create-organization">
-              <Button className="kita-button-organization text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200" data-testid="button-create-organization">
+              <Button className="polly-button-organization text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200" data-testid="button-create-organization">
                 <ClipboardList className="w-5 h-5 mr-3" />
                 Orga festlegen
               </Button>
@@ -53,7 +53,7 @@ export default function Home() {
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature Cards */}
-            <Card className="kita-card p-8 hover:shadow-lg transition-shadow">
+            <Card className="polly-card p-8 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
                 <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mb-6">
                   <Clock className="w-6 h-6 text-orange-500 dark:text-orange-400" />
@@ -63,7 +63,7 @@ export default function Home() {
               </CardContent>
             </Card>
             
-            <Card className="kita-card p-8 hover:shadow-lg transition-shadow">
+            <Card className="polly-card p-8 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-6">
                   <CalendarCheck className="w-6 h-6 text-blue-500 dark:text-blue-400" />
@@ -73,7 +73,7 @@ export default function Home() {
               </CardContent>
             </Card>
             
-            <Card className="kita-card p-8 hover:shadow-lg transition-shadow">
+            <Card className="polly-card p-8 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mb-6">
                   <Share2 className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -83,7 +83,7 @@ export default function Home() {
               </CardContent>
             </Card>
             
-            <Card className="kita-card p-8 hover:shadow-lg transition-shadow">
+            <Card className="polly-card p-8 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
                 <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center mb-6">
                   <BarChart3 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -93,7 +93,7 @@ export default function Home() {
               </CardContent>
             </Card>
             
-            <Card className="kita-card p-8 hover:shadow-lg transition-shadow">
+            <Card className="polly-card p-8 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
                 <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center mb-6">
                   <Shield className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
@@ -103,7 +103,7 @@ export default function Home() {
               </CardContent>
             </Card>
             
-            <Card className="kita-card p-8 hover:shadow-lg transition-shadow">
+            <Card className="polly-card p-8 hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
                 <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center mb-6">
                   <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -161,19 +161,19 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
             <Link href="/create-poll">
-              <Button className="bg-white text-kita-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              <Button className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
                 <Calendar className="w-5 h-5 mr-2" />
                 Terminumfrage starten
               </Button>
             </Link>
             <Link href="/create-survey">
-              <Button className="bg-white text-kita-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              <Button className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
                 <Vote className="w-5 h-5 mr-2" />
                 Umfrage erstellen
               </Button>
             </Link>
             <Link href="/create-organization">
-              <Button className="bg-white text-kita-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              <Button className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
                 <ClipboardList className="w-5 h-5 mr-2" />
                 Orga-Liste erstellen
               </Button>

@@ -207,7 +207,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
 
   return (
     <div className={containerClasses}>
-      <Card className={cn('kita-card', isFullscreen && 'h-full flex flex-col')}>
+      <Card className={cn('polly-card', isFullscreen && 'h-full flex flex-col')}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <CardTitle className="flex items-center gap-2">

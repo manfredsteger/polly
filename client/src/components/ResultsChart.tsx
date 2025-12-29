@@ -194,7 +194,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       </div>
 
       {/* Total Votes Summary */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">
@@ -209,7 +209,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           </div>
           <div className="flex items-center space-x-4 mt-4">
             <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4 text-kita-blue" />
+              <Users className="w-4 h-4 text-polly-blue" />
               <span className="text-sm text-muted-foreground">Teilnehmer: {participantCount}</span>
             </div>
             <div className="flex items-center space-x-2">
@@ -237,9 +237,9 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
               <Crown className={poll.type === 'schedule' ? 'w-5 h-5 text-orange-600 dark:text-orange-400' : 'w-5 h-5 text-teal-600 dark:text-teal-400'} />
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Beliebteste Option</h3>
               <Badge className={
-                poll.type === 'schedule' ? 'kita-badge-schedule-solid' : 
-                poll.type === 'organization' ? 'kita-badge-organization-solid' :
-                'kita-badge-survey-solid'
+                poll.type === 'schedule' ? 'polly-badge-schedule-solid' : 
+                poll.type === 'organization' ? 'polly-badge-organization-solid' :
+                'polly-badge-survey-solid'
               }>
                 {bestOption.score} Punkte
               </Badge>
@@ -286,7 +286,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
 
       {/* Matrix View - Participants as rows, Options as columns */}
       {!isOrganization && participants.length > 0 && (
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Table className="w-5 h-5 mr-2" />
@@ -404,7 +404,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
 
       {/* Matrix View for Organization Polls - Participants as rows, Slots as columns */}
       {isOrganization && options.length > 0 && (
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Table className="w-5 h-5 mr-2" />
@@ -534,7 +534,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
 
       {/* Detailed Results - Different view for organization polls */}
       {isOrganization ? (
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle>Slots und Eintragungen</CardTitle>
           </CardHeader>
@@ -673,7 +673,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           </CardContent>
         </Card>
       ) : (
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle>Detaillierte Ergebnisse</CardTitle>
           </CardHeader>
@@ -829,7 +829,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       )}
 
       {/* Participants List */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Users className="w-5 h-5 mr-2" />
@@ -843,7 +843,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 key={index}
                 className="flex items-center space-x-3 p-3 bg-muted rounded-lg"
               >
-                <div className="w-8 h-8 bg-kita-orange rounded-full flex items-center justify-center text-white text-sm font-medium">
+                <div className="w-8 h-8 bg-polly-orange rounded-full flex items-center justify-center text-white text-sm font-medium">
                   {participant.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                 </div>
                 <div>

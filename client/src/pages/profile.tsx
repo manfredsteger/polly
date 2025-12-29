@@ -568,7 +568,7 @@ export default function Profile() {
               <Button 
                 onClick={handleSave}
                 disabled={updateProfileMutation.isPending}
-                className="kita-button-primary"
+                className="polly-button-primary"
                 data-testid="button-save-profile"
               >
                 <Save className="w-4 h-4 mr-2" />
@@ -673,7 +673,7 @@ export default function Profile() {
             <Button 
               onClick={handlePasswordChange}
               disabled={changePasswordMutation.isPending}
-              className="kita-button-primary"
+              className="polly-button-primary"
               data-testid="button-submit-password"
             >
               {changePasswordMutation.isPending ? "Speichern..." : "Passwort ändern"}
@@ -724,7 +724,7 @@ export default function Profile() {
             <Button 
               onClick={handleEmailChange}
               disabled={requestEmailChangeMutation.isPending}
-              className="kita-button-primary"
+              className="polly-button-primary"
               data-testid="button-submit-email"
             >
               {requestEmailChangeMutation.isPending ? "Senden..." : "Bestätigungslink senden"}

@@ -238,7 +238,7 @@ export default function VoteEditPage() {
           <Button
             onClick={handleSaveChanges}
             disabled={!hasChanges || updateVotesMutation.isPending}
-            className="kita-button-primary"
+            className="polly-button-primary"
           >
             {updateVotesMutation.isPending ? (
               <>
@@ -256,7 +256,7 @@ export default function VoteEditPage() {
           <Button
             variant="outline"
             onClick={handleGoBack}
-            className="kita-button-neutral"
+            className="polly-button-neutral"
           >
             Zur Startseite
           </Button>
@@ -266,7 +266,7 @@ export default function VoteEditPage() {
               variant="destructive"
               onClick={() => withdrawVoteMutation.mutate()}
               disabled={withdrawVoteMutation.isPending}
-              className="kita-button-danger"
+              className="polly-button-danger"
               data-testid="button-withdraw-vote"
             >
               {withdrawVoteMutation.isPending ? (

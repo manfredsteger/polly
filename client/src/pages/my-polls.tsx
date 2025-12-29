@@ -63,7 +63,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
           </div>
           <div className="flex items-center gap-2 ml-2">
             <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
-            <Badge className={isActive ? 'kita-badge-active' : 'kita-badge-inactive'}>
+            <Badge className={isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
               {isActive ? (
                 <><CheckCircle className="h-3 w-3 mr-1" />Aktiv</>
               ) : (
@@ -194,7 +194,7 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
           <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-kita-orange" />
+                <Calendar className="h-5 w-5 mr-2 text-polly-orange" />
                 Kalender-Abonnement
               </CardTitle>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -279,15 +279,15 @@ function EmptyState({ type }: { type: 'created' | 'participated' }) {
               Sie haben noch keine Umfragen erstellt. Erstellen Sie jetzt Ihre erste Umfrage!
             </CardDescription>
             <div className="flex gap-2 flex-wrap justify-center">
-              <Button onClick={() => navigate('/create-poll')} className="kita-button-schedule" data-testid="button-create-poll">
+              <Button onClick={() => navigate('/create-poll')} className="polly-button-schedule" data-testid="button-create-poll">
                 <Plus className="h-4 w-4 mr-2" />
                 Termin
               </Button>
-              <Button onClick={() => navigate('/create-survey')} className="kita-button-survey" data-testid="button-create-survey">
+              <Button onClick={() => navigate('/create-survey')} className="polly-button-survey" data-testid="button-create-survey">
                 <Plus className="h-4 w-4 mr-2" />
                 Umfrage
               </Button>
-              <Button onClick={() => navigate('/create-organization')} className="kita-button-organization" data-testid="button-create-orga">
+              <Button onClick={() => navigate('/create-organization')} className="polly-button-organization" data-testid="button-create-orga">
                 <Plus className="h-4 w-4 mr-2" />
                 Orga
               </Button>
@@ -384,15 +384,15 @@ export default function MyPolls() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/create-poll')} className="kita-button-schedule" data-testid="button-new-poll">
+          <Button onClick={() => navigate('/create-poll')} className="polly-button-schedule" data-testid="button-new-poll">
             <Plus className="h-4 w-4 mr-2" />
             Termin
           </Button>
-          <Button onClick={() => navigate('/create-survey')} className="kita-button-survey" data-testid="button-new-survey">
+          <Button onClick={() => navigate('/create-survey')} className="polly-button-survey" data-testid="button-new-survey">
             <Plus className="h-4 w-4 mr-2" />
             Umfrage
           </Button>
-          <Button onClick={() => navigate('/create-organization')} className="kita-button-organization" data-testid="button-new-orga">
+          <Button onClick={() => navigate('/create-organization')} className="polly-button-organization" data-testid="button-new-orga">
             <Plus className="h-4 w-4 mr-2" />
             Orga
           </Button>

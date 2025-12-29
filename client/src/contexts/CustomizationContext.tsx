@@ -90,14 +90,14 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       
       if (settings.theme.primaryColor) {
         const primaryHSL = hexToHSL(settings.theme.primaryColor);
-        root.style.setProperty('--kita-orange', `hsl(${primaryHSL})`);
+        root.style.setProperty('--polly-orange', `hsl(${primaryHSL})`);
         root.style.setProperty('--primary', `hsl(${primaryHSL})`);
         root.style.setProperty('--primary-foreground', 'hsl(0, 0%, 100%)');
       }
       
       if (settings.theme.secondaryColor) {
         const secondaryHSL = hexToHSL(settings.theme.secondaryColor);
-        root.style.setProperty('--kita-blue', `hsl(${secondaryHSL})`);
+        root.style.setProperty('--polly-blue', `hsl(${secondaryHSL})`);
       }
       
       // Apply feature-specific colors with dark mode support

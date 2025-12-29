@@ -139,7 +139,7 @@ export default function Admin() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center space-x-3">
-          <Shield className="w-8 h-8 text-kita-orange" />
+          <Shield className="w-8 h-8 text-polly-orange" />
           <div>
             <h1 className="text-3xl font-bold text-foreground" data-testid="title-admin">Administration</h1>
             <p className="text-muted-foreground mt-1">

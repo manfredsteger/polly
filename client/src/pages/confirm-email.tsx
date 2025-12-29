@@ -107,7 +107,7 @@ export default function ConfirmEmail() {
               Ihre E-Mail-Adresse wurde erfolgreich aktualisiert.
             </p>
             <Button 
-              className="w-full kita-button-primary" 
+              className="w-full polly-button-primary" 
               onClick={() => setLocation("/profil")}
               data-testid="button-back-to-profile"
             >

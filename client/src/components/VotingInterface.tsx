@@ -650,7 +650,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     size="sm"
                     onClick={() => withdrawVoteMutation.mutate()}
                     disabled={withdrawVoteMutation.isPending}
-                    className="kita-button-danger-outline"
+                    className="polly-button-danger-outline"
                     data-testid="button-withdraw-vote"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -668,12 +668,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   return (
     <div ref={containerRef} className="space-y-6">
       {/* Voter Information */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Ihre Angaben</span>
             {isAdminAccess && (
-              <Badge className="kita-badge-admin">
+              <Badge className="polly-badge-admin">
                 Admin
               </Badge>
             )}
@@ -716,7 +716,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 <Label htmlFor="voterEmail" className="flex items-center gap-2">
                   E-Mail *
                   {isUserEmailLocked && (
-                    <Badge className="text-xs kita-badge-user">
+                    <Badge className="text-xs polly-badge-user">
                       <User className="w-3 h-3 mr-1" />
                       Angemeldet
                     </Badge>
@@ -780,8 +780,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
       {/* Duplicate Email Alert */}
       {duplicateEmailError && (
-        <Alert className="kita-alert-warning">
-          <AlertTriangle className="h-4 w-4 kita-alert-icon" />
+        <Alert className="polly-alert-warning">
+          <AlertTriangle className="h-4 w-4 polly-alert-icon" />
           <AlertDescription>
             <div className="space-y-3">
               <p>
@@ -814,7 +814,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
 
       {/* Voting Options */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>{poll.type === 'organization' ? 'Verfügbare Slots' : 'Abstimmungsoptionen'}</span>
@@ -913,7 +913,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                         variant="outline"
                         onClick={() => withdrawVoteMutation.mutate()}
                         disabled={withdrawVoteMutation.isPending}
-                        className="px-8 kita-button-danger-outline"
+                        className="px-8 polly-button-danger-outline"
                         data-testid="button-withdraw-vote-editable"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
@@ -928,7 +928,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     <Button
                       onClick={handleSubmitVotes}
                       className={`px-8 ${
-                        poll.type === 'survey' ? 'kita-button-survey' : 'kita-button-schedule'
+                        poll.type === 'survey' ? 'polly-button-survey' : 'polly-button-schedule'
                       }`}
                       disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || Object.keys(votes).length === 0}
                       data-testid="button-submit-vote"
@@ -940,7 +940,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                         variant="outline"
                         onClick={() => withdrawVoteMutation.mutate()}
                         disabled={withdrawVoteMutation.isPending}
-                        className="px-6 kita-button-danger-outline"
+                        className="px-6 polly-button-danger-outline"
                         data-testid="button-withdraw-vote-editable"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />

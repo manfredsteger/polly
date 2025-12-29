@@ -23,7 +23,7 @@ export function AlertBanner({ variant, children, className, showIcon = true }: A
   return (
     <div 
       className={cn(
-        `kita-alert-${variant}`,
+        `polly-alert-${variant}`,
         "rounded-lg p-4 flex items-start gap-3",
         className
       )}
@@ -31,7 +31,7 @@ export function AlertBanner({ variant, children, className, showIcon = true }: A
       data-testid={`alert-${variant}`}
     >
       {showIcon && (
-        <Icon className="kita-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
+        <Icon className="polly-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
       )}
       <div className="flex-1">{children}</div>
     </div>

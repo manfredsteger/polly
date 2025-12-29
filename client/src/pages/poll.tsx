@@ -495,7 +495,7 @@ export default function Poll() {
             </p>
             {authError.type === 'unauthorized' && !isAuthenticated && (
               <Link href={`/anmelden?returnTo=${encodeURIComponent(location)}`}>
-                <Button className="kita-button-primary">
+                <Button className="polly-button-primary">
                   <LogIn className="w-4 h-4 mr-2" />
                   Jetzt anmelden
                 </Button>
@@ -540,7 +540,7 @@ export default function Poll() {
           <div className="flex-1">
             <div className="flex items-center space-x-3 mb-2">
               <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
-              <Badge className={poll.isActive && !isPollExpired ? 'kita-badge-active' : 'kita-badge-inactive'}>
+              <Badge className={poll.isActive && !isPollExpired ? 'polly-badge-active' : 'polly-badge-inactive'}>
                 {poll.isActive && !isPollExpired ? 'Aktiv' : 'Beendet'}
               </Badge>
             </div>
@@ -657,10 +657,10 @@ export default function Poll() {
         <TabsContent value="tools" className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Sharing Tools */}
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Share2 className="w-5 h-5 mr-2 text-kita-blue" />
+                  <Share2 className="w-5 h-5 mr-2 text-polly-blue" />
                   Teilen
                 </CardTitle>
               </CardHeader>
@@ -730,7 +730,7 @@ export default function Poll() {
             </Card>
 
             {/* Export Tools */}
-            <Card className="kita-card">
+            <Card className="polly-card">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Download className="w-5 h-5 mr-2 text-green-600" />
@@ -772,10 +772,10 @@ export default function Poll() {
 
             {/* Admin Tools - only visible for poll owner or admin access */}
             {isAdminAccess && (
-              <Card className="kita-card md:col-span-2">
+              <Card className="polly-card md:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Settings className="w-5 h-5 mr-2 text-kita-orange" />
+                    <Settings className="w-5 h-5 mr-2 text-polly-orange" />
                     Verwaltung
                   </CardTitle>
                 </CardHeader>
@@ -1189,7 +1189,7 @@ export default function Poll() {
                     <Input
                       value={matrixSearch}
                       onChange={(e) => setMatrixSearch(e.target.value)}
-                      placeholder="Name oder @user:matrix.kita.bayern eingeben..."
+                      placeholder="Name oder @user:matrix.example.com eingeben..."
                       className="pl-9"
                       data-testid="input-matrix-search"
                     />

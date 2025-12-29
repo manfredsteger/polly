@@ -218,7 +218,7 @@ export default function ResetPassword() {
                 Ihr Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt mit Ihrem neuen Passwort anmelden.
               </p>
               <Button 
-                className="w-full kita-button-primary" 
+                className="w-full polly-button-primary" 
                 onClick={() => setLocation("/anmelden")}
                 data-testid="button-login"
               >
@@ -271,7 +271,7 @@ export default function ResetPassword() {
             <PasswordStrengthIndicator password={newPassword} confirmPassword={confirmPassword} />
             <Button 
               type="submit" 
-              className="w-full kita-button-primary"
+              className="w-full polly-button-primary"
               disabled={resetPasswordMutation.isPending || !validatePassword(newPassword) || newPassword !== confirmPassword}
               data-testid="button-submit"
             >

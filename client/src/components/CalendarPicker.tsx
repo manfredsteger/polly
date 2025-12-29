@@ -394,7 +394,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-kita-orange" />
+                <Sparkles className="w-4 h-4 text-polly-orange" />
                 Schnellvorlagen
               </CardTitle>
             </CardHeader>
@@ -411,13 +411,13 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                     variant="outline"
                     className={`w-full justify-start h-auto py-3 px-4 ${
                       selectedTemplate?.id === template.id 
-                        ? "border-kita-orange bg-orange-50 dark:bg-orange-950" 
+                        ? "border-polly-orange bg-orange-50 dark:bg-orange-950" 
                         : ""
                     }`}
                     onClick={() => handleTemplateSelect(template)}
                     data-testid={`template-${template.id}`}
                   >
-                    <Icon className="w-4 h-4 mr-3 text-kita-orange flex-shrink-0" />
+                    <Icon className="w-4 h-4 mr-3 text-polly-orange flex-shrink-0" />
                     <div className="text-left">
                       <div className="font-medium">{template.name}</div>
                       <div className="text-xs text-muted-foreground">{template.description}</div>
@@ -443,7 +443,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-kita-orange" />
+              <CalendarIcon className="w-5 h-5 text-polly-orange" />
               Zeitslot hinzufügen
             </DialogTitle>
             <DialogDescription>
@@ -500,7 +500,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 type="button"
                 onClick={handleAddTimeSlot}
                 disabled={!startTime || !endTime}
-                className="flex-1 kita-button-schedule"
+                className="flex-1 polly-button-schedule"
                 data-testid="button-add-timeslot"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -518,7 +518,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             <DialogTitle className="flex items-center gap-2">
               {selectedTemplate && (
                 <>
-                  <selectedTemplate.icon className="w-5 h-5 text-kita-orange" />
+                  <selectedTemplate.icon className="w-5 h-5 text-polly-orange" />
                   {selectedTemplate.name}
                 </>
               )}
@@ -758,7 +758,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 type="button"
                 onClick={handleTemplateAddSlots}
                 disabled={templateSelectedDates.length === 0 || getTotalSlotsCount() === 0}
-                className="flex-1 kita-button-schedule"
+                className="flex-1 polly-button-schedule"
                 data-testid="button-confirm-template"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -774,7 +774,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CalendarDays className="w-5 h-5 text-kita-orange" />
+              <CalendarDays className="w-5 h-5 text-polly-orange" />
               Wochentag-Auswahl
             </DialogTitle>
             <DialogDescription>
@@ -830,7 +830,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 type="button"
                 onClick={handleWeekdayAddOptions}
                 disabled={selectedWeekdays.length === 0 || !onAddTextOption}
-                className="flex-1 kita-button-schedule"
+                className="flex-1 polly-button-schedule"
                 data-testid="button-confirm-weekday"
               >
                 <Plus className="w-4 h-4 mr-2" />

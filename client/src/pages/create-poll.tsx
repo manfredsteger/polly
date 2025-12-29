@@ -339,10 +339,10 @@ export default function CreatePoll() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Basic Information */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-kita-orange" />
+              <Calendar className="w-5 h-5 mr-2 text-polly-orange" />
               Grundinformationen
             </CardTitle>
           </CardHeader>
@@ -490,10 +490,10 @@ export default function CreatePoll() {
         </Card>
 
         {/* Date and Time Selection */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-kita-blue" />
+              <Clock className="w-5 h-5 mr-2 text-polly-blue" />
               Termine auswählen
             </CardTitle>
           </CardHeader>
@@ -550,7 +550,7 @@ export default function CreatePoll() {
         </Card>
 
         {/* Creation Options */}
-        <Card className="kita-card">
+        <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Mail className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />
@@ -601,7 +601,7 @@ export default function CreatePoll() {
                       type="email"
                       value={creatorEmail}
                       onChange={(e) => setCreatorEmail(e.target.value)}
-                      placeholder="ihre.email@kita-bayern.de"
+                      placeholder="ihre.email@polly-bayern.de"
                       className="mt-3"
                       required
                       data-testid="input-creator-email"
@@ -625,7 +625,7 @@ export default function CreatePoll() {
           </Button>
           <Button
             type="submit"
-            className="kita-button-primary"
+            className="polly-button-primary"
             disabled={createPollMutation.isPending}
             data-testid="button-submit"
           >
@@ -639,7 +639,7 @@ export default function CreatePoll() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Pencil className="w-5 h-5 text-kita-orange" />
+              <Pencil className="w-5 h-5 text-polly-orange" />
               Termin bearbeiten
             </DialogTitle>
             <DialogDescription>
@@ -696,7 +696,7 @@ export default function CreatePoll() {
                 type="button"
                 onClick={saveEditedOption}
                 disabled={!editStartTime || !editEndTime}
-                className="flex-1 kita-button-schedule"
+                className="flex-1 polly-button-schedule"
                 data-testid="button-save-edit"
               >
                 Speichern

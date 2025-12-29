@@ -5,7 +5,7 @@ import * as path from 'path';
 export const testMeta = {
   category: 'ui' as const,
   name: 'Alert-Farbkonsistenz',
-  description: 'Prüft ob alle Alert-Boxen die konsistenten kita-alert-* Klassen verwenden statt hardcodierte Farben',
+  description: 'Prüft ob alle Alert-Boxen die konsistenten polly-alert-* Klassen verwenden statt hardcodierte Farben',
   severity: 'medium' as const,
 };
 
@@ -19,7 +19,7 @@ const ALLOWED_HARDCODED_AMBER_PATTERNS = [
   /Badge/,
   /border-b/,
   /className="border-b/,
-  /kita-alert/,
+  /polly-alert/,
   /dark:/,
 ];
 
@@ -40,7 +40,7 @@ describe('Alert Color Consistency', () => {
         
         if (line.includes('bg-amber-50') && 
             (line.includes('border') || line.includes('rounded')) &&
-            !line.includes('kita-alert')) {
+            !line.includes('polly-alert')) {
           
           const isAllowed = ALLOWED_HARDCODED_AMBER_PATTERNS.some(pattern => pattern.test(line));
           if (!isAllowed && !line.includes('dark:')) {
@@ -75,15 +75,15 @@ describe('Alert Color Consistency', () => {
     expect(violations.length).toBe(0);
   });
 
-  it('should have kita-alert classes defined for all variants in CSS', () => {
+  it('should have polly-alert classes defined for all variants in CSS', () => {
     const cssPath = path.join(CLIENT_SRC_DIR, 'index.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
     
     const requiredAlertClasses = [
-      'kita-alert-error',
-      'kita-alert-success',
-      'kita-alert-warning',
-      'kita-alert-info',
+      'polly-alert-error',
+      'polly-alert-success',
+      'polly-alert-warning',
+      'polly-alert-info',
     ];
     
     for (const className of requiredAlertClasses) {
@@ -98,7 +98,7 @@ describe('Alert Color Consistency', () => {
     const alertTypes = ['error', 'success', 'warning', 'info'];
     
     for (const type of alertTypes) {
-      const classBlock = cssContent.match(new RegExp(`\\.kita-alert-${type}[^}]+}`, 's'));
+      const classBlock = cssContent.match(new RegExp(`\\.polly-alert-${type}[^}]+}`, 's'));
       expect(classBlock).not.toBeNull();
       
       if (classBlock) {
@@ -116,7 +116,7 @@ describe('Alert Color Consistency', () => {
     expect(content).toContain("'warning'");
     expect(content).toContain("'info'");
     
-    expect(content).toContain('kita-alert-');
+    expect(content).toContain('polly-alert-');
     expect(content).toContain('data-testid');
   });
 
@@ -124,7 +124,7 @@ describe('Alert Color Consistency', () => {
     const alertBannerPath = path.join(CLIENT_SRC_DIR, 'components/ui/AlertBanner.tsx');
     const content = fs.readFileSync(alertBannerPath, 'utf-8');
     
-    expect(content).toContain('kita-alert-icon');
+    expect(content).toContain('polly-alert-icon');
     
     const cssPath = path.join(CLIENT_SRC_DIR, 'index.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
@@ -132,7 +132,7 @@ describe('Alert Color Consistency', () => {
     const alertTypes = ['error', 'success', 'warning', 'info'];
     
     for (const type of alertTypes) {
-      expect(cssContent).toContain(`.kita-alert-${type} .kita-alert-icon`);
+      expect(cssContent).toContain(`.polly-alert-${type} .polly-alert-icon`);
     }
   });
 });

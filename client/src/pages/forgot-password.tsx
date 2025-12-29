@@ -128,7 +128,7 @@ export default function ForgotPassword() {
               </div>
               <Button 
                 type="submit" 
-                className="w-full kita-button-primary"
+                className="w-full polly-button-primary"
                 disabled={requestResetMutation.isPending}
                 data-testid="button-submit"
               >

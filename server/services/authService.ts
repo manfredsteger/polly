@@ -5,21 +5,21 @@ import type { User } from '@shared/schema';
 
 let oidcConfig: client.Configuration | null = null;
 
-// Valid roles in KITA Poll system
-type KitaPollRole = 'user' | 'manager' | 'admin';
+// Valid roles in Polly system
+type PollyRole = 'user' | 'manager' | 'admin';
 
-// Normalize role name (supports both 'admin' and 'kita-poll-admin' formats)
-function normalizeRoleName(roleName: string): KitaPollRole | null {
-  const validRoles: KitaPollRole[] = ['admin', 'manager', 'user'];
+// Normalize role name (supports both 'admin' and 'polly-admin' formats)
+function normalizeRoleName(roleName: string): PollyRole | null {
+  const validRoles: PollyRole[] = ['admin', 'manager', 'user'];
   
   // Direct match
-  if (validRoles.includes(roleName as KitaPollRole)) {
-    return roleName as KitaPollRole;
+  if (validRoles.includes(roleName as PollyRole)) {
+    return roleName as PollyRole;
   }
   
-  // Match with kita-poll- prefix
+  // Match with polly- prefix
   for (const role of validRoles) {
-    if (roleName === `kita-poll-${role}`) {
+    if (roleName === `polly-${role}`) {
       return role;
     }
   }
@@ -29,8 +29,8 @@ function normalizeRoleName(roleName: string): KitaPollRole | null {
 
 // Extract role from Keycloak token claims
 // Supports: realm_access.roles, resource_access[client].roles, and custom 'role'/'roles' claim
-function extractRoleFromClaims(claims: Record<string, unknown>): KitaPollRole | null {
-  const validRoles: KitaPollRole[] = ['admin', 'manager', 'user'];
+function extractRoleFromClaims(claims: Record<string, unknown>): PollyRole | null {
+  const validRoles: PollyRole[] = ['admin', 'manager', 'user'];
   
   // Priority 1: Check for direct 'role' claim (custom mapper)
   if (typeof claims.role === 'string') {
@@ -43,7 +43,7 @@ function extractRoleFromClaims(claims: Record<string, unknown>): KitaPollRole | 
   if (realmAccess?.roles) {
     // Check in order of privilege (admin > manager > user)
     for (const role of validRoles) {
-      if (realmAccess.roles.includes(role) || realmAccess.roles.includes(`kita-poll-${role}`)) {
+      if (realmAccess.roles.includes(role) || realmAccess.roles.includes(`polly-${role}`)) {
         return role;
       }
     }
@@ -56,7 +56,7 @@ function extractRoleFromClaims(claims: Record<string, unknown>): KitaPollRole | 
     for (const clientRoles of Object.values(resourceAccess)) {
       if (clientRoles?.roles) {
         for (const role of validRoles) {
-          if (clientRoles.roles.includes(role) || clientRoles.roles.includes(`kita-poll-${role}`)) {
+          if (clientRoles.roles.includes(role) || clientRoles.roles.includes(`polly-${role}`)) {
             return role;
           }
         }
@@ -67,7 +67,7 @@ function extractRoleFromClaims(claims: Record<string, unknown>): KitaPollRole | 
   // Priority 4: Check 'roles' array claim (custom mapper with array)
   if (Array.isArray(claims.roles)) {
     for (const role of validRoles) {
-      if (claims.roles.includes(role) || claims.roles.includes(`kita-poll-${role}`)) {
+      if (claims.roles.includes(role) || claims.roles.includes(`polly-${role}`)) {
         return role;
       }
     }

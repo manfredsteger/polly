@@ -86,10 +86,10 @@ export function SurveyForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Basic Information */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Vote className="w-5 h-5 mr-2 text-kita-orange" />
+            <Vote className="w-5 h-5 mr-2 text-polly-orange" />
             Grundinformationen
           </CardTitle>
         </CardHeader>
@@ -121,11 +121,11 @@ export function SurveyForm({
       </Card>
 
       {/* Survey Options */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center">
-              <Vote className="w-5 h-5 mr-2 text-kita-blue" />
+              <Vote className="w-5 h-5 mr-2 text-polly-blue" />
               Auswahlmöglichkeiten
             </span>
             <Button
@@ -190,7 +190,7 @@ export function SurveyForm({
       </Card>
 
       {/* Creation Options */}
-      <Card className="kita-card">
+      <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Mail className="w-5 h-5 mr-2 text-green-600" />
@@ -218,7 +218,7 @@ export function SurveyForm({
                     type="email"
                     value={creatorEmail}
                     onChange={(e) => setCreatorEmail(e.target.value)}
-                    placeholder="ihre.email@kita-bayern.de"
+                    placeholder="ihre.email@polly-bayern.de"
                     className="mt-3"
                     required
                   />
@@ -233,7 +233,7 @@ export function SurveyForm({
       <div className="flex justify-end">
         <Button
           type="submit"
-          className="kita-button-primary"
+          className="polly-button-primary"
           disabled={isLoading || !title.trim() || validOptions < 2}
         >
           <Save className="w-4 h-4 mr-2" />

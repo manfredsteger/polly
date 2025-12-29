@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +46,7 @@ interface PollFormData {
 export default function CreatePoll() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { user, isAuthenticated } = useAuth();
   
   const [title, setTitle] = useState("");
@@ -58,19 +60,16 @@ export default function CreatePoll() {
   const [resultsPublic, setResultsPublic] = useState(true);
   const [options, setOptions] = useState<PollOption[]>([]);
   
-  // Edit state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editStartTime, setEditStartTime] = useState("");
   const [editEndTime, setEditEndTime] = useState("");
   const [editDate, setEditDate] = useState<Date | null>(null);
 
-  // Form persistence for authentication redirects
   const formPersistence = useFormPersistence<PollFormData>({ key: 'create-poll' });
   const hasRestoredRef = useRef(false);
   const autoSubmitTriggeredRef = useRef(false);
 
-  // Restore form data on mount if returning from login
   useEffect(() => {
     if (hasRestoredRef.current) return;
     
@@ -90,14 +89,13 @@ export default function CreatePoll() {
       
       if (stored.pendingSubmit) {
         toast({
-          title: "Willkommen zurück!",
-          description: "Ihre Eingaben wurden wiederhergestellt. Sie können die Umfrage jetzt absenden.",
+          title: t('pollCreation.welcomeBack'),
+          description: t('pollCreation.formRestored'),
         });
       }
     }
   }, []);
 
-  // Auto-submit after restoration if user is now authenticated
   useEffect(() => {
     if (autoSubmitTriggeredRef.current) return;
     if (!hasRestoredRef.current) return;
@@ -107,13 +105,12 @@ export default function CreatePoll() {
     if (stored?.pendingSubmit && stored.data && title && options.length >= 2) {
       autoSubmitTriggeredRef.current = true;
       
-      // Capture stored expiresAt before clearing
       const storedExpiresAt = stored.data.expiresAt;
       formPersistence.clearStoredData();
       
       toast({
-        title: "Automatisches Absenden...",
-        description: "Ihre Terminumfrage wird jetzt erstellt.",
+        title: t('pollCreation.autoSubmitting'),
+        description: t('createPoll.autoSubmitDescription'),
       });
       
       setTimeout(() => {
@@ -149,10 +146,8 @@ export default function CreatePoll() {
       return response.json();
     },
     onSuccess: (data) => {
-      // Clear any stored form data on success
       formPersistence.clearStoredData();
       
-      // Store poll data for success page
       const successData = {
         poll: data.poll,
         publicLink: `/poll/${data.publicToken}`,
@@ -161,12 +156,10 @@ export default function CreatePoll() {
       };
       sessionStorage.setItem('poll-success-data', JSON.stringify(successData));
       
-      // Redirect to success page
       setLocation("/success");
     },
     onError: async (error: any) => {
-      // Check if it's a REQUIRES_LOGIN error
-      let errorMessage = "Die Terminumfrage konnte nicht erstellt werden.";
+      let errorMessage = t('createPoll.createError');
       let requiresLogin = false;
       
       if (error?.message) {
@@ -180,21 +173,19 @@ export default function CreatePoll() {
       }
       
       toast({
-        title: requiresLogin ? "Anmeldung erforderlich" : "Fehler",
+        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
         description: requiresLogin 
-          ? "Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an. Ihre Eingaben werden gespeichert."
+          ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
         variant: "destructive",
       });
       
       if (requiresLogin) {
-        // Save form data before redirect
         formPersistence.saveBeforeRedirect(
           { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-poll'
         );
         
-        // Redirect to login page with email pre-filled
         setTimeout(() => {
           const emailParam = creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : '';
           setLocation(`/anmelden?returnTo=/create-poll${emailParam}`);
@@ -229,7 +220,6 @@ export default function CreatePoll() {
     setOptions(options.filter((_, i) => i !== index));
   };
 
-  // Open edit dialog for an option
   const openEditDialog = (index: number) => {
     const option = options[index];
     if (option.startTime && option.endTime) {
@@ -243,7 +233,6 @@ export default function CreatePoll() {
     }
   };
 
-  // Save edited option
   const saveEditedOption = () => {
     if (editIndex !== null && editDate && editStartTime && editEndTime) {
       setOptions(prev => prev.map((opt, i) => {
@@ -267,8 +256,8 @@ export default function CreatePoll() {
     
     if (!title.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie einen Titel ein.",
+        title: t('pollCreation.error'),
+        description: t('pollCreation.pleaseEnterTitle'),
         variant: "destructive",
       });
       return;
@@ -276,8 +265,8 @@ export default function CreatePoll() {
 
     if (options.length < 2) {
       toast({
-        title: "Fehler",
-        description: "Bitte fügen Sie mindestens 2 Terminoptionen hinzu.",
+        title: t('pollCreation.error'),
+        description: t('createPoll.minOptionsError'),
         variant: "destructive",
       });
       return;
@@ -285,8 +274,8 @@ export default function CreatePoll() {
 
     if (!isAuthenticated && !creatorEmail.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie eine E-Mail-Adresse ein.",
+        title: t('pollCreation.error'),
+        description: t('pollCreation.pleaseEnterEmail'),
         variant: "destructive",
       });
       return;
@@ -329,31 +318,30 @@ export default function CreatePoll() {
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Zurück
+          {t('pollCreation.back')}
         </Button>
-        <h1 className="text-3xl font-bold text-foreground">Terminumfrage erstellen</h1>
+        <h1 className="text-3xl font-bold text-foreground">{t('createPoll.pageTitle')}</h1>
         <p className="text-muted-foreground mt-2">
-          Finden Sie den perfekten Termin für Ihr Team-Meeting oder Event.
+          {t('createPoll.pageSubtitle')}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Information */}
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Calendar className="w-5 h-5 mr-2 text-polly-orange" />
-              Grundinformationen
+              {t('pollCreation.basicInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="title">Titel der Terminumfrage *</Label>
+              <Label htmlFor="title">{t('createPoll.titleLabel')}</Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="z.B. Team-Meeting März 2025"
+                placeholder={t('createPoll.titlePlaceholder')}
                 className="mt-1"
                 required
                 data-testid="input-title"
@@ -361,12 +349,12 @@ export default function CreatePoll() {
             </div>
             
             <div>
-              <Label htmlFor="description">Beschreibung (optional)</Label>
+              <Label htmlFor="description">{t('pollCreation.descriptionOptional')}</Label>
               <Textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Weitere Details zur Terminabstimmung..."
+                placeholder={t('createPoll.descriptionPlaceholder')}
                 className="mt-1"
                 rows={3}
                 data-testid="input-description"
@@ -374,22 +362,21 @@ export default function CreatePoll() {
             </div>
 
             <div>
-              <Label>Laufzeit / Enddatum (optional)</Label>
+              <Label>{t('pollCreation.expiryDateOptional')}</Label>
               <div className="mt-1">
                 <DatePicker
                   date={expiresAt}
                   onDateChange={setExpiresAt}
-                  placeholder="tt.mm.jjjj"
+                  placeholder={t('pollCreation.datePlaceholder')}
                   minDate={new Date()}
                   data-testid="input-expires-at"
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Nach diesem Datum kann nicht mehr abgestimmt werden.
+                {t('pollCreation.expiryHint')}
               </p>
             </div>
 
-            {/* Expiry Reminder Option - only shown when expiry date is set */}
             {expiresAt && (() => {
               const hoursUntilExpiry = Math.max(0, (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60));
               const isTooShort = hoursUntilExpiry < 6;
@@ -401,12 +388,12 @@ export default function CreatePoll() {
                     <div className="space-y-0.5">
                       <Label className="flex items-center gap-2">
                         <Bell className="w-4 h-4" />
-                        Erinnerung vor Ablauf
+                        {t('pollCreation.expiryReminder')}
                       </Label>
                       <p className="text-sm text-muted-foreground">
                         {isTooShort 
-                          ? `Die Umfrage endet in ${hoursUntilExpiry.toFixed(0)} Stunden - zu kurz für Erinnerungen`
-                          : "Teilnehmer erhalten eine E-Mail-Erinnerung vor dem Ablaufdatum"
+                          ? t('pollCreation.expiryTooShort', { hours: hoursUntilExpiry.toFixed(0) })
+                          : t('pollCreation.expiryReminderDescription')
                         }
                       </p>
                     </div>
@@ -421,7 +408,7 @@ export default function CreatePoll() {
                   {enableExpiryReminder && !isTooShort && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <Label htmlFor="reminderHours" className="shrink-0">Erinnerung senden</Label>
+                        <Label htmlFor="reminderHours" className="shrink-0">{t('pollCreation.sendReminder')}</Label>
                         <Input
                           id="reminderHours"
                           type="number"
@@ -432,11 +419,11 @@ export default function CreatePoll() {
                           className="w-20"
                           data-testid="input-reminder-hours"
                         />
-                        <span className="text-sm text-muted-foreground">Stunden vor Ablauf</span>
+                        <span className="text-sm text-muted-foreground">{t('pollCreation.hoursBeforeExpiry')}</span>
                       </div>
                       {expiryReminderHours > maxReminderHours && (
                         <p className="text-xs text-amber-600 dark:text-amber-400">
-                          Maximum für diese Umfrage: {maxReminderHours} Stunden
+                          {t('pollCreation.maxReminderHours', { hours: maxReminderHours })}
                         </p>
                       )}
                     </div>
@@ -447,9 +434,9 @@ export default function CreatePoll() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Stimmen ändern erlauben</Label>
+                <Label>{t('pollCreation.allowVoteEdit')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende ihre Abstimmung nachträglich ändern?
+                  {t('pollCreation.allowVoteEditDescription')}
                 </p>
               </div>
               <Switch
@@ -461,9 +448,9 @@ export default function CreatePoll() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Stimmen zurückziehen erlauben</Label>
+                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende ihre Abstimmung komplett zurückziehen?
+                  {t('pollCreation.allowVoteWithdrawalDescription')}
                 </p>
               </div>
               <Switch
@@ -475,9 +462,9 @@ export default function CreatePoll() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Ergebnisse öffentlich</Label>
+                <Label>{t('pollCreation.resultsPublic')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende die Ergebnisse einsehen?
+                  {t('pollCreation.resultsPublicDescription')}
                 </p>
               </div>
               <Switch
@@ -489,12 +476,11 @@ export default function CreatePoll() {
           </CardContent>
         </Card>
 
-        {/* Date and Time Selection */}
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Clock className="w-5 h-5 mr-2 text-polly-blue" />
-              Termine auswählen
+              {t('createPoll.selectDates')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -504,10 +490,9 @@ export default function CreatePoll() {
               existingOptions={options}
             />
             
-            {/* Selected Options */}
             {options.length > 0 && (
               <div className="mt-6">
-                <h4 className="font-semibold text-foreground mb-4">Terminoptionen ({options.length})</h4>
+                <h4 className="font-semibold text-foreground mb-4">{t('createPoll.dateOptionsCount', { count: options.length })}</h4>
                 <div className="space-y-3">
                   {options.map((option, index) => (
                     <div 
@@ -549,12 +534,11 @@ export default function CreatePoll() {
           </CardContent>
         </Card>
 
-        {/* Creation Options */}
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Mail className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />
-              Erstellungsoptionen
+              {t('pollCreation.creationOptions')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -564,23 +548,23 @@ export default function CreatePoll() {
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="font-medium text-green-800 dark:text-green-200">
-                      Angemeldet als {user?.name || user?.username}
+                      {t('pollCreation.loggedInAs', { name: user?.name || user?.username })}
                     </p>
                     <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                      Sie erhalten alle Links an: <strong>{user?.email}</strong>
+                      {t('pollCreation.linksWillBeSentTo')} <strong>{user?.email}</strong>
                     </p>
                     <div className="mt-3 space-y-2 text-sm text-green-700 dark:text-green-300">
                       <div className="flex items-center gap-2">
                         <LinkIcon className="w-4 h-4" />
-                        <span>Teilnahme-Link zum Teilen</span>
+                        <span>{t('pollCreation.participationLink')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Info className="w-4 h-4" />
-                        <span>Privater Administrations-Link (nur für Sie)</span>
+                        <span>{t('pollCreation.privateAdminLink')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <QrCode className="w-4 h-4" />
-                        <span>QR-Code zum einfachen Teilen</span>
+                        <span>{t('pollCreation.qrCodeShare')}</span>
                       </div>
                     </div>
                   </div>
@@ -592,16 +576,16 @@ export default function CreatePoll() {
                   <Mail className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="font-medium text-amber-800 dark:text-amber-200">
-                      E-Mail-Adresse für Benachrichtigungen
+                      {t('pollCreation.emailForNotifications')}
                     </p>
                     <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                      Sie erhalten per E-Mail einen Teilnahme-Link, einen Administrations-Link und einen QR-Code.
+                      {t('pollCreation.emailNotificationDescription')}
                     </p>
                     <Input
                       type="email"
                       value={creatorEmail}
                       onChange={(e) => setCreatorEmail(e.target.value)}
-                      placeholder="ihre.email@polly-bayern.de"
+                      placeholder={t('pollCreation.emailPlaceholder')}
                       className="mt-3"
                       required
                       data-testid="input-creator-email"
@@ -613,7 +597,6 @@ export default function CreatePoll() {
           </CardContent>
         </Card>
 
-        {/* Submit */}
         <div className="flex justify-end space-x-4">
           <Button
             type="button"
@@ -621,7 +604,7 @@ export default function CreatePoll() {
             onClick={() => setLocation("/")}
             data-testid="button-cancel"
           >
-            Abbrechen
+            {t('pollCreation.cancel')}
           </Button>
           <Button
             type="submit"
@@ -629,18 +612,17 @@ export default function CreatePoll() {
             disabled={createPollMutation.isPending}
             data-testid="button-submit"
           >
-            {createPollMutation.isPending ? "Erstelle..." : "Terminumfrage erstellen"}
+            {createPollMutation.isPending ? t('pollCreation.creating') : t('createPoll.submitButton')}
           </Button>
         </div>
       </form>
 
-      {/* Edit Option Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="w-5 h-5 text-polly-orange" />
-              Termin bearbeiten
+              {t('createPoll.editDate')}
             </DialogTitle>
             <DialogDescription>
               {editDate && (
@@ -659,7 +641,7 @@ export default function CreatePoll() {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-startTime" className="text-sm font-medium">Von</Label>
+                <Label htmlFor="edit-startTime" className="text-sm font-medium">{t('pollCreation.from')}</Label>
                 <Input
                   id="edit-startTime"
                   type="time"
@@ -670,7 +652,7 @@ export default function CreatePoll() {
                 />
               </div>
               <div>
-                <Label htmlFor="edit-endTime" className="text-sm font-medium">Bis</Label>
+                <Label htmlFor="edit-endTime" className="text-sm font-medium">{t('pollCreation.to')}</Label>
                 <Input
                   id="edit-endTime"
                   type="time"
@@ -690,7 +672,7 @@ export default function CreatePoll() {
                 className="flex-1"
                 data-testid="button-cancel-edit"
               >
-                Abbrechen
+                {t('pollCreation.cancel')}
               </Button>
               <Button
                 type="button"
@@ -699,7 +681,7 @@ export default function CreatePoll() {
                 className="flex-1 polly-button-schedule"
                 data-testid="button-save-edit"
               >
-                Speichern
+                {t('pollCreation.save')}
               </Button>
             </div>
           </div>

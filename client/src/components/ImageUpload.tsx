@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +15,7 @@ interface ImageUploadProps {
 }
 
 export function ImageUpload({ onImageUploaded, onImageRemoved, onAltTextChange, currentImageUrl, currentAltText, className }: ImageUploadProps) {
+  const { t } = useTranslation();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -25,8 +27,8 @@ export function ImageUpload({ onImageUploaded, onImageRemoved, onAltTextChange, 
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
-        title: "Fehler",
-        description: "Bitte wählen Sie eine Bilddatei aus.",
+        title: t('common.error'),
+        description: t('imageUpload.selectImageFile'),
         variant: "destructive",
       });
       return;
@@ -35,8 +37,8 @@ export function ImageUpload({ onImageUploaded, onImageRemoved, onAltTextChange, 
     // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
       toast({
-        title: "Fehler",
-        description: "Die Datei ist zu groß. Maximal 5MB sind erlaubt.",
+        title: t('common.error'),
+        description: t('imageUpload.fileTooLarge'),
         variant: "destructive",
       });
       return;
@@ -61,14 +63,14 @@ export function ImageUpload({ onImageUploaded, onImageRemoved, onAltTextChange, 
       onImageUploaded(data.imageUrl);
       
       toast({
-        title: "Erfolgreich!",
-        description: "Bild wurde hochgeladen.",
+        title: t('common.success'),
+        description: t('imageUpload.uploadSuccess'),
       });
     } catch (error) {
       console.error('Upload error:', error);
       toast({
-        title: "Fehler",
-        description: "Bild konnte nicht hochgeladen werden.",
+        title: t('common.error'),
+        description: t('imageUpload.uploadError'),
         variant: "destructive",
       });
     } finally {
@@ -112,16 +114,16 @@ export function ImageUpload({ onImageUploaded, onImageRemoved, onAltTextChange, 
           {/* Alt Text field on the right */}
           <div className="flex-1">
             <label className="block text-sm font-medium text-foreground mb-2">
-              Alt-Text für Barrierefreiheit:
+              {t('imageUpload.altTextLabel')}:
             </label>
             <textarea
               value={currentAltText || ''}
               onChange={(e) => onAltTextChange?.(e.target.value)}
-              placeholder="Beschreiben Sie das Bild für Menschen mit Sehbehinderung..."
+              placeholder={t('imageUpload.altTextPlaceholder')}
               className="w-full h-20 p-2 text-sm border border-input rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent bg-background text-foreground placeholder:text-muted-foreground"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Optional: Hilft Menschen mit Sehbehinderung, das Bild zu verstehen
+              {t('imageUpload.altTextHelp')}
             </p>
           </div>
         </div>
@@ -145,12 +147,12 @@ export function ImageUpload({ onImageUploaded, onImageRemoved, onAltTextChange, 
             {isUploading ? (
               <>
                 <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
-                <span>Lädt...</span>
+                <span>{t('common.loading')}</span>
               </>
             ) : (
               <>
                 <Upload className="w-4 h-4" />
-                <span>Bild</span>
+                <span>{t('imageUpload.image')}</span>
               </>
             )}
           </Button>

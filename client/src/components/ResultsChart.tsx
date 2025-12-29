@@ -21,14 +21,15 @@ import {
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { Table } from "lucide-react";
 import type { PollResults } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { formatScheduleOptionWithGermanWeekday } from "@/lib/utils";
+import { formatScheduleOptionWithWeekday } from "@/lib/utils";
 
-function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
   const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
-  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  const formatted = formatScheduleOptionWithWeekday(text, startTimeStr, locale);
   if (formatted.isSchedule) {
     return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
@@ -45,6 +46,7 @@ interface ResultsChartProps {
 export function ResultsChart({ results, publicToken, isAdminAccess = false, onCapacityUpdate }: ResultsChartProps) {
   const { poll, options, stats, participantCount } = results;
   const { toast } = useToast();
+  const { t, i18n } = useTranslation();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [editingCapacity, setEditingCapacity] = useState<number | null>(null);
@@ -72,9 +74,9 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
         await onCapacityUpdate(optionId, null);
         setEditingCapacity(null);
         setCapacityValue("");
-        toast({ title: "Gespeichert", description: "Kapazität auf unbegrenzt gesetzt." });
+        toast({ title: t('common.success'), description: t('resultsChart.capacityUnlimited') });
       } catch (error) {
-        toast({ title: "Fehler", description: "Kapazität konnte nicht gespeichert werden.", variant: "destructive" });
+        toast({ title: t('common.error'), description: t('resultsChart.capacitySaveError'), variant: "destructive" });
       } finally {
         setIsSavingCapacity(false);
       }
@@ -83,16 +85,16 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
     
     // Strict validation: must be a positive integer only (no decimals, no text)
     if (!/^\d+$/.test(trimmedValue)) {
-      setCapacityError("Bitte nur ganze Zahlen eingeben");
+      setCapacityError(t('resultsChart.integerOnly'));
       return;
     }
     const newCapacity = parseInt(trimmedValue, 10);
     if (isNaN(newCapacity) || newCapacity < 1) {
-      setCapacityError("Bitte eine Zahl >= 1 eingeben");
+      setCapacityError(t('resultsChart.minCapacity'));
       return;
     }
     if (newCapacity > 9999) {
-      setCapacityError("Maximale Kapazität: 9999");
+      setCapacityError(t('resultsChart.maxCapacity'));
       return;
     }
     
@@ -101,9 +103,9 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       await onCapacityUpdate(optionId, newCapacity);
       setEditingCapacity(null);
       setCapacityValue("");
-      toast({ title: "Gespeichert", description: `Kapazität auf ${newCapacity} gesetzt.` });
+      toast({ title: t('common.success'), description: t('resultsChart.capacitySet', { count: newCapacity }) });
     } catch (error) {
-      toast({ title: "Fehler", description: "Kapazität konnte nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('resultsChart.capacitySaveError'), variant: "destructive" });
     } finally {
       setIsSavingCapacity(false);
     }
@@ -291,7 +293,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           <CardHeader>
             <CardTitle className="flex items-center">
               <Table className="w-5 h-5 mr-2" />
-              Stimmabgaben zur Umfrage
+              {t('results.votesForPoll')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -300,7 +302,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 <thead>
                   <tr>
                     <th className="text-right py-2 px-3 font-medium text-foreground border-b border-border min-w-[150px]">
-                      Teilnehmer
+                      {t('voting.participant')}
                     </th>
                     {options.map((option) => {
                       const isSchedule = poll.type === 'schedule' && option.startTime && option.endTime;
@@ -329,7 +331,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                               </span>
                             </div>
                           ) : (
-                            <span className="text-xs"><FormattedOptionText text={option.text} startTime={option.startTime} /></span>
+                            <span className="text-xs"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></span>
                           )}
                         </th>
                       );
@@ -381,7 +383,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 <tfoot>
                   <tr className="border-t-2 border-border font-medium">
                     <td className="text-right py-2 px-3 text-sm text-muted-foreground">
-                      Gesamt
+                      {t('results.total')}
                     </td>
                     {options.map((option) => {
                       const stat = stats.find(s => s.optionId === option.id);
@@ -409,7 +411,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           <CardHeader>
             <CardTitle className="flex items-center">
               <Table className="w-5 h-5 mr-2" />
-              Übersicht Eintragungen
+              {t('organization.overview')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -418,7 +420,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 <thead>
                   <tr>
                     <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border min-w-[150px]">
-                      Teilnehmer
+                      {t('polls.participants')}
                     </th>
                     {options.map((option) => {
                       const slotVotes = results.votes.filter(v => v.optionId === option.id && v.response === 'yes');
@@ -432,7 +434,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                           className="text-center py-2 px-2 font-medium text-foreground border-b border-border min-w-[120px]"
                         >
                           <div className="flex flex-col items-center text-xs">
-                            <span className="font-semibold"><FormattedOptionText text={option.text} startTime={option.startTime} /></span>
+                            <span className="font-semibold"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></span>
                             {option.startTime && option.endTime && (
                               <span className="text-muted-foreground">
                                 {new Date(option.startTime).toLocaleDateString('de-DE', { 
@@ -552,7 +554,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                   <div key={option.id} className="border border-border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex-1">
-                        <div className="font-medium text-foreground"><FormattedOptionText text={option.text} startTime={option.startTime} /></div>
+                        <div className="font-medium text-foreground"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></div>
                         {option.startTime && option.endTime && (
                           <div className="text-sm text-muted-foreground mt-1">
                             <Calendar className="w-3 h-3 inline mr-1" />
@@ -745,7 +747,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                             )}
                             <div className="flex-1">
                               <div className="font-medium text-foreground">
-                                <FormattedOptionText text={option.text} startTime={option.startTime} />
+                                <FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} />
                               </div>
                               {option.startTime && option.endTime && (
                                 <div className="text-sm text-muted-foreground mt-1">
@@ -814,7 +816,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                             </Badge>
                             {stat.score === bestOption.score && stat.score > 0 && (
                               <span className={`text-xs font-medium mt-1 ${isTie ? 'text-amber-600' : 'text-green-600'}`}>
-                                {isTie ? '⚖️ Unentschieden' : 'Sieger'}
+                                {isTie ? `⚖️ ${t('resultsChart.tie')}` : t('resultsChart.winner')}
                               </span>
                             )}
                           </div>
@@ -834,7 +836,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
         <CardHeader>
           <CardTitle className="flex items-center">
             <Users className="w-5 h-5 mr-2" />
-            Teilnehmer-Übersicht ({participantCount})
+            {t('resultsChart.participantsOverview', { count: participantCount })}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -852,7 +854,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     {participant.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Abgestimmt: {new Date(participant.votedAt).toLocaleDateString('de-DE')}
+                    {t('resultsChart.votedAt')}: {new Date(participant.votedAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
                   </p>
                 </div>
               </div>

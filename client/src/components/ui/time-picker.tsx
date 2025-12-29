@@ -1,5 +1,6 @@
 import * as React from "react"
 import { Clock } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -30,12 +31,16 @@ const TIME_PRESETS = [
 export function TimePicker({
   time,
   onTimeChange,
-  placeholder = "Uhrzeit",
+  placeholder,
   className,
   disabled = false,
   "data-testid": testId,
 }: TimePickerProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
+
+  const displayPlaceholder = placeholder ?? t('ui.timePicker.placeholder')
+  const suffix = t('ui.timePicker.suffix')
 
   const handleSelect = (selectedTime: string) => {
     onTimeChange(selectedTime)
@@ -43,7 +48,7 @@ export function TimePicker({
   }
 
   const formatTime = (t: string) => {
-    return t + " Uhr"
+    return suffix ? `${t} ${suffix}` : t
   }
 
   return (
@@ -60,7 +65,7 @@ export function TimePicker({
           data-testid={testId}
         >
           <Clock className="mr-2 h-4 w-4" />
-          {time ? formatTime(time) : placeholder}
+          {time ? formatTime(time) : displayPlaceholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[180px] p-0" align="start">

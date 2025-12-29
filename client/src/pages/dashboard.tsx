@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +30,7 @@ interface DashboardData {
 }
 
 export default function Dashboard() {
+  const { t, i18n } = useTranslation();
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
     queryKey: [`/api/v1/users/${CURRENT_USER_ID}/dashboard`],
   });
@@ -76,22 +78,22 @@ export default function Dashboard() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-foreground">{t('nav.dashboard')}</h1>
             <p className="text-muted-foreground mt-2">
-              Verwalten Sie Ihre Umfragen und Termine übersichtlich
+              {t('dashboard.managePolls')}
             </p>
           </div>
           <div className="flex space-x-3">
             <Link href="/create-poll">
               <Button className="polly-button-primary">
                 <Plus className="w-4 h-4 mr-2" />
-                Termin
+                {t('dashboard.schedule')}
               </Button>
             </Link>
             <Link href="/create-survey">
               <Button className="polly-button-secondary">
                 <Plus className="w-4 h-4 mr-2" />
-                Umfrage
+                {t('polls.survey')}
               </Button>
             </Link>
           </div>
@@ -104,7 +106,7 @@ export default function Dashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-100 text-sm">Aktive Umfragen</p>
+                <p className="text-orange-100 text-sm">{t('dashboard.activePolls')}</p>
                 <p className="text-2xl font-bold">{activePolls}</p>
               </div>
               <Activity className="w-8 h-8 text-orange-200" />
@@ -116,7 +118,7 @@ export default function Dashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm">Gesamt Umfragen</p>
+                <p className="text-blue-100 text-sm">{t('dashboard.totalPolls')}</p>
                 <p className="text-2xl font-bold">{userPolls.length}</p>
               </div>
               <BarChart3 className="w-8 h-8 text-blue-200" />
@@ -128,7 +130,7 @@ export default function Dashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 text-sm">Teilnahmen</p>
+                <p className="text-green-100 text-sm">{t('dashboard.participations')}</p>
                 <p className="text-2xl font-bold">{totalVotes}</p>
               </div>
               <Users className="w-8 h-8 text-green-200" />
@@ -140,7 +142,7 @@ export default function Dashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm">Diese Woche</p>
+                <p className="text-purple-100 text-sm">{t('dashboard.thisWeek')}</p>
                 <p className="text-2xl font-bold">{thisWeekPolls}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-purple-200" />
@@ -153,13 +155,13 @@ export default function Dashboard() {
       <Tabs defaultValue="my-polls" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="my-polls">
-            Meine Umfragen ({userPolls.length})
+            {t('nav.myPolls')} ({userPolls.length})
           </TabsTrigger>
           <TabsTrigger value="shared-polls">
-            Geteilte Umfragen ({sharedPolls.length})
+            {t('dashboard.sharedPolls')} ({sharedPolls.length})
           </TabsTrigger>
           <TabsTrigger value="archived">
-            Archiv
+            {t('dashboard.archive')}
           </TabsTrigger>
         </TabsList>
 
@@ -169,22 +171,22 @@ export default function Dashboard() {
               <CardContent className="p-8 text-center">
                 <Vote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Keine Umfragen vorhanden
+                  {t('polls.noPolls')}
                 </h3>
                 <p className="text-muted-foreground mb-6">
-                  Erstellen Sie Ihre erste Umfrage, um loszulegen.
+                  {t('polls.noPollsDescription')}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Link href="/create-poll">
                     <Button className="polly-button-primary">
                       <Plus className="w-4 h-4 mr-2" />
-                      Termin
+                      {t('dashboard.schedule')}
                     </Button>
                   </Link>
                   <Link href="/create-survey">
                     <Button className="polly-button-secondary">
                       <Plus className="w-4 h-4 mr-2" />
-                      Umfrage
+                      {t('polls.survey')}
                     </Button>
                   </Link>
                 </div>
@@ -205,10 +207,10 @@ export default function Dashboard() {
               <CardContent className="p-8 text-center">
                 <Share2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Keine geteilten Umfragen
+                  {t('dashboard.noSharedPolls')}
                 </h3>
                 <p className="text-muted-foreground">
-                  Umfragen, an denen Sie teilgenommen haben, werden hier angezeigt.
+                  {t('dashboard.sharedPollsDescription')}
                 </p>
               </CardContent>
             </Card>
@@ -226,10 +228,10 @@ export default function Dashboard() {
             <CardContent className="p-8 text-center">
               <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                Archiv wird bald verfügbar sein
+                {t('dashboard.archiveComingSoon')}
               </h3>
               <p className="text-muted-foreground">
-                Abgelaufene und beendete Umfragen werden hier archiviert.
+                {t('dashboard.archiveDescription')}
               </p>
             </CardContent>
           </Card>
@@ -250,27 +252,29 @@ function PollCard({ poll, isOwner }: PollCardProps) {
     poll.votes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)
   ).size;
 
+  const { t } = useTranslation();
+  
   const getStatusBadge = () => {
     if (!poll.isActive) {
-      return <Badge variant="secondary">Inaktiv</Badge>;
+      return <Badge variant="secondary">{t('polls.inactive')}</Badge>;
     }
     if (isPollExpired) {
-      return <Badge variant="secondary">Abgelaufen</Badge>;
+      return <Badge variant="secondary">{t('polls.expired')}</Badge>;
     }
-    return <Badge className="bg-green-100 text-green-800">Aktiv</Badge>;
+    return <Badge className="bg-green-100 text-green-800">{t('polls.active')}</Badge>;
   };
 
   const getPollTypeInfo = () => {
     if (poll.type === 'schedule') {
       return {
         icon: <Calendar className="w-4 h-4" />,
-        label: 'Termin',
+        label: t('dashboard.schedule'),
         color: 'bg-polly-orange text-white'
       };
     }
     return {
       icon: <Vote className="w-4 h-4" />,
-      label: 'Umfrage',
+      label: t('polls.survey'),
       color: 'bg-polly-blue text-white'
     };
   };
@@ -303,16 +307,16 @@ function PollCard({ poll, isOwner }: PollCardProps) {
             <div className="flex items-center space-x-6 text-sm text-muted-foreground">
               <span className="flex items-center">
                 <Users className="w-4 h-4 mr-1" />
-                {uniqueVoters} Teilnehmer
+                {uniqueVoters} {t('dashboard.participants')}
               </span>
               <span className="flex items-center">
                 <Calendar className="w-4 h-4 mr-1" />
-                Erstellt: {new Date(poll.createdAt).toLocaleDateString('de-DE')}
+                {t('dashboard.created')}: {new Date(poll.createdAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
               </span>
               {poll.expiresAt && (
                 <span className="flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
-                  Läuft ab: {new Date(poll.expiresAt).toLocaleDateString('de-DE')}
+                  {t('dashboard.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
                 </span>
               )}
             </div>
@@ -320,21 +324,21 @@ function PollCard({ poll, isOwner }: PollCardProps) {
           
           <div className="flex items-center space-x-2 ml-4">
             <Link href={`/poll/${poll.publicToken}`}>
-              <Button variant="ghost" size="sm" title="Ergebnisse anzeigen">
+              <Button variant="ghost" size="sm" title={t('dashboard.showResults')}>
                 <BarChart3 className="w-4 h-4" />
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" title="Teilen">
+            <Button variant="ghost" size="sm" title={t('common.share')}>
               <Share2 className="w-4 h-4" />
             </Button>
             {isOwner && (
               <>
                 <Link href={`/admin/${poll.adminToken}`}>
-                  <Button variant="ghost" size="sm" title="Bearbeiten">
+                  <Button variant="ghost" size="sm" title={t('common.edit')}>
                     <Edit className="w-4 h-4" />
                   </Button>
                 </Link>
-                <Button variant="ghost" size="sm" title="Löschen" className="text-destructive hover:text-destructive">
+                <Button variant="ghost" size="sm" title={t('common.delete')} className="text-destructive hover:text-destructive">
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </>

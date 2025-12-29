@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from "@/lib/utils";
 import { Calendar, BarChart3, ListChecks, HelpCircle, type LucideIcon } from "lucide-react";
 
@@ -10,12 +11,6 @@ interface PollTypeBadgeProps {
   className?: string;
 }
 
-const typeLabels: Record<PollType, string> = {
-  schedule: 'Termin',
-  survey: 'Umfrage',
-  organization: 'Orga',
-};
-
 const typeIcons: Record<PollType, LucideIcon> = {
   schedule: Calendar,
   survey: BarChart3,
@@ -23,7 +18,14 @@ const typeIcons: Record<PollType, LucideIcon> = {
 };
 
 export function PollTypeBadge({ type, variant = 'solid', showIcon = true, className }: PollTypeBadgeProps) {
+  const { t } = useTranslation();
   const validType = ['schedule', 'survey', 'organization'].includes(type) ? type : 'survey';
+  
+  const typeLabels: Record<PollType, string> = {
+    schedule: t('pollTypes.schedule'),
+    survey: t('pollTypes.survey'),
+    organization: t('pollTypes.organization'),
+  };
   
   const badgeClass = variant === 'solid' 
     ? `polly-badge-${validType}-solid`

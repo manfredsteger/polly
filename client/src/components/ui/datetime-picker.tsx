@@ -1,7 +1,8 @@
 import * as React from "react"
 import { format } from "date-fns"
-import { de } from "date-fns/locale"
+import { de, enUS } from "date-fns/locale"
 import { Calendar as CalendarIcon, Clock, X } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -35,13 +36,14 @@ const TIME_PRESETS = [
 export function DateTimePicker({
   value,
   onChange,
-  placeholder = "Datum & Uhrzeit",
+  placeholder,
   minDate,
   className,
   disabled = false,
   showClearButton = true,
   "data-testid": testId,
 }: DateTimePickerProps) {
+  const { t, i18n } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(() => {
     if (value) {
@@ -59,6 +61,11 @@ export function DateTimePicker({
     }
     return "09:00"
   })
+
+  const locale = i18n.language === 'de' ? de : enUS
+  const displayPlaceholder = placeholder ?? t('ui.dateTimePicker.placeholder')
+  const timeLabel = t('ui.dateTimePicker.timeLabel')
+  const timeSuffix = t('ui.timePicker.suffix')
 
   React.useEffect(() => {
     if (value) {
@@ -98,8 +105,12 @@ export function DateTimePicker({
     onChange(undefined)
   }
 
+  const formatTimeWithSuffix = (time: string) => {
+    return timeSuffix ? `${time} ${timeSuffix}` : time
+  }
+
   const displayValue = selectedDate
-    ? `${format(selectedDate, "dd.MM.yyyy", { locale: de })}, ${selectedTime}`
+    ? `${format(selectedDate, "dd.MM.yyyy", { locale })}, ${selectedTime}`
     : null
 
   return (
@@ -116,7 +127,7 @@ export function DateTimePicker({
             data-testid={testId}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {displayValue || placeholder}
+            {displayValue || displayPlaceholder}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -128,14 +139,14 @@ export function DateTimePicker({
                 onSelect={handleDateSelect}
                 disabled={minDate ? (d) => d < minDate : undefined}
                 initialFocus
-                locale={de}
+                locale={locale}
                 weekStartsOn={1}
               />
             </div>
             <div className="p-2">
               <div className="flex items-center gap-2 px-2 pb-2 border-b mb-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Uhrzeit</span>
+                <span className="text-sm font-medium">{timeLabel}</span>
               </div>
               <ScrollArea className="h-[260px] w-[100px]">
                 <div className="space-y-1">
@@ -147,7 +158,7 @@ export function DateTimePicker({
                       className="w-full justify-start font-normal"
                       onClick={() => handleTimeSelect(time)}
                     >
-                      {time} Uhr
+                      {formatTimeWithSuffix(time)}
                     </Button>
                   ))}
                 </div>

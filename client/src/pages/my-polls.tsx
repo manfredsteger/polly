@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/collapsible";
 import type { PollWithOptions, User, SystemSetting } from '@shared/schema';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { getDateLocale } from '@/lib/i18n';
 import { AdminDashboard } from '@/components/AdminDashboard';
 
 interface ExtendedStats {
@@ -41,9 +42,11 @@ interface ExtendedStats {
 }
 
 function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; showAdminLink?: boolean }) {
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date());
   const voteCount = poll.votes?.length || 0;
+  const optionCount = poll.options?.length || 0;
 
   return (
     <Card 
@@ -65,9 +68,9 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
             <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
             <Badge className={isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
               {isActive ? (
-                <><CheckCircle className="h-3 w-3 mr-1" />Aktiv</>
+                <><CheckCircle className="h-3 w-3 mr-1" />{t('myPolls.active')}</>
               ) : (
-                <><Clock className="h-3 w-3 mr-1" />Beendet</>
+                <><Clock className="h-3 w-3 mr-1" />{t('myPolls.ended')}</>
               )}
             </Badge>
           </div>
@@ -78,20 +81,20 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
           <div className="flex items-center gap-4">
             <span className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
-              {voteCount} Stimme{voteCount !== 1 ? 'n' : ''}
+              {voteCount} {voteCount !== 1 ? t('myPolls.votes') : t('myPolls.vote')}
             </span>
             <span className="flex items-center">
               <BarChart3 className="h-4 w-4 mr-1" />
-              {poll.options?.length || 0} Option{(poll.options?.length || 0) !== 1 ? 'en' : ''}
+              {optionCount} {optionCount !== 1 ? t('myPolls.options') : t('myPolls.option')}
             </span>
           </div>
           <span>
-            {poll.createdAt && format(new Date(poll.createdAt), 'dd. MMM yyyy', { locale: de })}
+            {poll.createdAt && format(new Date(poll.createdAt), 'dd. MMM yyyy', { locale: getDateLocale() })}
           </span>
         </div>
         {poll.expiresAt && (
           <div className="mt-2 text-xs text-muted-foreground">
-            Läuft ab: {format(new Date(poll.expiresAt), 'dd. MMM yyyy, HH:mm', { locale: de })}
+            {t('myPolls.expiresAt')}: {format(new Date(poll.expiresAt), 'dd. MMM yyyy, HH:mm', { locale: getDateLocale() })}
           </div>
         )}
       </CardContent>
@@ -127,6 +130,7 @@ interface CalendarTokenResponse {
 }
 
 function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
@@ -143,14 +147,14 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/calendar/token'] });
       toast({
-        title: 'Kalender-Token erneuert',
-        description: 'Der alte Link funktioniert nicht mehr. Bitte aktualisieren Sie Ihre Kalender-App.',
+        title: t('myPolls.toasts.tokenRegenerated'),
+        description: t('myPolls.toasts.tokenRegeneratedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: 'Fehler',
-        description: 'Token konnte nicht erneuert werden.',
+        title: t('myPolls.toasts.error'),
+        description: t('myPolls.toasts.tokenNotRegenerated'),
         variant: 'destructive',
       });
     },
@@ -161,14 +165,14 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       toast({
-        title: 'Kopiert!',
-        description: 'Der Link wurde in die Zwischenablage kopiert.',
+        title: t('myPolls.toasts.copied'),
+        description: t('myPolls.toasts.linkCopied'),
       });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({
-        title: 'Fehler',
-        description: 'Link konnte nicht kopiert werden.',
+        title: t('myPolls.toasts.error'),
+        description: t('myPolls.toasts.linkNotCopied'),
         variant: 'destructive',
       });
     }
@@ -195,12 +199,12 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center">
                 <Calendar className="h-5 w-5 mr-2 text-polly-orange" />
-                Kalender-Abonnement
+                {t('myPolls.calendarSubscription')}
               </CardTitle>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </div>
             <CardDescription>
-              Synchronisieren Sie Ihre Umfrage-Termine mit Ihrem Kalender
+              {t('myPolls.calendarSubscriptionDesc')}
             </CardDescription>
           </CardHeader>
         </CollapsibleTrigger>
@@ -210,15 +214,14 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <p>
-                  Abonnieren Sie diesen Kalender in Ihrer Kalender-App (Outlook, Google Calendar, Apple Calendar), 
-                  um Terminumfragen automatisch zu synchronisieren.
+                  {t('myPolls.calendarInfo')}
                 </p>
               </div>
               
               {calendarData && (
                 <>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Abonnement-Link</label>
+                    <label className="text-sm font-medium">{t('myPolls.subscriptionLink')}</label>
                     <div className="flex gap-2">
                       <code className="flex-1 bg-background border rounded px-3 py-2 text-xs overflow-hidden text-ellipsis whitespace-nowrap">
                         {calendarData.webcalUrl}
@@ -242,7 +245,7 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
                       data-testid="button-open-calendar"
                     >
                       <Calendar className="h-4 w-4 mr-2" />
-                      In Kalender öffnen
+                      {t('myPolls.openInCalendar')}
                     </Button>
                     <Button 
                       variant="ghost" 
@@ -252,7 +255,7 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
                       data-testid="button-regenerate-token"
                     >
                       <RefreshCw className={`h-4 w-4 mr-2 ${regenerateMutation.isPending ? 'animate-spin' : ''}`} />
-                      Token erneuern
+                      {t('myPolls.regenerateToken')}
                     </Button>
                   </div>
                 </>
@@ -266,6 +269,7 @@ function CalendarSubscriptionCard({ enabled }: { enabled: boolean }) {
 }
 
 function EmptyState({ type }: { type: 'created' | 'participated' }) {
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
 
   return (
@@ -274,31 +278,31 @@ function EmptyState({ type }: { type: 'created' | 'participated' }) {
         {type === 'created' ? (
           <>
             <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
-            <CardTitle className="text-lg mb-2">Keine Umfragen erstellt</CardTitle>
+            <CardTitle className="text-lg mb-2">{t('myPolls.emptyCreated')}</CardTitle>
             <CardDescription className="mb-4">
-              Sie haben noch keine Umfragen erstellt. Erstellen Sie jetzt Ihre erste Umfrage!
+              {t('myPolls.emptyCreatedDesc')}
             </CardDescription>
             <div className="flex gap-2 flex-wrap justify-center">
               <Button onClick={() => navigate('/create-poll')} className="polly-button-schedule" data-testid="button-create-poll">
                 <Plus className="h-4 w-4 mr-2" />
-                Termin
+                {t('myPolls.newSchedule')}
               </Button>
               <Button onClick={() => navigate('/create-survey')} className="polly-button-survey" data-testid="button-create-survey">
                 <Plus className="h-4 w-4 mr-2" />
-                Umfrage
+                {t('myPolls.newSurvey')}
               </Button>
               <Button onClick={() => navigate('/create-organization')} className="polly-button-organization" data-testid="button-create-orga">
                 <Plus className="h-4 w-4 mr-2" />
-                Orga
+                {t('myPolls.newOrga')}
               </Button>
             </div>
           </>
         ) : (
           <>
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
-            <CardTitle className="text-lg mb-2">Keine Teilnahmen</CardTitle>
+            <CardTitle className="text-lg mb-2">{t('myPolls.emptyParticipated')}</CardTitle>
             <CardDescription>
-              Sie haben noch an keinen Umfragen teilgenommen.
+              {t('myPolls.emptyParticipatedDesc')}
             </CardDescription>
           </>
         )}
@@ -308,6 +312,7 @@ function EmptyState({ type }: { type: 'created' | 'participated' }) {
 }
 
 export default function MyPolls() {
+  const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading, isAuthReady } = useAuth();
   const [, navigate] = useLocation();
 
@@ -378,23 +383,23 @@ export default function MyPolls() {
     <div className="container max-w-4xl mx-auto py-8 px-4">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="title-my-polls">Meine Umfragen</h1>
+          <h1 className="text-2xl font-bold" data-testid="title-my-polls">{t('myPolls.title')}</h1>
           <p className="text-muted-foreground mt-1">
-            Willkommen zurück, {user?.name || user?.username}!
+            {t('myPolls.welcomeBack', { name: user?.name || user?.username })}
           </p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => navigate('/create-poll')} className="polly-button-schedule" data-testid="button-new-poll">
             <Plus className="h-4 w-4 mr-2" />
-            Termin
+            {t('myPolls.newSchedule')}
           </Button>
           <Button onClick={() => navigate('/create-survey')} className="polly-button-survey" data-testid="button-new-survey">
             <Plus className="h-4 w-4 mr-2" />
-            Umfrage
+            {t('myPolls.newSurvey')}
           </Button>
           <Button onClick={() => navigate('/create-organization')} className="polly-button-organization" data-testid="button-new-orga">
             <Plus className="h-4 w-4 mr-2" />
-            Orga
+            {t('myPolls.newOrga')}
           </Button>
         </div>
       </div>
@@ -405,14 +410,14 @@ export default function MyPolls() {
         <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>
           <TabsTrigger value="created" data-testid="tab-created">
             <ClipboardList className="h-4 w-4 mr-2" />
-            Meine Umfragen
+            {t('myPolls.tabCreated')}
             {createdPolls && createdPolls.length > 0 && (
               <Badge variant="secondary" className="ml-2">{createdPolls.length}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="participated" data-testid="tab-participated">
             <Users className="h-4 w-4 mr-2" />
-            Teilnahmen
+            {t('myPolls.tabParticipated')}
             {participatedPolls && participatedPolls.length > 0 && (
               <Badge variant="secondary" className="ml-2">{participatedPolls.length}</Badge>
             )}
@@ -420,7 +425,7 @@ export default function MyPolls() {
           {isAdmin && (
             <TabsTrigger value="admin" data-testid="tab-admin">
               <Shield className="h-4 w-4 mr-2" />
-              Administration
+              {t('myPolls.tabAdmin')}
             </TabsTrigger>
           )}
         </TabsList>

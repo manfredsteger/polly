@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export function SurveyForm({
   isLoading = false,
   isAnonymous = true 
 }: SurveyFormProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [creatorEmail, setCreatorEmail] = useState("");
@@ -90,29 +92,29 @@ export function SurveyForm({
         <CardHeader>
           <CardTitle className="flex items-center">
             <Vote className="w-5 h-5 mr-2 text-polly-orange" />
-            Grundinformationen
+            {t('pollForm.basicInfo')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <Label htmlFor="title">Titel der Umfrage *</Label>
+            <Label htmlFor="title">{t('surveyForm.surveyTitle')} *</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="z.B. Sommerfest-Planung 2025"
+              placeholder={t('surveyForm.surveyTitlePlaceholder')}
               className="mt-1"
               required
             />
           </div>
           
           <div>
-            <Label htmlFor="description">Beschreibung (optional)</Label>
+            <Label htmlFor="description">{t('pollForm.descriptionOptional')}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Welche Aktivitäten sollen wir beim Sommerfest anbieten?"
+              placeholder={t('surveyForm.surveyDescriptionPlaceholder')}
               className="mt-1"
               rows={3}
             />
@@ -126,7 +128,7 @@ export function SurveyForm({
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center">
               <Vote className="w-5 h-5 mr-2 text-polly-blue" />
-              Auswahlmöglichkeiten
+              {t('surveyForm.options')}
             </span>
             <Button
               type="button"
@@ -135,14 +137,14 @@ export function SurveyForm({
               onClick={addOption}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Option hinzufügen
+              {t('surveyForm.addOption')}
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Fügen Sie mindestens 2 Optionen hinzu, zwischen denen die Teilnehmer wählen können.
+              {t('surveyForm.addAtLeastTwo')}
             </p>
             
             {options.map((option, index) => (
@@ -153,7 +155,7 @@ export function SurveyForm({
                 <Input
                   value={option.text}
                   onChange={(e) => updateOption(index, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
+                  placeholder={t('surveyForm.optionPlaceholder', { number: index + 1 })}
                   className="flex-1"
                 />
                 {options.length > 2 && (
@@ -175,13 +177,13 @@ export function SurveyForm({
             <div className="flex items-start space-x-3">
               <Info className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-blue-900 mb-2">💡 Tipp</h4>
+                <h4 className="font-medium text-blue-900 mb-2">💡 {t('surveyForm.tip')}</h4>
                 <p className="text-sm text-blue-800 mb-2">
-                  Sie können auch Markdown verwenden, um Links oder Bilder in Ihre Optionen einzubetten:
+                  {t('surveyForm.markdownTip')}
                 </p>
                 <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• <code className="bg-blue-100 px-1 rounded">[Text](URL)</code> für Links</li>
-                  <li>• <code className="bg-blue-100 px-1 rounded">![Alt-Text](Bild-URL)</code> für Bilder</li>
+                  <li>• <code className="bg-blue-100 px-1 rounded">[Text](URL)</code> {t('surveyForm.forLinks')}</li>
+                  <li>• <code className="bg-blue-100 px-1 rounded">![Alt-Text](Bild-URL)</code> {t('surveyForm.forImages')}</li>
                 </ul>
               </div>
             </div>
@@ -194,7 +196,7 @@ export function SurveyForm({
         <CardHeader>
           <CardTitle className="flex items-center">
             <Mail className="w-5 h-5 mr-2 text-green-600" />
-            Erstellungsoptionen
+            {t('pollForm.creationOptions')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -207,18 +209,17 @@ export function SurveyForm({
               />
               <div className="flex-1">
                 <Label htmlFor="anonymous" className="font-medium">
-                  Anonym erstellen
+                  {t('pollForm.createAnonymously')}
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Sie erhalten per E-Mail einen öffentlichen Link zum Teilen und einen 
-                  privaten Administratorlink zur Verwaltung.
+                  {t('pollForm.anonymousDescription')}
                 </p>
                 {anonymousCreation && (
                   <Input
                     type="email"
                     value={creatorEmail}
                     onChange={(e) => setCreatorEmail(e.target.value)}
-                    placeholder="ihre.email@polly-bayern.de"
+                    placeholder={t('pollForm.emailPlaceholder')}
                     className="mt-3"
                     required
                   />
@@ -237,7 +238,7 @@ export function SurveyForm({
           disabled={isLoading || !title.trim() || validOptions < 2}
         >
           <Save className="w-4 h-4 mr-2" />
-          {isLoading ? "Erstelle..." : "Umfrage erstellen"}
+          {isLoading ? t('pollForm.creating') : t('surveyForm.createSurvey')}
         </Button>
       </div>
     </form>

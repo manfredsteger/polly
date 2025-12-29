@@ -35,13 +35,19 @@ Preferred communication style: Simple, everyday language (German).
 - **Email Templates**: JSON-based, customizable templates with variable substitution and admin preview/test functionality.
 - **Internationalization (i18n)**:
     -   **Library**: react-i18next with i18next-browser-languagedetector
-    -   **Languages**: German (de) - default, English (en)
+    -   **Languages**: German (de), English (en) - fallback
     -   **Translation Files**: `client/src/locales/de.json`, `client/src/locales/en.json`
     -   **Configuration**: `client/src/lib/i18n.ts`
     -   **Language Switcher**: Globe icon in navigation bar
     -   **User Preference**: Stored in database (`users.language_preference`), synced with localStorage
     -   **API Endpoint**: `PATCH /api/v1/users/me/language` for updating preference
-    -   **Detection Order**: localStorage → browser navigator → fallback to German
+    -   **Detection Order**: localStorage → browser navigator → fallback to English
+    -   **Coverage**: Complete frontend localization including:
+        -   All UI components (date-picker, time-picker, datetime-picker, CalendarPicker)
+        -   Large components (LiveResultsView, VotingInterface, OrganizationSlotVoting, AdminDashboard)
+        -   All poll creation pages (create-poll, create-survey, create-organization)
+        -   All poll viewing pages (poll, my-polls, poll-success, vote-success)
+    -   **Translation Key Structure**: Organized by component/page (e.g., `pollCreation.*`, `admin.*`, `liveResults.*`)
 - **Security Scanning**:
     -   **ClamAV**: On-the-fly virus scanning of file uploads using `multer.memoryStorage`.
     -   **npm Audit**: Local scanning for dependency vulnerabilities with severity and impact labels.

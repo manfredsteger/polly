@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, X, Calendar as CalendarIcon, Clock, CalendarDays, Repeat, Sparkles, Users } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { de } from "date-fns/locale";
+import { de, enUS } from "date-fns/locale";
 
 interface PollOption {
   text: string;
@@ -29,16 +30,6 @@ interface CalendarPickerProps {
   existingOptions?: PollOption[];
 }
 
-const WEEKDAYS = [
-  { id: 'monday', name: 'Montag', short: 'Mo' },
-  { id: 'tuesday', name: 'Dienstag', short: 'Di' },
-  { id: 'wednesday', name: 'Mittwoch', short: 'Mi' },
-  { id: 'thursday', name: 'Donnerstag', short: 'Do' },
-  { id: 'friday', name: 'Freitag', short: 'Fr' },
-  { id: 'saturday', name: 'Samstag', short: 'Sa' },
-  { id: 'sunday', name: 'Sonntag', short: 'So' },
-];
-
 interface TimeSlotPreset {
   startTime: string;
   endTime: string;
@@ -46,19 +37,21 @@ interface TimeSlotPreset {
 
 interface Template {
   id: string;
-  name: string;
+  nameKey: string;
   icon: typeof Clock;
-  description: string;
+  descriptionKey: string;
   presets: TimeSlotPreset[];
   isWeekdayTemplate?: boolean;
 }
 
+const WEEKDAY_IDS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+
 const defaultTemplates: Template[] = [
   {
     id: "multiple-times",
-    name: "Ein Tag, mehrere Uhrzeiten",
+    nameKey: "calendarPicker.templates.multipleTimes.name",
     icon: Clock,
-    description: "Vormittag, Mittag & Nachmittag",
+    descriptionKey: "calendarPicker.templates.multipleTimes.description",
     presets: [
       { startTime: "09:00", endTime: "11:00" },
       { startTime: "12:00", endTime: "14:00" },
@@ -67,17 +60,17 @@ const defaultTemplates: Template[] = [
   },
   {
     id: "weekday",
-    name: "Wochentag",
+    nameKey: "calendarPicker.templates.weekday.name",
     icon: CalendarDays,
-    description: "Für regelmäßige Termine (z.B. JourFixe)",
+    descriptionKey: "calendarPicker.templates.weekday.description",
     presets: [],
     isWeekdayTemplate: true,
   },
   {
     id: "morning-afternoon",
-    name: "Vormittag/Nachmittag",
+    nameKey: "calendarPicker.templates.morningAfternoon.name",
     icon: Repeat,
-    description: "Zwei Optionen pro Tag",
+    descriptionKey: "calendarPicker.templates.morningAfternoon.description",
     presets: [
       { startTime: "09:00", endTime: "12:00" },
       { startTime: "14:00", endTime: "17:00" },
@@ -85,9 +78,9 @@ const defaultTemplates: Template[] = [
   },
   {
     id: "short-slots",
-    name: "Kurze Slots",
+    nameKey: "calendarPicker.templates.shortSlots.name",
     icon: Sparkles,
-    description: "30-Min-Termine (ideal für Elterngespräche)",
+    descriptionKey: "calendarPicker.templates.shortSlots.description",
     presets: [
       { startTime: "09:00", endTime: "09:30" },
       { startTime: "09:30", endTime: "10:00" },
@@ -98,6 +91,7 @@ const defaultTemplates: Template[] = [
 ];
 
 export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions = [] }: CalendarPickerProps) {
+  const { t, i18n } = useTranslation();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startTime, setStartTime] = useState("09:00");
@@ -110,6 +104,14 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [individualSlotsMode, setIndividualSlotsMode] = useState(false);
   const [perDaySlots, setPerDaySlots] = useState<Record<string, TimeSlotPreset[]>>({});
+
+  const dateLocale = i18n.language === 'de' ? de : enUS;
+
+  const weekdays = WEEKDAY_IDS.map(id => ({
+    id,
+    name: t(`calendarPicker.weekdays.${id}`),
+    short: t(`calendarPicker.weekdaysShort.${id}`),
+  }));
 
   // Get dates that have existing options for highlighting
   const datesWithOptions = existingOptions
@@ -177,7 +179,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
   const handleWeekdayAddOptions = () => {
     if (selectedWeekdays.length > 0 && onAddTextOption) {
-      const weekdayOrder = WEEKDAYS.map(w => w.name);
+      const weekdayOrder = weekdays.map(w => w.name);
       const sortedWeekdays = [...selectedWeekdays].sort(
         (a, b) => weekdayOrder.indexOf(a) - weekdayOrder.indexOf(b)
       );
@@ -339,7 +341,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
         <CalendarIcon className="w-4 h-4" />
-        <span>Klicken Sie auf ein Datum, um einen Zeitslot hinzuzufügen</span>
+        <span>{t('calendarPicker.hints.clickToAdd')}</span>
       </div>
       
       <div className="grid md:grid-cols-2 gap-6">
@@ -365,7 +367,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 fontWeight: 'bold',
               },
             }}
-            locale={de}
+            locale={dateLocale}
             weekStartsOn={1}
             className="rounded-md border"
             data-testid="calendar-picker"
@@ -375,16 +377,16 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             <div className="mt-3 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-700 rounded-lg">
               <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                 <span className="text-lg">✓</span>
-                <span className="font-medium">{existingOptions.length} {existingOptions.length === 1 ? 'Termin' : 'Termine'} hinzugefügt</span>
+                <span className="font-medium">{t('calendarPicker.hints.appointmentsAdded', { count: existingOptions.length })}</span>
               </div>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded-full bg-schedule"></span>
-                Orange markierte Tage haben Terminoptionen
+                {t('calendarPicker.hints.orangeMarkedDays')}
               </p>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground mt-2">
-              Wählen Sie Tage im Kalender oder nutzen Sie eine Schnellvorlage
+              {t('calendarPicker.hints.selectDaysOrTemplate')}
             </p>
           )}
         </div>
@@ -395,12 +397,12 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-polly-orange" />
-                Schnellvorlagen
+                {t('calendarPicker.quickTemplates')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-xs text-muted-foreground mb-3">
-                Wählen Sie eine Vorlage und dann ein Datum
+                {t('calendarPicker.selectTemplateAndDate')}
               </p>
               {defaultTemplates.map((template) => {
                 const Icon = template.icon;
@@ -419,8 +421,8 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                   >
                     <Icon className="w-4 h-4 mr-3 text-polly-orange flex-shrink-0" />
                     <div className="text-left">
-                      <div className="font-medium">{template.name}</div>
-                      <div className="text-xs text-muted-foreground">{template.description}</div>
+                      <div className="font-medium">{t(template.nameKey)}</div>
+                      <div className="text-xs text-muted-foreground">{t(template.descriptionKey)}</div>
                     </div>
                   </Button>
                 );
@@ -429,8 +431,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
               {/* Tip about combining templates */}
               <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-xs text-blue-700 dark:text-blue-300">
-                  <span className="font-semibold">💡 Tipp:</span> Vorlagen können kombiniert werden! 
-                  Wählen Sie einen Tag, wenden Sie eine Vorlage an, und wiederholen Sie das für weitere Tage mit anderen Uhrzeiten.
+                  <span className="font-semibold">💡 {t('calendarPicker.hints.tip')}</span> {t('calendarPicker.hints.tipText')}
                 </p>
               </div>
             </CardContent>
@@ -444,12 +445,12 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarIcon className="w-5 h-5 text-polly-orange" />
-              Zeitslot hinzufügen
+              {t('calendarPicker.dialogs.addTimeSlot.title')}
             </DialogTitle>
             <DialogDescription>
               {selectedDate && (
                 <span className="font-medium text-foreground">
-                  {selectedDate.toLocaleDateString('de-DE', { 
+                  {selectedDate.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
                     month: 'long', 
@@ -463,7 +464,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="dialog-startTime" className="text-sm font-medium">Von</Label>
+                <Label htmlFor="dialog-startTime" className="text-sm font-medium">{t('calendarPicker.labels.from')}</Label>
                 <Input
                   id="dialog-startTime"
                   type="time"
@@ -474,7 +475,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 />
               </div>
               <div>
-                <Label htmlFor="dialog-endTime" className="text-sm font-medium">Bis</Label>
+                <Label htmlFor="dialog-endTime" className="text-sm font-medium">{t('calendarPicker.labels.to')}</Label>
                 <Input
                   id="dialog-endTime"
                   type="time"
@@ -494,7 +495,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 className="flex-1"
                 data-testid="button-cancel-timeslot"
               >
-                Abbrechen
+                {t('calendarPicker.buttons.cancel')}
               </Button>
               <Button
                 type="button"
@@ -504,7 +505,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 data-testid="button-add-timeslot"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Hinzufügen
+                {t('calendarPicker.buttons.add')}
               </Button>
             </div>
           </div>
@@ -519,19 +520,19 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
               {selectedTemplate && (
                 <>
                   <selectedTemplate.icon className="w-5 h-5 text-polly-orange" />
-                  {selectedTemplate.name}
+                  {t(selectedTemplate.nameKey)}
                 </>
               )}
             </DialogTitle>
             <DialogDescription>
-              Wählen Sie einen oder mehrere Tage und passen Sie dann die Zeitslots an.
+              {t('calendarPicker.dialogs.template.description')}
             </DialogDescription>
           </DialogHeader>
           
           <div className="py-4 space-y-4">
             {/* Calendar for multi-date selection */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">Tage auswählen (Klicken zum Hinzufügen/Entfernen):</Label>
+              <Label className="text-sm font-medium mb-2 block">{t('calendarPicker.labels.selectDays')}</Label>
               <Calendar
                 mode="single"
                 selected={undefined}
@@ -558,7 +559,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                     fontWeight: 'bold',
                   },
                 }}
-                locale={de}
+                locale={dateLocale}
                 weekStartsOn={1}
                 className="rounded-md border"
                 data-testid="template-calendar"
@@ -568,7 +569,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
               {templateSelectedDates.length > 0 && (
                 <div className="mt-3 p-2 bg-muted rounded-lg">
                   <Label className="text-xs text-muted-foreground mb-2 block">
-                    Gewählte Tage ({templateSelectedDates.length}):
+                    {t('calendarPicker.labels.selectedDays', { count: templateSelectedDates.length })}
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     {templateSelectedDates.map((date, idx) => (
@@ -576,7 +577,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                         key={idx} 
                         className="inline-flex items-center gap-1 bg-background border rounded-full px-3 py-1 text-sm"
                       >
-                        <span>{date.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                        <span>{date.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
                         <button
                           type="button"
                           onClick={() => removeTemplateDate(date)}
@@ -605,12 +606,12 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                   {individualSlotsMode ? (
                     <>
                       <Repeat className="w-3 h-3 mr-1" />
-                      Gleiche Slots für alle Tage
+                      {t('calendarPicker.buttons.sameForAllDays')}
                     </>
                   ) : (
                     <>
                       <CalendarDays className="w-3 h-3 mr-1" />
-                      Individuelle Slots pro Tag
+                      {t('calendarPicker.buttons.individualPerDay')}
                     </>
                   )}
                 </Button>
@@ -621,7 +622,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             {!individualSlotsMode && (
               <div className="p-3 bg-muted rounded-lg space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Zeitslots pro Tag ({editableSlots.length}):</Label>
+                  <Label className="text-xs text-muted-foreground">{t('calendarPicker.labels.timeSlotsPerDay', { count: editableSlots.length })}</Label>
                   <Button
                     type="button"
                     variant="ghost"
@@ -631,7 +632,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                     data-testid="button-add-template-slot"
                   >
                     <Plus className="w-3 h-3 mr-1" />
-                    Hinzufügen
+                    {t('calendarPicker.buttons.add')}
                   </Button>
                 </div>
                 
@@ -680,8 +681,8 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                     <div key={dateKey} className="p-3 bg-muted rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs font-medium text-foreground">
-                          {date.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          <span className="text-muted-foreground ml-1">({slots.length} Slots)</span>
+                          {date.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          <span className="text-muted-foreground ml-1">({slots.length} {t('calendarPicker.labels.slots')})</span>
                         </Label>
                         <Button
                           type="button"
@@ -735,12 +736,12 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
             {/* Summary - how many slots will be created */}
             {templateSelectedDates.length > 0 && getTotalSlotsCount() > 0 && (
-              <p className="text-sm text-muted-foreground text-center">
-                Es werden <strong className="text-foreground">{getTotalSlotsCount()}</strong> Zeitslots erstellt
-                {!individualSlotsMode && (
-                  <> ({templateSelectedDates.length} Tag{templateSelectedDates.length > 1 ? 'e' : ''} × {editableSlots.length} Slot{editableSlots.length > 1 ? 's' : ''})</>
-                )}
-              </p>
+              <p className="text-sm text-muted-foreground text-center" dangerouslySetInnerHTML={{
+                __html: t('calendarPicker.summary.willCreate', { count: getTotalSlotsCount() }) +
+                  (!individualSlotsMode ? ` ${templateSelectedDates.length > 1 || editableSlots.length > 1 
+                    ? t('calendarPicker.summary.calculation_plural', { days: templateSelectedDates.length, slots: editableSlots.length })
+                    : t('calendarPicker.summary.calculation', { days: templateSelectedDates.length, slots: editableSlots.length })}` : '')
+              }} />
             )}
             
             {/* Action buttons */}
@@ -752,7 +753,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 className="flex-1"
                 data-testid="button-cancel-template"
               >
-                Abbrechen
+                {t('calendarPicker.buttons.cancel')}
               </Button>
               <Button
                 type="button"
@@ -762,7 +763,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 data-testid="button-confirm-template"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Hinzufügen
+                {t('calendarPicker.buttons.add')}
               </Button>
             </div>
           </div>
@@ -775,19 +776,19 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-polly-orange" />
-              Wochentag-Auswahl
+              {t('calendarPicker.dialogs.weekday.title')}
             </DialogTitle>
             <DialogDescription>
-              Wählen Sie die Wochentage für Ihre Abstimmung (z.B. für einen regelmäßigen JourFixe).
+              {t('calendarPicker.dialogs.weekday.description')}
             </DialogDescription>
           </DialogHeader>
           
           <div className="py-4 space-y-4">
             {/* Weekday checkboxes */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Wochentage auswählen:</Label>
+              <Label className="text-sm font-medium">{t('calendarPicker.labels.selectWeekdays')}</Label>
               <div className="grid gap-2">
-                {WEEKDAYS.map((weekday) => (
+                {weekdays.map((weekday) => (
                   <div 
                     key={weekday.id}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -810,9 +811,9 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
             {/* Selected count */}
             {selectedWeekdays.length > 0 && (
-              <p className="text-sm text-muted-foreground text-center">
-                <strong className="text-foreground">{selectedWeekdays.length}</strong> Wochentag{selectedWeekdays.length > 1 ? 'e' : ''} ausgewählt
-              </p>
+              <p className="text-sm text-muted-foreground text-center" dangerouslySetInnerHTML={{
+                __html: t('calendarPicker.summary.weekdaysSelected', { count: selectedWeekdays.length })
+              }} />
             )}
             
             {/* Action buttons */}
@@ -824,7 +825,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 className="flex-1"
                 data-testid="button-cancel-weekday"
               >
-                Abbrechen
+                {t('calendarPicker.buttons.cancel')}
               </Button>
               <Button
                 type="button"
@@ -834,7 +835,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 data-testid="button-confirm-weekday"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Hinzufügen
+                {t('calendarPicker.buttons.add')}
               </Button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,11 +8,11 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Users, Clock, Check, MessageCircle } from 'lucide-react';
 import { type PollOption } from '@shared/schema';
-import { formatScheduleOptionWithGermanWeekday } from '@/lib/utils';
+import { formatScheduleOptionWithWeekday } from '@/lib/utils';
 
-function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
   const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
-  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  const formatted = formatScheduleOptionWithWeekday(text, startTimeStr, locale);
   if (formatted.isSchedule) {
     return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
@@ -42,6 +43,7 @@ export function OrganizationSlotVoting({
   adminPreview = false,
   currentSignups = {}
 }: OrganizationSlotVotingProps) {
+  const { t, i18n } = useTranslation();
   const [bookings, setBookings] = useState<SlotBookingInfo[]>(existingBookings);
   const [comments, setComments] = useState<Record<number, string>>({});
 
@@ -131,15 +133,15 @@ export function OrganizationSlotVoting({
     <div className="space-y-4">
       {!allowMultipleSlots && bookings.length === 0 && !adminPreview && (
         <div className="text-sm text-muted-foreground mb-4 p-3 bg-muted rounded-lg">
-          <strong>Hinweis:</strong> Sie können sich nur für einen Slot eintragen.
+          <strong>{t('organizationSlot.note')}</strong> {t('organizationSlot.singleSlotNote')}
         </div>
       )}
       
       {/* Column Headers */}
       <div className="hidden md:grid md:grid-cols-[1fr_auto_auto] gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
-        <span>Bezeichnung</span>
-        <span className="w-24 text-center">Freie Plätze</span>
-        <span className="w-32 text-center">Aktion</span>
+        <span>{t('organizationSlot.label')}</span>
+        <span className="w-24 text-center">{t('organizationSlot.spotsAvailable')}</span>
+        <span className="w-32 text-center">{t('organizationSlot.action')}</span>
       </div>
       
       {options.map((option) => {
@@ -149,6 +151,7 @@ export function OrganizationSlotVoting({
         const progressPercent = capacity.max > 0 ? (capacity.current / capacity.max) * 100 : 0;
         const startTime = formatDateTime(option.startTime);
         const endTime = formatDateTime(option.endTime);
+        const spotsRemaining = capacity.max - capacity.current;
         
         return (
           <div 
@@ -166,7 +169,7 @@ export function OrganizationSlotVoting({
               <div className="flex-1 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h4 className="font-medium text-lg"><FormattedOptionText text={option.text} startTime={option.startTime} /></h4>
+                    <h4 className="font-medium text-lg"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></h4>
                     {(startTime || endTime) && (
                       <p className="text-sm text-muted-foreground flex items-center mt-1">
                         <Clock className="w-3 h-3 mr-1" />
@@ -188,15 +191,17 @@ export function OrganizationSlotVoting({
                   <Progress value={progressPercent} className="h-2" />
                   <p className="text-xs text-muted-foreground">
                     {isFull 
-                      ? 'Ausgebucht'
-                      : `Noch ${capacity.max - capacity.current} ${capacity.max - capacity.current === 1 ? 'Platz' : 'Plätze'} frei`
+                      ? t('organizationSlot.fullyBooked')
+                      : spotsRemaining === 1
+                        ? t('organizationSlot.spotFree', { count: spotsRemaining })
+                        : t('organizationSlot.spotsFree', { count: spotsRemaining })
                     }
                   </p>
                 </div>
                 
                 {capacity.names.length > 0 && (
                   <div className="text-sm text-muted-foreground">
-                    <span className="font-medium">Eingetragen: </span>
+                    <span className="font-medium">{t('organizationSlot.registeredLabel')} </span>
                     {capacity.names.join(', ')}
                   </div>
                 )}
@@ -205,12 +210,12 @@ export function OrganizationSlotVoting({
                   <div className="mt-3">
                     <Label className="text-sm flex items-center mb-1">
                       <MessageCircle className="w-3 h-3 mr-1" />
-                      Kommentar (optional)
+                      {t('organizationSlot.commentOptional')}
                     </Label>
                     <Textarea
                       value={comments[option.id] || ''}
                       onChange={(e) => updateComment(option.id, e.target.value)}
-                      placeholder="z.B. Kontaktinfos, besondere Hinweise..."
+                      placeholder={t('organizationSlot.commentPlaceholder')}
                       className="mt-1 text-sm"
                       rows={2}
                       disabled={disabled}
@@ -239,12 +244,12 @@ export function OrganizationSlotVoting({
                     {isBooked ? (
                       <>
                         <Check className="w-4 h-4 mr-2" />
-                        Eingetragen
+                        {t('organizationSlot.registered')}
                       </>
                     ) : isFull ? (
-                      'Ausgebucht'
+                      t('organizationSlot.fullyBooked')
                     ) : (
-                      'Eintragen'
+                      t('organizationSlot.register')
                     )}
                   </Button>
                 </div>
@@ -257,7 +262,10 @@ export function OrganizationSlotVoting({
       {bookings.length > 0 && !adminPreview && (
         <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 rounded-lg">
           <p className="text-sm text-green-700 dark:text-green-300">
-            <strong>Ihre Auswahl:</strong> Sie haben sich für {bookings.length} {bookings.length === 1 ? 'Slot' : 'Slots'} eingetragen.
+            <strong>{t('organizationSlot.yourSelection')}</strong> {bookings.length === 1 
+              ? t('organizationSlot.registeredForSlot', { count: bookings.length })
+              : t('organizationSlot.registeredForSlots', { count: bookings.length })
+            }
           </p>
         </div>
       )}

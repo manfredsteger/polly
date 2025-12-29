@@ -13,14 +13,40 @@ export function formatScheduleOptionText(text: string): { date: string; time: st
   return null;
 }
 
-const GERMAN_WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+function getLocaleCode(locale: string): string {
+  const localeMap: Record<string, string> = {
+    'de': 'de-DE',
+    'en': 'en-US',
+    'fr': 'fr-FR',
+    'es': 'es-ES',
+    'it': 'it-IT',
+    'nl': 'nl-NL',
+    'pt': 'pt-PT',
+    'pl': 'pl-PL',
+  };
+  return localeMap[locale] || locale || 'en-US';
+}
 
-export function formatScheduleOptionWithGermanWeekday(text: string, startTime?: string | null): { 
-  isSchedule: boolean; 
-  dateWithWeekday: string; 
+function getLocalizedWeekday(date: Date, locale: string = 'en'): string {
+  const localeCode = getLocaleCode(locale);
+  try {
+    return date.toLocaleDateString(localeCode, { weekday: 'long' });
+  } catch {
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+}
+
+export interface FormattedScheduleOption {
+  isSchedule: boolean;
+  dateWithWeekday: string;
   time: string;
-} {
-  // Try to parse as schedule format: "DD.MM.YYYY HH:MM - HH:MM" or similar
+}
+
+export function formatScheduleOptionWithWeekday(
+  text: string, 
+  startTime?: string | null, 
+  locale: string = 'en'
+): FormattedScheduleOption {
   const match = text.match(/^(\d{1,2})\.(\d{1,2})\.?(\d{2,4})?\s*(.*)$/);
   
   if (match) {
@@ -29,20 +55,16 @@ export function formatScheduleOptionWithGermanWeekday(text: string, startTime?: 
     const yearPart = match[3];
     const timePart = match[4] || '';
     
-    // Determine the year
     let year: number;
     if (yearPart) {
       year = yearPart.length === 2 ? 2000 + parseInt(yearPart) : parseInt(yearPart);
     } else {
-      // Use startTime if available, otherwise current year
       year = startTime ? new Date(startTime).getFullYear() : new Date().getFullYear();
     }
     
-    // Create date and get German weekday
     const date = new Date(year, month - 1, day);
-    const weekday = GERMAN_WEEKDAYS[date.getDay()];
+    const weekday = getLocalizedWeekday(date, locale);
     
-    // Format date with German weekday
     const formattedDate = `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}. ${weekday}`;
     
     return {
@@ -52,16 +74,14 @@ export function formatScheduleOptionWithGermanWeekday(text: string, startTime?: 
     };
   }
   
-  // If startTime is available, use it to format
   if (startTime) {
     try {
       const date = new Date(startTime);
-      const weekday = GERMAN_WEEKDAYS[date.getDay()];
+      const weekday = getLocalizedWeekday(date, locale);
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const formattedDate = `${day}.${month}. ${weekday}`;
       
-      // Extract time from text if available
       const timeMatch = text.match(/(\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})/);
       const timePart = timeMatch ? timeMatch[1] : '';
       
@@ -81,3 +101,8 @@ export function formatScheduleOptionWithGermanWeekday(text: string, startTime?: 
     time: ''
   };
 }
+
+/**
+ * @deprecated Use formatScheduleOptionWithWeekday instead
+ */
+export const formatScheduleOptionWithGermanWeekday = formatScheduleOptionWithWeekday;

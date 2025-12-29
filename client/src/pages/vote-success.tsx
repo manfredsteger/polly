@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
 export default function VoteSuccess() {
+  const { t } = useTranslation();
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -26,8 +28,8 @@ export default function VoteSuccess() {
     },
     onSuccess: () => {
       toast({
-        title: "Stimme zurückgezogen",
-        description: "Ihre Stimme wurde erfolgreich entfernt.",
+        title: t('voteSuccess.toasts.voteWithdrawn'),
+        description: t('voteSuccess.toasts.voteWithdrawnDesc'),
       });
       if (voteData?.publicToken) {
         navigate(`/poll/${voteData.publicToken}`);
@@ -35,8 +37,8 @@ export default function VoteSuccess() {
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Ihre Stimme konnte nicht zurückgezogen werden.",
+        title: t('voteSuccess.toasts.error'),
+        description: t('voteSuccess.toasts.voteNotWithdrawn'),
         variant: "destructive",
       });
     },
@@ -60,14 +62,14 @@ export default function VoteSuccess() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Keine Daten gefunden</CardTitle>
+            <CardTitle>{t('voteSuccess.noDataTitle')}</CardTitle>
             <CardDescription>
-              Es wurden keine Abstimmungsdaten gefunden.
+              {t('voteSuccess.noDataDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/">
-              <Button className="w-full">Zur Startseite</Button>
+              <Button className="w-full">{t('voteSuccess.backToHome')}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -76,7 +78,7 @@ export default function VoteSuccess() {
   }
 
   const { poll, pollType, publicToken, voterName, voterEditToken } = voteData;
-  const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
+  const pollTypeText = pollType === 'schedule' ? t('voteSuccess.schedulePoll') : t('voteSuccess.survey');
   const publicLink = `${window.location.origin}/poll/${publicToken}`;
   const resultsLink = `${window.location.origin}/poll/${publicToken}#results`;
   const editLink = voterEditToken ? `${window.location.origin}/edit/${voterEditToken}` : null;
@@ -85,13 +87,13 @@ export default function VoteSuccess() {
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: "Erfolgreich kopiert!",
+        title: t('voteSuccess.toasts.copied'),
         description: successMessage,
       });
     } catch (err) {
       toast({
-        title: "Fehler",
-        description: "Text konnte nicht kopiert werden.",
+        title: t('voteSuccess.toasts.error'),
+        description: t('voteSuccess.toasts.textNotCopied'),
         variant: "destructive",
       });
     }
@@ -108,10 +110,10 @@ export default function VoteSuccess() {
             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Vielen Dank für Ihre Stimme!
+            {t('voteSuccess.thankYouTitle')}
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300">
-            Ihre Antwort für "{poll.title}" wurde erfolgreich gespeichert.
+            {t('voteSuccess.thankYouDesc', { title: poll.title })}
           </p>
         </div>
 
@@ -121,7 +123,7 @@ export default function VoteSuccess() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-center">
                 <p className="text-blue-700 dark:text-blue-300 font-medium">
-                  Abgestimmt als: <strong>{voterName}</strong>
+                  {t('voteSuccess.votedAs')}: <strong>{voterName}</strong>
                 </p>
               </div>
             </CardContent>
@@ -131,7 +133,7 @@ export default function VoteSuccess() {
         {/* Next Steps */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Was passiert als Nächstes?</CardTitle>
+            <CardTitle>{t('voteSuccess.nextStepsTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -140,9 +142,9 @@ export default function VoteSuccess() {
                   1
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Ergebnisse verfolgen</p>
+                  <p className="font-medium text-foreground">{t('voteSuccess.step1Title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Sie können die aktuellen Abstimmungsergebnisse jederzeit einsehen und verfolgen, wie andere abstimmen.
+                    {t('voteSuccess.step1Desc')}
                   </p>
                 </div>
               </div>
@@ -151,9 +153,9 @@ export default function VoteSuccess() {
                   2
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Stimme ändern</p>
+                  <p className="font-medium text-foreground">{t('voteSuccess.step2Title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Falls Sie Ihre Meinung ändern, können Sie Ihre Stimme jederzeit über den gleichen Link anpassen.
+                    {t('voteSuccess.step2Desc')}
                   </p>
                 </div>
               </div>
@@ -162,9 +164,9 @@ export default function VoteSuccess() {
                   3
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Andere einladen</p>
+                  <p className="font-medium text-foreground">{t('voteSuccess.step3Title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Teilen Sie den Link mit weiteren Personen, die an dieser {pollTypeText} teilnehmen sollen.
+                    {t('voteSuccess.step3Desc', { type: pollTypeText })}
                   </p>
                 </div>
               </div>
@@ -179,7 +181,7 @@ export default function VoteSuccess() {
             className="flex items-center justify-center polly-button-primary"
           >
             <BarChart3 className="w-4 h-4 mr-2" />
-            Ergebnisse ansehen
+            {t('voteSuccess.viewResults')}
           </Button>
           
           {editLink && (
@@ -189,7 +191,7 @@ export default function VoteSuccess() {
               className="flex items-center justify-center polly-button-neutral"
             >
               <Edit className="w-4 h-4 mr-2" />
-              Stimme bearbeiten
+              {t('voteSuccess.editVote')}
             </Button>
           )}
           
@@ -201,7 +203,7 @@ export default function VoteSuccess() {
               data-testid="button-withdraw-vote"
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Stimme zurückziehen'}
+              {withdrawVoteMutation.isPending ? t('voteSuccess.withdrawing') : t('voteSuccess.withdrawVote')}
             </Button>
           )}
         </div>
@@ -211,13 +213,13 @@ export default function VoteSuccess() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <LinkIcon className="w-5 h-5 mr-2" />
-              Links zur Umfrage
+              {t('voteSuccess.pollLinks')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">
-                Umfrage ansehen
+                {t('voteSuccess.viewPoll')}
               </label>
               <div className="flex items-center space-x-2 mt-1">
                 <Input
@@ -228,7 +230,7 @@ export default function VoteSuccess() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => copyToClipboard(publicLink, 'Link kopiert!')}
+                  onClick={() => copyToClipboard(publicLink, t('voteSuccess.toasts.linkCopied'))}
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
@@ -237,7 +239,7 @@ export default function VoteSuccess() {
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">
-                Ergebnisse ansehen
+                {t('voteSuccess.viewResultsLink')}
               </label>
               <div className="flex items-center space-x-2 mt-1">
                 <Input
@@ -248,7 +250,7 @@ export default function VoteSuccess() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => copyToClipboard(resultsLink, 'Ergebnis-Link kopiert!')}
+                  onClick={() => copyToClipboard(resultsLink, t('voteSuccess.toasts.resultLinkCopied'))}
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
@@ -258,7 +260,7 @@ export default function VoteSuccess() {
             {editLink && (
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
-                  Stimme bearbeiten (Nur für Sie)
+                  {t('voteSuccess.editVoteLink')}
                 </label>
                 <div className="flex items-center space-x-2 mt-1">
                   <Input
@@ -269,7 +271,7 @@ export default function VoteSuccess() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => copyToClipboard(editLink, 'Bearbeitungs-Link kopiert!')}
+                    onClick={() => copyToClipboard(editLink, t('voteSuccess.toasts.editLinkCopied'))}
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -284,7 +286,7 @@ export default function VoteSuccess() {
           <Link href="/">
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Zur Startseite
+              {t('voteSuccess.backToHome')}
             </Button>
           </Link>
         </div>

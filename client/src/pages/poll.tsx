@@ -1,6 +1,7 @@
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { VotingInterface } from "@/components/VotingInterface";
 import { ResultsChart } from "@/components/ResultsChart";
 import { LiveResultsView } from "@/components/LiveResultsView";
@@ -76,6 +77,7 @@ const localToISOString = (dateStr: string | null | undefined): string | undefine
 };
 
 export default function Poll() {
+  const { t } = useTranslation();
   const { token } = useParams();
   const [location, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("vote");
@@ -149,14 +151,14 @@ export default function Poll() {
       const checkAuthError = async () => {
         const err = error as any;
         if (err.status === 401) {
-          setAuthError({ type: 'unauthorized', message: 'Diese Umfrage wurde von einem registrierten Benutzer erstellt. Bitte melden Sie sich an, um die Administrationsseite aufzurufen.' });
+          setAuthError({ type: 'unauthorized', message: t('pollView.loginRequiredMessage') });
         } else if (err.status === 403) {
-          setAuthError({ type: 'forbidden', message: 'Sie können nur Ihre eigenen Umfragen verwalten.' });
+          setAuthError({ type: 'forbidden', message: t('pollView.accessDeniedMessage') });
         }
       };
       checkAuthError();
     }
-  }, [error, isAdminAccess]);
+  }, [error, isAdminAccess, t]);
 
   const { data: results, error: resultsError } = useQuery<PollResults>({
     queryKey: [`/api/v1/polls/${token}/results`],
@@ -198,13 +200,13 @@ export default function Poll() {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Gespeichert", description: "Die Änderungen wurden gespeichert." });
+      toast({ title: t('pollView.toasts.saved'), description: t('pollView.toasts.changesSaved') });
       queryClient.invalidateQueries({ queryKey: [endpoint] });
       setEditDialogOpen(false);
       setEndPollDialogOpen(false);
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Die Änderungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: t('pollView.toasts.changesNotSaved'), variant: "destructive" });
     },
   });
 
@@ -275,11 +277,11 @@ export default function Poll() {
         }
       }
       
-      toast({ title: "Gespeichert", description: "Alle Änderungen wurden gespeichert." });
+      toast({ title: t('pollView.toasts.saved'), description: t('pollView.toasts.allChangesSaved') });
       setEditDialogOpen(false);
       setHasVotesWarningShown(false);
     } catch (error) {
-      toast({ title: "Fehler", description: "Einige Änderungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: t('pollView.toasts.someChangesNotSaved'), variant: "destructive" });
     }
   };
 
@@ -292,13 +294,13 @@ export default function Poll() {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Einladungen gesendet", description: "Die Einladungen wurden erfolgreich versendet." });
+      toast({ title: t('pollView.toasts.invitationsSent'), description: t('pollView.toasts.invitationsSentDesc') });
       setInviteDialogOpen(false);
       setInviteEmails("");
       setInviteMessage("");
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Die Einladungen konnten nicht gesendet werden.", variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: t('pollView.toasts.invitationsNotSent'), variant: "destructive" });
     },
   });
 
@@ -314,8 +316,8 @@ export default function Poll() {
     },
     onSuccess: (data) => {
       toast({ 
-        title: "Matrix-Einladungen gesendet", 
-        description: `${data.sent} Einladung(en) erfolgreich gesendet.${data.failed > 0 ? ` ${data.failed} fehlgeschlagen.` : ''}`
+        title: t('pollView.toasts.matrixInvitesSent'), 
+        description: t('pollView.toasts.matrixInvitesSentDesc', { sent: data.sent }) + (data.failed > 0 ? ` ${t('pollView.toasts.matrixInvitesFailed', { failed: data.failed })}` : '')
       });
       setInviteDialogOpen(false);
       setSelectedMatrixUsers([]);
@@ -323,7 +325,7 @@ export default function Poll() {
       setInviteMessage("");
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Die Matrix-Einladungen konnten nicht gesendet werden.", variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: t('pollView.toasts.matrixInvitesNotSent'), variant: "destructive" });
     },
   });
 
@@ -378,23 +380,23 @@ export default function Poll() {
       
       if (result.success) {
         toast({ 
-          title: "Erinnerungen gesendet", 
-          description: `${result.sent} Erinnerung(en) erfolgreich versendet.`
+          title: t('pollView.toasts.remindersSent'), 
+          description: t('pollView.toasts.remindersSentDesc', { sent: result.sent })
         });
       } else {
         toast({ 
-          title: "Fehler", 
-          description: result.error || "Erinnerungen konnten nicht gesendet werden.", 
+          title: t('pollView.toasts.error'), 
+          description: result.error || t('pollView.toasts.remindersNotSent'), 
           variant: "destructive" 
         });
       }
     } catch (error: any) {
-      let errorMessage = "Erinnerungen konnten nicht gesendet werden.";
+      let errorMessage = t('pollView.toasts.remindersNotSent');
       try {
         const errorData = await error?.json?.();
         if (errorData?.error) errorMessage = errorData.error;
       } catch {}
-      toast({ title: "Fehler", description: errorMessage, variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: errorMessage, variant: "destructive" });
     } finally {
       setReminderSending(false);
     }
@@ -402,7 +404,7 @@ export default function Poll() {
 
   const handleSendMatrixInvites = () => {
     if (selectedMatrixUsers.length === 0) {
-      toast({ title: "Fehler", description: "Bitte wählen Sie mindestens einen Matrix-Benutzer aus.", variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: t('pollView.toasts.selectMatrixUser'), variant: "destructive" });
       return;
     }
     sendMatrixInviteMutation.mutate({ 
@@ -415,10 +417,10 @@ export default function Poll() {
     try {
       await navigator.clipboard.writeText(link);
       setCopiedLink(type);
-      toast({ title: "Kopiert", description: "Link wurde in die Zwischenablage kopiert." });
+      toast({ title: t('pollView.toasts.copied'), description: t('pollView.toasts.linkCopied') });
       setTimeout(() => setCopiedLink(null), 2000);
     } catch {
-      toast({ title: "Fehler", description: "Link konnte nicht kopiert werden.", variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: t('pollView.toasts.linkNotCopied'), variant: "destructive" });
     }
   };
   
@@ -447,7 +449,7 @@ export default function Poll() {
   const handleSendInvites = () => {
     const emailList = inviteEmails.split(/[,;\n]/).map(e => e.trim()).filter(e => e && e.includes("@"));
     if (emailList.length === 0) {
-      toast({ title: "Fehler", description: "Bitte geben Sie mindestens eine gültige E-Mail-Adresse ein.", variant: "destructive" });
+      toast({ title: t('pollView.toasts.error'), description: t('pollView.toasts.enterValidEmail'), variant: "destructive" });
       return;
     }
     sendInviteMutation.mutate({ emails: emailList, customMessage: inviteMessage || undefined });
@@ -488,7 +490,7 @@ export default function Poll() {
               )}
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-4">
-              {authError.type === 'unauthorized' ? 'Anmeldung erforderlich' : 'Zugriff verweigert'}
+              {authError.type === 'unauthorized' ? t('pollView.loginRequired') : t('pollView.accessDenied')}
             </h1>
             <p className="text-muted-foreground mb-6">
               {authError.message}
@@ -497,14 +499,14 @@ export default function Poll() {
               <Link href={`/anmelden?returnTo=${encodeURIComponent(location)}`}>
                 <Button className="polly-button-primary">
                   <LogIn className="w-4 h-4 mr-2" />
-                  Jetzt anmelden
+                  {t('pollView.loginNow')}
                 </Button>
               </Link>
             )}
             {authError.type === 'forbidden' && (
               <Link href="/">
                 <Button variant="outline">
-                  Zur Startseite
+                  {t('pollView.backToHome')}
                 </Button>
               </Link>
             )}
@@ -519,9 +521,9 @@ export default function Poll() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <Card className="p-8">
           <CardContent>
-            <h1 className="text-2xl font-bold text-destructive mb-4">Umfrage nicht gefunden</h1>
+            <h1 className="text-2xl font-bold text-destructive mb-4">{t('pollView.pollNotFound')}</h1>
             <p className="text-muted-foreground">
-              Die angeforderte Umfrage existiert nicht oder ist nicht mehr verfügbar.
+              {t('pollView.pollNotFoundMessage')}
             </p>
           </CardContent>
         </Card>
@@ -530,7 +532,7 @@ export default function Poll() {
   }
 
   const isPollExpired = poll.expiresAt && new Date() > new Date(poll.expiresAt);
-  const pollTypeLabel = poll.type === 'schedule' ? 'Terminumfrage' : poll.type === 'organization' ? 'Orga' : 'Umfrage';
+  const pollTypeLabel = poll.type === 'schedule' ? t('pollView.schedulePoll') : poll.type === 'organization' ? t('pollView.orgaPoll') : t('pollView.surveyPoll');
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -541,7 +543,7 @@ export default function Poll() {
             <div className="flex items-center space-x-3 mb-2">
               <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
               <Badge className={poll.isActive && !isPollExpired ? 'polly-badge-active' : 'polly-badge-inactive'}>
-                {poll.isActive && !isPollExpired ? 'Aktiv' : 'Beendet'}
+                {poll.isActive && !isPollExpired ? t('pollView.active') : t('pollView.ended')}
               </Badge>
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">{poll.title}</h1>
@@ -554,15 +556,15 @@ export default function Poll() {
             <div className="flex space-x-2 ml-4">
               <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)} data-testid="button-edit-poll">
                 <Settings className="w-4 h-4 mr-2" />
-                Bearbeiten
+                {t('pollView.editPoll')}
               </Button>
               <Button variant="outline" size="sm" onClick={() => setInviteDialogOpen(true)} data-testid="button-invite">
                 <Mail className="w-4 h-4 mr-2" />
-                Einladen
+                {t('pollView.inviteParticipants')}
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShareDialogOpen(true)} data-testid="button-share">
                 <Share2 className="w-4 h-4 mr-2" />
-                Teilen
+                {t('pollView.share')}
               </Button>
             </div>
           )}
@@ -573,23 +575,23 @@ export default function Poll() {
           {poll.user && (
             <span className="flex items-center">
               <User className="w-4 h-4 mr-1" />
-              Erstellt von: {poll.user.name || poll.user.username}
+              {t('pollView.createdBy')}: {poll.user.name || poll.user.username}
             </span>
           )}
           <span className="flex items-center">
             <Clock className="w-4 h-4 mr-1" />
-            Erstellt: {new Date(poll.createdAt).toLocaleDateString('de-DE')}
+            {t('pollView.created')}: {new Date(poll.createdAt).toLocaleDateString('de-DE')}
           </span>
           {poll.expiresAt && (
             <span className="flex items-center">
               <Calendar className="w-4 h-4 mr-1" />
-              Läuft ab: {new Date(poll.expiresAt).toLocaleDateString('de-DE')}
+              {t('pollView.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString('de-DE')}
             </span>
           )}
           {results && (
             <span className="flex items-center">
               <Users className="w-4 h-4 mr-1" />
-              {results.participantCount} Teilnehmer
+              {results.participantCount} {t('pollView.participants')}
             </span>
           )}
         </div>
@@ -598,13 +600,13 @@ export default function Poll() {
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="vote">Abstimmung</TabsTrigger>
-          <TabsTrigger value="results">Ergebnisse</TabsTrigger>
+          <TabsTrigger value="vote">{t('pollView.tabVote')}</TabsTrigger>
+          <TabsTrigger value="results">{t('pollView.tabResults')}</TabsTrigger>
           <TabsTrigger value="live" className="flex items-center gap-1">
             <Radio className="w-3 h-3" />
-            Live
+            {t('pollView.tabLive')}
           </TabsTrigger>
-          <TabsTrigger value="tools">Tools</TabsTrigger>
+          <TabsTrigger value="tools">{t('pollView.tabTools')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vote" className="space-y-6">
@@ -628,10 +630,10 @@ export default function Poll() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-200">
-                    Ergebnisse nicht sichtbar
+                    {t('pollView.resultsNotVisible')}
                   </h3>
                   <p className="text-amber-700 dark:text-amber-300 mt-2">
-                    Die Ergebnisse dieser Umfrage sind nur für den Ersteller sichtbar.
+                    {t('pollView.resultsPrivateMessage')}
                   </p>
                 </div>
               </CardContent>
@@ -648,7 +650,7 @@ export default function Poll() {
           ) : (
             <Card>
               <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">Noch keine Abstimmungsergebnisse verfügbar.</p>
+                <p className="text-muted-foreground">{t('pollView.noResultsYet')}</p>
               </CardContent>
             </Card>
           )}
@@ -661,12 +663,12 @@ export default function Poll() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Share2 className="w-5 h-5 mr-2 text-polly-blue" />
-                  Teilen
+                  {t('pollView.share')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Öffentlicher Link</label>
+                  <label className="text-sm font-medium">{t('pollView.publicLink')}</label>
                   <div className="flex mt-1">
                     <Input
                       value={`${window.location.origin}/poll/${poll.publicToken}`}
@@ -684,7 +686,7 @@ export default function Poll() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">QR-Code</label>
+                  <label className="text-sm font-medium">{t('pollView.qrCode')}</label>
                   <div className="flex justify-center p-4 bg-white rounded-lg border">
                     {qrCodeLoading ? (
                       <div className="flex items-center justify-center h-40 w-40">
@@ -693,7 +695,7 @@ export default function Poll() {
                     ) : qrCodeData ? (
                       <img 
                         src={qrCodeData} 
-                        alt="QR-Code für Umfrage" 
+                        alt={t('pollView.qrCodeAlt')} 
                         className="h-40 w-40"
                         data-testid="img-qr-code-tools"
                       />
@@ -734,7 +736,7 @@ export default function Poll() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Download className="w-5 h-5 mr-2 text-green-600" />
-                  Export
+                  {t('pollView.export')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -745,7 +747,7 @@ export default function Poll() {
                   data-testid="button-export-csv"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  CSV exportieren
+                  {t('pollView.exportCsv')}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -754,7 +756,7 @@ export default function Poll() {
                   data-testid="button-export-pdf"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  PDF-Bericht erstellen
+                  {t('pollView.exportPdf')}
                 </Button>
                 {poll.type === 'schedule' && (
                   <Button 
@@ -764,7 +766,7 @@ export default function Poll() {
                     data-testid="button-export-ics"
                   >
                     <Calendar className="w-4 h-4 mr-2" />
-                    Kalender-Datei (ICS)
+                    {t('pollView.exportIcs')}
                   </Button>
                 )}
               </CardContent>
@@ -776,7 +778,7 @@ export default function Poll() {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Settings className="w-5 h-5 mr-2 text-polly-orange" />
-                    Verwaltung
+                    {t('pollView.management')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -788,7 +790,7 @@ export default function Poll() {
                       data-testid="button-edit-poll-tools"
                     >
                       <Settings className="w-4 h-4 mr-2" />
-                      Umfrage bearbeiten
+                      {t('pollView.editPoll')}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -797,7 +799,7 @@ export default function Poll() {
                       data-testid="button-invite-tools"
                     >
                       <Mail className="w-4 h-4 mr-2" />
-                      Teilnehmer einladen
+                      {t('pollView.inviteParticipants')}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -811,7 +813,7 @@ export default function Poll() {
                       ) : (
                         <BellRing className="w-4 h-4 mr-2" />
                       )}
-                      Teilnehmer erinnern
+                      {t('pollView.remindParticipants')}
                     </Button>
                     {poll.isActive && (
                       <Button 
@@ -826,7 +828,7 @@ export default function Poll() {
                         data-testid="button-end-poll"
                       >
                         <StopCircle className="w-4 h-4 mr-2" />
-                        Umfrage beenden
+                        {t('pollView.endPoll')}
                       </Button>
                     )}
                     {!poll.isActive && (
@@ -840,12 +842,12 @@ export default function Poll() {
                         data-testid="button-reactivate-poll"
                       >
                         <Check className="w-4 h-4 mr-2" />
-                        Umfrage reaktivieren
+                        {t('pollView.reactivatePoll')}
                       </Button>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Admin-Link: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/poll/{poll.adminToken}</code>
+                    {t('pollView.adminLink')}: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/poll/{poll.adminToken}</code>
                   </p>
                 </CardContent>
               </Card>
@@ -861,9 +863,9 @@ export default function Poll() {
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Umfrage bearbeiten</DialogTitle>
+            <DialogTitle>{t('pollView.editDialogTitle')}</DialogTitle>
             <DialogDescription>
-              Ändern Sie die Einstellungen und Optionen dieser Umfrage.
+              {t('pollView.editDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           
@@ -872,14 +874,11 @@ export default function Poll() {
               <div className="flex items-start gap-3">
                 <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-amber-800 dark:text-amber-200">Achtung: Umfrage hat bereits Stimmen</h4>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                    Diese Umfrage hat bereits <strong>{uniqueVoters} Teilnehmer</strong> mit <strong>{poll?.votes?.length} Stimmen</strong>. 
-                    Änderungen an den Optionen können die Ergebnisse beeinflussen.
-                  </p>
+                  <h4 className="font-medium text-amber-800 dark:text-amber-200">{t('pollView.hasVotesWarningTitle')}</h4>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1" dangerouslySetInnerHTML={{ __html: t('pollView.hasVotesWarningMessage', { voters: uniqueVoters, votes: poll?.votes?.length }) }} />
                   <ul className="text-sm text-amber-700 dark:text-amber-300 mt-2 list-disc list-inside">
-                    <li>Das Löschen einer Option entfernt auch alle zugehörigen Stimmen</li>
-                    <li>Neue Optionen haben noch keine Stimmen</li>
+                    <li>{t('pollView.hasVotesWarningItem1')}</li>
+                    <li>{t('pollView.hasVotesWarningItem2')}</li>
                   </ul>
                   <Button 
                     variant="outline" 
@@ -887,7 +886,7 @@ export default function Poll() {
                     className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/50"
                     onClick={() => setHasVotesWarningShown(true)}
                   >
-                    Verstanden, trotzdem bearbeiten
+                    {t('pollView.understoodEdit')}
                   </Button>
                 </div>
               </div>
@@ -898,7 +897,7 @@ export default function Poll() {
             <>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-title">Titel</Label>
+                  <Label htmlFor="edit-title">{t('pollView.title')}</Label>
                   <Input
                     id="edit-title"
                     value={editForm.title}
@@ -907,7 +906,7 @@ export default function Poll() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-description">Beschreibung</Label>
+                  <Label htmlFor="edit-description">{t('pollView.description')}</Label>
                   <Textarea
                     id="edit-description"
                     value={editForm.description}
@@ -917,7 +916,7 @@ export default function Poll() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="edit-active">Umfrage aktiv</Label>
+                  <Label htmlFor="edit-active">{t('pollView.pollActive')}</Label>
                   <Switch
                     id="edit-active"
                     checked={editForm.isActive}
@@ -930,7 +929,7 @@ export default function Poll() {
                 <div className="border-t pt-4 mt-4">
                   <div className="flex items-center justify-between mb-3">
                     <Label className="text-base font-medium">
-                      {poll?.type === 'schedule' ? 'Termine' : poll?.type === 'organization' ? 'Slots' : 'Optionen'}
+                      {poll?.type === 'schedule' ? t('pollView.dates') : poll?.type === 'organization' ? t('pollView.slots') : t('pollView.options')}
                     </Label>
                     <Button
                       type="button"
@@ -946,7 +945,7 @@ export default function Poll() {
                       }}
                       data-testid="button-add-option"
                     >
-                      + {poll?.type === 'schedule' ? 'Termin hinzufügen' : poll?.type === 'organization' ? 'Slot hinzufügen' : 'Option hinzufügen'}
+                      + {poll?.type === 'schedule' ? t('pollView.addDate') : poll?.type === 'organization' ? t('pollView.addSlot') : t('pollView.addOption')}
                     </Button>
                   </div>
                   
@@ -961,7 +960,7 @@ export default function Poll() {
                               <>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                    <Label className="text-xs text-muted-foreground">Start</Label>
+                                    <Label className="text-xs text-muted-foreground">{t('pollView.start')}</Label>
                                     <Input
                                       type="datetime-local"
                                       value={option.startTime || ''}
@@ -975,7 +974,7 @@ export default function Poll() {
                                     />
                                   </div>
                                   <div>
-                                    <Label className="text-xs text-muted-foreground">Ende</Label>
+                                    <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
                                     <Input
                                       type="datetime-local"
                                       value={option.endTime || ''}
@@ -990,7 +989,7 @@ export default function Poll() {
                                   </div>
                                 </div>
                                 <Input
-                                  placeholder="Beschreibung (optional)"
+                                  placeholder={t('pollView.descriptionOptional')}
                                   value={option.text}
                                   onChange={(e) => {
                                     const updated = [...editingOptions];
@@ -1005,7 +1004,7 @@ export default function Poll() {
                               <div className="grid grid-cols-3 gap-2">
                                 <div className="col-span-2">
                                   <Input
-                                    placeholder="Slot-Name"
+                                    placeholder={t('pollView.slotName')}
                                     value={option.text}
                                     onChange={(e) => {
                                       const updated = [...editingOptions];
@@ -1018,7 +1017,7 @@ export default function Poll() {
                                 <div>
                                   <Input
                                     type="number"
-                                    placeholder="Max"
+                                    placeholder={t('pollView.max')}
                                     min={1}
                                     value={option.maxCapacity || ''}
                                     onChange={(e) => {
@@ -1032,7 +1031,7 @@ export default function Poll() {
                               </div>
                             ) : (
                               <Input
-                                placeholder="Option"
+                                placeholder={t('pollView.option')}
                                 value={option.text}
                                 onChange={(e) => {
                                   const updated = [...editingOptions];
@@ -1044,7 +1043,7 @@ export default function Poll() {
                             )}
                             {optionVotes > 0 && (
                               <p className="text-xs text-muted-foreground">
-                                {optionVotes} Stimme(n) für diese Option
+                                {optionVotes} {t('pollView.votesForOption')}
                               </p>
                             )}
                           </div>
@@ -1072,7 +1071,7 @@ export default function Poll() {
                     
                     {editingOptions.filter(o => !o.isDeleted).length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-4">
-                        Keine Optionen vorhanden. Fügen Sie mindestens eine Option hinzu.
+                        {t('pollView.noOptionsAvailable')}
                       </p>
                     )}
                   </div>
@@ -1098,7 +1097,7 @@ export default function Poll() {
                     })) || []);
                   }
                 }}>
-                  Abbrechen
+                  {t('common.cancel')}
                 </Button>
                 <Button 
                   onClick={handleSaveAllChanges}
@@ -1108,7 +1107,7 @@ export default function Poll() {
                   {(updatePollMutation.isPending || addOptionMutation.isPending || deleteOptionMutation.isPending || updateOptionMutation.isPending) && (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   )}
-                  Alle Änderungen speichern
+                  {t('pollView.saveChanges')}
                 </Button>
               </DialogFooter>
             </>
@@ -1120,9 +1119,9 @@ export default function Poll() {
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Teilnehmer einladen</DialogTitle>
+            <DialogTitle>{t('pollView.inviteDialogTitle')}</DialogTitle>
             <DialogDescription>
-              Senden Sie Einladungen per E-Mail oder Matrix-Chat.
+              {t('pollView.inviteDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           
@@ -1131,43 +1130,43 @@ export default function Poll() {
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="email" data-testid="tab-invite-email">
                   <Mail className="w-4 h-4 mr-2" />
-                  E-Mail
+                  {t('pollView.emailTab')}
                 </TabsTrigger>
                 <TabsTrigger value="matrix" data-testid="tab-invite-matrix">
                   <MessageSquare className="w-4 h-4 mr-2" />
-                  Matrix Chat
+                  {t('pollView.matrixTab')}
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="email" className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="invite-emails">E-Mail-Adressen</Label>
+                  <Label htmlFor="invite-emails">{t('pollView.emailAddresses')}</Label>
                   <Textarea
                     id="invite-emails"
                     value={inviteEmails}
                     onChange={(e) => setInviteEmails(e.target.value)}
-                    placeholder="max@example.de, anna@example.de&#10;Oder eine Adresse pro Zeile..."
+                    placeholder="max@example.de, anna@example.de"
                     rows={4}
                     data-testid="input-invite-emails"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Trennen Sie mehrere Adressen mit Komma, Semikolon oder Zeilenumbruch.
+                    {t('pollView.emailAddressesHint')}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="invite-message-email">Persönliche Nachricht (optional)</Label>
+                  <Label htmlFor="invite-message-email">{t('pollView.customMessage')}</Label>
                   <Textarea
                     id="invite-message-email"
                     value={inviteMessage}
                     onChange={(e) => setInviteMessage(e.target.value)}
-                    placeholder="Liebe Kollegen, bitte stimmt ab..."
+                    placeholder={t('pollView.customMessagePlaceholder')}
                     rows={2}
                     data-testid="input-invite-message"
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-                    Abbrechen
+                    {t('common.cancel')}
                   </Button>
                   <Button 
                     onClick={handleSendInvites}
@@ -1176,20 +1175,20 @@ export default function Poll() {
                   >
                     {sendInviteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     <Mail className="w-4 h-4 mr-2" />
-                    Einladungen senden
+                    {t('pollView.sendInvitations')}
                   </Button>
                 </div>
               </TabsContent>
               
               <TabsContent value="matrix" className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Matrix-Benutzer suchen</Label>
+                  <Label>{t('pollView.searchMatrixUsers')}</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       value={matrixSearch}
                       onChange={(e) => setMatrixSearch(e.target.value)}
-                      placeholder="Name oder @user:matrix.example.com eingeben..."
+                      placeholder={t('pollView.searchMatrixPlaceholder')}
                       className="pl-9"
                       data-testid="input-matrix-search"
                     />
@@ -1223,7 +1222,7 @@ export default function Poll() {
                 
                 {selectedMatrixUsers.length > 0 && (
                   <div className="space-y-2">
-                    <Label>Ausgewählte Teilnehmer ({selectedMatrixUsers.length})</Label>
+                    <Label>{t('pollView.selectedParticipants')} ({selectedMatrixUsers.length})</Label>
                     <div className="flex flex-wrap gap-2">
                       {selectedMatrixUsers.map((user) => (
                         <Badge 
@@ -1247,12 +1246,12 @@ export default function Poll() {
                 )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="invite-message-matrix">Persönliche Nachricht (optional)</Label>
+                  <Label htmlFor="invite-message-matrix">{t('pollView.customMessage')}</Label>
                   <Textarea
                     id="invite-message-matrix"
                     value={inviteMessage}
                     onChange={(e) => setInviteMessage(e.target.value)}
-                    placeholder="Liebe Kollegen, bitte stimmt ab..."
+                    placeholder={t('pollView.customMessagePlaceholder')}
                     rows={2}
                     data-testid="input-invite-message-matrix"
                   />
@@ -1260,7 +1259,7 @@ export default function Poll() {
                 
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-                    Abbrechen
+                    {t('common.cancel')}
                   </Button>
                   <Button 
                     onClick={handleSendMatrixInvites}
@@ -1269,7 +1268,7 @@ export default function Poll() {
                   >
                     {sendMatrixInviteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     <MessageSquare className="w-4 h-4 mr-2" />
-                    Chat-Einladungen senden
+                    {t('pollView.sendChatInvitations')}
                   </Button>
                 </div>
               </TabsContent>
@@ -1277,33 +1276,33 @@ export default function Poll() {
           ) : (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="invite-emails">E-Mail-Adressen</Label>
+                <Label htmlFor="invite-emails">{t('pollView.emailAddresses')}</Label>
                 <Textarea
                   id="invite-emails"
                   value={inviteEmails}
                   onChange={(e) => setInviteEmails(e.target.value)}
-                  placeholder="max@example.de, anna@example.de&#10;Oder eine Adresse pro Zeile..."
+                  placeholder="max@example.de, anna@example.de"
                   rows={4}
                   data-testid="input-invite-emails"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Trennen Sie mehrere Adressen mit Komma, Semikolon oder Zeilenumbruch.
+                  {t('pollView.emailAddressesHint')}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invite-message">Persönliche Nachricht (optional)</Label>
+                <Label htmlFor="invite-message">{t('pollView.customMessage')}</Label>
                 <Textarea
                   id="invite-message"
                   value={inviteMessage}
                   onChange={(e) => setInviteMessage(e.target.value)}
-                  placeholder="Liebe Kollegen, bitte stimmt ab..."
+                  placeholder={t('pollView.customMessagePlaceholder')}
                   rows={3}
                   data-testid="input-invite-message"
                 />
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-                  Abbrechen
+                  {t('common.cancel')}
                 </Button>
                 <Button 
                   onClick={handleSendInvites}
@@ -1312,7 +1311,7 @@ export default function Poll() {
                 >
                   {sendInviteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <Mail className="w-4 h-4 mr-2" />
-                  Einladungen senden
+                  {t('pollView.sendInvitations')}
                 </Button>
               </DialogFooter>
             </div>
@@ -1324,14 +1323,14 @@ export default function Poll() {
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Umfrage teilen</DialogTitle>
+            <DialogTitle>{t('pollView.shareDialogTitle')}</DialogTitle>
             <DialogDescription>
-              Teilen Sie diese Umfrage mit Ihrem Team.
+              {t('pollView.shareDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Öffentlicher Link (für Teilnehmer)</Label>
+              <Label>{t('pollView.publicLinkForParticipants')}</Label>
               <div className="flex">
                 <Input
                   value={`${window.location.origin}/poll/${poll.publicToken}`}
@@ -1349,7 +1348,7 @@ export default function Poll() {
             </div>
             {isAdminAccess && (
               <div className="space-y-2">
-                <Label>Admin-Link (nur für Sie)</Label>
+                <Label>{t('pollView.adminLinkForYou')}</Label>
                 <div className="flex">
                   <Input
                     value={`${window.location.origin}/admin/${token}`}
@@ -1365,12 +1364,12 @@ export default function Poll() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Teilen Sie diesen Link nicht öffentlich - er ermöglicht die Verwaltung der Umfrage.
+                  {t('pollView.adminLinkWarning')}
                 </p>
               </div>
             )}
             <div className="space-y-3 pt-2">
-              <Label>QR-Code</Label>
+              <Label>{t('pollView.qrCode')}</Label>
               <div className="flex justify-center p-4 bg-white rounded-lg border">
                 {qrCodeLoading ? (
                   <div className="flex items-center justify-center h-40 w-40">
@@ -1379,7 +1378,7 @@ export default function Poll() {
                 ) : qrCodeData ? (
                   <img 
                     src={qrCodeData} 
-                    alt="QR-Code für Umfrage" 
+                    alt={t('pollView.qrCodeAlt')} 
                     className="h-40 w-40"
                     data-testid="img-qr-code"
                   />
@@ -1390,7 +1389,7 @@ export default function Poll() {
                 )}
               </div>
               <p className="text-xs text-center text-muted-foreground">
-                Scannen Sie den QR-Code oder nutzen Sie die Download-Buttons
+                {t('pollView.qrCodeHint')}
               </p>
               <div className="flex gap-2">
                 <Button 
@@ -1419,7 +1418,7 @@ export default function Poll() {
               onClick={() => window.open(`${window.location.origin}/poll/${poll.publicToken}`, '_blank')}
             >
               <ExternalLink className="w-4 h-4 mr-2" />
-              Umfrage öffnen
+              {t('pollView.openPoll')}
             </Button>
           </div>
         </DialogContent>
@@ -1431,10 +1430,10 @@ export default function Poll() {
           <DialogHeader>
             <DialogTitle className="flex items-center">
               <StopCircle className="w-5 h-5 mr-2 text-destructive" />
-              Umfrage beenden
+              {t('pollView.endPollDialogTitle')}
             </DialogTitle>
             <DialogDescription>
-              Die Teilnehmer können nach dem Beenden nicht mehr abstimmen. Sie können die Umfrage später wieder aktivieren.
+              {t('pollView.endPollDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1446,11 +1445,11 @@ export default function Poll() {
                   <EyeOff className="w-5 h-5 text-muted-foreground" />
                 )}
                 <div>
-                  <Label className="font-medium">Ergebnisse öffentlich</Label>
+                  <Label className="font-medium">{t('pollView.resultsPublic')}</Label>
                   <p className="text-sm text-muted-foreground">
                     {endPollResultsPublic 
-                      ? 'Alle Teilnehmer können die Ergebnisse sehen' 
-                      : 'Nur Sie können die Ergebnisse sehen'}
+                      ? t('pollView.resultsPublicYes') 
+                      : t('pollView.resultsPublicNo')}
                   </p>
                 </div>
               </div>
@@ -1465,11 +1464,11 @@ export default function Poll() {
               <div className="flex items-center space-x-3">
                 <BellRing className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <Label className="font-medium">Teilnehmer benachrichtigen</Label>
+                  <Label className="font-medium">{t('pollView.notifyParticipants')}</Label>
                   <p className="text-sm text-muted-foreground">
                     {endPollNotifyParticipants 
-                      ? 'Teilnehmer per E-Mail über das Ende informieren' 
-                      : 'Keine Benachrichtigung senden'}
+                      ? t('pollView.notifyParticipantsYes') 
+                      : t('pollView.notifyParticipantsNo')}
                   </p>
                 </div>
               </div>
@@ -1486,7 +1485,7 @@ export default function Poll() {
               onClick={() => setEndPollDialogOpen(false)}
               data-testid="button-cancel-end-poll"
             >
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button 
               variant="destructive"
@@ -1502,12 +1501,12 @@ export default function Poll() {
               {updatePollMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Wird beendet...
+                  {t('pollView.endingPoll')}
                 </>
               ) : (
                 <>
                   <StopCircle className="w-4 h-4 mr-2" />
-                  Umfrage beenden
+                  {t('pollView.endPoll')}
                 </>
               )}
             </Button>

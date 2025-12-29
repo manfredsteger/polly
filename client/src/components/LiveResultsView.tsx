@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,11 +22,11 @@ import {
 import { useLiveVoting } from '@/hooks/useLiveVoting';
 import type { PollWithOptions, PollResults } from '@shared/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { cn, formatScheduleOptionWithGermanWeekday } from '@/lib/utils';
+import { cn, formatScheduleOptionWithWeekday } from '@/lib/utils';
 
-function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
   const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
-  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  const formatted = formatScheduleOptionWithWeekday(text, startTimeStr, locale);
   if (formatted.isSchedule) {
     return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
@@ -39,6 +40,7 @@ interface LiveResultsViewProps {
 }
 
 export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: LiveResultsViewProps) {
+  const { t, i18n } = useTranslation();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -116,10 +118,10 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
 
   const getTypeLabel = () => {
     switch (poll.type) {
-      case 'schedule': return 'Terminumfrage';
-      case 'survey': return 'Umfrage';
-      case 'organization': return 'Orga-Liste';
-      default: return 'Umfrage';
+      case 'schedule': return t('liveResults.scheduleType');
+      case 'survey': return t('liveResults.surveyType');
+      case 'organization': return t('liveResults.organizationType');
+      default: return t('liveResults.surveyType');
     }
   };
 
@@ -213,29 +215,29 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
           <div className="flex items-center gap-2 flex-wrap">
             <CardTitle className="flex items-center gap-2">
               <Radio className={cn('w-5 h-5', isConnected ? 'text-green-500 animate-pulse' : 'text-muted-foreground')} />
-              Live-Abstimmung
+              {t('liveResults.title')}
             </CardTitle>
             <Badge variant="outline" className="flex items-center gap-1">
               {isConnected ? (
                 <>
                   <Wifi className="w-3 h-3 text-green-500" />
-                  Verbunden
+                  {t('liveResults.connected')}
                 </>
               ) : (
                 <>
                   <WifiOff className="w-3 h-3 text-red-500" />
-                  Getrennt
+                  {t('liveResults.disconnected')}
                 </>
               )}
             </Badge>
             <Badge variant="secondary" className="flex items-center gap-1">
               <Eye className="w-3 h-3" />
-              {viewerCount} Zuschauer
+              {viewerCount} {t('liveResults.viewers')}
             </Badge>
             {activeVoters.length > 0 && (
               <Badge variant="secondary" className="flex items-center gap-1 bg-amber-500/20 text-amber-600">
                 <Clock className="w-3 h-3" />
-                {activeVoters.length} stimmen gerade ab
+                {t('liveResults.votingNow', { count: activeVoters.length })}
               </Badge>
             )}
           </div>
@@ -246,7 +248,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
             {!isConnected && (
               <Button variant="outline" size="sm" onClick={reconnect}>
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Neu verbinden
+                {t('liveResults.reconnect')}
               </Button>
             )}
             <TooltipProvider>
@@ -261,7 +263,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {isFullscreen ? 'Vollbild beenden (Esc)' : 'Vollbild für Präsentation (Strg+F)'}
+                  {isFullscreen ? t('liveResults.exitFullscreen') : t('liveResults.enterFullscreen')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -298,7 +300,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                     'text-left font-medium text-muted-foreground p-3',
                     isFullscreen && 'p-4'
                   )}>
-                    Teilnehmer
+                    {t('liveResults.participants')}
                   </th>
                   {poll.options.map(option => {
                     const isWinner = winningOptionIds.has(option.id);
@@ -321,7 +323,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                             )} 
                             title={option.text}
                           >
-                            <FormattedOptionText text={option.text} startTime={option.startTime} />
+                            <FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} />
                           </div>
                         </div>
                       </th>
@@ -344,7 +346,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                         <User className="w-4 h-4 text-blue-400" />
                         <span className="text-muted-foreground italic">{voter.name}</span>
                         <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
-                          betrachtet...
+                          {t('liveResults.viewing')}
                         </Badge>
                       </div>
                     </td>
@@ -377,7 +379,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                         <Clock className="w-4 h-4 text-amber-500 animate-pulse" />
                         <span className="text-muted-foreground italic">{voter.name}</span>
                         <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
-                          stimmt ab...
+                          {t('liveResults.isVoting')}
                         </Badge>
                       </div>
                     </td>
@@ -447,7 +449,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                       colSpan={poll.options.length + 1} 
                       className={cn('text-center p-8 text-muted-foreground', isFullscreen && 'p-12')}
                     >
-                      Noch keine Stimmen abgegeben. Warten auf Teilnehmer...
+                      {t('liveResults.noVotesYet')}
                     </td>
                   </tr>
                 )}
@@ -456,7 +458,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                 {results?.stats && (
                   <tr className="bg-muted/50 font-semibold border-t-2 border-border">
                     <td className={cn('p-3', isFullscreen && 'p-4')}>
-                      Gesamt ({uniqueSubmittedVoters.length} Stimmen)
+                      {t('liveResults.total', { count: uniqueSubmittedVoters.length })}
                     </td>
                     {results.stats.map(stat => {
                       const isWinner = winningOptionIds.has(stat.optionId);
@@ -499,11 +501,11 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
 
           {isFullscreen && (
             <div className="fixed bottom-4 right-4 flex items-center gap-4 text-sm text-muted-foreground bg-background/80 px-4 py-2 rounded-lg border">
-              <span>Drücken Sie <kbd className="px-2 py-1 bg-muted rounded text-xs">Esc</kbd> zum Beenden</span>
+              <span>{t('liveResults.pressEscToExit')}</span>
               <span className="text-xs">|</span>
               <span className="flex items-center gap-1">
                 <Radio className={cn('w-3 h-3', isConnected ? 'text-green-500' : 'text-red-500')} />
-                {isConnected ? 'Live' : 'Offline'}
+                {isConnected ? t('liveResults.live') : t('liveResults.offline')}
               </span>
             </div>
           )}

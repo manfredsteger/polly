@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +11,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, Mail, CheckCircle } from "lucide-react";
 
 export default function ForgotPassword() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
   const parseErrorMessage = (error: any): string => {
-    if (!error?.message) return "Ein unbekannter Fehler ist aufgetreten.";
+    if (!error?.message) return t('forgotPassword.unknownError');
     const msg = error.message;
     const colonIndex = msg.indexOf(': ');
     if (colonIndex > -1) {
@@ -41,7 +43,7 @@ export default function ForgotPassword() {
     },
     onError: (error: any) => {
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: parseErrorMessage(error),
         variant: "destructive",
       });
@@ -52,8 +54,8 @@ export default function ForgotPassword() {
     e.preventDefault();
     if (!email) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie Ihre E-Mail-Adresse ein.",
+        title: t('common.error'),
+        description: t('forgotPassword.enterEmail'),
         variant: "destructive",
       });
       return;
@@ -68,19 +70,19 @@ export default function ForgotPassword() {
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
-              <h2 className="text-2xl font-bold">E-Mail gesendet</h2>
+              <h2 className="text-2xl font-bold">{t('forgotPassword.emailSent')}</h2>
               <p className="text-muted-foreground">
-                Falls ein Konto mit dieser E-Mail-Adresse existiert, haben wir einen Link zum Zurücksetzen des Passworts gesendet.
+                {t('forgotPassword.emailSentDescription')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Bitte überprüfen Sie auch Ihren Spam-Ordner.
+                {t('forgotPassword.checkSpam')}
               </p>
               <Button 
                 className="w-full" 
                 onClick={() => setLocation("/anmelden")}
                 data-testid="button-back-to-login"
               >
-                Zurück zur Anmeldung
+                {t('forgotPassword.backToLogin')}
               </Button>
             </div>
           </CardContent>
@@ -99,29 +101,29 @@ export default function ForgotPassword() {
           data-testid="button-back"
         >
           <ArrowLeft className="w-4 h-4" />
-          Zurück zur Anmeldung
+          {t('forgotPassword.backToLogin')}
         </Button>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5" />
-              Passwort vergessen
+              {t('auth.forgotPassword')}
             </CardTitle>
             <CardDescription>
-              Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Link zum Zurücksetzen Ihres Passworts.
+              {t('forgotPassword.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="email">E-Mail-Adresse</Label>
+                <Label htmlFor="email">{t('auth.emailAddress')}</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ihre.email@beispiel.de"
+                  placeholder={t('forgotPassword.emailPlaceholder')}
                   className="mt-1"
                   data-testid="input-email"
                 />
@@ -132,7 +134,7 @@ export default function ForgotPassword() {
                 disabled={requestResetMutation.isPending}
                 data-testid="button-submit"
               >
-                {requestResetMutation.isPending ? "Wird gesendet..." : "Link zum Zurücksetzen senden"}
+                {requestResetMutation.isPending ? t('forgotPassword.sending') : t('forgotPassword.sendResetLink')}
               </Button>
             </form>
           </CardContent>

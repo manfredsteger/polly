@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ interface VoterEditData {
 }
 
 export default function VoteEditPage() {
+  const { t, i18n } = useTranslation();
   const { editToken } = useParams<{ editToken: string }>();
   const [, setLocation] = useLocation();
   const [currentVotes, setCurrentVotes] = useState<Record<number, string>>({});
@@ -57,15 +59,15 @@ export default function VoteEditPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/votes/edit/${editToken}`] });
       toast({
-        title: "Stimme aktualisiert",
-        description: "Ihre Antworten wurden erfolgreich geändert.",
+        title: t('voting.voteUpdated'),
+        description: t('voteEdit.responsesChanged'),
       });
       setHasChanges(false);
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Ihre Stimme konnte nicht aktualisiert werden.",
+        title: t('common.error'),
+        description: t('voteEdit.updateError'),
         variant: "destructive",
       });
     },
@@ -78,15 +80,15 @@ export default function VoteEditPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Stimme zurückgezogen",
-        description: "Ihre Stimme wurde erfolgreich entfernt.",
+        title: t('voting.voteWithdrawn'),
+        description: t('voteEdit.voteRemoved'),
       });
       setLocation('/');
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Ihre Stimme konnte nicht zurückgezogen werden.",
+        title: t('common.error'),
+        description: t('voteEdit.withdrawError'),
         variant: "destructive",
       });
     },
@@ -134,7 +136,7 @@ export default function VoteEditPage() {
         <Card className="max-w-2xl mx-auto">
           <CardContent className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            <span>Lade Ihre Stimme...</span>
+            <span>{t('voteEdit.loadingVote')}</span>
           </CardContent>
         </Card>
       </div>
@@ -148,12 +150,12 @@ export default function VoteEditPage() {
           <CardContent className="flex items-center justify-center py-8 text-center">
             <div>
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Stimme nicht gefunden</h2>
+              <h2 className="text-xl font-semibold mb-2">{t('voteEdit.voteNotFound')}</h2>
               <p className="text-gray-600 mb-4">
-                Der Link ist ungültig oder die Stimme ist nicht mehr verfügbar.
+                {t('voteEdit.invalidLink')}
               </p>
               <Button onClick={() => setLocation('/')}>
-                Zur Startseite
+                {t('voteEdit.toHomepage')}
               </Button>
             </div>
           </CardContent>
@@ -172,7 +174,7 @@ export default function VoteEditPage() {
           <CardHeader>
             <div className="flex items-center gap-2 mb-2">
               <Edit3 className="h-5 w-5 text-blue-600" />
-              <Badge variant="outline">Stimme bearbeiten</Badge>
+              <Badge variant="outline">{t('voting.editYourVote')}</Badge>
             </div>
             <CardTitle className="text-2xl">{poll.title}</CardTitle>
             {poll.description && (
@@ -181,7 +183,7 @@ export default function VoteEditPage() {
               </CardDescription>
             )}
             <div className="flex items-center gap-2 text-sm text-gray-600 mt-2">
-              <span>Abgestimmt als: <strong>{voterName}</strong></span>
+              <span>{t('voteEdit.votedAs')}: <strong>{voterName}</strong></span>
               <span>•</span>
               <span>{voterEmail}</span>
             </div>
@@ -201,7 +203,7 @@ export default function VoteEditPage() {
                       <h3 className="font-medium text-lg mb-2">{option.text}</h3>
                       {option.startTime && option.endTime && (
                         <p className="text-sm text-gray-600 mb-3">
-                          {new Date(option.startTime).toLocaleString('de-DE')} - {new Date(option.endTime).toLocaleString('de-DE')}
+                          {new Date(option.startTime).toLocaleString(i18n.language === 'de' ? 'de-DE' : 'en-US')} - {new Date(option.endTime).toLocaleString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
                         </p>
                       )}
                       
@@ -221,7 +223,7 @@ export default function VoteEditPage() {
                               ${currentResponse === response && response === 'no' ? 'bg-red-600 text-white' : ''}
                             `}
                           >
-                            {response === 'yes' ? 'Ja' : response === 'maybe' ? 'Vielleicht' : 'Nein'}
+                            {response === 'yes' ? t('common.yes') : response === 'maybe' ? t('common.maybe') : t('common.no')}
                           </Button>
                         ))}
                       </div>
@@ -243,12 +245,12 @@ export default function VoteEditPage() {
             {updateVotesMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Speichere...
+                {t('common.saving')}
               </>
             ) : (
               <>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Änderungen speichern
+                {t('voteEdit.saveChanges')}
               </>
             )}
           </Button>
@@ -258,7 +260,7 @@ export default function VoteEditPage() {
             onClick={handleGoBack}
             className="polly-button-neutral"
           >
-            Zur Startseite
+            {t('voteEdit.toHomepage')}
           </Button>
           
           {voterData?.allowVoteWithdrawal && (
@@ -272,12 +274,12 @@ export default function VoteEditPage() {
               {withdrawVoteMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Wird zurückgezogen...
+                  {t('voteEdit.withdrawing')}
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Stimme zurückziehen
+                  {t('voting.withdrawVote')}
                 </>
               )}
             </Button>
@@ -286,7 +288,7 @@ export default function VoteEditPage() {
 
         {hasChanges && (
           <p className="text-center text-sm text-orange-600 mt-4">
-            Sie haben ungespeicherte Änderungen
+            {t('voteEdit.unsavedChanges')}
           </p>
         )}
       </div>

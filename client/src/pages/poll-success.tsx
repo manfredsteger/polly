@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy, Mail, Calendar, Vote, ExternalLink, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function PollSuccess() {
+  const { t } = useTranslation();
   const [location] = useLocation();
   const { toast } = useToast();
   const [pollData, setPollData] = useState<any>(null);
@@ -27,13 +29,13 @@ export default function PollSuccess() {
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: "Link kopiert!",
-        description: `${label} wurde in die Zwischenablage kopiert.`,
+        title: t('pollSuccess.toasts.linkCopied'),
+        description: t('pollSuccess.toasts.linkCopiedDesc', { label }),
       });
     } catch (err) {
       toast({
-        title: "Fehler",
-        description: "Link konnte nicht kopiert werden.",
+        title: t('pollSuccess.toasts.error'),
+        description: t('pollSuccess.toasts.linkNotCopied'),
         variant: "destructive",
       });
     }
@@ -44,14 +46,14 @@ export default function PollSuccess() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Keine Daten gefunden</CardTitle>
+            <CardTitle>{t('pollSuccess.noDataTitle')}</CardTitle>
             <CardDescription>
-              Es wurden keine Umfragedaten gefunden. Bitte erstellen Sie eine neue Umfrage.
+              {t('pollSuccess.noDataDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/">
-              <Button className="w-full">Zur Startseite</Button>
+              <Button className="w-full">{t('pollSuccess.backToHome')}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -60,7 +62,7 @@ export default function PollSuccess() {
   }
 
   const { poll, publicLink, adminLink, pollType } = pollData;
-  const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
+  const pollTypeText = pollType === 'schedule' ? t('pollSuccess.schedulePoll') : t('pollSuccess.survey');
   const fullPublicLink = `${window.location.origin}${publicLink}`;
   const fullAdminLink = `${window.location.origin}${adminLink}`;
 
@@ -73,10 +75,10 @@ export default function PollSuccess() {
             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {pollTypeText} erfolgreich erstellt!
+            {t('pollSuccess.successTitle', { type: pollTypeText })}
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300">
-            Ihre {pollTypeText} "{poll.title}" wurde erfolgreich erstellt und ist bereit für Teilnehmer.
+            {t('pollSuccess.successDesc', { type: pollTypeText, title: poll.title })}
           </p>
         </div>
 
@@ -90,10 +92,10 @@ export default function PollSuccess() {
                 ) : (
                   <Vote className="w-5 h-5 mr-2" />
                 )}
-                Öffentlicher Link
+                {t('pollSuccess.publicLink')}
               </CardTitle>
               <CardDescription>
-                Teilen Sie diesen Link mit allen Teilnehmern
+                {t('pollSuccess.publicLinkDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -104,12 +106,12 @@ export default function PollSuccess() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={() => copyToClipboard(fullPublicLink, 'Öffentlicher Link')}
+                  onClick={() => copyToClipboard(fullPublicLink, t('pollSuccess.publicLink'))}
                   className="flex-1"
                   variant="outline"
                 >
                   <Copy className="w-4 h-4 mr-2" />
-                  Kopieren
+                  {t('pollSuccess.copy')}
                 </Button>
                 <Button
                   onClick={() => window.open(fullPublicLink, '_blank')}
@@ -128,10 +130,10 @@ export default function PollSuccess() {
             <CardHeader>
               <CardTitle className="flex items-center text-orange-700 dark:text-orange-300">
                 <Mail className="w-5 h-5 mr-2" />
-                Administratorlink
+                {t('pollSuccess.adminLink')}
               </CardTitle>
               <CardDescription>
-                Nur für Sie - zum Verwalten und Bearbeiten
+                {t('pollSuccess.adminLinkDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -142,12 +144,12 @@ export default function PollSuccess() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={() => copyToClipboard(fullAdminLink, 'Administratorlink')}
+                  onClick={() => copyToClipboard(fullAdminLink, t('pollSuccess.adminLink'))}
                   className="flex-1"
                   variant="outline"
                 >
                   <Copy className="w-4 h-4 mr-2" />
-                  Kopieren
+                  {t('pollSuccess.copy')}
                 </Button>
                 <Button
                   onClick={() => window.open(fullAdminLink, '_blank')}
@@ -167,15 +169,12 @@ export default function PollSuccess() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Mail className="w-5 h-5 mr-2" />
-              E-Mail Benachrichtigung
+              {t('pollSuccess.emailNotification')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <p className="text-yellow-800 dark:text-yellow-200">
-                <strong>Hinweis:</strong> Eine E-Mail mit beiden Links wird an <strong>{poll.creatorEmail}</strong> gesendet.
-                Falls Sie keine E-Mail erhalten, speichern Sie diese Links bitte ab.
-              </p>
+              <p className="text-yellow-800 dark:text-yellow-200" dangerouslySetInnerHTML={{ __html: t('pollSuccess.emailNotificationHint', { email: poll.creatorEmail }) }} />
             </div>
           </CardContent>
         </Card>
@@ -183,7 +182,7 @@ export default function PollSuccess() {
         {/* Next Steps */}
         <Card>
           <CardHeader>
-            <CardTitle>Nächste Schritte</CardTitle>
+            <CardTitle>{t('pollSuccess.nextSteps')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -192,9 +191,9 @@ export default function PollSuccess() {
                   1
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Link teilen</p>
+                  <p className="font-medium text-foreground">{t('pollSuccess.step1Title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Senden Sie den öffentlichen Link an alle Teilnehmer per E-Mail, WhatsApp oder anderen Kommunikationswegen.
+                    {t('pollSuccess.step1Desc')}
                   </p>
                 </div>
               </div>
@@ -203,9 +202,9 @@ export default function PollSuccess() {
                   2
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Ergebnisse verfolgen</p>
+                  <p className="font-medium text-foreground">{t('pollSuccess.step2Title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Nutzen Sie den Administratorlink, um die Abstimmungsergebnisse in Echtzeit zu verfolgen.
+                    {t('pollSuccess.step2Desc')}
                   </p>
                 </div>
               </div>
@@ -214,9 +213,9 @@ export default function PollSuccess() {
                   3
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Administratorlink sicher aufbewahren</p>
+                  <p className="font-medium text-foreground">{t('pollSuccess.step3Title')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Speichern Sie den Administratorlink sicher ab - nur damit können Sie Ihre Umfrage verwalten.
+                    {t('pollSuccess.step3Desc')}
                   </p>
                 </div>
               </div>
@@ -228,14 +227,14 @@ export default function PollSuccess() {
         <div className="flex flex-col sm:flex-row gap-4 mt-8 justify-center">
           <Link href="/">
             <Button variant="outline" className="w-full sm:w-auto">
-              Neue Umfrage erstellen
+              {t('pollSuccess.createNewPoll')}
             </Button>
           </Link>
           <Button
             onClick={() => window.open(fullPublicLink, '_blank')}
             className="w-full sm:w-auto polly-button-primary"
           >
-            Zur Abstimmung
+            {t('pollSuccess.goToVoting')}
           </Button>
         </div>
       </div>

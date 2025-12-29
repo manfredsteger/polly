@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,6 +30,7 @@ interface ExtendedStats {
 }
 
 export default function Admin() {
+  const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
 
@@ -84,12 +86,12 @@ export default function Admin() {
         <Card className="p-8">
           <CardContent className="flex flex-col items-center space-y-4">
             <AlertTriangle className="w-16 h-16 text-destructive" />
-            <h1 className="text-2xl font-bold text-foreground">Zugriff verweigert</h1>
+            <h1 className="text-2xl font-bold text-foreground">{t('admin.accessDenied')}</h1>
             <p className="text-muted-foreground">
-              Sie haben keine Berechtigung, auf die Administrationsoberfläche zuzugreifen.
+              {t('admin.noPermission')}
             </p>
             <p className="text-sm text-muted-foreground">
-              Benutzerrolle: {user?.role || 'unbekannt'}
+              {t('admin.userRole')}: {user?.role || t('admin.unknown')}
             </p>
           </CardContent>
         </Card>
@@ -124,13 +126,13 @@ export default function Admin() {
       {user.isInitialAdmin && (
         <Alert variant="destructive" className="mb-6 border-2 border-destructive bg-red-50 dark:bg-red-950/50" data-testid="initial-admin-warning">
           <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400" />
-          <AlertTitle className="font-bold text-red-800 dark:text-red-200">Standard-Administratorkonto</AlertTitle>
+          <AlertTitle className="font-bold text-red-800 dark:text-red-200">{t('admin.defaultAdminAccount')}</AlertTitle>
           <AlertDescription className="mt-2 text-red-700 dark:text-red-300">
             <p className="mb-2">
-              Sie sind mit dem Standard-Administratorkonto angemeldet. Dieses Konto ist nur für die Ersteinrichtung gedacht.
+              {t('admin.defaultAdminWarning')}
             </p>
             <p className="font-semibold text-red-800 dark:text-red-200">
-              Bitte erstellen Sie ein neues Administrator-Konto unter "Benutzer" und löschen Sie anschließend dieses Standard-Konto.
+              {t('admin.createNewAdminWarning')}
             </p>
           </AlertDescription>
         </Alert>
@@ -141,9 +143,9 @@ export default function Admin() {
         <div className="flex items-center space-x-3">
           <Shield className="w-8 h-8 text-polly-orange" />
           <div>
-            <h1 className="text-3xl font-bold text-foreground" data-testid="title-admin">Administration</h1>
+            <h1 className="text-3xl font-bold text-foreground" data-testid="title-admin">{t('nav.admin')}</h1>
             <p className="text-muted-foreground mt-1">
-              Systemverwaltung und Konfiguration für Polly
+              {t('admin.systemManagement')}
             </p>
           </div>
         </div>

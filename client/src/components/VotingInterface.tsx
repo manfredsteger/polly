@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
+import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,7 @@ interface MyVotesResponse {
 }
 
 export function VotingInterface({ poll, isAdminAccess = false }: VotingInterfaceProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -201,7 +203,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       setDuplicateEmailError(null);
       
       // Try to parse the error message
-      let errorMessage = "Ihre Stimme konnte nicht gespeichert werden.";
+      let errorMessage = t('votingInterface.voteCouldNotBeSaved');
       let isDuplicateEmail = false;
       let requiresLogin = false;
       
@@ -225,7 +227,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               errorMessage = errorData.error;
               // Show toast with already voted message
               toast({
-                title: "Bereits abgestimmt",
+                title: t('votingInterface.alreadyVoted'),
                 description: errorMessage,
                 variant: "default",
               });
@@ -250,7 +252,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
       
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       });
@@ -271,23 +273,23 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     onSuccess: (data) => {
       if (data.success) {
         toast({
-          title: "E-Mail versendet",
-          description: "Eine neue E-Mail mit dem Link zum Ändern Ihrer Stimme wurde versendet.",
+          title: t('votingInterface.emailSent'),
+          description: t('votingInterface.emailSentDescription'),
           variant: "default",
         });
       } else if (data.errorCode === 'EMAIL_BLOCKED_BY_SPAM_FILTER') {
         // Handle spam filter blocking without providing direct access
         toast({
-          title: "E-Mail blockiert",
-          description: "E-Mail wurde vom Spam-Filter blockiert. Bitte kontaktieren Sie den Administrator oder versuchen Sie es später erneut.",
+          title: t('votingInterface.emailBlocked'),
+          description: t('votingInterface.emailBlockedDescription'),
           variant: "destructive",
         });
       }
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Die E-Mail konnte nicht versendet werden.",
+        title: t('common.error'),
+        description: t('votingInterface.emailCouldNotBeSent'),
         variant: "destructive",
       });
     },
@@ -300,8 +302,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     },
     onSuccess: () => {
       toast({
-        title: "Stimme zurückgezogen",
-        description: "Ihre Stimme wurde erfolgreich entfernt.",
+        title: t('votingInterface.voteWithdrawn'),
+        description: t('votingInterface.voteWithdrawnSuccess'),
         variant: "default",
       });
       // Reset form state
@@ -315,7 +317,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
     },
     onError: (error) => {
-      let errorMessage = "Ihre Stimme konnte nicht zurückgezogen werden.";
+      let errorMessage = t('votingInterface.voteWithdrawError');
       if (error instanceof Error && error.message) {
         try {
           const match = error.message.match(/\d+:\s*(.+)/);
@@ -330,7 +332,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         }
       }
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       });
@@ -371,8 +373,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     // Block submission if email requires login
     if (emailRequiresLogin) {
       toast({
-        title: "Anmeldung erforderlich",
-        description: "Bitte melden Sie sich an, um mit dieser E-Mail-Adresse abzustimmen.",
+        title: t('votingInterface.loginRequired'),
+        description: t('votingInterface.loginRequiredDescription'),
         variant: "destructive",
       });
       return;
@@ -380,8 +382,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
     if (!voterName.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie Ihren Namen ein.",
+        title: t('common.error'),
+        description: t('votingInterface.pleaseEnterName'),
         variant: "destructive",
       });
       return;
@@ -389,8 +391,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
     if (!voterEmail.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie Ihre E-Mail-Adresse ein.",
+        title: t('common.error'),
+        description: t('votingInterface.pleaseEnterEmail'),
         variant: "destructive",
       });
       return;
@@ -400,8 +402,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(voterEmail)) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+        title: t('common.error'),
+        description: t('votingInterface.pleaseEnterValidEmail'),
         variant: "destructive",
       });
       return;
@@ -411,8 +413,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     if (poll.type === 'organization') {
       if (orgaBookings.length === 0) {
         toast({
-          title: "Fehler",
-          description: "Bitte tragen Sie sich für mindestens einen Slot ein.",
+          title: t('common.error'),
+          description: t('votingInterface.pleaseSelectSlot'),
           variant: "destructive",
         });
         return;
@@ -421,8 +423,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       const votesToSubmit = Object.entries(votes);
       if (votesToSubmit.length === 0) {
         toast({
-          title: "Fehler",
-          description: "Bitte stimmen Sie für mindestens eine Option ab.",
+          title: t('common.error'),
+          description: t('votingInterface.pleaseSelectOption'),
           variant: "destructive",
         });
         return;
@@ -557,7 +559,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       } else if (errorCode === 'ALREADY_VOTED') {
         // User has already voted - show info toast instead of error
         toast({
-          title: "Bereits abgestimmt",
+          title: t('votingInterface.alreadyVoted'),
           description: errorMessage,
           variant: "default",
         });
@@ -570,7 +572,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
       
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       });
@@ -621,13 +623,13 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           <Check className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
             <div className="space-y-2">
-              <p className="font-medium">Sie haben bereits abgestimmt!</p>
+              <p className="font-medium">{t('votingInterface.alreadyVotedTitle')}</p>
               <p className="text-sm">
-                Ihre Stimme wurde erfolgreich gespeichert. Bei dieser Umfrage kann die Stimme nicht geändert werden.
+                {t('votingInterface.alreadyVotedDescription')}
               </p>
               {myVotesData?.votes && myVotesData.votes.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-green-200">
-                  <p className="text-sm font-medium mb-2">Ihre Antworten:</p>
+                  <p className="text-sm font-medium mb-2">{t('votingInterface.yourAnswers')}</p>
                   <div className="space-y-1">
                     {myVotesData.votes.map(vote => {
                       const option = poll.options.find(o => o.id === vote.optionId);
@@ -654,7 +656,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     data-testid="button-withdraw-vote"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Stimme zurückziehen'}
+                    {withdrawVoteMutation.isPending ? t('votingInterface.removing') : t('votingInterface.withdrawVote')}
                   </Button>
                 </div>
               )}
@@ -671,10 +673,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Ihre Angaben</span>
+            <span>{t('votingInterface.yourDetails')}</span>
             {isAdminAccess && (
               <Badge className="polly-badge-admin">
-                Admin
+                {t('votingInterface.adminBadge')}
               </Badge>
             )}
           </CardTitle>
@@ -683,8 +685,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           {isAdminAccess && (
             <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                Sie sind der Ersteller dieser Umfrage. Ihre Daten sind bereits vorausgefüllt. 
-                Sie können optional auch selbst abstimmen.
+                {t('votingInterface.adminInfo')}
               </p>
               <Button
                 type="button"
@@ -693,7 +694,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 onClick={() => setShowSelfVote(!showSelfVote)}
                 className="mt-2"
               >
-                {showSelfVote ? 'Abstimmung verbergen' : 'Selbst abstimmen'}
+                {showSelfVote ? t('votingInterface.hideVoting') : t('votingInterface.voteYourself')}
               </Button>
             </div>
           )}
@@ -701,12 +702,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           {(showSelfVote || !isAdminAccess) && (
             <>
               <div>
-                <Label htmlFor="voterName">Name *</Label>
+                <Label htmlFor="voterName">{t('votingInterface.name')} *</Label>
                 <Input
                   id="voterName"
                   value={voterName}
                   onChange={(e) => setVoterName(e.target.value)}
-                  placeholder="Ihr Name"
+                  placeholder={t('votingInterface.namePlaceholder')}
                   className="mt-1"
                   disabled={!canVote}
                   data-testid="input-voter-name"
@@ -714,11 +715,11 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               </div>
               <div>
                 <Label htmlFor="voterEmail" className="flex items-center gap-2">
-                  E-Mail *
+                  {t('votingInterface.email')} *
                   {isUserEmailLocked && (
                     <Badge className="text-xs polly-badge-user">
                       <User className="w-3 h-3 mr-1" />
-                      Angemeldet
+                      {t('votingInterface.loggedIn')}
                     </Badge>
                   )}
                 </Label>
@@ -731,13 +732,13 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     setEmailRequiresLogin(false);
                   }}
                   onBlur={(e) => checkEmailRegistration(e.target.value)}
-                  placeholder="ihre.email@beispiel.de"
+                  placeholder={t('votingInterface.emailPlaceholder')}
                   className={`mt-1 ${emailRequiresLogin ? 'border-orange-500 focus:border-orange-500' : ''}`}
                   disabled={!canVote || isUserEmailLocked}
                   data-testid="input-voter-email"
                 />
                 {isCheckingEmail && (
-                  <p className="text-xs text-muted-foreground mt-1">E-Mail wird überprüft...</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('votingInterface.checkingEmail')}</p>
                 )}
               </div>
             </>
@@ -752,11 +753,11 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           <AlertDescription className="text-orange-800">
             <div className="space-y-3">
               <p>
-                <strong>Anmeldung erforderlich</strong>
+                <strong>{t('votingInterface.loginRequiredAlert')}</strong>
               </p>
               <p>
-                Die E-Mail-Adresse <code className="bg-orange-100 px-1 py-0.5 rounded text-sm">{voterEmail}</code> 
-                {' '}gehört zu einem registrierten Konto. Bitte melden Sie sich an, um mit dieser E-Mail-Adresse abzustimmen.
+                <code className="bg-orange-100 px-1 py-0.5 rounded text-sm">{voterEmail}</code> 
+                {' '}{t('votingInterface.emailBelongsToAccount')}
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link href={`/anmelden?redirect=${encodeURIComponent(`/poll/${poll.publicToken}`)}`}>
@@ -766,11 +767,11 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     className="bg-orange-600 hover:bg-orange-700 text-white"
                   >
                     <LogIn className="w-4 h-4 mr-2" />
-                    Jetzt anmelden
+                    {t('votingInterface.loginNow')}
                   </Button>
                 </Link>
                 <span className="text-sm text-orange-700 self-center">
-                  oder eine andere E-Mail-Adresse verwenden
+                  {t('votingInterface.orUseOtherEmail')}
                 </span>
               </div>
             </div>
@@ -785,11 +786,11 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           <AlertDescription>
             <div className="space-y-3">
               <p>
-                <strong>Diese E-Mail-Adresse wurde bereits verwendet.</strong>
+                <strong>{t('votingInterface.emailAlreadyUsed')}</strong>
               </p>
               <p>
-                Die E-Mail-Adresse <code className="bg-amber-100 dark:bg-amber-900/50 px-1 py-0.5 rounded text-sm">{duplicateEmailError}</code> 
-                {' '}hat bereits bei dieser Umfrage abgestimmt. Falls Sie Ihre Stimme ändern möchten, können Sie:
+                <code className="bg-amber-100 dark:bg-amber-900/50 px-1 py-0.5 rounded text-sm">{duplicateEmailError}</code> 
+                {' '}{t('votingInterface.emailAlreadyVoted')}
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
@@ -800,10 +801,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
                 >
                   <Mail className="w-4 h-4 mr-2" />
-                  {resendEmailMutation.isPending ? 'Sende...' : 'E-Mail zum Ändern senden'}
+                  {resendEmailMutation.isPending ? t('votingInterface.sending') : t('votingInterface.sendEditEmail')}
                 </Button>
                 <span className="text-sm opacity-90 self-center">
-                  oder eine andere E-Mail-Adresse verwenden
+                  {t('votingInterface.orUseOtherEmail')}
                 </span>
               </div>
             </div>
@@ -817,10 +818,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       <Card className="polly-card">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>{poll.type === 'organization' ? 'Verfügbare Slots' : 'Abstimmungsoptionen'}</span>
+            <span>{poll.type === 'organization' ? t('votingInterface.availableSlots') : t('votingInterface.votingOptions')}</span>
             {!canVote && (
               <Badge variant="secondary">
-                {isPollExpired ? 'Abgelaufen' : 'Inaktiv'}
+                {isPollExpired ? t('votingInterface.expired') : t('votingInterface.inactive')}
               </Badge>
             )}
           </CardTitle>
@@ -830,8 +831,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             <div className="mb-6 p-4 bg-muted rounded-lg">
               <p className="text-sm text-muted-foreground">
                 {poll.type === 'organization' 
-                  ? 'Diese Orga ist ' + (isPollExpired ? 'abgelaufen' : 'nicht aktiv') + ' und Eintragungen sind nicht mehr möglich.'
-                  : 'Diese Umfrage ist ' + (isPollExpired ? 'abgelaufen' : 'nicht aktiv') + ' und kann nicht mehr beantwortet werden.'
+                  ? (isPollExpired ? t('votingInterface.orgaExpiredMessage') : t('votingInterface.orgaInactiveMessage'))
+                  : (isPollExpired ? t('votingInterface.pollExpiredMessage') : t('votingInterface.pollInactiveMessage'))
                 }
               </p>
             </div>
@@ -887,12 +888,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 <>
                   {orgaBookings.length === 0 && !hasAlreadyVoted && (
                     <p className="text-sm text-muted-foreground mb-3 text-center">
-                      Bitte wählen Sie mindestens einen Slot aus
+                      {t('votingInterface.selectAtLeastOneSlot')}
                     </p>
                   )}
                   {hasOrgaChanges && orgaBookings.length > 0 && (
                     <p className="text-sm text-red-600 mb-3 text-center font-medium">
-                      Sie haben ungespeicherte Änderungen
+                      {t('votingInterface.unsavedChanges')}
                     </p>
                   )}
                   <div className="flex gap-3 items-center">
@@ -906,7 +907,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
                       data-testid="button-submit-vote"
                     >
-                      {voteMutation.isPending ? "Speichere..." : orgaBookings.length > 0 ? "Absenden" : "Slot auswählen"}
+                      {voteMutation.isPending ? t('votingInterface.saving') : orgaBookings.length > 0 ? t('votingInterface.submit') : t('votingInterface.selectSlot')}
                     </Button>
                     {hasAlreadyVoted && poll.allowVoteWithdrawal && (
                       <Button
@@ -917,7 +918,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                         data-testid="button-withdraw-vote-editable"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Zurückziehen'}
+                        {withdrawVoteMutation.isPending ? t('votingInterface.removing') : t('votingInterface.withdraw')}
                       </Button>
                     )}
                   </div>
@@ -933,7 +934,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || Object.keys(votes).length === 0}
                       data-testid="button-submit-vote"
                     >
-                      {voteMutation.isPending ? "Speichere..." : "Abstimmung abgeben"}
+                      {voteMutation.isPending ? t('votingInterface.saving') : t('votingInterface.submitVote')}
                     </Button>
                     {hasAlreadyVoted && poll.allowVoteWithdrawal && (
                       <Button
@@ -944,7 +945,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                         data-testid="button-withdraw-vote-editable"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        {withdrawVoteMutation.isPending ? 'Wird entfernt...' : 'Zurückziehen'}
+                        {withdrawVoteMutation.isPending ? t('votingInterface.removing') : t('votingInterface.withdraw')}
                       </Button>
                     )}
                   </div>
@@ -952,7 +953,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               )}
               {emailRequiresLogin && (
                 <p className="text-sm text-orange-600 mt-2 text-center">
-                  Bitte melden Sie sich an, um mit dieser E-Mail abzustimmen.
+                  {t('votingInterface.loginToVoteWithEmail')}
                 </p>
               )}
             </div>

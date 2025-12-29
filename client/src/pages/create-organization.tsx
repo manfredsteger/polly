@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +42,7 @@ interface OrgaFormData {
 export default function CreateOrganization() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { user, isAuthenticated } = useAuth();
   
   const [title, setTitle] = useState("");
@@ -59,12 +61,10 @@ export default function CreateOrganization() {
     { text: "", maxCapacity: undefined, order: 0 }
   ]);
 
-  // Form persistence for authentication redirects
   const formPersistence = useFormPersistence<OrgaFormData>({ key: 'create-organization' });
   const hasRestoredRef = useRef(false);
   const autoSubmitTriggeredRef = useRef(false);
 
-  // Restore form data on mount if returning from login
   useEffect(() => {
     if (hasRestoredRef.current) return;
     
@@ -89,8 +89,8 @@ export default function CreateOrganization() {
       
       if (stored.pendingSubmit) {
         toast({
-          title: "Willkommen zurück!",
-          description: "Ihre Eingaben wurden wiederhergestellt. Sie können die Orga jetzt absenden.",
+          title: t('pollCreation.welcomeBack'),
+          description: t('pollCreation.formRestoredOrga'),
         });
       }
     }
@@ -145,7 +145,6 @@ export default function CreateOrganization() {
     });
   };
 
-  // Auto-submit after restoration if user is now authenticated
   useEffect(() => {
     if (autoSubmitTriggeredRef.current) return;
     if (!hasRestoredRef.current) return;
@@ -162,8 +161,8 @@ export default function CreateOrganization() {
       formPersistence.clearStoredData();
       
       toast({
-        title: "Automatisches Absenden...",
-        description: "Ihre Orga wird jetzt erstellt.",
+        title: t('pollCreation.autoSubmitting'),
+        description: t('createOrganization.autoSubmitDescription'),
       });
       
       setTimeout(() => {
@@ -189,7 +188,6 @@ export default function CreateOrganization() {
       return response.json();
     },
     onSuccess: (data) => {
-      // Clear any stored form data on success
       formPersistence.clearStoredData();
       
       const successData = {
@@ -202,8 +200,7 @@ export default function CreateOrganization() {
       setLocation("/success");
     },
     onError: async (error: any) => {
-      // Check if it's a REQUIRES_LOGIN error
-      let errorMessage = "Die Orga konnte nicht erstellt werden.";
+      let errorMessage = t('createOrganization.createError');
       let requiresLogin = false;
       
       if (error?.message) {
@@ -217,21 +214,19 @@ export default function CreateOrganization() {
       }
       
       toast({
-        title: requiresLogin ? "Anmeldung erforderlich" : "Fehler",
+        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
         description: requiresLogin 
-          ? "Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an. Ihre Eingaben werden gespeichert."
+          ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
         variant: "destructive",
       });
       
       if (requiresLogin) {
-        // Save form data before redirect
         formPersistence.saveBeforeRedirect(
           { title, description, creatorEmail, allowMultipleSlots, allowVoteEdit, allowVoteWithdrawal, resultsPublic, slots, expiresAt: expiresAt ? expiresAt.toISOString() : null, isDayMode, dayModeDate },
           '/create-organization'
         );
         
-        // Redirect to login page with email pre-filled
         setTimeout(() => {
           const emailParam = creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : '';
           setLocation(`/anmelden?returnTo=/create-organization${emailParam}`);
@@ -261,8 +256,8 @@ export default function CreateOrganization() {
     
     if (!title.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie einen Titel ein.",
+        title: t('pollCreation.error'),
+        description: t('pollCreation.pleaseEnterTitle'),
         variant: "destructive",
       });
       return;
@@ -271,8 +266,8 @@ export default function CreateOrganization() {
     const validSlots = slots.filter(s => s.text.trim());
     if (validSlots.length < 1) {
       toast({
-        title: "Fehler",
-        description: "Bitte fügen Sie mindestens einen Slot hinzu.",
+        title: t('pollCreation.error'),
+        description: t('createOrganization.minSlotsError'),
         variant: "destructive",
       });
       return;
@@ -280,8 +275,8 @@ export default function CreateOrganization() {
 
     if (isDayMode && !dayModeDate) {
       toast({
-        title: "Fehler",
-        description: "Bitte wählen Sie ein Datum für die Tagesorganisation.",
+        title: t('pollCreation.error'),
+        description: t('createOrganization.dayModeDateError'),
         variant: "destructive",
       });
       return;
@@ -290,8 +285,8 @@ export default function CreateOrganization() {
     for (const slot of validSlots) {
       if (slot.startTime && slot.endTime && slot.startTime === slot.endTime) {
         toast({
-          title: "Fehler",
-          description: `Slot "${slot.text}": Startzeit und Endzeit müssen unterschiedlich sein.`,
+          title: t('pollCreation.error'),
+          description: t('createOrganization.slotTimeError', { name: slot.text }),
           variant: "destructive",
         });
         return;
@@ -300,8 +295,8 @@ export default function CreateOrganization() {
 
     if (!isAuthenticated && !creatorEmail.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie eine E-Mail-Adresse ein.",
+        title: t('pollCreation.error'),
+        description: t('pollCreation.pleaseEnterEmail'),
         variant: "destructive",
       });
       return;
@@ -335,11 +330,11 @@ export default function CreateOrganization() {
           data-testid="button-back"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Zurück
+          {t('pollCreation.back')}
         </Button>
-        <h1 className="text-3xl font-bold text-foreground" data-testid="title-create-orga">Orga erstellen</h1>
+        <h1 className="text-3xl font-bold text-foreground" data-testid="title-create-orga">{t('createOrganization.pageTitle')}</h1>
         <p className="text-muted-foreground mt-2">
-          Erstellen Sie Eintragungsslots für Events, Helferlisten oder Mitbring-Listen.
+          {t('createOrganization.pageSubtitle')}
         </p>
       </div>
 
@@ -348,17 +343,17 @@ export default function CreateOrganization() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <ClipboardList className="w-5 h-5 mr-2 text-green-600" />
-              Grundinformationen
+              {t('pollCreation.basicInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="title">Titel *</Label>
+              <Label htmlFor="title">{t('createOrganization.titleLabel')}</Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="z.B. Sommerfest Helferliste oder Kuchenbasar"
+                placeholder={t('createOrganization.titlePlaceholder')}
                 className="mt-1"
                 required
                 data-testid="input-title"
@@ -366,12 +361,12 @@ export default function CreateOrganization() {
             </div>
             
             <div>
-              <Label htmlFor="description">Beschreibung (optional)</Label>
+              <Label htmlFor="description">{t('pollCreation.descriptionOptional')}</Label>
               <Textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Weitere Details zur Veranstaltung..."
+                placeholder={t('createOrganization.descriptionPlaceholder')}
                 className="mt-1"
                 rows={3}
                 data-testid="input-description"
@@ -379,22 +374,21 @@ export default function CreateOrganization() {
             </div>
 
             <div>
-              <Label>Laufzeit / Enddatum (optional)</Label>
+              <Label>{t('pollCreation.expiryDateOptional')}</Label>
               <div className="mt-1">
                 <DatePicker
                   date={expiresAt}
                   onDateChange={setExpiresAt}
-                  placeholder="tt.mm.jjjj"
+                  placeholder={t('pollCreation.datePlaceholder')}
                   minDate={new Date()}
                   data-testid="input-expires-at"
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Nach diesem Datum können keine Eintragungen mehr erfolgen.
+                {t('pollCreation.expiryHintOrga')}
               </p>
             </div>
 
-            {/* Expiry Reminder Option - only shown when expiry date is set */}
             {expiresAt && (() => {
               const hoursUntilExpiry = Math.max(0, (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60));
               const isTooShort = hoursUntilExpiry < 6;
@@ -406,12 +400,12 @@ export default function CreateOrganization() {
                     <div className="space-y-0.5">
                       <Label className="flex items-center gap-2">
                         <Bell className="w-4 h-4" />
-                        Erinnerung vor Ablauf
+                        {t('pollCreation.expiryReminder')}
                       </Label>
                       <p className="text-sm text-muted-foreground">
                         {isTooShort 
-                          ? `Die Umfrage endet in ${hoursUntilExpiry.toFixed(0)} Stunden - zu kurz für Erinnerungen`
-                          : "Teilnehmer erhalten eine E-Mail-Erinnerung vor dem Ablaufdatum"
+                          ? t('pollCreation.expiryTooShort', { hours: hoursUntilExpiry.toFixed(0) })
+                          : t('pollCreation.expiryReminderDescription')
                         }
                       </p>
                     </div>
@@ -426,7 +420,7 @@ export default function CreateOrganization() {
                   {enableExpiryReminder && !isTooShort && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <Label htmlFor="reminderHours" className="shrink-0">Erinnerung senden</Label>
+                        <Label htmlFor="reminderHours" className="shrink-0">{t('pollCreation.sendReminder')}</Label>
                         <Input
                           id="reminderHours"
                           type="number"
@@ -437,11 +431,11 @@ export default function CreateOrganization() {
                           className="w-20"
                           data-testid="input-reminder-hours"
                         />
-                        <span className="text-sm text-muted-foreground">Stunden vor Ablauf</span>
+                        <span className="text-sm text-muted-foreground">{t('pollCreation.hoursBeforeExpiry')}</span>
                       </div>
                       {expiryReminderHours > maxReminderHours && (
                         <p className="text-xs text-amber-600 dark:text-amber-400">
-                          Maximum für diese Umfrage: {maxReminderHours} Stunden
+                          {t('pollCreation.maxReminderHours', { hours: maxReminderHours })}
                         </p>
                       )}
                     </div>
@@ -456,23 +450,23 @@ export default function CreateOrganization() {
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="font-medium text-green-800 dark:text-green-200">
-                      Angemeldet als {user?.name || user?.username}
+                      {t('pollCreation.loggedInAs', { name: user?.name || user?.username })}
                     </p>
                     <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                      Sie erhalten alle Links an: <strong>{user?.email}</strong>
+                      {t('pollCreation.linksWillBeSentTo')} <strong>{user?.email}</strong>
                     </p>
                     <div className="mt-3 space-y-2 text-sm text-green-700 dark:text-green-300">
                       <div className="flex items-center gap-2">
                         <LinkIcon className="w-4 h-4" />
-                        <span>Teilnahme-Link zum Teilen</span>
+                        <span>{t('pollCreation.participationLink')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Info className="w-4 h-4" />
-                        <span>Privater Administrations-Link (nur für Sie)</span>
+                        <span>{t('pollCreation.privateAdminLink')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <QrCode className="w-4 h-4" />
-                        <span>QR-Code zum einfachen Teilen</span>
+                        <span>{t('pollCreation.qrCodeShare')}</span>
                       </div>
                     </div>
                   </div>
@@ -484,16 +478,16 @@ export default function CreateOrganization() {
                   <Mail className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="font-medium text-amber-800 dark:text-amber-200">
-                      E-Mail-Adresse für Benachrichtigungen
+                      {t('pollCreation.emailForNotifications')}
                     </p>
                     <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                      Sie erhalten per E-Mail einen Teilnahme-Link, einen Administrations-Link und einen QR-Code.
+                      {t('pollCreation.emailNotificationDescription')}
                     </p>
                     <Input
                       type="email"
                       value={creatorEmail}
                       onChange={(e) => setCreatorEmail(e.target.value)}
-                      placeholder="ihre.email@polly-bayern.de"
+                      placeholder={t('pollCreation.emailPlaceholder')}
                       className="mt-3"
                       required
                       data-testid="input-creator-email"
@@ -509,15 +503,15 @@ export default function CreateOrganization() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Users className="w-5 h-5 mr-2 text-green-600" />
-              Einstellungen
+              {t('createOrganization.settings')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Mehrfacheintragung erlauben</Label>
+                <Label>{t('createOrganization.allowMultipleSlots')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Darf sich eine Person für mehrere Slots eintragen?
+                  {t('createOrganization.allowMultipleSlotsDescription')}
                 </p>
               </div>
               <Switch
@@ -529,9 +523,9 @@ export default function CreateOrganization() {
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Stimmen ändern erlauben</Label>
+                <Label>{t('pollCreation.allowVoteEdit')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende ihre Eintragungen nachträglich ändern?
+                  {t('createOrganization.allowEntryEditDescription')}
                 </p>
               </div>
               <Switch
@@ -543,9 +537,9 @@ export default function CreateOrganization() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Stimmen zurückziehen erlauben</Label>
+                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende ihre Eintragungen komplett zurückziehen?
+                  {t('createOrganization.allowEntryWithdrawalDescription')}
                 </p>
               </div>
               <Switch
@@ -557,9 +551,9 @@ export default function CreateOrganization() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Ergebnisse öffentlich</Label>
+                <Label>{t('pollCreation.resultsPublic')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende die Ergebnisse einsehen?
+                  {t('pollCreation.resultsPublicDescription')}
                 </p>
               </div>
               <Switch
@@ -576,18 +570,17 @@ export default function CreateOrganization() {
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center">
                 <Clock className="w-5 h-5 mr-2 text-green-600" />
-                Slots
+                {t('createOrganization.slots')}
               </span>
               <Button type="button" onClick={addSlot} variant="outline" size="sm" data-testid="button-add-slot">
                 <Plus className="w-4 h-4 mr-2" />
-                Slot hinzufügen
+                {t('createOrganization.addSlot')}
               </Button>
             </CardTitle>
             <CardDescription className="flex items-start gap-2 mt-2">
               <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
               <span>
-                Slots können z.B. "14:00-14:30 Kuchen" oder "Getränke mitbringen" heißen. 
-                Die Kapazität bestimmt, wie viele Personen sich pro Slot eintragen können.
+                {t('createOrganization.slotsHint')}
               </span>
             </CardDescription>
           </CardHeader>
@@ -596,9 +589,9 @@ export default function CreateOrganization() {
               <div className="flex items-center gap-3">
                 <CalendarDays className="w-5 h-5 text-blue-600" />
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Tagesorganisation</Label>
+                  <Label className="font-medium">{t('createOrganization.dayOrganization')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Einmal Datum wählen, dann nur noch Uhrzeiten eingeben - ideal für viele Zeitslots an einem Tag.
+                    {t('createOrganization.dayOrganizationDescription')}
                   </p>
                 </div>
               </div>
@@ -633,7 +626,7 @@ export default function CreateOrganization() {
               <div className="p-4 border rounded-lg bg-muted/30">
                 <Label className="flex items-center gap-2">
                   <CalendarDays className="w-4 h-4" />
-                  Datum für alle Slots *
+                  {t('createOrganization.dateForAllSlots')}
                 </Label>
                 <Input
                   type="date"
@@ -655,11 +648,11 @@ export default function CreateOrganization() {
                 <div className="flex items-start gap-4">
                   <div className="flex-1 space-y-4">
                     <div>
-                      <Label>Beschreibung *</Label>
+                      <Label>{t('createOrganization.slotDescription')}</Label>
                       <Input
                         value={slot.text}
                         onChange={(e) => updateSlot(index, { text: e.target.value })}
-                        placeholder="z.B. 14:00-14:30 Kuchen oder Helfer Aufbau"
+                        placeholder={t('createOrganization.slotDescriptionPlaceholder')}
                         className="mt-1"
                         data-testid={`input-slot-text-${index}`}
                       />
@@ -668,40 +661,40 @@ export default function CreateOrganization() {
                     {isDayMode ? (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                          <Label>Von (Uhrzeit)</Label>
+                          <Label>{t('createOrganization.fromTime')}</Label>
                           <div className="mt-1">
                             <TimePicker
                               time={slot.startTime}
                               onTimeChange={(time) => updateSlot(index, { startTime: time })}
-                              placeholder="Startzeit"
+                              placeholder={t('createOrganization.startTime')}
                               data-testid={`input-slot-start-${index}`}
                             />
                           </div>
                         </div>
                         <div>
-                          <Label>Bis (Uhrzeit)</Label>
+                          <Label>{t('createOrganization.toTime')}</Label>
                           <div className="mt-1">
                             <TimePicker
                               time={slot.endTime}
                               onTimeChange={(time) => updateSlot(index, { endTime: time })}
-                              placeholder="Endzeit"
+                              placeholder={t('createOrganization.endTime')}
                               data-testid={`input-slot-end-${index}`}
                             />
                           </div>
                           {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
                             <p className="text-xs text-destructive mt-1">
-                              Startzeit und Endzeit müssen unterschiedlich sein
+                              {t('createOrganization.timesMustDiffer')}
                             </p>
                           )}
                         </div>
                         <div>
-                          <Label>Max. Plätze</Label>
+                          <Label>{t('createOrganization.maxSpots')}</Label>
                           <Input
                             type="number"
                             min={1}
                             value={slot.maxCapacity ?? ""}
                             onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
-                            placeholder="∞ unbegrenzt"
+                            placeholder={t('createOrganization.unlimitedPlaceholder')}
                             className="mt-1"
                             data-testid={`input-slot-capacity-${index}`}
                           />
@@ -710,40 +703,40 @@ export default function CreateOrganization() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                          <Label>Von (optional)</Label>
+                          <Label>{t('createOrganization.fromOptional')}</Label>
                           <div className="mt-1">
                             <DateTimePicker
                               value={slot.startTime}
                               onChange={(value) => updateSlot(index, { startTime: value })}
-                              placeholder="Datum & Uhrzeit"
+                              placeholder={t('createOrganization.dateTimePlaceholder')}
                               data-testid={`input-slot-start-${index}`}
                             />
                           </div>
                         </div>
                         <div>
-                          <Label>Bis (optional)</Label>
+                          <Label>{t('createOrganization.toOptional')}</Label>
                           <div className="mt-1">
                             <DateTimePicker
                               value={slot.endTime}
                               onChange={(value) => updateSlot(index, { endTime: value })}
-                              placeholder="Datum & Uhrzeit"
+                              placeholder={t('createOrganization.dateTimePlaceholder')}
                               data-testid={`input-slot-end-${index}`}
                             />
                           </div>
                           {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
                             <p className="text-xs text-destructive mt-1">
-                              Startzeit und Endzeit müssen unterschiedlich sein
+                              {t('createOrganization.timesMustDiffer')}
                             </p>
                           )}
                         </div>
                         <div>
-                          <Label>Max. Plätze</Label>
+                          <Label>{t('createOrganization.maxSpots')}</Label>
                           <Input
                             type="number"
                             min={1}
                             value={slot.maxCapacity ?? ""}
                             onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
-                            placeholder="∞ unbegrenzt"
+                            placeholder={t('createOrganization.unlimitedPlaceholder')}
                             className="mt-1"
                             data-testid={`input-slot-capacity-${index}`}
                           />
@@ -777,7 +770,7 @@ export default function CreateOrganization() {
             onClick={() => setLocation("/")}
             data-testid="button-cancel"
           >
-            Abbrechen
+            {t('pollCreation.cancel')}
           </Button>
           <Button
             type="submit"
@@ -785,7 +778,7 @@ export default function CreateOrganization() {
             className="bg-green-600 hover:bg-green-700"
             data-testid="button-submit"
           >
-            {createPollMutation.isPending ? "Wird erstellt..." : "Orga erstellen"}
+            {createPollMutation.isPending ? t('createOrganization.creatingButton') : t('createOrganization.submitButton')}
           </Button>
         </div>
       </form>

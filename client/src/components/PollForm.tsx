@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export function PollForm({
   isLoading = false,
   isAnonymous = true 
 }: PollFormProps) {
+  const { t, i18n } = useTranslation();
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [creatorEmail, setCreatorEmail] = useState("");
@@ -47,7 +49,7 @@ export function PollForm({
 
   const addTimeSlot = (date: Date, startTime: string, endTime: string) => {
     const option: PollOption = {
-      text: `${date.toLocaleDateString('de-DE')} ${startTime} - ${endTime}`,
+      text: `${date.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} ${startTime} - ${endTime}`,
       startTime: new Date(date.toDateString() + ' ' + startTime).toISOString(),
       endTime: new Date(date.toDateString() + ' ' + endTime).toISOString(),
       order: options.length,
@@ -80,29 +82,29 @@ export function PollForm({
         <CardHeader>
           <CardTitle className="flex items-center">
             <Calendar className="w-5 h-5 mr-2 text-polly-orange" />
-            Grundinformationen
+            {t('pollForm.basicInfo')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <Label htmlFor="title">Titel der Terminumfrage *</Label>
+            <Label htmlFor="title">{t('pollForm.scheduleTitle')} *</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="z.B. Team-Meeting März 2025"
+              placeholder={t('pollForm.scheduleTitlePlaceholder')}
               className="mt-1"
               required
             />
           </div>
           
           <div>
-            <Label htmlFor="description">Beschreibung (optional)</Label>
+            <Label htmlFor="description">{t('pollForm.descriptionOptional')}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Weitere Details zur Terminabstimmung..."
+              placeholder={t('pollForm.scheduleDescriptionPlaceholder')}
               className="mt-1"
               rows={3}
             />
@@ -115,7 +117,7 @@ export function PollForm({
         <CardHeader>
           <CardTitle className="flex items-center">
             <Clock className="w-5 h-5 mr-2 text-polly-blue" />
-            Termine auswählen
+            {t('schedule.selectDates')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -129,7 +131,7 @@ export function PollForm({
           {options.length > 0 && (
             <div className="mt-6">
               <h4 className="font-semibold text-foreground mb-4">
-                Terminoptionen ({options.length})
+                {t('pollForm.dateOptions')} ({options.length})
               </h4>
               <div className="space-y-3">
                 {options.map((option, index) => (
@@ -147,7 +149,7 @@ export function PollForm({
                       onClick={() => removeOption(index)}
                       className="text-destructive hover:text-destructive"
                     >
-                      Entfernen
+                      {t('pollForm.remove')}
                     </Button>
                   </div>
                 ))}
@@ -162,7 +164,7 @@ export function PollForm({
         <CardHeader>
           <CardTitle className="flex items-center">
             <Mail className="w-5 h-5 mr-2 text-green-600" />
-            Erstellungsoptionen
+            {t('pollForm.creationOptions')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -175,18 +177,17 @@ export function PollForm({
               />
               <div className="flex-1">
                 <Label htmlFor="anonymous" className="font-medium">
-                  Anonym erstellen
+                  {t('pollForm.createAnonymously')}
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Sie erhalten per E-Mail einen öffentlichen Link zum Teilen und einen 
-                  privaten Administratorlink zur Verwaltung.
+                  {t('pollForm.anonymousDescription')}
                 </p>
                 {anonymousCreation && (
                   <Input
                     type="email"
                     value={creatorEmail}
                     onChange={(e) => setCreatorEmail(e.target.value)}
-                    placeholder="ihre.email@polly-bayern.de"
+                    placeholder={t('pollForm.emailPlaceholder')}
                     className="mt-3"
                     required
                   />
@@ -205,7 +206,7 @@ export function PollForm({
           disabled={isLoading || !title.trim() || options.length < 2}
         >
           <Save className="w-4 h-4 mr-2" />
-          {isLoading ? "Erstelle..." : "Terminumfrage erstellen"}
+          {isLoading ? t('pollForm.creating') : t('pollForm.createSchedulePoll')}
         </Button>
       </div>
     </form>

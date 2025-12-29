@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +16,14 @@ interface PasswordRequirement {
 }
 
 function PasswordStrengthIndicator({ password, confirmPassword }: { password: string; confirmPassword: string }) {
+  const { t } = useTranslation();
   const requirements: PasswordRequirement[] = useMemo(() => [
-    { label: 'Mindestens 8 Zeichen', met: password.length >= 8 },
-    { label: 'Mindestens ein Großbuchstabe', met: /[A-Z]/.test(password) },
-    { label: 'Mindestens ein Kleinbuchstabe', met: /[a-z]/.test(password) },
-    { label: 'Mindestens eine Zahl', met: /[0-9]/.test(password) },
-    { label: 'Mindestens ein Sonderzeichen (!@#$%^&*...)', met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password) },
-  ], [password]);
+    { label: t('resetPassword.minChars'), met: password.length >= 8 },
+    { label: t('resetPassword.uppercase'), met: /[A-Z]/.test(password) },
+    { label: t('resetPassword.lowercase'), met: /[a-z]/.test(password) },
+    { label: t('resetPassword.number'), met: /[0-9]/.test(password) },
+    { label: t('resetPassword.specialChar'), met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password) },
+  ], [password, t]);
 
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const allRequirementsMet = requirements.every(r => r.met);
@@ -35,9 +37,9 @@ function PasswordStrengthIndicator({ password, confirmPassword }: { password: st
   };
 
   const getStrengthLabel = () => {
-    if (strengthPercentage < 40) return 'Schwach';
-    if (strengthPercentage < 80) return 'Mittel';
-    return 'Stark';
+    if (strengthPercentage < 40) return t('resetPassword.weak');
+    if (strengthPercentage < 80) return t('resetPassword.medium');
+    return t('resetPassword.strong');
   };
 
   if (password.length === 0) return null;
@@ -46,7 +48,7 @@ function PasswordStrengthIndicator({ password, confirmPassword }: { password: st
     <div className="space-y-3 mt-2 p-3 bg-muted/50 rounded-lg border" data-testid="password-strength-indicator">
       <div className="space-y-1">
         <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Passwortstärke</span>
+          <span className="text-muted-foreground">{t('resetPassword.passwordStrength')}</span>
           <span className={`font-medium ${strengthPercentage === 100 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
             {getStrengthLabel()}
           </span>
@@ -83,7 +85,7 @@ function PasswordStrengthIndicator({ password, confirmPassword }: { password: st
           ) : (
             <X className="h-3.5 w-3.5 flex-shrink-0" />
           )}
-          <span>{passwordsMatch ? 'Passwörter stimmen überein' : 'Passwörter stimmen nicht überein'}</span>
+          <span>{passwordsMatch ? t('resetPassword.passwordsMatch') : t('resetPassword.passwordsDontMatch')}</span>
         </div>
       )}
     </div>
@@ -101,6 +103,7 @@ function validatePassword(password: string): boolean {
 }
 
 export default function ResetPassword() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/passwort-zuruecksetzen/:token");
   const { toast } = useToast();
@@ -113,12 +116,12 @@ export default function ResetPassword() {
 
   useEffect(() => {
     if (!token) {
-      setError("Ungültiger oder fehlender Token.");
+      setError(t('resetPassword.invalidToken'));
     }
-  }, [token]);
+  }, [token, t]);
 
   const parseErrorMessage = (error: any): string => {
-    if (!error?.message) return "Ein unbekannter Fehler ist aufgetreten.";
+    if (!error?.message) return t('resetPassword.unknownError');
     const msg = error.message;
     const colonIndex = msg.indexOf(': ');
     if (colonIndex > -1) {
@@ -143,7 +146,7 @@ export default function ResetPassword() {
     },
     onError: (error: any) => {
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: parseErrorMessage(error),
         variant: "destructive",
       });
@@ -155,8 +158,8 @@ export default function ResetPassword() {
     
     if (newPassword !== confirmPassword) {
       toast({
-        title: "Fehler",
-        description: "Die Passwörter stimmen nicht überein.",
+        title: t('common.error'),
+        description: t('resetPassword.passwordsDontMatch'),
         variant: "destructive",
       });
       return;
@@ -164,8 +167,8 @@ export default function ResetPassword() {
 
     if (!validatePassword(newPassword)) {
       toast({
-        title: "Fehler",
-        description: "Das Passwort erfüllt nicht alle Anforderungen (8 Zeichen, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen).",
+        title: t('common.error'),
+        description: t('resetPassword.requirementsNotMet'),
         variant: "destructive",
       });
       return;
@@ -173,8 +176,8 @@ export default function ResetPassword() {
 
     if (!token) {
       toast({
-        title: "Fehler",
-        description: "Ungültiger Token.",
+        title: t('common.error'),
+        description: t('resetPassword.invalidToken'),
         variant: "destructive",
       });
       return;
@@ -190,14 +193,14 @@ export default function ResetPassword() {
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <AlertCircle className="w-16 h-16 text-red-500 mx-auto" />
-              <h2 className="text-2xl font-bold">Ungültiger Link</h2>
+              <h2 className="text-2xl font-bold">{t('resetPassword.invalidLink')}</h2>
               <p className="text-muted-foreground">{error}</p>
               <Button 
                 className="w-full" 
                 onClick={() => setLocation("/passwort-vergessen")}
                 data-testid="button-request-new"
               >
-                Neuen Link anfordern
+                {t('resetPassword.requestNewLink')}
               </Button>
             </div>
           </CardContent>
@@ -213,16 +216,16 @@ export default function ResetPassword() {
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
-              <h2 className="text-2xl font-bold">Passwort geändert</h2>
+              <h2 className="text-2xl font-bold">{t('resetPassword.passwordChanged')}</h2>
               <p className="text-muted-foreground">
-                Ihr Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt mit Ihrem neuen Passwort anmelden.
+                {t('resetPassword.passwordResetSuccess')}
               </p>
               <Button 
                 className="w-full polly-button-primary" 
                 onClick={() => setLocation("/anmelden")}
                 data-testid="button-login"
               >
-                Zur Anmeldung
+                {t('resetPassword.goToLogin')}
               </Button>
             </div>
           </CardContent>
@@ -237,16 +240,16 @@ export default function ResetPassword() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="w-5 h-5" />
-            Neues Passwort vergeben
+            {t('resetPassword.setNewPassword')}
           </CardTitle>
           <CardDescription>
-            Vergeben Sie ein neues sicheres Passwort für Ihr Konto.
+            {t('resetPassword.setNewPasswordDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="newPassword">Neues Passwort</Label>
+              <Label htmlFor="newPassword">{t('resetPassword.newPassword')}</Label>
               <Input
                 id="newPassword"
                 type="password"
@@ -257,7 +260,7 @@ export default function ResetPassword() {
               />
             </div>
             <div>
-              <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
+              <Label htmlFor="confirmPassword">{t('resetPassword.confirmPassword')}</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -275,7 +278,7 @@ export default function ResetPassword() {
               disabled={resetPasswordMutation.isPending || !validatePassword(newPassword) || newPassword !== confirmPassword}
               data-testid="button-submit"
             >
-              {resetPasswordMutation.isPending ? "Wird gespeichert..." : "Passwort speichern"}
+              {resetPasswordMutation.isPending ? t('resetPassword.saving') : t('resetPassword.savePassword')}
             </Button>
           </form>
         </CardContent>

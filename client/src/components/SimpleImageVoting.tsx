@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import { Check, X, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { type PollOption } from '@shared/schema';
-import { formatScheduleOptionWithGermanWeekday } from '@/lib/utils';
+import { formatScheduleOptionWithWeekday } from '@/lib/utils';
 
-function FormattedOptionText({ text, startTime }: { text: string; startTime?: Date | string | null }) {
+function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
   const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
-  const formatted = formatScheduleOptionWithGermanWeekday(text, startTimeStr);
+  const formatted = formatScheduleOptionWithWeekday(text, startTimeStr, locale);
   if (formatted.isSchedule) {
     return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
@@ -32,6 +33,7 @@ export function SimpleImageVoting({
   adminPreview = false,
   allowMaybe = true
 }: SimpleImageVotingProps) {
+  const { i18n } = useTranslation();
   const [votes, setVotes] = useState<Record<string, 'yes' | 'no' | 'maybe'>>(existingVotes);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -117,7 +119,7 @@ export function SimpleImageVoting({
                 
                 {/* Title and voting buttons below each image */}
                 <div className="text-center">
-                  <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} /></h4>
+                  <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></h4>
                   {!adminPreview && (
                     <div className="flex gap-2">
                       <Button
@@ -169,7 +171,7 @@ export function SimpleImageVoting({
             const currentVote = votes[String(option.id)];
             return (
               <div key={option.id} className="p-4 border rounded-lg">
-                <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} /></h4>
+                <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></h4>
                 {!adminPreview && (
                   <div className="flex gap-2">
                     <Button

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertBanner } from "@/components/ui/AlertBanner";
@@ -152,7 +153,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow, format } from "date-fns";
-import { de } from "date-fns/locale";
+import { getDateLocale } from "@/lib/i18n";
 import type { User, PollWithOptions, SystemSetting, CustomizationSettings, FooterLink } from "@shared/schema";
 
 interface ExtendedStats {
@@ -259,6 +260,7 @@ interface AdminDashboardProps {
 type SettingsPanel = 'oidc' | 'database' | 'email' | 'email-templates' | 'security' | 'matrix' | 'roles' | 'notifications' | 'session-timeout' | 'pentest' | 'tests' | null;
 
 export function AdminDashboard({ stats, users, polls, settings, userRole }: AdminDashboardProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -327,9 +329,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         },
       });
       await refetchSystemStatus();
-      toast({ title: "System-Status aktualisiert", description: "Die EoL-Daten wurden neu abgerufen." });
+      toast({ title: t('admin.toast.systemStatusUpdated'), description: t('admin.toast.systemStatusUpdatedDescription') });
     } catch (error) {
-      toast({ title: "Fehler", description: "Aktualisierung fehlgeschlagen.", variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: t('admin.toast.updateFailed'), variant: "destructive" });
     } finally {
       setSystemStatusRefreshing(false);
     }
@@ -347,9 +349,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         },
       });
       await refetchVulnerabilities();
-      toast({ title: "Sicherheitscheck aktualisiert", description: "npm audit wurde neu ausgeführt." });
+      toast({ title: t('admin.toast.securityCheckUpdated'), description: t('admin.toast.securityCheckUpdatedDescription') });
     } catch (error) {
-      toast({ title: "Fehler", description: "Aktualisierung fehlgeschlagen.", variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: t('admin.toast.updateFailed'), variant: "destructive" });
     } finally {
       setVulnerabilitiesRefreshing(false);
     }
@@ -367,9 +369,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         },
       });
       await refetchSystemPackages();
-      toast({ title: "System-Packages aktualisiert", description: "Nix-Packages wurden neu geladen." });
+      toast({ title: t('admin.toast.systemPackagesUpdated'), description: t('admin.toast.systemPackagesUpdatedDescription') });
     } catch (error) {
-      toast({ title: "Fehler", description: "Aktualisierung fehlgeschlagen.", variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: t('admin.toast.updateFailed'), variant: "destructive" });
     } finally {
       setSystemPackagesRefreshing(false);
     }
@@ -389,10 +391,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
     const target = new Date(date);
     const now = new Date();
     const diffMs = target.getTime() - now.getTime();
-    if (diffMs <= 0) return 'jetzt';
+    if (diffMs <= 0) return t('common.now');
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    if (hours > 0) return `${hours}h ${minutes}min`;
+    if (hours > 0) return `${hours}${t('common.hoursShort')} ${minutes}min`;
     return `${minutes}min`;
   };
 
@@ -409,12 +411,12 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Umfrage aktualisiert", description: "Die Änderungen wurden gespeichert." });
+      toast({ title: t('admin.toast.pollUpdated'), description: t('admin.toast.pollUpdatedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/polls'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Die Umfrage konnte nicht aktualisiert werden.", variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: t('admin.toast.pollUpdateError'), variant: "destructive" });
     },
   });
 
@@ -424,13 +426,13 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Umfrage gelöscht", description: "Die Umfrage wurde erfolgreich entfernt." });
+      toast({ title: t('admin.toast.pollDeleted'), description: t('admin.toast.pollDeletedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/polls'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
       setSelectedPoll(null);
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Die Umfrage konnte nicht gelöscht werden.", variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: t('admin.toast.pollDeleteError'), variant: "destructive" });
     },
   });
 
@@ -440,11 +442,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Benutzer aktualisiert", description: "Die Änderungen wurden gespeichert." });
+      toast({ title: t('admin.toast.userUpdated'), description: t('admin.toast.userUpdatedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Der Benutzer konnte nicht aktualisiert werden.", variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: t('admin.toast.userUpdateError'), variant: "destructive" });
     },
   });
 
@@ -453,18 +455,18 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
       const response = await apiRequest("POST", `/api/v1/admin/users`, userData);
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Benutzer konnte nicht erstellt werden.');
+        throw new Error(error.error || t('admin.toast.userCreateError'));
       }
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Benutzer erstellt", description: "Der neue Benutzer wurde erfolgreich angelegt." });
+      toast({ title: t('admin.toast.userCreated'), description: t('admin.toast.userCreatedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
       setShowAddUserDialog(false);
       setNewUserForm({ name: '', email: '', username: '', password: '', role: 'user' });
     },
     onError: (error: Error) => {
-      toast({ title: "Fehler", description: error.message, variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -474,19 +476,19 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.code === 'MANUAL_DELETE_DISABLED' 
-          ? 'Manuelle Löschung ist deaktiviert. Nutzen Sie den externen Deprovisionierungsservice.'
-          : error.error || 'Benutzer konnte nicht gelöscht werden');
+          ? t('admin.toast.manualDeleteDisabled')
+          : error.error || t('admin.toast.userDeleteError'));
       }
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Benutzer gelöscht", description: "Der Benutzer wurde erfolgreich entfernt." });
+      toast({ title: t('admin.toast.userDeleted'), description: t('admin.toast.userDeletedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
       setSelectedUser(null);
     },
     onError: (error: Error) => {
-      toast({ title: "Fehler", description: error.message || "Der Benutzer konnte nicht gelöscht werden.", variant: "destructive" });
+      toast({ title: t('admin.toast.error'), description: error.message || t('admin.toast.userDeleteError'), variant: "destructive" });
     },
   });
 
@@ -560,18 +562,18 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       {sidebarCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">{sidebarCollapsed ? 'Erweitern' : 'Minimieren'}</TooltipContent>
+                  <TooltipContent side="bottom">{sidebarCollapsed ? t('admin.nav.expand') : t('admin.nav.collapse')}</TooltipContent>
                 </Tooltip>
               </div>
               <nav className="space-y-1">
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<BarChart3 className="w-4 h-4" />} label="Dashboard" testId="nav-overview" />
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "monitoring"} onClick={() => { setActiveTab("monitoring"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Activity className="w-4 h-4" />} label="Monitoring" testId="nav-monitoring" />
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "polls"} onClick={() => { setActiveTab("polls"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Vote className="w-4 h-4" />} label="Umfragen" testId="nav-polls" />
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "users"} onClick={() => { setActiveTab("users"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Users className="w-4 h-4" />} label="Benutzer" testId="nav-users" />
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "customize"} onClick={() => { setActiveTab("customize"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Paintbrush className="w-4 h-4" />} label="Anpassen" testId="nav-customize" />
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Settings className="w-4 h-4" />} label="Einstellungen" testId="nav-settings" />
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "tests"} onClick={() => { setActiveTab("tests"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<FlaskConical className="w-4 h-4" />} label="Tests" testId="nav-tests" />
-                <NavButton collapsed={sidebarCollapsed} active={activeTab === "deletion-requests"} onClick={() => { setActiveTab("deletion-requests"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<UserX className="w-4 h-4" />} label="Löschanträge" testId="nav-deletion-requests" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<BarChart3 className="w-4 h-4" />} label={t('admin.nav.dashboard')} testId="nav-overview" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "monitoring"} onClick={() => { setActiveTab("monitoring"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Activity className="w-4 h-4" />} label={t('admin.nav.monitoring')} testId="nav-monitoring" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "polls"} onClick={() => { setActiveTab("polls"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Vote className="w-4 h-4" />} label={t('admin.nav.polls')} testId="nav-polls" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "users"} onClick={() => { setActiveTab("users"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Users className="w-4 h-4" />} label={t('admin.nav.users')} testId="nav-users" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "customize"} onClick={() => { setActiveTab("customize"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Paintbrush className="w-4 h-4" />} label={t('admin.nav.customize')} testId="nav-customize" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<Settings className="w-4 h-4" />} label={t('admin.nav.settings')} testId="nav-settings" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "tests"} onClick={() => { setActiveTab("tests"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<FlaskConical className="w-4 h-4" />} label={t('admin.nav.tests')} testId="nav-tests" />
+                <NavButton collapsed={sidebarCollapsed} active={activeTab === "deletion-requests"} onClick={() => { setActiveTab("deletion-requests"); setSelectedUser(null); setSelectedPoll(null); setSelectedSettingsPanel(null); }} icon={<UserX className="w-4 h-4" />} label={t('admin.nav.deletionRequests')} testId="nav-deletion-requests" />
               </nav>
             </CardContent>
           </Card>
@@ -583,10 +585,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         {activeTab === "overview" && !selectedUser && !selectedPoll && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-foreground">System-Übersicht</h2>
+              <h2 className="text-2xl font-semibold text-foreground">{t('admin.overview.title')}</h2>
               <Badge variant="outline" className="text-green-600 border-green-600">
                 <CheckCircle className="w-3 h-3 mr-1" />
-                System aktiv
+                {t('admin.overview.systemActive')}
               </Badge>
             </div>
             
@@ -594,7 +596,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard 
                 icon={<Users />} 
-                label="Benutzer" 
+                label={t('admin.overview.usersLabel')} 
                 value={displayStats.totalUsers} 
                 color="blue" 
                 onClick={() => handleStatCardClick("users")}
@@ -602,7 +604,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               />
               <StatCard 
                 icon={<Vote />} 
-                label="Aktive Umfragen" 
+                label={t('admin.overview.activePollsLabel')} 
                 value={displayStats.activePolls} 
                 color="green" 
                 onClick={() => handleStatCardClick("polls")}
@@ -610,7 +612,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               />
               <StatCard 
                 icon={<BarChart3 />} 
-                label="Abstimmungen" 
+                label={t('admin.overview.votesLabel')} 
                 value={displayStats.totalVotes} 
                 color="purple" 
                 onClick={() => handleStatCardClick("monitoring")}
@@ -618,7 +620,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               />
               <StatCard 
                 icon={<TrendingUp />} 
-                label="Diesen Monat" 
+                label={t('admin.overview.thisMonth')} 
                 value={displayStats.monthlyPolls} 
                 color="orange" 
                 onClick={() => handleStatCardClick("polls")}
@@ -635,7 +637,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Terminumfragen</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.overview.schedulePolls')}</p>
                     <p className="text-xl font-bold">{displayStats.schedulePolls}</p>
                   </div>
                   <Calendar className="w-6 h-6 text-polly-orange" />
@@ -648,7 +650,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Klassische Umfragen</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.overview.classicPolls')}</p>
                     <p className="text-xl font-bold">{displayStats.surveyPolls}</p>
                   </div>
                   <FileText className="w-6 h-6 text-polly-blue" />
@@ -657,7 +659,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               <Card className="p-4" data-testid="stat-weekly">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Diese Woche</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.overview.thisWeek')}</p>
                     <p className="text-xl font-bold">{displayStats.weeklyPolls}</p>
                   </div>
                   <Clock className="w-6 h-6 text-amber-500" />
@@ -666,7 +668,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               <Card className="p-4" data-testid="stat-today">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Heute</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.overview.today')}</p>
                     <p className="text-xl font-bold">{displayStats.todayPolls}</p>
                   </div>
                   <Activity className="w-6 h-6 text-green-500" />
@@ -680,14 +682,14 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center">
                     <Server className="w-5 h-5 mr-2" />
-                    System-Komponenten
+                    {t('admin.monitoring.componentVersions')}
                   </CardTitle>
                   <div className="flex items-center gap-3">
                     {systemStatus?.lastChecked && (
                       <div className="text-xs text-muted-foreground text-right">
-                        <div>Letzter Check: {formatDistanceToNow(new Date(systemStatus.lastChecked), { addSuffix: true, locale: de })}</div>
+                        <div>{t('admin.monitoring.lastCheck')}: {formatDistanceToNow(new Date(systemStatus.lastChecked), { addSuffix: true, locale: getDateLocale() })}</div>
                         {systemStatus.cacheExpiresAt && (
-                          <div>Nächster: in {formatTimeUntil(systemStatus.cacheExpiresAt)}</div>
+                          <div>{t('admin.monitoring.nextCheck')}: in {formatTimeUntil(systemStatus.cacheExpiresAt)}</div>
                         )}
                       </div>
                     )}
@@ -699,7 +701,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       data-testid="refresh-system-status"
                     >
                       <RefreshCw className={`w-4 h-4 mr-1 ${systemStatusRefreshing ? 'animate-spin' : ''}`} />
-                      Prüfen
+                      {t('admin.monitoring.checkNow')}
                     </Button>
                   </div>
                 </div>
@@ -714,10 +716,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 font-medium">Komponente</th>
-                          <th className="text-left py-2 font-medium">Version</th>
-                          <th className="text-left py-2 font-medium">Status</th>
-                          <th className="text-left py-2 font-medium">End of Life</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.package')}</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.version')}</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.status')}</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.eol')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -736,35 +738,35 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                               {component.status === 'current' && (
                                 <Badge className="polly-badge-success">
                                   <CheckCircle className="w-3 h-3 mr-1" />
-                                  Aktuell
+                                  {t('admin.monitoring.current')}
                                 </Badge>
                               )}
                               {component.status === 'warning' && (
                                 <Badge className="polly-badge-warning">
                                   <AlertTriangle className="w-3 h-3 mr-1" />
-                                  Bald EOL
+                                  {t('admin.monitoring.warning')}
                                 </Badge>
                               )}
                               {component.status === 'eol' && (
                                 <Badge className="polly-badge-error">
                                   <XCircle className="w-3 h-3 mr-1" />
-                                  EOL
+                                  {t('admin.monitoring.eol')}
                                 </Badge>
                               )}
                               {component.status === 'unknown' && (
                                 <Badge variant="secondary">
                                   <AlertCircle className="w-3 h-3 mr-1" />
-                                  Unbekannt
+                                  {t('admin.monitoring.unknown')}
                                 </Badge>
                               )}
                             </td>
                             <td className="py-2 text-muted-foreground">
                               {component.eolDate ? (
                                 <span className={component.status === 'eol' ? 'text-red-600 dark:text-red-400' : component.status === 'warning' ? 'text-amber-600 dark:text-amber-400' : ''}>
-                                  {format(new Date(component.eolDate), 'MMM yyyy', { locale: de })}
+                                  {format(new Date(component.eolDate), 'MMM yyyy', { locale: getDateLocale() })}
                                   {component.daysUntilEol !== null && component.daysUntilEol > 0 && (
                                     <span className="ml-1 text-xs">
-                                      ({component.daysUntilEol} Tage)
+                                      ({component.daysUntilEol} {t('admin.monitoring.daysUntilEol')})
                                     </span>
                                   )}
                                 </span>
@@ -778,7 +780,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     </table>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-center py-8">Status konnte nicht geladen werden</p>
+                  <p className="text-muted-foreground text-center py-8">{t('admin.monitoring.noSystemPackages')}</p>
                 )}
               </CardContent>
             </Card>
@@ -789,38 +791,38 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="flex items-center">
                     <ShieldAlert className="w-5 h-5 mr-2" />
-                    Sicherheitslücken
+                    {t('admin.security')}
                   </CardTitle>
                   <div className="flex items-center gap-3 flex-wrap">
                     {vulnerabilities?.summary && vulnerabilities.summary.total > 0 && (
                       <div className="flex gap-1 flex-wrap">
                         {vulnerabilities.summary.critical > 0 && (
                           <Badge className="polly-badge-critical" data-testid="badge-critical">
-                            {vulnerabilities.summary.critical} Kritisch
+                            {vulnerabilities.summary.critical} {t('admin.monitoring.critical')}
                           </Badge>
                         )}
                         {vulnerabilities.summary.high > 0 && (
                           <Badge className="polly-badge-high" data-testid="badge-high">
-                            {vulnerabilities.summary.high} Hoch
+                            {vulnerabilities.summary.high} {t('admin.monitoring.high')}
                           </Badge>
                         )}
                         {vulnerabilities.summary.moderate > 0 && (
                           <Badge className="polly-badge-moderate" data-testid="badge-moderate">
-                            {vulnerabilities.summary.moderate} Mittel
+                            {vulnerabilities.summary.moderate} {t('admin.monitoring.moderate')}
                           </Badge>
                         )}
                         {vulnerabilities.summary.low > 0 && (
                           <Badge variant="secondary" data-testid="badge-low">
-                            {vulnerabilities.summary.low} Niedrig
+                            {vulnerabilities.summary.low} {t('admin.monitoring.low')}
                           </Badge>
                         )}
                       </div>
                     )}
                     {vulnerabilities?.lastChecked && (
                       <div className="text-xs text-muted-foreground text-right">
-                        <div>Letzter Check: {formatDistanceToNow(new Date(vulnerabilities.lastChecked), { addSuffix: true, locale: de })}</div>
+                        <div>{t('admin.monitoring.lastCheck')}: {formatDistanceToNow(new Date(vulnerabilities.lastChecked), { addSuffix: true, locale: getDateLocale() })}</div>
                         {vulnerabilities.cacheExpiresAt && (
-                          <div>Nächster: in {formatTimeUntil(vulnerabilities.cacheExpiresAt)}</div>
+                          <div>{t('admin.monitoring.nextCheck')}: in {formatTimeUntil(vulnerabilities.cacheExpiresAt)}</div>
                         )}
                       </div>
                     )}
@@ -832,7 +834,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       data-testid="refresh-vulnerabilities"
                     >
                       <RefreshCw className={`w-4 h-4 mr-1 ${vulnerabilitiesRefreshing ? 'animate-spin' : ''}`} />
-                      Prüfen
+                      {t('admin.monitoring.checkNow')}
                     </Button>
                   </div>
                 </div>
@@ -847,10 +849,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 font-medium">Paket</th>
-                          <th className="text-left py-2 font-medium">Bereich</th>
-                          <th className="text-left py-2 font-medium">Schweregrad</th>
-                          <th className="text-left py-2 font-medium">Beschreibung</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.packageName')}</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.impactArea')}</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.severity')}</th>
+                          <th className="text-left py-2 font-medium">{t('polls.description')}</th>
                           <th className="text-left py-2 font-medium">Fix</th>
                         </tr>
                       </thead>
@@ -870,19 +872,19 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                             </td>
                             <td className="py-2">
                               {vuln.severity === 'critical' && (
-                                <Badge className="polly-badge-critical">Kritisch</Badge>
+                                <Badge className="polly-badge-critical">{t('admin.monitoring.critical')}</Badge>
                               )}
                               {vuln.severity === 'high' && (
-                                <Badge className="polly-badge-high">Hoch</Badge>
+                                <Badge className="polly-badge-high">{t('admin.monitoring.high')}</Badge>
                               )}
                               {vuln.severity === 'moderate' && (
-                                <Badge className="polly-badge-moderate">Mittel</Badge>
+                                <Badge className="polly-badge-moderate">{t('admin.monitoring.moderate')}</Badge>
                               )}
                               {vuln.severity === 'low' && (
-                                <Badge variant="secondary">Niedrig</Badge>
+                                <Badge variant="secondary">{t('admin.monitoring.low')}</Badge>
                               )}
                               {vuln.severity === 'info' && (
-                                <Badge variant="outline">Info</Badge>
+                                <Badge variant="outline">{t('admin.monitoring.info')}</Badge>
                               )}
                             </td>
                             <td className="py-2 max-w-xs">
@@ -903,7 +905,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                   {vuln.patchedVersions}
                                 </span>
                               ) : (
-                                <span className="text-muted-foreground text-xs">Kein Fix verfügbar</span>
+                                <span className="text-muted-foreground text-xs">{t('admin.monitoring.noVulnerabilities')}</span>
                               )}
                             </td>
                           </tr>
@@ -912,9 +914,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     </table>
                     {vulnerabilities.impactSummary && (
                       <div className="mt-4 pt-4 border-t flex flex-wrap gap-2 text-xs">
-                        <span className="text-muted-foreground">Auswirkungsbereiche:</span>
+                        <span className="text-muted-foreground">{t('admin.monitoring.impactArea')}:</span>
                         {vulnerabilities.impactSummary.development > 0 && (
-                          <Badge className="bg-gray-500 text-white border-0">{vulnerabilities.impactSummary.development}x Entwicklung</Badge>
+                          <Badge className="bg-gray-500 text-white border-0">{vulnerabilities.impactSummary.development}x Development</Badge>
                         )}
                         {vulnerabilities.impactSummary.backend > 0 && (
                           <Badge className="bg-orange-500 text-white border-0">{vulnerabilities.impactSummary.backend}x Backend</Badge>
@@ -931,7 +933,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 ) : (
                   <div className="flex items-center justify-center py-8 text-green-600 dark:text-green-400">
                     <CheckCircle className="w-5 h-5 mr-2" />
-                    <span>Keine Sicherheitslücken gefunden</span>
+                    <span>{t('admin.monitoring.noVulnerabilities')}</span>
                   </div>
                 )}
               </CardContent>
@@ -943,7 +945,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="flex items-center">
                     <Layers className="w-5 h-5 mr-2" />
-                    System-Packages (Nix)
+                    {t('admin.monitoring.systemPackages')}
                   </CardTitle>
                   <div className="flex items-center gap-3 flex-wrap">
                     {systemPackages && (
@@ -964,12 +966,12 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       data-testid="refresh-system-packages"
                     >
                       <RefreshCw className={`w-4 h-4 mr-1 ${systemPackagesRefreshing ? 'animate-spin' : ''}`} />
-                      Aktualisieren
+                      {t('common.refresh')}
                     </Button>
                   </div>
                 </div>
                 <CardDescription>
-                  Diese Packages werden vom Betriebssystem (Replit/Nix) bereitgestellt und sind nicht direkt in der Anwendung enthalten.
+                  {t('admin.monitoring.systemPackagesDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -982,9 +984,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 font-medium">Package</th>
-                          <th className="text-left py-2 font-medium">Version</th>
-                          <th className="text-left py-2 font-medium">Verwendung</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.package')}</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.version')}</th>
+                          <th className="text-left py-2 font-medium">{t('admin.monitoring.usage')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1004,7 +1006,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                   </div>
                 ) : (
                   <div className="flex items-center justify-center py-8 text-muted-foreground">
-                    <span>Keine System-Packages konfiguriert</span>
+                    <span>{t('admin.monitoring.noSystemPackages')}</span>
                   </div>
                 )}
               </CardContent>
@@ -1015,12 +1017,12 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Clock className="w-5 h-5 mr-2" />
-                  Letzte Aktivitäten
+                  {t('admin.overview.recentActivity')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {displayStats.recentActivity.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">Keine aktuellen Aktivitäten</p>
+                  <p className="text-muted-foreground text-center py-8">{t('admin.overview.noRecentActivity')}</p>
                 ) : (
                   <div className="space-y-3">
                     {displayStats.recentActivity.map((activity, index) => (
@@ -1036,7 +1038,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         {/* Monitoring */}
         {activeTab === "monitoring" && !selectedUser && !selectedPoll && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-semibold text-foreground">System-Monitoring</h2>
+            <h2 className="text-2xl font-semibold text-foreground">{t('admin.monitoring.title')}</h2>
             
             {/* System Health */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1044,8 +1046,8 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-medium">API Server</p>
-                    <p className="text-sm text-muted-foreground">Aktiv & Erreichbar</p>
+                    <p className="font-medium">{t('admin.monitoring.apiServer')}</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.monitoring.activeReachable')}</p>
                   </div>
                 </div>
               </Card>
@@ -1053,8 +1055,8 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <div className="flex items-center space-x-3">
                   <Database className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-medium">Datenbank</p>
-                    <p className="text-sm text-muted-foreground">PostgreSQL verbunden</p>
+                    <p className="font-medium">{t('admin.monitoring.database')}</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.monitoring.postgresConnected')}</p>
                   </div>
                 </div>
               </Card>
@@ -1062,8 +1064,8 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <div className="flex items-center space-x-3">
                   <Shield className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-medium">Authentifizierung</p>
-                    <p className="text-sm text-muted-foreground">Session aktiv</p>
+                    <p className="font-medium">{t('admin.monitoring.authentication')}</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.monitoring.sessionActive')}</p>
                   </div>
                 </div>
               </Card>
@@ -1074,26 +1076,26 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <PieChart className="w-5 h-5 mr-2" />
-                  Umfrage-Statistiken
+                  {t('admin.monitoring.pollStatistics')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   <div className="text-center cursor-pointer hover:bg-muted/50 p-3 rounded-lg" onClick={() => handleStatCardClick("polls")} data-testid="chart-active-polls">
                     <div className="text-4xl font-bold text-green-600">{displayStats.activePolls}</div>
-                    <p className="text-sm text-muted-foreground mt-1">Aktiv</p>
+                    <p className="text-sm text-muted-foreground mt-1">{t('admin.monitoring.active')}</p>
                   </div>
                   <div className="text-center cursor-pointer hover:bg-muted/50 p-3 rounded-lg" onClick={() => handleStatCardClick("polls")} data-testid="chart-inactive-polls">
                     <div className="text-4xl font-bold text-gray-400">{displayStats.inactivePolls}</div>
-                    <p className="text-sm text-muted-foreground mt-1">Inaktiv</p>
+                    <p className="text-sm text-muted-foreground mt-1">{t('admin.monitoring.inactive')}</p>
                   </div>
                   <div className="text-center cursor-pointer hover:bg-muted/50 p-3 rounded-lg" onClick={() => handleStatCardClick("polls")} data-testid="chart-schedule-polls">
                     <div className="text-4xl font-bold text-polly-orange">{displayStats.schedulePolls}</div>
-                    <p className="text-sm text-muted-foreground mt-1">Terminumfragen</p>
+                    <p className="text-sm text-muted-foreground mt-1">{t('admin.overview.schedulePolls')}</p>
                   </div>
                   <div className="text-center cursor-pointer hover:bg-muted/50 p-3 rounded-lg" onClick={() => handleStatCardClick("polls")} data-testid="chart-survey-polls">
                     <div className="text-4xl font-bold text-polly-blue">{displayStats.surveyPolls}</div>
-                    <p className="text-sm text-muted-foreground mt-1">Umfragen</p>
+                    <p className="text-sm text-muted-foreground mt-1">{t('admin.nav.polls')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1102,13 +1104,13 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             {/* Activity Timeline */}
             <Card className="polly-card">
               <CardHeader>
-                <CardTitle>Aktivitäts-Timeline</CardTitle>
-                <CardDescription>Die letzten System-Aktivitäten in Echtzeit</CardDescription>
+                <CardTitle>{t('admin.monitoring.activityTimeline')}</CardTitle>
+                <CardDescription>{t('admin.monitoring.activityTimelineDescription')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="relative pl-6 space-y-4">
                   {displayStats.recentActivity.length === 0 ? (
-                    <p className="text-muted-foreground">Keine Aktivitäten vorhanden</p>
+                    <p className="text-muted-foreground">{t('admin.monitoring.noActivities')}</p>
                   ) : (
                     displayStats.recentActivity.map((activity, index) => (
                       <div key={index} className="relative">
@@ -1128,7 +1130,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                           )}
                           <p className="text-xs text-muted-foreground">
                             {activity.actor && <span className="font-medium">{activity.actor} • </span>}
-                            {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: de })}
+                            {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: getDateLocale() })}
                           </p>
                         </div>
                       </div>
@@ -1148,19 +1150,19 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Button variant="ghost" size="sm" onClick={handleBackToUsers}>
                   <ArrowLeft className="w-4 h-4 mr-1" />
-                  Zurück zu Benutzer
+                  {t('admin.polls.backToUsers')}
                 </Button>
                 <ChevronRight className="w-4 h-4" />
-                <span className="font-medium text-foreground">{selectedUser.name}'s Umfragen</span>
+                <span className="font-medium text-foreground">{t('admin.polls.pollsOfUser', { name: selectedUser.name })}</span>
               </div>
             )}
 
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold text-foreground">
-                {selectedUser ? `Umfragen von ${selectedUser.name}` : 'Umfragen-Verwaltung'}
+                {selectedUser ? t('admin.polls.pollsOf', { name: selectedUser.name }) : t('admin.polls.title')}
               </h2>
               <Badge variant="outline">
-                {selectedUser ? getUserPolls(selectedUser.id).length : polls?.length || 0} Umfragen
+                {t('admin.polls.pollsCount', { count: selectedUser ? getUserPolls(selectedUser.id).length : polls?.length || 0 })}
               </Badge>
             </div>
             
@@ -1169,13 +1171,13 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Titel</TableHead>
-                      <TableHead>Typ</TableHead>
-                      <TableHead>Ersteller</TableHead>
-                      <TableHead>Teilnehmer</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Erstellt</TableHead>
-                      <TableHead className="text-right">Aktionen</TableHead>
+                      <TableHead>{t('admin.polls.tableTitle')}</TableHead>
+                      <TableHead>{t('admin.polls.tableType')}</TableHead>
+                      <TableHead>{t('admin.polls.tableCreator')}</TableHead>
+                      <TableHead>{t('admin.polls.tableParticipants')}</TableHead>
+                      <TableHead>{t('admin.polls.tableStatus')}</TableHead>
+                      <TableHead>{t('admin.polls.tableCreated')}</TableHead>
+                      <TableHead className="text-right">{t('admin.polls.tableActions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1186,7 +1188,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-12">
                               <Vote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                              <p className="text-muted-foreground">Keine Umfragen gefunden.</p>
+                              <p className="text-muted-foreground">{t('admin.polls.noPolls')}</p>
                             </TableCell>
                           </TableRow>
                         );
@@ -1214,7 +1216,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                 {poll.user.name}
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">Anonym</span>
+                              <span className="text-muted-foreground">{t('admin.polls.anonymous')}</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -1222,10 +1224,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                           </TableCell>
                           <TableCell>
                             <Badge variant={poll.isActive ? 'default' : 'secondary'}>
-                              {poll.isActive ? 'Aktiv' : 'Inaktiv'}
+                              {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
                             </Badge>
                           </TableCell>
-                          <TableCell>{format(new Date(poll.createdAt), 'dd.MM.yyyy', { locale: de })}</TableCell>
+                          <TableCell>{format(new Date(poll.createdAt), 'dd.MM.yyyy', { locale: getDateLocale() })}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                               <DropdownMenu>
@@ -1237,11 +1239,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => window.open(`/poll/${poll.publicToken}`, '_blank')}>
                                     <ExternalLink className="w-4 h-4 mr-2" />
-                                    Ansehen
+                                    {t('admin.polls.view')}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handlePollClick(poll)}>
                                     <Edit2 className="w-4 h-4 mr-2" />
-                                    Details
+                                    {t('admin.polls.details')}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
@@ -1251,12 +1253,12 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                     {poll.isActive ? (
                                       <>
                                         <XCircle className="w-4 h-4 mr-2" />
-                                        Deaktivieren
+                                        {t('admin.polls.deactivate')}
                                       </>
                                     ) : (
                                       <>
                                         <CheckCircle className="w-4 h-4 mr-2" />
-                                        Aktivieren
+                                        {t('admin.polls.activate')}
                                       </>
                                     )}
                                   </DropdownMenuItem>
@@ -1269,23 +1271,23 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                         data-testid={`delete-poll-${poll.id}`}
                                       >
                                         <Trash2 className="w-4 h-4 mr-2" />
-                                        Löschen
+                                        {t('admin.polls.delete')}
                                       </DropdownMenuItem>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                       <AlertDialogHeader>
-                                        <AlertDialogTitle>Umfrage löschen?</AlertDialogTitle>
+                                        <AlertDialogTitle>{t('admin.polls.deletePollTitle')}</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                          Diese Aktion kann nicht rückgängig gemacht werden. Die Umfrage "{poll.title}" wird dauerhaft gelöscht.
+                                          {t('admin.polls.deletePollDescription', { title: poll.title })}
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
-                                        <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                         <AlertDialogAction 
                                           onClick={() => deletePollMutation.mutate(poll.id)} 
                                           className="bg-destructive text-destructive-foreground"
                                         >
-                                          Löschen
+                                          {t('common.delete')}
                                         </AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -1321,7 +1323,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         {activeTab === "users" && !selectedUser && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-foreground">Benutzerverwaltung</h2>
+              <h2 className="text-2xl font-semibold text-foreground">{t('admin.users.title')}</h2>
               <div className="flex items-center gap-3">
                 <Button 
                   onClick={() => setShowAddUserDialog(true)}
@@ -1329,9 +1331,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                   data-testid="button-add-user"
                 >
                   <UserPlus className="w-4 h-4 mr-2" />
-                  Benutzer hinzufügen
+                  {t('admin.users.addUser')}
                 </Button>
-                <Badge variant="outline">{users?.length || 0} Benutzer</Badge>
+                <Badge variant="outline">{t('admin.users.usersCount', { count: users?.length || 0 })}</Badge>
               </div>
             </div>
             
@@ -1341,10 +1343,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <UserPlus className="w-5 h-5" />
-                    Neuen Benutzer anlegen
+                    {t('admin.users.createUserTitle')}
                   </DialogTitle>
                   <DialogDescription>
-                    Erstellen Sie manuell ein neues Benutzerkonto. Der Benutzer kann sich danach mit diesen Zugangsdaten anmelden.
+                    {t('admin.users.createUserDescription')}
                   </DialogDescription>
                 </DialogHeader>
                 <form 
@@ -1355,43 +1357,43 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                   className="space-y-4"
                 >
                   <div className="space-y-2">
-                    <Label htmlFor="newUserName">Name *</Label>
+                    <Label htmlFor="newUserName">{t('admin.users.nameLabel')}</Label>
                     <Input
                       id="newUserName"
-                      placeholder="Max Mustermann"
+                      placeholder={t('admin.users.namePlaceholder')}
                       value={newUserForm.name}
                       onChange={(e) => setNewUserForm(prev => ({ ...prev, name: e.target.value }))}
                       data-testid="input-new-user-name"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newUserEmail">E-Mail *</Label>
+                    <Label htmlFor="newUserEmail">{t('admin.users.emailLabel')}</Label>
                     <Input
                       id="newUserEmail"
                       type="email"
-                      placeholder="max@example.com"
+                      placeholder={t('admin.users.emailPlaceholder')}
                       value={newUserForm.email}
                       onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
                       data-testid="input-new-user-email"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newUserUsername">Benutzername *</Label>
+                    <Label htmlFor="newUserUsername">{t('admin.users.usernameLabel')}</Label>
                     <Input
                       id="newUserUsername"
-                      placeholder="maxmustermann"
+                      placeholder={t('admin.users.usernamePlaceholder')}
                       value={newUserForm.username}
                       onChange={(e) => setNewUserForm(prev => ({ ...prev, username: e.target.value }))}
                       data-testid="input-new-user-username"
                     />
-                    <p className="text-xs text-muted-foreground">Mindestens 3 Zeichen, nur Buchstaben, Zahlen und Unterstriche.</p>
+                    <p className="text-xs text-muted-foreground">{t('admin.users.usernameHint')}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newUserPassword">Passwort *</Label>
+                    <Label htmlFor="newUserPassword">{t('admin.users.passwordLabel')}</Label>
                     <Input
                       id="newUserPassword"
                       type="password"
-                      placeholder="Sicheres Passwort"
+                      placeholder={t('admin.users.passwordPlaceholder')}
                       value={newUserForm.password}
                       onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
                       data-testid="input-new-user-password"
@@ -1399,28 +1401,28 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                     {newUserForm.password.length > 0 && (
                       <div className="space-y-1 mt-2 p-2 bg-muted/50 rounded text-xs">
                         <div className={newUserForm.password.length >= 8 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
-                          {newUserForm.password.length >= 8 ? '✓' : '○'} Mindestens 8 Zeichen
+                          {newUserForm.password.length >= 8 ? '✓' : '○'} {t('admin.users.passwordRequirements.minLength')}
                         </div>
                         <div className={/[A-Z]/.test(newUserForm.password) ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
-                          {/[A-Z]/.test(newUserForm.password) ? '✓' : '○'} Großbuchstabe
+                          {/[A-Z]/.test(newUserForm.password) ? '✓' : '○'} {t('admin.users.passwordRequirements.uppercase')}
                         </div>
                         <div className={/[a-z]/.test(newUserForm.password) ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
-                          {/[a-z]/.test(newUserForm.password) ? '✓' : '○'} Kleinbuchstabe
+                          {/[a-z]/.test(newUserForm.password) ? '✓' : '○'} {t('admin.users.passwordRequirements.lowercase')}
                         </div>
                         <div className={/[0-9]/.test(newUserForm.password) ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
-                          {/[0-9]/.test(newUserForm.password) ? '✓' : '○'} Zahl
+                          {/[0-9]/.test(newUserForm.password) ? '✓' : '○'} {t('admin.users.passwordRequirements.number')}
                         </div>
                         <div className={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(newUserForm.password) ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
-                          {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(newUserForm.password) ? '✓' : '○'} Sonderzeichen
+                          {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(newUserForm.password) ? '✓' : '○'} {t('admin.users.passwordRequirements.special')}
                         </div>
                       </div>
                     )}
                     {newUserForm.password.length === 0 && (
-                      <p className="text-xs text-muted-foreground">Min. 8 Zeichen, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen.</p>
+                      <p className="text-xs text-muted-foreground">{t('admin.users.passwordHint')}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newUserRole">Rolle</Label>
+                    <Label htmlFor="newUserRole">{t('admin.users.roleLabel')}</Label>
                     <Select
                       value={newUserForm.role}
                       onValueChange={(value: 'user' | 'admin' | 'manager') => setNewUserForm(prev => ({ ...prev, role: value }))}
@@ -1429,9 +1431,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="user">Benutzer</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="user">{t('admin.roleUser')}</SelectItem>
+                        <SelectItem value="manager">{t('admin.roleManager')}</SelectItem>
+                        <SelectItem value="admin">{t('admin.roleAdmin')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1441,7 +1443,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       variant="outline" 
                       onClick={() => setShowAddUserDialog(false)}
                     >
-                      Abbrechen
+                      {t('common.cancel')}
                     </Button>
                     <Button 
                       type="submit" 
@@ -1465,10 +1467,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       {createUserMutation.isPending ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Wird erstellt...
+                          {t('admin.users.creating')}
                         </>
                       ) : (
-                        'Benutzer erstellen'
+                        t('admin.users.createUserButton')
                       )}
                     </Button>
                   </DialogFooter>
@@ -1482,10 +1484,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Edit2 className="w-5 h-5" />
-                    Profil bearbeiten
+                    {t('admin.users.editUserTitle')}
                   </DialogTitle>
                   <DialogDescription>
-                    Ändern Sie die Profildaten für {editingUser?.name || 'diesen Benutzer'}.
+                    {t('admin.users.editUserDescription')}
                   </DialogDescription>
                 </DialogHeader>
                 <form 
@@ -1501,21 +1503,21 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                   className="space-y-4"
                 >
                   <div className="space-y-2">
-                    <Label htmlFor="editUserName">Name</Label>
+                    <Label htmlFor="editUserName">{t('admin.users.fullName')}</Label>
                     <Input
                       id="editUserName"
-                      placeholder="Name des Benutzers"
+                      placeholder={t('admin.users.namePlaceholder')}
                       value={editUserForm.name}
                       onChange={(e) => setEditUserForm(prev => ({ ...prev, name: e.target.value }))}
                       data-testid="input-edit-user-name"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="editUserEmail">E-Mail</Label>
+                    <Label htmlFor="editUserEmail">{t('admin.users.emailAddress')}</Label>
                     <Input
                       id="editUserEmail"
                       type="email"
-                      placeholder="E-Mail-Adresse"
+                      placeholder={t('admin.users.emailPlaceholder')}
                       value={editUserForm.email}
                       onChange={(e) => setEditUserForm(prev => ({ ...prev, email: e.target.value }))}
                       data-testid="input-edit-user-email"
@@ -1523,10 +1525,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                   </div>
                   <div className="p-3 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">
-                      <strong>Benutzername:</strong> @{editingUser?.username}
+                      <strong>{t('auth.username')}:</strong> @{editingUser?.username}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Der Benutzername kann nicht geändert werden.
+                      {t('admin.users.usernameCannotChange')}
                     </p>
                   </div>
                   <DialogFooter className="gap-2 sm:gap-0">
@@ -1535,7 +1537,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       variant="outline" 
                       onClick={() => setEditingUser(null)}
                     >
-                      Abbrechen
+                      {t('common.cancel')}
                     </Button>
                     <Button 
                       type="submit" 
@@ -1546,10 +1548,10 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       {updateUserMutation.isPending ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Wird gespeichert...
+                          {t('admin.users.saving')}
                         </>
                       ) : (
-                        'Speichern'
+                        t('common.save')
                       )}
                     </Button>
                   </DialogFooter>
@@ -1562,13 +1564,13 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>E-Mail</TableHead>
-                      <TableHead>Benutzername</TableHead>
-                      <TableHead>Rolle</TableHead>
-                      <TableHead>Umfragen</TableHead>
-                      <TableHead>Registriert</TableHead>
-                      <TableHead className="text-right">Aktionen</TableHead>
+                      <TableHead>{t('auth.name')}</TableHead>
+                      <TableHead>{t('auth.email')}</TableHead>
+                      <TableHead>{t('auth.username')}</TableHead>
+                      <TableHead>{t('admin.role')}</TableHead>
+                      <TableHead>{t('admin.nav.polls')}</TableHead>
+                      <TableHead>{t('admin.polls.tableCreated')}</TableHead>
+                      <TableHead className="text-right">{t('admin.users.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1576,7 +1578,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12">
                           <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">Keine Benutzer gefunden.</p>
+                          <p className="text-muted-foreground">{t('admin.polls.noPolls')}</p>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -1603,7 +1605,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                           <TableCell>
                             <Badge variant="outline">{getUserPolls(user.id).length}</Badge>
                           </TableCell>
-                          <TableCell>{format(new Date(user.createdAt), 'dd.MM.yyyy', { locale: de })}</TableCell>
+                          <TableCell>{format(new Date(user.createdAt), 'dd.MM.yyyy', { locale: getDateLocale() })}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end space-x-1" onClick={(e) => e.stopPropagation()}>
                               <DropdownMenu>
@@ -1617,24 +1619,24 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                     <>
                                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditUser(user); }}>
                                         <Edit2 className="w-4 h-4 mr-2" />
-                                        Profil bearbeiten
+                                        {t('admin.users.edit')}
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                     </>
                                   )}
-                                  <DropdownMenuLabel>Rolle ändern</DropdownMenuLabel>
+                                  <DropdownMenuLabel>{t('admin.users.changeRole')}</DropdownMenuLabel>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => updateUserMutation.mutate({ userId: user.id, updates: { role: 'user' } })} disabled={user.role === 'user'}>
                                     <Users className="w-4 h-4 mr-2" />
-                                    Benutzer
+                                    {t('admin.roleUser')}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => updateUserMutation.mutate({ userId: user.id, updates: { role: 'manager' } })} disabled={user.role === 'manager'}>
                                     <UserCheck className="w-4 h-4 mr-2" />
-                                    Manager
+                                    {t('admin.roleManager')}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => updateUserMutation.mutate({ userId: user.id, updates: { role: 'admin' } })} disabled={user.role === 'admin'}>
                                     <Shield className="w-4 h-4 mr-2" />
-                                    Admin
+                                    {t('admin.roleAdmin')}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   {isDeprovisionEnabled ? (
@@ -1643,11 +1645,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                         <TooltipTrigger asChild>
                                           <DropdownMenuItem disabled className="text-muted-foreground cursor-not-allowed">
                                             <Unplug className="w-4 h-4 mr-2" />
-                                            Löschen (extern)
+                                            {t('admin.users.deleteExternal')}
                                           </DropdownMenuItem>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          <p>Benutzer-Löschung erfolgt über externen Deprovisionierungsservice</p>
+                                          <p>{t('admin.users.deleteExternalDescription')}</p>
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
@@ -1656,20 +1658,20 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                                       <AlertDialogTrigger asChild>
                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
                                           <Trash2 className="w-4 h-4 mr-2" />
-                                          Löschen
+                                          {t('common.delete')}
                                         </DropdownMenuItem>
                                       </AlertDialogTrigger>
                                       <AlertDialogContent>
                                         <AlertDialogHeader>
-                                          <AlertDialogTitle>Benutzer löschen?</AlertDialogTitle>
+                                          <AlertDialogTitle>{t('admin.users.deleteUserTitle')}</AlertDialogTitle>
                                           <AlertDialogDescription>
-                                            Diese Aktion kann nicht rückgängig gemacht werden. Der Benutzer "{user.name}" wird dauerhaft gelöscht.
+                                            {t('admin.users.deleteUserDescription', { name: user.name })}
                                           </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                           <AlertDialogAction onClick={() => deleteUserMutation.mutate(user.id)} className="bg-destructive text-destructive-foreground">
-                                            Löschen
+                                            {t('common.delete')}
                                           </AlertDialogAction>
                                         </AlertDialogFooter>
                                       </AlertDialogContent>
@@ -1708,85 +1710,85 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
         {/* Settings - Overview */}
         {activeTab === "settings" && !selectedUser && !selectedPoll && !selectedSettingsPanel && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-semibold text-foreground">System-Einstellungen</h2>
-            <p className="text-muted-foreground">Klicken Sie auf eine Karte, um die Konfiguration zu öffnen</p>
+            <h2 className="text-2xl font-semibold text-foreground">{t('admin.settings.title')}</h2>
+            <p className="text-muted-foreground">{t('admin.settings.description')}</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <SettingCard
-                title="Authentifizierung"
-                description="Benutzeranmeldung, Registrierung & Keycloak SSO"
+                title={t('admin.settings.authentication.title')}
+                description={t('admin.settings.authentication.description')}
                 icon={<Key className="w-6 h-6" />}
-                status="Verfügbar"
+                status={t('admin.settings.status.available')}
                 statusType="success"
                 onClick={() => setSelectedSettingsPanel('oidc')}
                 testId="settings-oidc"
               />
               
               <SettingCard
-                title="PostgreSQL Datenbank"
-                description="Neon Database Verbindung"
+                title={t('admin.settings.database.title')}
+                description={t('admin.settings.database.description')}
                 icon={<Database className="w-6 h-6" />}
-                status="Verbunden"
+                status={t('admin.settings.status.connected')}
                 statusType="success"
                 onClick={() => setSelectedSettingsPanel('database')}
                 testId="settings-database"
               />
               
               <SettingCard
-                title="E-Mail Versand"
-                description="Nodemailer SMTP Konfiguration"
+                title={t('admin.settings.email.title')}
+                description={t('admin.settings.email.description')}
                 icon={<Mail className="w-6 h-6" />}
-                status="Aktiv"
+                status={t('admin.monitoring.active')}
                 statusType="success"
                 onClick={() => setSelectedSettingsPanel('email')}
                 testId="settings-email"
               />
               
               <SettingCard
-                title="E-Mail-Vorlagen"
-                description="Gestalten Sie Ihre E-Mail-Benachrichtigungen"
+                title={t('admin.settings.emailTemplates.title')}
+                description={t('admin.settings.emailTemplates.description')}
                 icon={<FileText className="w-6 h-6" />}
-                status="8 Vorlagen"
+                status={t('admin.settings.status.templates', { count: 8 })}
                 statusType="neutral"
                 onClick={() => setSelectedSettingsPanel('email-templates')}
                 testId="settings-email-templates"
               />
               
               <SettingCard
-                title="Sicherheit & DSGVO"
-                description="Datenschutz, Verschlüsselung & Datenaufbewahrung"
+                title={t('admin.settings.security.title')}
+                description={t('admin.settings.security.description')}
                 icon={<ShieldCheck className="w-6 h-6" />}
-                status="Aktiviert"
+                status={t('admin.settings.status.enabled')}
                 statusType="success"
                 onClick={() => setSelectedSettingsPanel('security')}
                 testId="settings-security"
               />
               
               <SettingCard
-                title="Benachrichtigungen"
-                description="Erinnerungen & Gast-Einschränkungen"
+                title={t('admin.settings.notifications.title')}
+                description={t('admin.settings.notifications.description')}
                 icon={<Bell className="w-6 h-6" />}
-                status="Konfigurierbar"
+                status={t('admin.settings.status.configurable')}
                 statusType="neutral"
                 onClick={() => setSelectedSettingsPanel('notifications')}
                 testId="settings-notifications"
               />
               
               <SettingCard
-                title="Rollenmanagement"
-                description="Benutzerrollen und Berechtigungen"
+                title={t('admin.settings.roles.title')}
+                description={t('admin.settings.roles.description')}
                 icon={<Shield className="w-6 h-6" />}
-                status="3 Rollen"
+                status={t('admin.settings.status.roles', { count: 3 })}
                 statusType="neutral"
                 onClick={() => setSelectedSettingsPanel('roles')}
                 testId="settings-roles"
               />
               
               <SettingCard
-                title="Session-Timeout"
-                description="Automatische Abmeldung nach Inaktivität"
+                title={t('admin.settings.sessionTimeout.title')}
+                description={t('admin.settings.sessionTimeout.description')}
                 icon={<Timer className="w-6 h-6" />}
-                status="Konfigurierbar"
+                status={t('admin.settings.status.configurable')}
                 statusType="neutral"
                 onClick={() => setSelectedSettingsPanel('session-timeout')}
                 testId="settings-session-timeout"
@@ -1797,22 +1799,22 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Unplug className="w-5 h-5" />
-                Integrationen
+                {t('admin.settings.integrations.title')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <SettingCard
-                  title="Matrix Chat"
-                  description="Chat-Benachrichtigungen über Matrix"
+                  title={t('admin.settings.integrations.matrix.title')}
+                  description={t('admin.settings.integrations.matrix.description')}
                   icon={<MessageSquare className="w-6 h-6" />}
-                  status="Optional"
+                  status={t('admin.settings.status.optional')}
                   statusType="neutral"
                   onClick={() => setSelectedSettingsPanel('matrix')}
                   testId="settings-matrix"
                 />
                 
                 <SettingCard
-                  title="Pentest-Tools.com"
-                  description="Automatisierte Sicherheitsscans"
+                  title={t('admin.settings.integrations.pentest.title')}
+                  description={t('admin.settings.integrations.pentest.description')}
                   icon={<Shield className="w-6 h-6" />}
                   status="Pro"
                   statusType="neutral"
@@ -1965,10 +1967,11 @@ function StatCard({ icon, label, value, color, onClick, testId }: {
 }
 
 function RoleBadge({ role }: { role: string }) {
+  const { t } = useTranslation();
   switch (role) {
-    case 'admin': return <Badge className="bg-red-500 text-white">Admin</Badge>;
-    case 'manager': return <Badge className="bg-blue-500 text-white">Manager</Badge>;
-    default: return <Badge variant="secondary">Benutzer</Badge>;
+    case 'admin': return <Badge className="bg-red-500 text-white">{t('admin.roleAdmin')}</Badge>;
+    case 'manager': return <Badge className="bg-blue-500 text-white">{t('admin.roleManager')}</Badge>;
+    default: return <Badge variant="secondary">{t('admin.roleUser')}</Badge>;
   }
 }
 
@@ -2000,7 +2003,7 @@ function ActivityItem({ activity }: { activity: { type: string; message: string;
         <div>
           <p className="text-sm font-medium text-foreground">{activity.message}</p>
           <p className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: de })}
+            {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: getDateLocale() })}
           </p>
         </div>
       </div>
@@ -2021,6 +2024,7 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
   isUpdating: boolean;
   isDeprovisionEnabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editName, setEditName] = useState(user.name);
   const [editEmail, setEditEmail] = useState(user.email);
@@ -2036,7 +2040,7 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-users">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Benutzer
+          {t('admin.polls.backToUsers')}
         </Button>
         <ChevronRight className="w-4 h-4" />
         <span className="font-medium text-foreground">{user.name}</span>
@@ -2062,11 +2066,11 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" data-testid="menu-user-actions">
                     <MoreVertical className="w-4 h-4 mr-2" />
-                    Aktionen
+                    {t('admin.users.actions')}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Benutzer verwalten</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t('admin.users.manageUser')}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {isSSO ? (
                     <TooltipProvider>
@@ -2074,33 +2078,33 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
                         <TooltipTrigger asChild>
                           <DropdownMenuItem disabled className="text-muted-foreground cursor-not-allowed">
                             <Key className="w-4 h-4 mr-2" />
-                            Bearbeiten (SSO)
+                            {t('admin.users.editSSO')}
                           </DropdownMenuItem>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Benutzerdaten werden zentral über das IDM (Keycloak) verwaltet</p>
+                          <p>{t('admin.users.ssoManagedDescription')}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   ) : (
                     <DropdownMenuItem onClick={() => setEditDialogOpen(true)} disabled={isUpdating}>
                       <Edit2 className="w-4 h-4 mr-2" />
-                      Bearbeiten
+                      {t('admin.users.edit')}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Rolle ändern</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t('admin.users.changeRole')}</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => onUpdateRole('user')} disabled={user.role === 'user' || isUpdating}>
                     <Users className="w-4 h-4 mr-2" />
-                    Benutzer
+                    {t('admin.roleUser')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onUpdateRole('manager')} disabled={user.role === 'manager' || isUpdating}>
                     <UserCheck className="w-4 h-4 mr-2" />
-                    Manager
+                    {t('admin.roleManager')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onUpdateRole('admin')} disabled={user.role === 'admin' || isUpdating}>
                     <Shield className="w-4 h-4 mr-2" />
-                    Admin
+                    {t('admin.roleAdmin')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {isDeprovisionEnabled ? (
@@ -2109,11 +2113,11 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
                         <TooltipTrigger asChild>
                           <DropdownMenuItem disabled className="text-muted-foreground cursor-not-allowed">
                             <Unplug className="w-4 h-4 mr-2" />
-                            Löschen (extern)
+                            {t('admin.users.deleteExternal')}
                           </DropdownMenuItem>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Benutzer-Löschung erfolgt über externen Deprovisionierungsservice</p>
+                          <p>{t('admin.users.deleteExternalDescription')}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -2122,20 +2126,20 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
                       <AlertDialogTrigger asChild>
                         <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
                           <Trash2 className="w-4 h-4 mr-2" />
-                          Benutzer löschen
+                          {t('admin.users.deleteUser')}
                         </DropdownMenuItem>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Benutzer löschen?</AlertDialogTitle>
+                          <AlertDialogTitle>{t('admin.users.deleteUserTitle')}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Diese Aktion kann nicht rückgängig gemacht werden. Der Benutzer "{user.name}" und alle zugehörigen Daten werden dauerhaft gelöscht.
+                            {t('admin.users.deleteUserDescriptionWithData', { name: user.name })}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                           <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground">
-                            {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
+                            {isDeleting ? t('admin.users.deleting') : t('common.delete')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -2153,25 +2157,25 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">{polls.length}</p>
-            <p className="text-sm text-muted-foreground">Gesamt Umfragen</p>
+            <p className="text-sm text-muted-foreground">{t('admin.overview.totalPolls')}</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-green-600">{activePolls.length}</p>
-            <p className="text-sm text-muted-foreground">Aktive Umfragen</p>
+            <p className="text-sm text-muted-foreground">{t('admin.overview.activePolls')}</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-polly-orange">{schedulePolls.length}</p>
-            <p className="text-sm text-muted-foreground">Terminumfragen</p>
+            <p className="text-sm text-muted-foreground">{t('admin.overview.schedulePolls')}</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-polly-blue">{surveyPolls.length}</p>
-            <p className="text-sm text-muted-foreground">Umfragen</p>
+            <p className="text-sm text-muted-foreground">{t('admin.nav.polls')}</p>
           </div>
         </Card>
       </div>
@@ -2179,19 +2183,19 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
       {/* User's Polls */}
       <Card className="polly-card">
         <CardHeader>
-          <CardTitle>Umfragen von {user.name}</CardTitle>
-          <CardDescription>Alle erstellten Umfragen und Terminumfragen</CardDescription>
+          <CardTitle>{t('admin.polls.pollsOf', { name: user.name })}</CardTitle>
+          <CardDescription>{t('admin.polls.allCreatedPolls')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Titel</TableHead>
-                <TableHead>Typ</TableHead>
-                <TableHead>Teilnehmer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Erstellt</TableHead>
-                <TableHead className="text-right">Aktionen</TableHead>
+                <TableHead>{t('admin.polls.tableTitle')}</TableHead>
+                <TableHead>{t('admin.polls.tableType')}</TableHead>
+                <TableHead>{t('admin.polls.tableParticipants')}</TableHead>
+                <TableHead>{t('admin.polls.tableStatus')}</TableHead>
+                <TableHead>{t('admin.polls.tableCreated')}</TableHead>
+                <TableHead className="text-right">{t('admin.polls.tableActions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2199,7 +2203,7 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-12">
                     <Vote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Dieser Benutzer hat noch keine Umfragen erstellt.</p>
+                    <p className="text-muted-foreground">{t('admin.users.noUserPolls')}</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -2219,10 +2223,10 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
                     </TableCell>
                     <TableCell>
                       <Badge className={poll.isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
-                        {poll.isActive ? 'Aktiv' : 'Inaktiv'}
+                        {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(poll.createdAt), 'dd.MM.yyyy', { locale: de })}</TableCell>
+                    <TableCell>{format(new Date(poll.createdAt), 'dd.MM.yyyy', { locale: getDateLocale() })}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
@@ -2248,47 +2252,47 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Benutzer bearbeiten</DialogTitle>
+            <DialogTitle>{t('admin.users.editUserTitle')}</DialogTitle>
             <DialogDescription>
-              Ändern Sie die Benutzerdaten. Der Benutzername kann nicht geändert werden.
+              {t('admin.users.editUserDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Name</Label>
+              <Label htmlFor="edit-name">{t('auth.name')}</Label>
               <Input
                 id="edit-name"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                placeholder="Vollständiger Name"
+                placeholder={t('admin.users.namePlaceholder')}
                 data-testid="input-edit-user-name"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email">E-Mail</Label>
+              <Label htmlFor="edit-email">{t('auth.email')}</Label>
               <Input
                 id="edit-email"
                 type="email"
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
-                placeholder="E-Mail-Adresse"
+                placeholder={t('admin.users.emailPlaceholder')}
                 data-testid="input-edit-user-email"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-username">Benutzername</Label>
+              <Label htmlFor="edit-username">{t('auth.username')}</Label>
               <Input
                 id="edit-username"
                 value={user.username}
                 disabled
                 className="bg-muted"
               />
-              <p className="text-xs text-muted-foreground">Der Benutzername kann nicht geändert werden.</p>
+              <p className="text-xs text-muted-foreground">{t('admin.users.usernameCannotChange')}</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -2303,7 +2307,7 @@ function UserDetailView({ user, polls, onBack, onPollClick, onUpdateRole, onUpda
               disabled={isUpdating || (editName === user.name && editEmail === user.email)}
               data-testid="button-save-user"
             >
-              {isUpdating ? 'Speichert...' : 'Speichern'}
+              {isUpdating ? t('admin.users.saving') : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2321,6 +2325,7 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
   isDeleting: boolean;
   isUpdating: boolean;
 }) {
+  const { t } = useTranslation();
   const uniqueVoters = new Set(poll.votes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)).size;
 
   return (
@@ -2329,7 +2334,7 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-polls">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück
+          {t('common.back')}
         </Button>
         <ChevronRight className="w-4 h-4" />
         <span className="font-medium text-foreground">{poll.title}</span>
@@ -2343,7 +2348,7 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
             <div className="flex items-center flex-wrap gap-2">
               <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
               <Badge className={poll.isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
-                {poll.isActive ? 'Aktiv' : 'Inaktiv'}
+                {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
               </Badge>
             </div>
             <h2 className="text-2xl font-bold text-foreground">{poll.title}</h2>
@@ -2351,8 +2356,8 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
               <p className="text-muted-foreground">{poll.description}</p>
             )}
             <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span>Erstellt: {format(new Date(poll.createdAt), 'dd. MMMM yyyy, HH:mm', { locale: de })}</span>
-              {poll.user && <span>Von: {poll.user.name}</span>}
+              <span>{t('admin.polls.tableCreated')}: {format(new Date(poll.createdAt), 'dd. MMMM yyyy, HH:mm', { locale: getDateLocale() })}</span>
+              {poll.user && <span>{t('admin.polls.by')}: {poll.user.name}</span>}
             </div>
           </div>
 
@@ -2362,7 +2367,7 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
             <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
               <Label className="text-sm text-muted-foreground whitespace-nowrap flex items-center gap-1">
                 {poll.resultsPublic ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                Ergebnisse öffentlich
+                {t('admin.polls.resultsPublic')}
               </Label>
               <Switch
                 checked={poll.resultsPublic !== false}
@@ -2373,7 +2378,7 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
             </div>
             <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
               <Label className="text-sm text-muted-foreground whitespace-nowrap">
-                Aktiv
+                {t('admin.polls.active')}
               </Label>
               <Switch
                 checked={poll.isActive}
@@ -2394,26 +2399,26 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
                 data-testid="button-view-poll"
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
-                Ansehen
+                {t('admin.polls.view')}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" data-testid="button-delete-poll">
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Löschen
+                    {t('common.delete')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Umfrage löschen?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('admin.polls.deletePollTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Diese Aktion kann nicht rückgängig gemacht werden. Die Umfrage "{poll.title}" und alle zugehörigen Abstimmungen werden dauerhaft gelöscht.
+                      {t('admin.polls.deletePollDescription', { title: poll.title })}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground">
-                      {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
+                      {isDeleting ? t('admin.users.deleting') : t('common.delete')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -2428,27 +2433,27 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">{uniqueVoters}</p>
-            <p className="text-sm text-muted-foreground">Teilnehmer</p>
+            <p className="text-sm text-muted-foreground">{t('admin.polls.tableParticipants')}</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">{poll.votes.length}</p>
-            <p className="text-sm text-muted-foreground">{poll.type === 'organization' ? 'Eintragungen' : 'Abstimmungen'}</p>
+            <p className="text-sm text-muted-foreground">{poll.type === 'organization' ? t('admin.polls.entries') : t('admin.polls.votes')}</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">{poll.options.length}</p>
-            <p className="text-sm text-muted-foreground">{poll.type === 'organization' ? 'Slots' : 'Optionen'}</p>
+            <p className="text-sm text-muted-foreground">{poll.type === 'organization' ? t('admin.polls.slots') : t('admin.polls.options')}</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">
-              {poll.expiresAt ? format(new Date(poll.expiresAt), 'dd.MM.yy', { locale: de }) : '∞'}
+              {poll.expiresAt ? format(new Date(poll.expiresAt), 'dd.MM.yy', { locale: getDateLocale() }) : '∞'}
             </p>
-            <p className="text-sm text-muted-foreground">Ablaufdatum</p>
+            <p className="text-sm text-muted-foreground">{t('admin.polls.expiryDate')}</p>
           </div>
         </Card>
       </div>
@@ -2456,11 +2461,11 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
       {/* Options / Slots */}
       <Card className="polly-card">
         <CardHeader>
-          <CardTitle>{poll.type === 'organization' ? 'Slots' : 'Optionen'}</CardTitle>
+          <CardTitle>{poll.type === 'organization' ? t('admin.polls.slots') : t('admin.polls.options')}</CardTitle>
           <CardDescription>
             {poll.type === 'organization' 
-              ? 'Verfügbare Slots mit Kapazitäten' 
-              : 'Alle verfügbaren Antwortmöglichkeiten'}
+              ? t('admin.polls.slotsDescription') 
+              : t('admin.polls.optionsDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2481,16 +2486,16 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">
                       {poll.type === 'schedule' && option.startTime 
-                        ? format(new Date(option.startTime), 'EEEE, dd. MMMM yyyy', { locale: de })
+                        ? format(new Date(option.startTime), 'EEEE, dd. MMMM yyyy', { locale: getDateLocale() })
                         : option.text || `Option ${index + 1}`
                       }
                     </span>
                     {poll.type === 'organization' ? (
                       <Badge variant={isFull ? "secondary" : "outline"} className={isFull ? "bg-green-100 text-green-800" : ""}>
-                        {signupCount} / {maxCapacity || '∞'} {isFull ? 'voll' : 'Plätze'}
+                        {signupCount} / {maxCapacity || '∞'} {isFull ? t('admin.pollDetails.full') : t('admin.pollDetails.spots')}
                       </Badge>
                     ) : (
-                      <span className="text-sm text-muted-foreground">{optionVotes.length} Stimmen</span>
+                      <span className="text-sm text-muted-foreground">{optionVotes.length} {t('admin.pollDetails.votes')}</span>
                     )}
                   </div>
                   {poll.type === 'organization' ? (
@@ -2515,15 +2520,15 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
                     <div className="flex items-center space-x-4 text-sm">
                       <span className="flex items-center text-green-600">
                         <CheckCircle className="w-4 h-4 mr-1" />
-                        {yesCount} Ja
+                        {yesCount} {t('admin.pollDetails.yes')}
                       </span>
                       <span className="flex items-center text-amber-600">
                         <AlertTriangle className="w-4 h-4 mr-1" />
-                        {maybeCount} Vielleicht
+                        {maybeCount} {t('admin.pollDetails.maybe')}
                       </span>
                       <span className="flex items-center text-red-600">
                         <XCircle className="w-4 h-4 mr-1" />
-                        {noCount} Nein
+                        {noCount} {t('admin.pollDetails.no')}
                       </span>
                     </div>
                   )}
@@ -2537,25 +2542,25 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
       {/* Votes / Signups Table */}
       <Card className="polly-card">
         <CardHeader>
-          <CardTitle>{poll.type === 'organization' ? 'Alle Eintragungen' : 'Alle Abstimmungen'}</CardTitle>
+          <CardTitle>{poll.type === 'organization' ? t('admin.pollDetails.allSignups') : t('admin.pollDetails.allVotes')}</CardTitle>
           <CardDescription>
             {poll.type === 'organization' 
-              ? 'Detaillierte Übersicht aller Eintragungen' 
-              : 'Detaillierte Übersicht aller abgegebenen Stimmen'}
+              ? t('admin.pollDetails.signupsDescription')
+              : t('admin.pollDetails.votesDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Teilnehmer</TableHead>
-                <TableHead>{poll.type === 'organization' ? 'Slot' : 'Option'}</TableHead>
+                <TableHead>{t('admin.pollDetails.participant')}</TableHead>
+                <TableHead>{poll.type === 'organization' ? t('admin.pollDetails.slot') : t('admin.pollDetails.option')}</TableHead>
                 {poll.type === 'organization' ? (
-                  <TableHead>Kommentar</TableHead>
+                  <TableHead>{t('admin.pollDetails.comment')}</TableHead>
                 ) : (
-                  <TableHead>Antwort</TableHead>
+                  <TableHead>{t('admin.pollDetails.response')}</TableHead>
                 )}
-                <TableHead>Datum</TableHead>
+                <TableHead>{t('admin.pollDetails.date')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2565,8 +2570,8 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
                     <Vote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
                       {poll.type === 'organization' 
-                        ? 'Noch keine Eintragungen vorhanden.' 
-                        : 'Noch keine Abstimmungen vorhanden.'}
+                        ? t('admin.pollDetails.noSignupsYet')
+                        : t('admin.pollDetails.noVotesYet')}
                     </p>
                   </TableCell>
                 </TableRow>
@@ -2580,13 +2585,13 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
                           <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs">
                             {(vote.voterName || 'A')[0].toUpperCase()}
                           </div>
-                          <span>{vote.voterName || 'Anonym'}</span>
+                          <span>{vote.voterName || t('admin.pollDetails.anonymous')}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         {poll.type === 'schedule' && option?.startTime 
-                          ? format(new Date(option.startTime), 'dd.MM.yyyy', { locale: de })
-                          : option?.text || 'Unbekannt'
+                          ? format(new Date(option.startTime), 'dd.MM.yyyy', { locale: getDateLocale() })
+                          : option?.text || t('admin.pollDetails.unknown')
                         }
                       </TableCell>
                       <TableCell>
@@ -2599,12 +2604,12 @@ function PollDetailView({ poll, onBack, onDelete, onToggleActive, onToggleResult
                             vote.response === 'yes' ? 'default' : 
                             vote.response === 'maybe' ? 'secondary' : 'destructive'
                           }>
-                            {vote.response === 'yes' ? 'Ja' : vote.response === 'maybe' ? 'Vielleicht' : 'Nein'}
+                            {vote.response === 'yes' ? t('admin.pollDetails.yes') : vote.response === 'maybe' ? t('admin.pollDetails.maybe') : t('admin.pollDetails.no')}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {vote.createdAt ? format(new Date(vote.createdAt), 'dd.MM.yyyy HH:mm', { locale: de }) : '-'}
+                        {vote.createdAt ? format(new Date(vote.createdAt), 'dd.MM.yyyy HH:mm', { locale: getDateLocale() }) : '-'}
                       </TableCell>
                     </TableRow>
                   );
@@ -2681,23 +2686,23 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       const res = await apiRequest('POST', '/api/v1/admin/settings', {
         key: 'registration_enabled',
         value: enabled,
-        description: 'Ob die lokale Registrierung aktiviert ist'
+        description: t('admin.oidc.registrationSettingDescription')
       });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/methods'] });
       toast({ 
-        title: registrationEnabled ? "Registrierung aktiviert" : "Registrierung deaktiviert",
+        title: registrationEnabled ? t('admin.oidc.registrationActivated') : t('admin.oidc.registrationDeactivated'),
         description: registrationEnabled 
-          ? "Neue Benutzer können sich jetzt registrieren." 
-          : "Die Registrierung ist jetzt für neue Benutzer gesperrt."
+          ? t('admin.oidc.registrationActivatedDescription')
+          : t('admin.oidc.registrationDeactivatedDescription')
       });
     },
     onError: () => {
       toast({ 
-        title: "Fehler", 
-        description: "Einstellung konnte nicht gespeichert werden.",
+        title: t('errors.generic'), 
+        description: t('admin.oidc.saveError'),
         variant: "destructive"
       });
       // Revert on error
@@ -2715,20 +2720,20 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Einstellungen
+          {t('admin.oidc.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
-        <span className="font-medium text-foreground">Authentifizierung</span>
+        <span className="font-medium text-foreground">{t('admin.oidc.authentication')}</span>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Authentifizierung</h2>
-          <p className="text-muted-foreground">Benutzeranmeldung, Registrierung & Keycloak SSO</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.oidc.authentication')}</h2>
+          <p className="text-muted-foreground">{t('admin.oidc.authDescription')}</p>
         </div>
         <Badge variant="outline" className="text-green-600 border-green-600">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Verfügbar
+          {t('admin.oidc.available')}
         </Badge>
       </div>
 
@@ -2738,13 +2743,13 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center">
               <UserPlus className="w-5 h-5 mr-2" />
-              Benutzer-Registrierung
+              {t('admin.oidc.userRegistration')}
             </div>
             {saveRegistrationMutation.isPending && (
               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
             )}
           </CardTitle>
-          <CardDescription>Konfigurieren Sie, ob neue Benutzer sich registrieren können</CardDescription>
+          <CardDescription>{t('admin.oidc.registrationDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className={`flex items-center justify-between p-4 border rounded-lg ${registrationEnabled ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'}`}>
@@ -2757,11 +2762,11 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
                 )}
               </div>
               <div>
-                <p className="font-medium text-foreground">Lokale Registrierung erlauben</p>
+                <p className="font-medium text-foreground">{t('admin.oidc.allowLocalRegistration')}</p>
                 <p className="text-sm text-muted-foreground">
                   {registrationEnabled 
-                    ? "Benutzer können sich mit E-Mail und Passwort registrieren" 
-                    : "Registrierung ist deaktiviert - nur Anmeldung möglich"}
+                    ? t('admin.oidc.registrationEnabled')
+                    : t('admin.oidc.registrationDisabled')}
                 </p>
               </div>
             </div>
@@ -2779,10 +2784,9 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
               <div className="flex items-start space-x-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
                 <div>
-                  <p className="font-medium text-amber-800 dark:text-amber-200">Registrierung deaktiviert</p>
+                  <p className="font-medium text-amber-800 dark:text-amber-200">{t('admin.oidc.registrationDisabledTitle')}</p>
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    Die Registrierung ist deaktiviert. Neue Benutzer können sich nicht mehr selbst registrieren. 
-                    Bestehende Benutzer können sich weiterhin anmelden.
+                    {t('admin.oidc.registrationDisabledInfo')}
                   </p>
                 </div>
               </div>
@@ -2793,10 +2797,9 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
             <div className="flex items-start space-x-3">
               <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
               <div>
-                <p className="font-medium text-blue-800 dark:text-blue-200">Identity Provider Integration</p>
+                <p className="font-medium text-blue-800 dark:text-blue-200">{t('admin.oidc.identityProviderIntegration')}</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Bei aktivierter OIDC/Keycloak-Authentifizierung werden Benutzer automatisch über den zentralen 
-                  Identity Provider verwaltet. Die lokale Registrierung kann dann deaktiviert werden.
+                  {t('admin.oidc.identityProviderInfo')}
                 </p>
               </div>
             </div>
@@ -2809,23 +2812,23 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Key className="w-5 h-5 mr-2" />
-            Keycloak Einstellungen
+            {t('admin.oidc.keycloakSettings')}
           </CardTitle>
-          <CardDescription>Konfigurieren Sie die Verbindung zu Ihrem Keycloak Identity Provider</CardDescription>
+          <CardDescription>{t('admin.oidc.keycloakDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="keycloak-issuer">Issuer URL</Label>
+              <Label htmlFor="keycloak-issuer">{t('admin.oidc.issuerUrl')}</Label>
               <Input 
                 id="keycloak-issuer" 
                 placeholder="https://keycloak.example.com/realms/kita" 
                 data-testid="input-keycloak-issuer"
               />
-              <p className="text-xs text-muted-foreground mt-1">Die URL Ihres Keycloak Realms</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('admin.oidc.issuerUrlHint')}</p>
             </div>
             <div>
-              <Label htmlFor="keycloak-client">Client ID</Label>
+              <Label htmlFor="keycloak-client">{t('admin.oidc.clientId')}</Label>
               <Input 
                 id="keycloak-client" 
                 placeholder="polly-poll-client" 
@@ -2836,7 +2839,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="keycloak-secret">Client Secret</Label>
+              <Label htmlFor="keycloak-secret">{t('admin.oidc.clientSecret')}</Label>
               <Input 
                 id="keycloak-secret" 
                 type="password" 
@@ -2845,7 +2848,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
               />
             </div>
             <div>
-              <Label htmlFor="keycloak-callback">Callback URL</Label>
+              <Label htmlFor="keycloak-callback">{t('admin.oidc.callbackUrl')}</Label>
               <Input 
                 id="keycloak-callback" 
                 value={typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''}
@@ -2853,25 +2856,25 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
                 className="bg-muted"
                 data-testid="input-keycloak-callback"
               />
-              <p className="text-xs text-muted-foreground mt-1">In Keycloak als gültige Redirect-URI eintragen</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('admin.oidc.callbackUrlHint')}</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2 pt-2">
             <Switch id="keycloak-enabled" data-testid="switch-keycloak-enabled" />
-            <Label htmlFor="keycloak-enabled">OIDC Authentifizierung aktivieren</Label>
+            <Label htmlFor="keycloak-enabled">{t('admin.oidc.enableOidc')}</Label>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button variant="outline" data-testid="button-test-oidc">
-              Verbindung testen
+              {t('admin.oidc.testConnection')}
             </Button>
             <Button 
               className="polly-button-primary" 
               data-testid="button-save-oidc"
-              onClick={() => toast({ title: "Gespeichert", description: "OIDC-Einstellungen wurden gespeichert." })}
+              onClick={() => toast({ title: t('admin.oidc.saved'), description: t('admin.oidc.oidcSaved') })}
             >
-              Einstellungen speichern
+              {t('admin.oidc.saveSettings')}
             </Button>
           </div>
         </CardContent>
@@ -2879,14 +2882,14 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 
       <Card className="polly-card">
         <CardHeader>
-          <CardTitle>Hinweise zur Konfiguration</CardTitle>
+          <CardTitle>{t('admin.oidc.configurationNotes')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-            <li>Die Admin-Rollenzuweisung erfolgt über Keycloak-Gruppen</li>
-            <li>Benutzer mit der Gruppe "polly-admins" erhalten automatisch Admin-Rechte</li>
-            <li>Die lokale Anmeldung bleibt als Fallback verfügbar</li>
-            <li>Alle Sessions werden bei Konfigurationsänderungen invalidiert</li>
+            <li>{t('admin.oidc.configNote1')}</li>
+            <li>{t('admin.oidc.configNote2')}</li>
+            <li>{t('admin.oidc.configNote3')}</li>
+            <li>{t('admin.oidc.configNote4')}</li>
           </ul>
         </CardContent>
       </Card>
@@ -2900,20 +2903,20 @@ function DatabaseSettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Einstellungen
+          {t('admin.database.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
-        <span className="font-medium text-foreground">PostgreSQL Datenbank</span>
+        <span className="font-medium text-foreground">{t('admin.database.postgresDatabase')}</span>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Datenbank-Konfiguration</h2>
-          <p className="text-muted-foreground">PostgreSQL über Neon Database</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.database.databaseConfig')}</h2>
+          <p className="text-muted-foreground">{t('admin.database.databaseProvider')}</p>
         </div>
         <Badge variant="outline" className="text-green-600 border-green-600">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Verbunden
+          {t('admin.database.connected')}
         </Badge>
       </div>
 
@@ -2921,32 +2924,32 @@ function DatabaseSettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Database className="w-5 h-5 mr-2" />
-            Verbindungsstatus
+            {t('admin.database.connectionStatus')}
           </CardTitle>
-          <CardDescription>Aktuelle Datenbankverbindung (nur lesbar)</CardDescription>
+          <CardDescription>{t('admin.database.connectionStatusDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground uppercase">Host</p>
+              <p className="text-xs text-muted-foreground uppercase">{t('admin.database.host')}</p>
               <p className="font-mono text-sm">Neon PostgreSQL</p>
             </div>
             <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground uppercase">Status</p>
+              <p className="text-xs text-muted-foreground uppercase">{t('admin.database.status')}</p>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-sm">Aktiv</span>
+                <span className="text-sm">{t('admin.database.activeStatus')}</span>
               </div>
             </div>
             <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground uppercase">ORM</p>
+              <p className="text-xs text-muted-foreground uppercase">{t('admin.database.orm')}</p>
               <p className="font-mono text-sm">Drizzle ORM</p>
             </div>
             <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground uppercase">SSL</p>
+              <p className="text-xs text-muted-foreground uppercase">{t('admin.database.ssl')}</p>
               <p className="text-sm flex items-center">
                 <Lock className="w-3 h-3 mr-1 text-green-600" />
-                Verschlüsselt
+                {t('admin.database.encrypted')}
               </p>
             </div>
           </div>
@@ -2955,10 +2958,9 @@ function DatabaseSettingsPanel({ onBack }: { onBack: () => void }) {
 
       <AlertBanner variant="warning" data-testid="alert-database-info">
         <div>
-          <p className="font-medium">Hinweis</p>
+          <p className="font-medium">{t('admin.database.note')}</p>
           <p className="text-sm opacity-90">
-            Die Datenbankverbindung wird über Umgebungsvariablen konfiguriert und kann nicht über die Oberfläche geändert werden. 
-            Änderungen erfordern einen Neustart der Anwendung.
+            {t('admin.database.databaseNote')}
           </p>
         </div>
       </AlertBanner>
@@ -2974,20 +2976,20 @@ function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Einstellungen
+          {t('admin.emailSettings.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
-        <span className="font-medium text-foreground">E-Mail Versand</span>
+        <span className="font-medium text-foreground">{t('admin.emailSettings.emailSending')}</span>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">E-Mail Konfiguration</h2>
-          <p className="text-muted-foreground">SMTP-Einstellungen für Benachrichtigungen</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.emailSettings.emailConfig')}</h2>
+          <p className="text-muted-foreground">{t('admin.emailSettings.smtpDescription')}</p>
         </div>
         <Badge variant="outline" className="text-green-600 border-green-600">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Aktiv
+          {t('admin.emailSettings.active')}
         </Badge>
       </div>
 
@@ -2995,58 +2997,58 @@ function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Mail className="w-5 h-5 mr-2" />
-            SMTP Einstellungen
+            {t('admin.emailSettings.smtpSettings')}
           </CardTitle>
-          <CardDescription>Konfigurieren Sie den E-Mail-Versand für Benachrichtigungen</CardDescription>
+          <CardDescription>{t('admin.emailSettings.smtpSettingsDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="smtp-host">SMTP Host</Label>
+              <Label htmlFor="smtp-host">{t('admin.emailSettings.smtpHost')}</Label>
               <Input id="smtp-host" placeholder="smtp.example.com" data-testid="input-smtp-host" />
             </div>
             <div>
-              <Label htmlFor="smtp-port">Port</Label>
+              <Label htmlFor="smtp-port">{t('admin.emailSettings.port')}</Label>
               <Input id="smtp-port" placeholder="587" data-testid="input-smtp-port" />
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="smtp-user">Benutzername</Label>
+              <Label htmlFor="smtp-user">{t('admin.emailSettings.username')}</Label>
               <Input id="smtp-user" placeholder="user@example.com" data-testid="input-smtp-user" />
             </div>
             <div>
-              <Label htmlFor="smtp-pass">Passwort</Label>
+              <Label htmlFor="smtp-pass">{t('admin.emailSettings.password')}</Label>
               <Input id="smtp-pass" type="password" placeholder="••••••••" data-testid="input-smtp-pass" />
             </div>
           </div>
           
           <div>
-            <Label htmlFor="from-email">Absender E-Mail</Label>
+            <Label htmlFor="from-email">{t('admin.emailSettings.senderEmail')}</Label>
             <Input id="from-email" placeholder="noreply@polly-poll.bayern.de" data-testid="input-from-email" />
           </div>
 
           <div>
-            <Label htmlFor="from-name">Absender Name</Label>
+            <Label htmlFor="from-name">{t('admin.emailSettings.senderName')}</Label>
             <Input id="from-name" placeholder="Polly System" data-testid="input-from-name" />
           </div>
 
           <div className="flex items-center space-x-2 pt-2">
             <Switch id="smtp-tls" defaultChecked data-testid="switch-smtp-tls" />
-            <Label htmlFor="smtp-tls">TLS/SSL Verschlüsselung verwenden</Label>
+            <Label htmlFor="smtp-tls">{t('admin.emailSettings.useTls')}</Label>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button variant="outline" data-testid="button-test-email">
-              Test-E-Mail senden
+              {t('admin.emailSettings.testEmail')}
             </Button>
             <Button 
               className="polly-button-primary" 
               data-testid="button-save-email"
-              onClick={() => toast({ title: "Gespeichert", description: "E-Mail-Einstellungen wurden gespeichert." })}
+              onClick={() => toast({ title: t('admin.emailSettings.saved'), description: t('admin.emailSettings.emailSaved') })}
             >
-              Einstellungen speichern
+              {t('admin.emailSettings.saveSettings')}
             </Button>
           </div>
         </CardContent>
@@ -3162,7 +3164,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       setShowPreview(true);
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Vorschau konnte nicht geladen werden', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.previewError'), variant: 'destructive' });
     },
   });
 
@@ -3172,11 +3174,11 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Gesendet', description: 'Test-E-Mail wurde erfolgreich gesendet' });
+      toast({ title: t('admin.emailTemplates.toasts.testSent'), description: t('admin.emailTemplates.toasts.testSentDescription') });
       setTestEmail('');
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Test-E-Mail konnte nicht gesendet werden', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.testError'), variant: 'destructive' });
     },
   });
 
@@ -3186,12 +3188,12 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Zurückgesetzt', description: 'Vorlage wurde auf Standard zurückgesetzt' });
+      toast({ title: t('admin.emailTemplates.toasts.resetSuccess'), description: t('admin.emailTemplates.toasts.resetDescription') });
       refetch();
       setSelectedTemplate(null);
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Vorlage konnte nicht zurückgesetzt werden', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.resetError'), variant: 'destructive' });
     },
   });
 
@@ -3206,12 +3208,12 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Gespeichert', description: 'Vorlage wurde erfolgreich gespeichert' });
+      toast({ title: t('admin.emailTemplates.toasts.saved'), description: t('admin.emailTemplates.toasts.savedDescription') });
       refetch();
       setHasChanges(false);
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Vorlage konnte nicht gespeichert werden', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.saveError'), variant: 'destructive' });
     },
   });
 
@@ -3222,12 +3224,12 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Gespeichert', description: 'E-Mail-Fußzeile wurde gespeichert' });
+      toast({ title: t('admin.emailTemplates.toasts.saved'), description: t('admin.emailTemplates.toasts.footerSaved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-footer'] });
       setShowFooterEditor(false);
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Fußzeile konnte nicht gespeichert werden', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.footerError'), variant: 'destructive' });
     },
   });
 
@@ -3239,10 +3241,10 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     },
     onSuccess: (data) => {
       setThemePreview(data.preview);
-      toast({ title: 'Vorschau erstellt', description: 'Theme-Farben wurden extrahiert' });
+      toast({ title: t('admin.emailTemplates.toasts.themePreviewCreated'), description: t('admin.emailTemplates.toasts.themePreviewDescription') });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'JSON konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.jsonError'), variant: 'destructive' });
       setThemePreview(null);
     },
   });
@@ -3261,7 +3263,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       setThemePreview(null);
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Theme konnte nicht gespeichert werden', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.themeImportError'), variant: 'destructive' });
     },
   });
 
@@ -3272,11 +3274,11 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Zurückgesetzt', description: 'Theme wurde auf Standard zurückgesetzt' });
+      toast({ title: t('admin.emailTemplates.toasts.themeReset'), description: t('admin.emailTemplates.toasts.themeResetDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-theme'] });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Theme konnte nicht zurückgesetzt werden', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.themeResetError'), variant: 'destructive' });
     },
   });
 
@@ -3286,19 +3288,19 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       const parsed = JSON.parse(themeJsonInput);
       previewThemeMutation.mutate(parsed);
     } catch {
-      toast({ title: 'Ungültiges JSON', description: 'Bitte überprüfen Sie die JSON-Syntax', variant: 'destructive' });
+      toast({ title: t('admin.emailTemplates.toasts.invalidJson'), description: t('admin.emailTemplates.toasts.invalidJsonDescription'), variant: 'destructive' });
     }
   };
 
   const templateTypeLabels: Record<string, { name: string; icon: React.ReactNode; description: string }> = {
-    poll_created: { name: 'Umfrage erstellt', icon: <PlusCircle className="w-4 h-4" />, description: 'Bestätigung nach Erstellung einer Umfrage' },
-    invitation: { name: 'Einladung', icon: <UserPlus className="w-4 h-4" />, description: 'Einladung zur Teilnahme an einer Umfrage' },
-    vote_confirmation: { name: 'Abstimmungsbestätigung', icon: <CheckCircle className="w-4 h-4" />, description: 'Bestätigung nach erfolgreicher Abstimmung' },
-    reminder: { name: 'Erinnerung', icon: <Bell className="w-4 h-4" />, description: 'Erinnerung an ausstehende Abstimmung' },
-    password_reset: { name: 'Passwort zurücksetzen', icon: <Key className="w-4 h-4" />, description: 'Link zum Zurücksetzen des Passworts' },
-    email_change: { name: 'E-Mail ändern', icon: <Mail className="w-4 h-4" />, description: 'Bestätigung der neuen E-Mail-Adresse' },
-    password_changed: { name: 'Passwort geändert', icon: <Shield className="w-4 h-4" />, description: 'Benachrichtigung über Passwortänderung' },
-    test_report: { name: 'Testbericht', icon: <FileText className="w-4 h-4" />, description: 'Automatischer Testbericht per E-Mail' },
+    poll_created: { name: t('admin.emailTemplates.templateTypes.poll_created'), icon: <PlusCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_created_desc') },
+    invitation: { name: t('admin.emailTemplates.templateTypes.invitation'), icon: <UserPlus className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.invitation_desc') },
+    vote_confirmation: { name: t('admin.emailTemplates.templateTypes.vote_confirmation'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.vote_confirmation_desc') },
+    reminder: { name: t('admin.emailTemplates.templateTypes.reminder'), icon: <Bell className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.reminder_desc') },
+    password_reset: { name: t('admin.emailTemplates.templateTypes.password_reset'), icon: <Key className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_reset_desc') },
+    email_change: { name: t('admin.emailTemplates.templateTypes.email_change'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.email_change_desc') },
+    password_changed: { name: t('admin.emailTemplates.templateTypes.password_changed'), icon: <Shield className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_changed_desc') },
+    test_report: { name: t('admin.emailTemplates.templateTypes.test_report'), icon: <FileText className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.test_report_desc') },
   };
 
   if (isLoading) {
@@ -3314,20 +3316,20 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Einstellungen
+          {t('admin.emailTemplates.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
-        <span className="font-medium text-foreground">E-Mail-Vorlagen</span>
+        <span className="font-medium text-foreground">{t('admin.emailTemplates.title')}</span>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">E-Mail-Vorlagen</h2>
-          <p className="text-muted-foreground">Gestalten Sie Ihre E-Mail-Benachrichtigungen</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.emailTemplates.title')}</h2>
+          <p className="text-muted-foreground">{t('admin.emailTemplates.description')}</p>
         </div>
         <Badge variant="outline" className="text-blue-600 border-blue-600">
           <FileText className="w-3 h-3 mr-1" />
-          {templates?.length || 0} Vorlagen
+          {t('admin.emailTemplates.templatesCount', { count: templates?.length || 0 })}
         </Badge>
       </div>
 
@@ -3342,8 +3344,8 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     <Palette className="w-5 h-5" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">E-Mail-Theme</CardTitle>
-                    <CardDescription>Farben und Schriftarten für alle E-Mails</CardDescription>
+                    <CardTitle className="text-lg">{t('admin.emailTemplates.emailTheme')}</CardTitle>
+                    <CardDescription>{t('admin.emailTemplates.themeDescription')}</CardDescription>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -3355,7 +3357,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     data-testid="button-reset-theme"
                   >
                     <RotateCcw className="w-4 h-4 mr-1" />
-                    Zurücksetzen
+                    {t('admin.emailTemplates.resetTheme')}
                   </Button>
                   <Button
                     size="sm"
@@ -3363,7 +3365,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     data-testid="button-import-theme"
                   >
                     <Upload className="w-4 h-4 mr-1" />
-                    Theme importieren
+                    {t('admin.emailTemplates.importTheme')}
                   </Button>
                 </div>
               </div>
@@ -3372,7 +3374,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
               {emailTheme && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Hintergrund</Label>
+                    <Label className="text-xs text-muted-foreground">{t('admin.emailTemplates.backdrop')}</Label>
                     <div className="flex items-center space-x-2">
                       <div 
                         className="w-6 h-6 rounded border"
@@ -3382,7 +3384,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Inhaltsfläche</Label>
+                    <Label className="text-xs text-muted-foreground">{t('admin.emailTemplates.canvas')}</Label>
                     <div className="flex items-center space-x-2">
                       <div 
                         className="w-6 h-6 rounded border"
@@ -3392,7 +3394,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Textfarbe</Label>
+                    <Label className="text-xs text-muted-foreground">{t('admin.emailTemplates.textColor')}</Label>
                     <div className="flex items-center space-x-2">
                       <div 
                         className="w-6 h-6 rounded border"
@@ -3402,7 +3404,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Button-Farbe</Label>
+                    <Label className="text-xs text-muted-foreground">{t('admin.emailTemplates.buttonColor')}</Label>
                     <div className="flex items-center space-x-2">
                       <div 
                         className="w-6 h-6 rounded border"
@@ -3420,9 +3422,9 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
           <Dialog open={showThemeImport} onOpenChange={setShowThemeImport}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Theme von emailbuilder.js importieren</DialogTitle>
+                <DialogTitle>{t('admin.emailTemplates.importThemeTitle')}</DialogTitle>
                 <DialogDescription>
-                  Fügen Sie den JSON-Export aus emailbuilder.js ein. Es werden nur Farben und Schriftarten importiert - Textinhalte bleiben unverändert.
+                  {t('admin.emailTemplates.importThemeDescription')}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -3430,13 +3432,13 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   <div className="flex items-start space-x-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
                     <div className="text-sm text-amber-800 dark:text-amber-200">
-                      <strong>Nur Design-Import:</strong> Nur Farben, Schriftarten und Button-Styles werden importiert. Ihre Vorlagen-Texte und Variablen bleiben erhalten.
+                      <strong>{t('admin.emailTemplates.designImportOnly')}</strong> {t('admin.emailTemplates.designImportNote')}
                     </div>
                   </div>
                 </div>
                 
                 <div>
-                  <Label>emailbuilder.js JSON</Label>
+                  <Label>{t('admin.emailTemplates.emailbuilderJson')}</Label>
                   <Textarea
                     value={themeJsonInput}
                     onChange={(e) => setThemeJsonInput(e.target.value)}
@@ -3457,12 +3459,12 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   ) : (
                     <Eye className="w-4 h-4 mr-1" />
                   )}
-                  Vorschau
+                  {t('admin.emailTemplates.preview')}
                 </Button>
 
                 {themePreview && (
                   <div className="space-y-3">
-                    <Label className="text-sm font-medium">Extrahierte Farben:</Label>
+                    <Label className="text-sm font-medium">{t('admin.emailTemplates.extractedColors')}</Label>
                     <div className="grid grid-cols-2 gap-3 p-3 bg-muted/50 rounded-lg">
                       {Object.entries(themePreview).map(([key, value]) => (
                         <div key={key} className="flex items-center space-x-2">
@@ -3488,7 +3490,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   setThemeJsonInput('');
                   setThemePreview(null);
                 }}>
-                  Abbrechen
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   onClick={() => {
@@ -3496,7 +3498,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                       const parsed = JSON.parse(themeJsonInput);
                       confirmThemeImportMutation.mutate(parsed);
                     } catch {
-                      toast({ title: 'Fehler', description: 'Ungültiges JSON', variant: 'destructive' });
+                      toast({ title: t('admin.emailTemplates.toasts.invalidJson'), description: t('admin.emailTemplates.toasts.invalidJsonDescription'), variant: 'destructive' });
                     }
                   }}
                   disabled={!themePreview || confirmThemeImportMutation.isPending}
@@ -3507,7 +3509,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   ) : (
                     <Check className="w-4 h-4 mr-1" />
                   )}
-                  Theme übernehmen
+                  {t('admin.emailTemplates.applyTheme')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -3535,7 +3537,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                       </div>
                     </div>
                     <Badge variant={template.isDefault ? "secondary" : "default"} className="text-xs">
-                      {template.isDefault ? 'Standard' : 'Angepasst'}
+                      {template.isDefault ? t('admin.emailTemplates.default') : t('admin.emailTemplates.customized')}
                     </Badge>
                   </div>
                 </CardContent>
@@ -3548,7 +3550,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
         <div className="space-y-6">
           <Button variant="ghost" size="sm" onClick={() => setSelectedTemplate(null)} data-testid="button-back-templates">
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Zurück zur Übersicht
+            {t('admin.emailTemplates.backToOverview')}
           </Button>
 
           <Card className="polly-card">
@@ -3564,13 +3566,13 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
                 <Badge variant={selectedTemplate.isDefault ? "secondary" : "default"}>
-                  {selectedTemplate.isDefault ? 'Standard-Vorlage' : 'Angepasst'}
+                  {selectedTemplate.isDefault ? t('admin.emailTemplates.defaultTemplate') : t('admin.emailTemplates.customized')}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label className="text-sm font-medium">Betreff</Label>
+                <Label className="text-sm font-medium">{t('admin.emailTemplates.subject')}</Label>
                 <Input
                   value={editSubject}
                   onChange={(e) => setEditSubject(e.target.value)}
@@ -3578,26 +3580,26 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   data-testid="input-template-subject"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Verwenden Sie Variablen wie {"{{siteName}}"} oder {"{{pollTitle}}"}
+                  {t('admin.emailTemplates.useVariables')}
                 </p>
               </div>
 
               <div>
-                <Label className="text-sm font-medium">E-Mail-Inhalt (Text)</Label>
+                <Label className="text-sm font-medium">{t('admin.emailTemplates.emailContent')}</Label>
                 <Textarea
                   value={editTextContent}
                   onChange={(e) => setEditTextContent(e.target.value)}
                   className="mt-1 font-mono text-sm min-h-[200px]"
-                  placeholder="Der E-Mail-Text mit Variablen..."
+                  placeholder={t('admin.emailTemplates.contentPlaceholder')}
                   data-testid="textarea-template-content"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Dies ist die reine Text-Version der E-Mail. HTML wird automatisch generiert.
+                  {t('admin.emailTemplates.textVersionNote')}
                 </p>
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Verfügbare Variablen</Label>
+                <Label className="text-sm font-medium">{t('admin.emailTemplates.availableVariables')}</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {selectedTemplate.variables?.map((variable: { key: string; description: string }) => (
                     <Tooltip key={variable.key}>
@@ -3617,7 +3619,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>{variable.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Klicken zum Einfügen</p>
+                        <p className="text-xs text-muted-foreground mt-1">{t('admin.emailTemplates.clickToInsert')}</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}
@@ -3636,7 +3638,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   data-testid="button-save-template"
                 >
                   {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                  Speichern
+                  {t('common.save')}
                 </Button>
                 
                 <Button
@@ -3646,7 +3648,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   data-testid="button-preview-template"
                 >
                   {previewMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
-                  Vorschau
+                  {t('admin.emailTemplates.preview')}
                 </Button>
                 
                 {!selectedTemplate.isDefault && (
@@ -3654,24 +3656,23 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" data-testid="button-reset-template">
                         <RotateCcw className="w-4 h-4 mr-2" />
-                        Auf Standard zurücksetzen
+                        {t('admin.emailTemplates.resetToDefault')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Vorlage zurücksetzen?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('admin.emailTemplates.resetTemplateTitle')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Möchten Sie diese Vorlage wirklich auf die Standard-Version zurücksetzen? 
-                          Alle Ihre Anpassungen gehen dabei verloren.
+                          {t('admin.emailTemplates.resetTemplateDescription')}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => resetMutation.mutate(selectedTemplate.type)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          Zurücksetzen
+                          {t('admin.emailTemplates.reset')}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -3682,7 +3683,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
               <Separator />
 
               <div>
-                <Label className="text-sm font-medium">Test-E-Mail senden</Label>
+                <Label className="text-sm font-medium">{t('admin.emailTemplates.sendTestEmail')}</Label>
                 <div className="flex gap-2 mt-2">
                   <Input
                     type="email"
@@ -3700,7 +3701,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Sendet eine Test-E-Mail mit Beispieldaten an die angegebene Adresse
+                  {t('admin.emailTemplates.sendTestEmailNote')}
                 </p>
               </div>
             </CardContent>
@@ -3712,7 +3713,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center">
                     <Eye className="w-5 h-5 mr-2" />
-                    Vorschau
+                    {t('admin.emailTemplates.preview')}
                   </CardTitle>
                   <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
                     <X className="w-4 h-4" />
@@ -3724,7 +3725,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   <iframe
                     srcDoc={previewHtml}
                     className="w-full h-96 border-0"
-                    title="E-Mail Vorschau"
+                    title={t('admin.emailTemplates.emailPreview')}
                     data-testid="iframe-email-preview"
                   />
                 </div>
@@ -3743,9 +3744,9 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                 <FileText className="w-5 h-5" />
               </div>
               <div>
-                <CardTitle className="text-lg">Zentrale E-Mail-Fußzeile</CardTitle>
+                <CardTitle className="text-lg">{t('admin.emailTemplates.centralFooter')}</CardTitle>
                 <CardDescription>
-                  Diese Fußzeile wird automatisch an alle E-Mails angehängt
+                  {t('admin.emailTemplates.footerDescription')}
                 </CardDescription>
               </div>
             </div>
@@ -3755,16 +3756,16 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
         {showFooterEditor && (
           <CardContent className="space-y-4 pt-0">
             <div>
-              <Label className="text-sm font-medium">Fußzeilen-Text</Label>
+              <Label className="text-sm font-medium">{t('admin.emailTemplates.footerText')}</Label>
               <Textarea
                 value={editFooterHtml}
                 onChange={(e) => setEditFooterHtml(e.target.value)}
                 className="mt-1 font-mono text-sm min-h-[100px]"
-                placeholder="z.B. Diese E-Mail wurde automatisch von {{siteName}} erstellt."
+                placeholder={t('admin.emailTemplates.footerPlaceholder')}
                 data-testid="textarea-footer-html"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Sie können {"{{siteName}}"} als Variable verwenden
+                {t('admin.emailTemplates.footerVariableNote')}
               </p>
             </div>
             
@@ -3776,7 +3777,7 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                 data-testid="button-save-footer"
               >
                 {saveFooterMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Fußzeile speichern
+                {t('admin.emailTemplates.saveFooter')}
               </Button>
             </div>
           </CardContent>
@@ -3789,10 +3790,9 @@ function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
           <div className="flex items-start space-x-3">
             <Info className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
-              <p className="font-medium text-blue-800 dark:text-blue-200">E-Mail-Branding</p>
+              <p className="font-medium text-blue-800 dark:text-blue-200">{t('admin.emailTemplates.emailBranding')}</p>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                Der E-Mail-Header mit Logo und Titel wird automatisch aus Ihren Branding-Einstellungen 
-                (Anpassen → Logo & Branding) übernommen. Die Fußzeile oben gilt für alle E-Mails.
+                {t('admin.emailTemplates.brandingNote')}
               </p>
             </div>
           </div>
@@ -3873,11 +3873,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Gespeichert", description: "Anmelde-Ratenbegrenzung wurde gespeichert." });
+      toast({ title: t('admin.securitySettings.saved'), description: t('admin.securitySettings.rateLimitSaved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/security'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Einstellungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.toasts.settingsSaveError'), variant: "destructive" });
     }
   });
   
@@ -3888,11 +3888,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Zurückgesetzt", description: "Alle Rate-Limit-Sperren wurden aufgehoben." });
+      toast({ title: t('admin.securitySettings.locksCleared'), description: t('admin.securitySettings.locksClearedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/security'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Sperren konnten nicht zurückgesetzt werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.securitySettings.locksClearError'), variant: "destructive" });
     }
   });
   
@@ -3938,12 +3938,12 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Gespeichert", description: "ClamAV-Einstellungen wurden gespeichert." });
+      toast({ title: t('admin.securitySettings.saved'), description: t('admin.securitySettings.clamavSaved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/clamav'] });
       setClamavTestResult(null);
     },
     onError: () => {
-      toast({ title: "Fehler", description: "ClamAV-Einstellungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.securitySettings.clamavError'), variant: "destructive" });
     }
   });
 
@@ -3956,13 +3956,13 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
     onSuccess: (result) => {
       setClamavTestResult(result);
       if (result.success) {
-        toast({ title: "Verbindung erfolgreich", description: `Antwortzeit: ${result.responseTime}ms` });
+        toast({ title: t('admin.securitySettings.connectionSuccess'), description: t('admin.securitySettings.responseTime', { time: result.responseTime }) });
       } else {
-        toast({ title: "Verbindung fehlgeschlagen", description: result.message, variant: "destructive" });
+        toast({ title: t('admin.securitySettings.connectionFailed'), description: result.message, variant: "destructive" });
       }
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Verbindungstest fehlgeschlagen.", variant: "destructive" });
+      toast({ title: t('admin.securitySettings.connectionFailed'), description: t('admin.securitySettings.connectionTestError'), variant: "destructive" });
     }
   });
 
@@ -4002,12 +4002,12 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Gespeichert", description: "Deprovisionierungs-Einstellungen wurden gespeichert." });
+      toast({ title: t('admin.securitySettings.saved'), description: t('admin.securitySettings.deprovisionSaved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/deprovision-settings'] });
       setDeprovisionPassword(''); // Clear password after save
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Einstellungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.toasts.settingsSaveError'), variant: "destructive" });
     }
   });
   
@@ -4024,20 +4024,20 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Einstellungen
+          {t('admin.oidc.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
-        <span className="font-medium text-foreground">Sicherheit & DSGVO</span>
+        <span className="font-medium text-foreground">{t('admin.security.breadcrumb')}</span>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Sicherheit & Datenschutz</h2>
-          <p className="text-muted-foreground">DSGVO-Konformität und Datensicherheit</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.security.title')}</h2>
+          <p className="text-muted-foreground">{t('admin.security.description')}</p>
         </div>
         <Badge variant="outline" className="text-green-600 border-green-600">
           <ShieldCheck className="w-3 h-3 mr-1" />
-          DSGVO-konform
+          {t('admin.security.gdprCompliant')}
         </Badge>
       </div>
 
@@ -4046,43 +4046,43 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Lock className="w-5 h-5 mr-2" />
-            Verschlüsselung
+            {t('admin.security.encryption')}
           </CardTitle>
-          <CardDescription>Informationen zur Datenverschlüsselung</CardDescription>
+          <CardDescription>{t('admin.security.encryptionDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <Lock className="w-4 h-4 text-green-600" />
-                <span className="font-medium">Transport-Verschlüsselung</span>
+                <span className="font-medium">{t('admin.security.transportEncryption')}</span>
               </div>
-              <p className="text-sm text-muted-foreground">TLS 1.3 für alle Verbindungen</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">Aktiv</Badge>
+              <p className="text-sm text-muted-foreground">{t('admin.security.tlsDescription')}</p>
+              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <Database className="w-4 h-4 text-green-600" />
-                <span className="font-medium">Datenbank-Verschlüsselung</span>
+                <span className="font-medium">{t('admin.security.databaseEncryption')}</span>
               </div>
-              <p className="text-sm text-muted-foreground">AES-256 at rest encryption</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">Aktiv</Badge>
+              <p className="text-sm text-muted-foreground">{t('admin.security.aesDescription')}</p>
+              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <Key className="w-4 h-4 text-green-600" />
-                <span className="font-medium">Passwort-Hashing</span>
+                <span className="font-medium">{t('admin.security.passwordHashing')}</span>
               </div>
-              <p className="text-sm text-muted-foreground">bcrypt mit Salt-Rounds: 12</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">Aktiv</Badge>
+              <p className="text-sm text-muted-foreground">{t('admin.security.bcryptDescription')}</p>
+              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <Shield className="w-4 h-4 text-green-600" />
-                <span className="font-medium">Session-Sicherheit</span>
+                <span className="font-medium">{t('admin.security.sessionSecurity')}</span>
               </div>
-              <p className="text-sm text-muted-foreground">HTTP-Only, Secure, SameSite</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">Aktiv</Badge>
+              <p className="text-sm text-muted-foreground">{t('admin.security.sessionDescription')}</p>
+              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
             </div>
           </div>
         </CardContent>
@@ -4093,9 +4093,9 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <ShieldCheck className="w-5 h-5 mr-2" />
-            Anmelde-Ratenbegrenzung
+            {t('admin.security.rateLimit')}
           </CardTitle>
-          <CardDescription>Schutz vor Brute-Force-Angriffen auf lokale Anmeldungen</CardDescription>
+          <CardDescription>{t('admin.security.rateLimitDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoadingSecurity ? (
@@ -4117,8 +4117,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               {/* Enable/Disable Toggle */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Ratenbegrenzung aktivieren</p>
-                  <p className="text-sm text-muted-foreground">Begrenzt fehlgeschlagene Anmeldeversuche</p>
+                  <p className="font-medium">{t('admin.security.enableRateLimit')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.security.limitAttempts')}</p>
                 </div>
                 <Switch 
                   id="rate-limit-enabled" 
@@ -4131,7 +4131,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               {/* Settings Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="max-attempts">Max. Versuche</Label>
+                  <Label htmlFor="max-attempts">{t('admin.security.maxAttempts')}</Label>
                   <Select 
                     value={maxAttempts.toString()} 
                     onValueChange={(v) => setMaxAttempts(parseInt(v))}
@@ -4141,18 +4141,18 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="3">3 Versuche</SelectItem>
-                      <SelectItem value="5">5 Versuche</SelectItem>
-                      <SelectItem value="10">10 Versuche</SelectItem>
-                      <SelectItem value="15">15 Versuche</SelectItem>
-                      <SelectItem value="20">20 Versuche</SelectItem>
+                      <SelectItem value="3">{t('admin.security.attempts', { count: 3 })}</SelectItem>
+                      <SelectItem value="5">{t('admin.security.attempts', { count: 5 })}</SelectItem>
+                      <SelectItem value="10">{t('admin.security.attempts', { count: 10 })}</SelectItem>
+                      <SelectItem value="15">{t('admin.security.attempts', { count: 15 })}</SelectItem>
+                      <SelectItem value="20">{t('admin.security.attempts', { count: 20 })}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Anzahl vor Sperrung</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.security.beforeLockout')}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="window-minutes">Zeitfenster</Label>
+                  <Label htmlFor="window-minutes">{t('admin.security.timeWindow')}</Label>
                   <Select 
                     value={windowMinutes.toString()} 
                     onValueChange={(v) => setWindowMinutes(parseInt(v))}
@@ -4162,18 +4162,18 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="5">5 Minuten</SelectItem>
-                      <SelectItem value="10">10 Minuten</SelectItem>
-                      <SelectItem value="15">15 Minuten</SelectItem>
-                      <SelectItem value="30">30 Minuten</SelectItem>
-                      <SelectItem value="60">60 Minuten</SelectItem>
+                      <SelectItem value="5">{t('admin.security.minutes', { count: 5 })}</SelectItem>
+                      <SelectItem value="10">{t('admin.security.minutes', { count: 10 })}</SelectItem>
+                      <SelectItem value="15">{t('admin.security.minutes', { count: 15 })}</SelectItem>
+                      <SelectItem value="30">{t('admin.security.minutes', { count: 30 })}</SelectItem>
+                      <SelectItem value="60">{t('admin.security.minutes', { count: 60 })}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Zähler-Fenster</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.security.counterWindow')}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cooldown-minutes">Sperrzeit</Label>
+                  <Label htmlFor="cooldown-minutes">{t('admin.security.lockoutTime')}</Label>
                   <Select 
                     value={cooldownMinutes.toString()} 
                     onValueChange={(v) => setCooldownMinutes(parseInt(v))}
@@ -4183,14 +4183,14 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="5">5 Minuten</SelectItem>
-                      <SelectItem value="10">10 Minuten</SelectItem>
-                      <SelectItem value="15">15 Minuten</SelectItem>
-                      <SelectItem value="30">30 Minuten</SelectItem>
-                      <SelectItem value="60">60 Minuten</SelectItem>
+                      <SelectItem value="5">{t('admin.security.minutes', { count: 5 })}</SelectItem>
+                      <SelectItem value="10">{t('admin.security.minutes', { count: 10 })}</SelectItem>
+                      <SelectItem value="15">{t('admin.security.minutes', { count: 15 })}</SelectItem>
+                      <SelectItem value="30">{t('admin.security.minutes', { count: 30 })}</SelectItem>
+                      <SelectItem value="60">{t('admin.security.minutes', { count: 60 })}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Wartezeit nach Sperrung</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.security.waitTimeAfterLockout')}</p>
                 </div>
               </div>
 
@@ -4198,11 +4198,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               {securityData?.stats && (
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Aktuell verfolgt</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.security.currentlyTracked')}</p>
                     <p className="text-xl font-semibold">{securityData.stats.totalTracked}</p>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Gesperrte Konten</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.security.lockedAccounts')}</p>
                     <p className="text-xl font-semibold text-red-600">{securityData.stats.lockedAccounts}</p>
                   </div>
                 </div>
@@ -4218,23 +4218,23 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       data-testid="button-clear-rate-limits"
                     >
                       <RotateCcw className="w-4 h-4 mr-2" />
-                      Alle Sperren aufheben
+                      {t('admin.security.clearAllLocks')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Alle Rate-Limit-Sperren aufheben?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('admin.security.clearLocksTitle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Dies hebt alle aktuellen Anmelde-Sperren auf. Benutzer können sofort wieder versuchen, sich anzumelden.
+                        {t('admin.security.clearLocksDescription')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction 
                         onClick={() => clearRateLimitsMutation.mutate()}
                         className="polly-button-primary"
                       >
-                        Sperren aufheben
+                        {t('admin.security.clearLocks')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -4249,10 +4249,10 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   {saveRateLimitMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Speichern...
+                      {t('common.saving')}
                     </>
                   ) : (
-                    'Ratenbegrenzung speichern'
+                    t('admin.security.saveRateLimit')
                   )}
                 </Button>
               </div>
@@ -4266,9 +4266,9 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Shield className="w-5 h-5 mr-2" />
-            Virenscanner (ClamAV)
+            {t('admin.security.virusScanner')}
           </CardTitle>
-          <CardDescription>Upload-Prüfung vor Persistierung - Pflicht für behördliche Pentests</CardDescription>
+          <CardDescription>{t('admin.security.virusScannerDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoadingClamav ? (
@@ -4282,7 +4282,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <div className="flex items-start space-x-2">
                   <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
                   <p className="text-sm text-blue-800 dark:text-blue-300">
-                    Alle Uploads werden VOR dem Speichern durch ClamAV geprüft. Dateien mit erkannten Viren werden abgelehnt und nie persistiert.
+                    {t('admin.security.virusScanInfo')}
                   </p>
                 </div>
               </div>
@@ -4290,8 +4290,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               {/* Enable Toggle */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Virenscanner aktivieren</p>
-                  <p className="text-sm text-muted-foreground">Alle Uploads vor Speicherung prüfen</p>
+                  <p className="font-medium">{t('admin.security.enableVirusScanner')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.security.scanAllUploads')}</p>
                 </div>
                 <Switch 
                   checked={clamavEnabled}
@@ -4312,11 +4312,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                     placeholder="localhost"
                     data-testid="input-clamav-host"
                   />
-                  <p className="text-xs text-muted-foreground">clamd Server-Adresse</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.security.clamdServerAddress')}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="clamav-port">Port</Label>
+                  <Label htmlFor="clamav-port">{t('admin.security.port')}</Label>
                   <Input 
                     id="clamav-port"
                     type="number"
@@ -4326,11 +4326,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                     placeholder="3310"
                     data-testid="input-clamav-port"
                   />
-                  <p className="text-xs text-muted-foreground">Standard: 3310</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.security.defaultPort')}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="clamav-timeout">Timeout (Sekunden)</Label>
+                  <Label htmlFor="clamav-timeout">{t('admin.security.timeout')}</Label>
                   <Select 
                     value={clamavTimeout.toString()} 
                     onValueChange={(v) => setClamavTimeout(parseInt(v))}
@@ -4340,17 +4340,17 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="10">10 Sekunden</SelectItem>
-                      <SelectItem value="30">30 Sekunden</SelectItem>
-                      <SelectItem value="60">60 Sekunden</SelectItem>
-                      <SelectItem value="120">120 Sekunden</SelectItem>
+                      <SelectItem value="10">{t('admin.security.seconds', { count: 10 })}</SelectItem>
+                      <SelectItem value="30">{t('admin.security.seconds', { count: 30 })}</SelectItem>
+                      <SelectItem value="60">{t('admin.security.seconds', { count: 60 })}</SelectItem>
+                      <SelectItem value="120">{t('admin.security.seconds', { count: 120 })}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Max. Scan-Wartezeit</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.security.maxScanWait')}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="clamav-maxsize">Max. Dateigröße (MB)</Label>
+                  <Label htmlFor="clamav-maxsize">{t('admin.security.maxFileSize')}</Label>
                   <Select 
                     value={clamavMaxFileSize.toString()} 
                     onValueChange={(v) => setClamavMaxFileSize(parseInt(v))}
@@ -4366,7 +4366,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectItem value="50">50 MB</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Größere Dateien werden abgelehnt</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.security.largerFilesRejected')}</p>
                 </div>
               </div>
 
@@ -4398,12 +4398,12 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   {testClamavMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Teste...
+                      {t('admin.security.testing')}
                     </>
                   ) : (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Verbindung testen
+                      {t('admin.security.testConnection')}
                     </>
                   )}
                 </Button>
@@ -4417,10 +4417,10 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   {saveClamavMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Speichern...
+                      {t('common.saving')}
                     </>
                   ) : (
-                    'ClamAV speichern'
+                    t('admin.security.saveClamav')
                   )}
                 </Button>
               </div>
@@ -4434,9 +4434,9 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Timer className="w-5 h-5 mr-2" />
-            Datenaufbewahrung & Auto-Löschung
+            {t('admin.dataRetention.title')}
           </CardTitle>
-          <CardDescription>Konfigurieren Sie die automatische Bereinigung alter Daten getrennt nach Benutzertyp (DSGVO Art. 5)</CardDescription>
+          <CardDescription>{t('admin.security.dataRetentionDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* User Type Tabs */}
@@ -4451,8 +4451,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               data-testid="tab-guest-users"
             >
               <UserX className="w-4 h-4" />
-              <span>Gastnutzer</span>
-              <Badge variant="secondary" className="ml-1 text-xs">Anonym</Badge>
+              <span>{t('admin.security.guestUsers')}</span>
+              <Badge variant="secondary" className="ml-1 text-xs">{t('admin.security.anonymous')}</Badge>
             </button>
             <button
               onClick={() => setUserTypeTab('kitahub')}
@@ -4464,8 +4464,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               data-testid="tab-kitahub-users"
             >
               <Building2 className="w-4 h-4" />
-              <span>SSO-Nutzer</span>
-              <Badge variant="secondary" className="ml-1 text-xs bg-polly-orange/10 text-polly-orange">Authentifiziert</Badge>
+              <span>{t('admin.security.ssoUsers')}</span>
+              <Badge variant="secondary" className="ml-1 text-xs bg-polly-orange/10 text-polly-orange">{t('admin.security.authenticated')}</Badge>
             </button>
           </div>
 
@@ -4474,15 +4474,14 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
             <div className="space-y-4" data-testid="guest-retention-settings">
               <AlertBanner variant="info">
                 <p className="text-sm">
-                  <strong>Gastnutzer</strong> sind anonyme Benutzer, die ohne Anmeldung an Umfragen teilnehmen. 
-                  Ihre Daten sollten gemäß DSGVO-Grundsätzen zeitnah gelöscht werden.
+                  <strong>{t('admin.security.guestUsers')}</strong> {t('admin.security.guestUsersNote')}
                 </p>
               </AlertBanner>
               
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Inaktive Gast-Umfragen löschen</p>
-                  <p className="text-sm text-muted-foreground">Anonyme Umfragen ohne Aktivität</p>
+                  <p className="font-medium">{t('admin.dataRetention.deleteInactiveGuestPolls')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.dataRetention.anonymousPollsWithoutActivity')}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Select defaultValue="30">
@@ -4490,12 +4489,12 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">7 Tage</SelectItem>
-                      <SelectItem value="14">14 Tage</SelectItem>
-                      <SelectItem value="30">30 Tage</SelectItem>
-                      <SelectItem value="60">60 Tage</SelectItem>
-                      <SelectItem value="90">90 Tage</SelectItem>
-                      <SelectItem value="never">Nie</SelectItem>
+                      <SelectItem value="7">7 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="14">14 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="30">30 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="60">60 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="90">90 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="never">{t('admin.security.never')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Switch id="guest-auto-delete" defaultChecked data-testid="switch-guest-auto-delete" />
@@ -4504,8 +4503,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Abgelaufene Gast-Terminumfragen</p>
-                  <p className="text-sm text-muted-foreground">Termine deren Datum verstrichen ist</p>
+                  <p className="font-medium">{t('admin.security.expiredGuestPolls')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.security.expiredPollsDescription')}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Select defaultValue="7">
@@ -4513,11 +4512,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">1 Tag</SelectItem>
-                      <SelectItem value="7">7 Tage</SelectItem>
-                      <SelectItem value="14">14 Tage</SelectItem>
-                      <SelectItem value="30">30 Tage</SelectItem>
-                      <SelectItem value="never">Nie</SelectItem>
+                      <SelectItem value="1">1 {t('admin.security.day')}</SelectItem>
+                      <SelectItem value="7">7 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="14">14 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="30">30 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="never">{t('admin.security.never')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Switch id="guest-archive-expired" defaultChecked data-testid="switch-guest-archive-expired" />
@@ -4526,8 +4525,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Gast-Stimmen anonymisieren</p>
-                  <p className="text-sm text-muted-foreground">E-Mail-Adressen bei Stimmen entfernen</p>
+                  <p className="font-medium">{t('admin.security.anonymizeGuestVotes')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.security.removeEmailsFromVotes')}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Select defaultValue="30">
@@ -4535,10 +4534,10 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">7 Tage</SelectItem>
-                      <SelectItem value="14">14 Tage</SelectItem>
-                      <SelectItem value="30">30 Tage</SelectItem>
-                      <SelectItem value="immediate">Sofort nach Umfrage</SelectItem>
+                      <SelectItem value="7">7 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="14">14 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="30">30 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="immediate">{t('admin.security.immediateAfterPoll')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Switch id="guest-anonymize" defaultChecked data-testid="switch-guest-anonymize" />
@@ -4552,15 +4551,14 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
             <div className="space-y-4" data-testid="kitahub-retention-settings">
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>SSO-Nutzer</strong> sind authentifizierte Benutzer über Keycloak/OIDC. 
-                  Ihre Daten können länger aufbewahrt werden, da sie einer Organisation zugeordnet sind.
+                  <strong>{t('admin.security.ssoUsers')}</strong> {t('admin.dataRetention.ssoUsersNote')}
                 </p>
               </div>
               
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Inaktive Benutzer-Umfragen löschen</p>
-                  <p className="text-sm text-muted-foreground">Umfragen von authentifizierten Nutzern ohne Aktivität</p>
+                  <p className="font-medium">{t('admin.dataRetention.deleteInactiveUserPolls')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.dataRetention.pollsFromAuthenticatedUsers')}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Select defaultValue="180">
@@ -4568,11 +4566,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="90">90 Tage</SelectItem>
-                      <SelectItem value="180">180 Tage</SelectItem>
-                      <SelectItem value="365">1 Jahr</SelectItem>
-                      <SelectItem value="730">2 Jahre</SelectItem>
-                      <SelectItem value="never">Nie</SelectItem>
+                      <SelectItem value="90">90 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="180">180 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="365">1 {t('common.year')}</SelectItem>
+                      <SelectItem value="730">2 {t('common.years')}</SelectItem>
+                      <SelectItem value="never">{t('admin.security.never')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Switch id="kitahub-auto-delete" data-testid="switch-kitahub-auto-delete" />
@@ -4581,8 +4579,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Abgelaufene Terminumfragen archivieren</p>
-                  <p className="text-sm text-muted-foreground">Termine werden archiviert, nicht gelöscht</p>
+                  <p className="font-medium">{t('admin.security.archiveExpiredPolls')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.dataRetention.archiveNote')}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Select defaultValue="60">
@@ -4590,11 +4588,11 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="30">30 Tage</SelectItem>
-                      <SelectItem value="60">60 Tage</SelectItem>
-                      <SelectItem value="90">90 Tage</SelectItem>
-                      <SelectItem value="180">180 Tage</SelectItem>
-                      <SelectItem value="never">Nie</SelectItem>
+                      <SelectItem value="30">30 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="60">60 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="90">90 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="180">180 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="never">{t('admin.security.never')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Switch id="kitahub-archive-expired" defaultChecked data-testid="switch-kitahub-archive-expired" />
@@ -4603,8 +4601,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Gelöschte Benutzer-Daten bereinigen</p>
-                  <p className="text-sm text-muted-foreground">Nach Löschung des Keycloak-Accounts</p>
+                  <p className="font-medium">{t('admin.dataRetention.cleanupDeletedUsers')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.dataRetention.afterKeycloakDeletion')}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Select defaultValue="30">
@@ -4612,10 +4610,10 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="immediate">Sofort</SelectItem>
-                      <SelectItem value="7">7 Tage</SelectItem>
-                      <SelectItem value="30">30 Tage</SelectItem>
-                      <SelectItem value="90">90 Tage</SelectItem>
+                      <SelectItem value="immediate">{t('common.immediately')}</SelectItem>
+                      <SelectItem value="7">7 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="30">30 {t('admin.security.days')}</SelectItem>
+                      <SelectItem value="90">90 {t('admin.security.days')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Switch id="kitahub-cleanup" defaultChecked data-testid="switch-kitahub-cleanup" />
@@ -4624,8 +4622,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Umfragen bei Benutzer-Löschung</p>
-                  <p className="text-sm text-muted-foreground">Was passiert mit Umfragen gelöschter Benutzer</p>
+                  <p className="font-medium">{t('admin.dataRetention.pollsOnUserDeletion')}</p>
+                  <p className="text-sm text-muted-foreground">{t('admin.dataRetention.whatHappensToPolls')}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Select defaultValue="anonymize">
@@ -4633,9 +4631,9 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="delete">Löschen</SelectItem>
-                      <SelectItem value="anonymize">Anonymisieren</SelectItem>
-                      <SelectItem value="transfer">An Admin übertragen</SelectItem>
+                      <SelectItem value="delete">{t('admin.dataRetention.delete')}</SelectItem>
+                      <SelectItem value="anonymize">{t('admin.dataRetention.anonymize')}</SelectItem>
+                      <SelectItem value="transfer">{t('admin.dataRetention.transferToAdmin')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -4651,22 +4649,22 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center">
               <Unplug className="w-5 h-5 mr-2" />
-              Externe Deprovisionierung
+              {t('admin.deprovision.title')}
             </div>
             {deprovisionEnabled ? (
               <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                 <Wifi className="w-3 h-3 mr-1" />
-                Aktiv
+                {t('admin.deprovision.active')}
               </Badge>
             ) : (
               <Badge variant="secondary">
                 <WifiOff className="w-3 h-3 mr-1" />
-                Inaktiv
+                {t('admin.deprovision.inactive')}
               </Badge>
             )}
           </CardTitle>
           <CardDescription>
-            Integration mit Kafka/Keycloak Deprovisionierungsservice für automatische Benutzer-Löschung
+            {t('admin.deprovision.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -4679,16 +4677,14 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               {/* Info Box */}
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950/30 dark:border-blue-800">
                 <p className="text-sm text-blue-800 dark:text-blue-300">
-                  <strong>Hinweis:</strong> Bei aktivierter externer Deprovisionierung wird die Benutzer-Löschung 
-                  zentral über Ihren Kafka/Keycloak-Service gesteuert. Der Endpoint akzeptiert DELETE-Requests 
-                  mit Basic-Auth.
+                  <strong>{t('common.note')}:</strong> {t('admin.deprovision.note')}
                 </p>
               </div>
 
               {/* Enable/Disable Toggle */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
-                  <p className="font-medium">Deprovisionierung aktivieren</p>
+                  <p className="font-medium">{t('admin.deprovision.enableLabel')}</p>
                   <p className="text-sm text-muted-foreground">
                     Endpoint: <code className="text-xs bg-muted px-1 py-0.5 rounded">DELETE /api/v1/deprovision/user</code>
                   </p>
@@ -4704,12 +4700,12 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               <div className={`space-y-4 p-4 border rounded-lg ${!deprovisionEnabled ? 'opacity-50' : ''}`}>
                 <div className="flex items-center space-x-2 mb-3">
                   <Key className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">Basic Auth Konfiguration</span>
+                  <span className="font-medium">{t('admin.deprovision.basicAuthConfig')}</span>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="deprovision-username">Benutzername</Label>
+                    <Label htmlFor="deprovision-username">{t('admin.deprovision.username')}</Label>
                     <Input 
                       id="deprovision-username"
                       value={deprovisionUsername}
@@ -4721,8 +4717,8 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   </div>
                   <div>
                     <Label htmlFor="deprovision-password">
-                      Passwort {deprovisionSettings?.hasPassword && !deprovisionPassword && (
-                        <span className="text-xs text-muted-foreground">(bereits gesetzt)</span>
+                      {t('admin.deprovision.password')} {deprovisionSettings?.hasPassword && !deprovisionPassword && (
+                        <span className="text-xs text-muted-foreground">({t('admin.deprovision.alreadySet')})</span>
                       )}
                     </Label>
                     <div className="relative">
@@ -4731,7 +4727,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                         type={showDeprovisionPassword ? 'text' : 'password'}
                         value={deprovisionPassword}
                         onChange={(e) => setDeprovisionPassword(e.target.value)}
-                        placeholder={deprovisionSettings?.hasPassword ? '••••••••' : 'Neues Passwort'}
+                        placeholder={deprovisionSettings?.hasPassword ? '••••••••' : t('admin.deprovision.newPassword')}
                         disabled={!deprovisionEnabled}
                         data-testid="input-deprovision-password"
                       />
@@ -4762,9 +4758,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   <div className="flex items-start space-x-2">
                     <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
                     <p className="text-sm text-amber-800 dark:text-amber-300">
-                      <strong>Wichtig:</strong> Bei aktivierter externer Deprovisionierung wird die manuelle 
-                      Benutzer-Löschung im Admin-Panel deaktiviert. Alle Löschungen erfolgen über den 
-                      externen Service.
+                      <strong>{t('common.important')}:</strong> {t('admin.deprovision.disabledNote')} {t('admin.deprovision.externalService')}.
                     </p>
                   </div>
                 </div>
@@ -4781,10 +4775,10 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   {saveDeprovisionMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Speichern...
+                      {t('common.saving')}
                     </>
                   ) : (
-                    'Deprovisionierung speichern'
+                    t('admin.security.saveDeprovision')
                   )}
                 </Button>
               </div>
@@ -4798,38 +4792,38 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Archive className="w-5 h-5 mr-2" />
-            DSGVO-Funktionen
+            {t('admin.security.gdprFunctions')}
           </CardTitle>
-          <CardDescription>Datenschutz-Grundverordnung Konformität</CardDescription>
+          <CardDescription>{t('admin.security.gdprCompliance')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600" />
               <div>
-                <p className="font-medium text-sm">Recht auf Auskunft (Art. 15)</p>
-                <p className="text-xs text-muted-foreground">Datenexport verfügbar</p>
+                <p className="font-medium text-sm">{t('admin.security.rightToAccess')}</p>
+                <p className="text-xs text-muted-foreground">{t('admin.security.dataExportAvailable')}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600" />
               <div>
-                <p className="font-medium text-sm">Recht auf Löschung (Art. 17)</p>
-                <p className="text-xs text-muted-foreground">Account-Löschung möglich</p>
+                <p className="font-medium text-sm">{t('admin.security.rightToErasure')}</p>
+                <p className="text-xs text-muted-foreground">{t('admin.security.accountDeletionPossible')}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600" />
               <div>
-                <p className="font-medium text-sm">Datenminimierung (Art. 5)</p>
-                <p className="text-xs text-muted-foreground">Nur notwendige Daten</p>
+                <p className="font-medium text-sm">{t('admin.security.dataMinimization')}</p>
+                <p className="text-xs text-muted-foreground">{t('admin.security.onlyNecessaryData')}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600" />
               <div>
-                <p className="font-medium text-sm">Speicherbegrenzung (Art. 5)</p>
-                <p className="text-xs text-muted-foreground">Auto-Löschung konfigurierbar</p>
+                <p className="font-medium text-sm">{t('admin.security.storageLimitation')}</p>
+                <p className="text-xs text-muted-foreground">{t('admin.security.autoDeleteConfigurable')}</p>
               </div>
             </div>
           </div>
@@ -4840,9 +4834,9 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
         <Button 
           className="polly-button-primary" 
           data-testid="button-save-security"
-          onClick={() => toast({ title: "Gespeichert", description: "Sicherheitseinstellungen wurden gespeichert." })}
+          onClick={() => toast({ title: t('common.saved'), description: t('admin.security.settingsSaved') })}
         >
-          Einstellungen speichern
+          {t('admin.security.saveSettings')}
         </Button>
       </div>
     </div>
@@ -4863,54 +4857,54 @@ function RoleManagementPanel({ onBack }: { onBack: () => void }) {
   const roles = [
     {
       id: 'user',
-      name: 'Benutzer',
-      description: 'Standard-Benutzerrolle für alle registrierten Mitglieder',
+      name: t('admin.roles.user'),
+      description: t('admin.roles.userDescription'),
       color: 'bg-gray-500',
       badgeClass: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
       count: userCounts.user,
       permissions: [
-        { name: 'Eigene Umfragen erstellen', allowed: true },
-        { name: 'An Umfragen teilnehmen', allowed: true },
-        { name: 'Eigene Umfragen verwalten', allowed: true },
-        { name: 'Eigene Stimmen bearbeiten', allowed: true },
-        { name: 'Admin-Panel Zugang', allowed: false },
-        { name: 'Andere Benutzer verwalten', allowed: false },
-        { name: 'Systemeinstellungen ändern', allowed: false },
+        { name: t('admin.roles.permissions.createOwnPolls'), allowed: true },
+        { name: t('admin.roles.permissions.participateInPolls'), allowed: true },
+        { name: t('admin.roles.permissions.manageOwnPolls'), allowed: true },
+        { name: t('admin.roles.permissions.editOwnVotes'), allowed: true },
+        { name: t('admin.roles.permissions.adminPanelAccess'), allowed: false },
+        { name: t('admin.roles.permissions.manageOtherUsers'), allowed: false },
+        { name: t('admin.roles.permissions.changeSystemSettings'), allowed: false },
       ],
     },
     {
       id: 'manager',
-      name: 'Manager',
-      description: 'Erweiterte Rechte für Team- und Gruppenleiter',
+      name: t('admin.roles.manager'),
+      description: t('admin.roles.managerDescription'),
       color: 'bg-blue-500',
       badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
       count: userCounts.manager,
       permissions: [
-        { name: 'Eigene Umfragen erstellen', allowed: true },
-        { name: 'An Umfragen teilnehmen', allowed: true },
-        { name: 'Eigene Umfragen verwalten', allowed: true },
-        { name: 'Eigene Stimmen bearbeiten', allowed: true },
-        { name: 'Team-Umfragen einsehen', allowed: true },
-        { name: 'Benutzerübersicht (lesend)', allowed: true },
-        { name: 'Systemeinstellungen ändern', allowed: false },
+        { name: t('admin.roles.permissions.createOwnPolls'), allowed: true },
+        { name: t('admin.roles.permissions.participateInPolls'), allowed: true },
+        { name: t('admin.roles.permissions.manageOwnPolls'), allowed: true },
+        { name: t('admin.roles.permissions.editOwnVotes'), allowed: true },
+        { name: t('admin.roles.permissions.viewTeamPolls'), allowed: true },
+        { name: t('admin.roles.permissions.userOverview'), allowed: true },
+        { name: t('admin.roles.permissions.changeSystemSettings'), allowed: false },
       ],
     },
     {
       id: 'admin',
-      name: 'Administrator',
-      description: 'Vollzugriff auf alle Funktionen und Einstellungen',
+      name: t('admin.roles.admin'),
+      description: t('admin.roles.adminDescription'),
       color: 'bg-red-500',
       badgeClass: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
       count: userCounts.admin,
       permissions: [
-        { name: 'Eigene Umfragen erstellen', allowed: true },
-        { name: 'An Umfragen teilnehmen', allowed: true },
-        { name: 'Alle Umfragen verwalten', allowed: true },
-        { name: 'Alle Stimmen einsehen', allowed: true },
-        { name: 'Admin-Panel Zugang', allowed: true },
-        { name: 'Benutzer verwalten', allowed: true },
-        { name: 'Systemeinstellungen ändern', allowed: true },
-        { name: 'Rollen zuweisen', allowed: true },
+        { name: t('admin.roles.permissions.createOwnPolls'), allowed: true },
+        { name: t('admin.roles.permissions.participateInPolls'), allowed: true },
+        { name: t('admin.roles.permissions.manageAllPolls'), allowed: true },
+        { name: t('admin.roles.permissions.viewAllVotes'), allowed: true },
+        { name: t('admin.roles.permissions.adminPanelAccess'), allowed: true },
+        { name: t('admin.roles.permissions.manageUsers'), allowed: true },
+        { name: t('admin.roles.permissions.changeSystemSettings'), allowed: true },
+        { name: t('admin.roles.permissions.assignRoles'), allowed: true },
       ],
     },
   ];
@@ -4920,20 +4914,20 @@ function RoleManagementPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Einstellungen
+          {t('admin.roles.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
-        <span className="font-medium text-foreground">Rollenmanagement</span>
+        <span className="font-medium text-foreground">{t('admin.roles.breadcrumb')}</span>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Rollenmanagement</h2>
-          <p className="text-muted-foreground">Übersicht der Benutzerrollen und deren Berechtigungen</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.roles.title')}</h2>
+          <p className="text-muted-foreground">{t('admin.roles.description')}</p>
         </div>
         <Badge variant="outline">
           <Users className="w-3 h-3 mr-1" />
-          {users?.length || 0} Benutzer gesamt
+          {t('admin.roles.totalUsers', { count: users?.length || 0 })}
         </Badge>
       </div>
 
@@ -4947,7 +4941,7 @@ function RoleManagementPanel({ onBack }: { onBack: () => void }) {
                   <div>
                     <CardTitle className="text-lg flex items-center gap-2">
                       {role.name}
-                      <Badge className={role.badgeClass}>{role.count} Benutzer</Badge>
+                      <Badge className={role.badgeClass}>{t('admin.roles.users', { count: role.count })}</Badge>
                     </CardTitle>
                     <CardDescription>{role.description}</CardDescription>
                   </div>
@@ -4983,27 +4977,25 @@ function RoleManagementPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center text-blue-700 dark:text-blue-400">
             <AlertCircle className="w-5 h-5 mr-2" />
-            Hinweis zur Rollenverwaltung
+            {t('admin.roles.managementNote')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Rollen können einzelnen Benutzern im Bereich <strong>Benutzer</strong> zugewiesen werden. 
-            Klicken Sie auf einen Benutzer und wählen Sie die gewünschte Rolle aus dem Dropdown-Menü.
+            {t('admin.roles.assignHint')}
           </p>
           <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-            <p className="font-medium text-foreground">SSO-Benutzer (Keycloak):</p>
+            <p className="font-medium text-foreground">{t('admin.roles.ssoUsers')}:</p>
             <p>
-              Bei SSO-Anmeldungen wird die Rolle automatisch aus dem Token übernommen. 
-              Unterstützte Rollennamen in Keycloak:
+              {t('admin.roles.ssoNote')}
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li><code className="bg-muted px-1 rounded">admin</code> oder <code className="bg-muted px-1 rounded">polly-poll-admin</code></li>
-              <li><code className="bg-muted px-1 rounded">manager</code> oder <code className="bg-muted px-1 rounded">polly-poll-manager</code></li>
-              <li><code className="bg-muted px-1 rounded">user</code> oder <code className="bg-muted px-1 rounded">polly-poll-user</code></li>
+              <li><code className="bg-muted px-1 rounded">admin</code> {t('common.or')} <code className="bg-muted px-1 rounded">polly-poll-admin</code></li>
+              <li><code className="bg-muted px-1 rounded">manager</code> {t('common.or')} <code className="bg-muted px-1 rounded">polly-poll-manager</code></li>
+              <li><code className="bg-muted px-1 rounded">user</code> {t('common.or')} <code className="bg-muted px-1 rounded">polly-poll-user</code></li>
             </ul>
             <p className="text-xs">
-              Rollen können als Realm Roles, Client Roles oder über einen Custom Protocol Mapper konfiguriert werden.
+              {t('admin.roles.configNote')}
             </p>
           </div>
         </CardContent>
@@ -5055,11 +5047,11 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Gespeichert", description: "Benachrichtigungs-Einstellungen wurden gespeichert." });
+      toast({ title: t('admin.toasts.saved'), description: t('admin.notifications.saved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/notifications'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Einstellungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.toasts.settingsSaveError'), variant: "destructive" });
     }
   });
 
@@ -5080,15 +5072,15 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Zurück zu Einstellungen
+          {t('admin.roles.backToSettings')}
         </Button>
-        <span className="font-medium text-foreground">Benachrichtigungen</span>
+        <span className="font-medium text-foreground">{t('admin.notifications.breadcrumb')}</span>
       </div>
 
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Benachrichtigungen & Erinnerungen</h2>
-          <p className="text-muted-foreground">Konfigurieren Sie E-Mail-Erinnerungen und Gast-Einschränkungen</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.notifications.title')}</h2>
+          <p className="text-muted-foreground">{t('admin.notifications.description')}</p>
         </div>
 
         {/* Master Switch */}
@@ -5096,17 +5088,17 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="w-5 h-5" />
-              Benachrichtigungen
+              {t('admin.notifications.title')}
             </CardTitle>
             <CardDescription>
-              Globaler Schalter für alle Erinnerungsfunktionen
+              {t('admin.notifications.globalToggle')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>Benachrichtigungen aktiviert</Label>
-                <p className="text-sm text-muted-foreground">Alle Erinnerungsfunktionen ein-/ausschalten</p>
+                <Label>{t('admin.roles.notificationsEnabled')}</Label>
+                <p className="text-sm text-muted-foreground">{t('admin.notifications.toggleAllReminders')}</p>
               </div>
               <Switch
                 checked={settings.enabled}
@@ -5122,17 +5114,17 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BellRing className="w-5 h-5" />
-              Erinnerungstypen
+              {t('admin.notifications.reminderTypes')}
             </CardTitle>
             <CardDescription>
-              Welche Erinnerungen sind erlaubt?
+              {t('admin.notifications.whichRemindersAllowed')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>Automatische Ablauferinnerungen</Label>
-                <p className="text-sm text-muted-foreground">Vor Ablauf einer Umfrage automatisch erinnern</p>
+                <Label>{t('admin.notifications.autoExpiryReminders')}</Label>
+                <p className="text-sm text-muted-foreground">{t('admin.notifications.autoRemindBeforeExpiry')}</p>
               </div>
               <Switch
                 checked={settings.expiryRemindersEnabled}
@@ -5144,8 +5136,8 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
 
             <div className="flex items-center justify-between">
               <div>
-                <Label>Manuelle Erinnerungen</Label>
-                <p className="text-sm text-muted-foreground">Ersteller können Teilnehmer manuell erinnern</p>
+                <Label>{t('admin.notifications.manualRemindersLabel')}</Label>
+                <p className="text-sm text-muted-foreground">{t('admin.notifications.manualReminders')}</p>
               </div>
               <Switch
                 checked={settings.manualRemindersEnabled}
@@ -5156,7 +5148,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
             </div>
 
             <div className="space-y-2">
-              <Label>Standard-Erinnerungszeitpunkt (Stunden vor Ablauf)</Label>
+              <Label>{t('admin.notifications.defaultReminderTime')}</Label>
               <Input
                 type="number"
                 min={1}
@@ -5167,7 +5159,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
                 className="w-32"
                 data-testid="input-expiry-hours"
               />
-              <p className="text-sm text-muted-foreground">Standardwert für neue Umfragen (1-168 Stunden)</p>
+              <p className="text-sm text-muted-foreground">{t('admin.notifications.defaultInterval')}</p>
             </div>
           </CardContent>
         </Card>
@@ -5177,23 +5169,23 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5" />
-              Gast-Einschränkungen
+              {t('admin.notifications.guestRestrictions')}
             </CardTitle>
             <CardDescription>
-              Spam-Schutz für anonyme Umfrage-Ersteller
+              {t('admin.notifications.spamProtection')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <AlertBanner variant="warning">
               <p className="text-sm">
-                Gäste können die App für Spam-Angriffe missbrauchen. Strenge Limits empfohlen!
+                {t('admin.notifications.spamWarning')}
               </p>
             </AlertBanner>
 
             <div className="flex items-center justify-between">
               <div>
-                <Label>Gäste dürfen Erinnerungen senden</Label>
-                <p className="text-sm text-muted-foreground">Anonyme Ersteller können Erinnerungs-E-Mails versenden</p>
+                <Label>{t('admin.notifications.guestsCanSend')}</Label>
+                <p className="text-sm text-muted-foreground">{t('admin.notifications.guestsDescription')}</p>
               </div>
               <Switch
                 checked={settings.guestsCanSendReminders}
@@ -5205,7 +5197,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Max. Erinnerungen pro Umfrage (Gäste)</Label>
+                <Label>{t('admin.notifications.maxRemindersPerPoll')}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -5216,11 +5208,11 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
                   className="w-32"
                   data-testid="input-guest-limit"
                 />
-                <p className="text-sm text-muted-foreground">0 = deaktiviert</p>
+                <p className="text-sm text-muted-foreground">{t('admin.notifications.zeroDisabled')}</p>
               </div>
 
               <div className="space-y-2">
-                <Label>Max. Erinnerungen pro Umfrage (Benutzer)</Label>
+                <Label>{t('admin.notifications.userRemindersLabel')}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -5235,7 +5227,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
             </div>
 
             <div className="space-y-2">
-              <Label>Abkühlzeit zwischen Erinnerungen (Minuten)</Label>
+              <Label>{t('admin.notifications.cooldownTime')}</Label>
               <Input
                 type="number"
                 min={10}
@@ -5246,7 +5238,7 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
                 className="w-32"
                 data-testid="input-cooldown"
               />
-              <p className="text-sm text-muted-foreground">Mindestwartezeit zwischen Erinnerungen für dieselbe Umfrage</p>
+              <p className="text-sm text-muted-foreground">{t('admin.notifications.cooldownDescription')}</p>
             </div>
           </CardContent>
         </Card>
@@ -5257,13 +5249,12 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
             <div className="flex items-start gap-3">
               <MessageSquare className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium">Matrix Chat Integration</p>
+                <p className="font-medium">{t('admin.notifications.matrixIntegration')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Für Chat-Benachrichtigungen über Matrix konfigurieren Sie die{' '}
+                  {t('admin.notifications.matrixIntegrationHint')}{' '}
                   <Button variant="link" className="p-0 h-auto" onClick={onBack}>
-                    Matrix Integration
-                  </Button>{' '}
-                  in den Einstellungen.
+                    {t('admin.notifications.matrixIntegrationLink')}
+                  </Button>
                 </p>
               </div>
             </div>
@@ -5280,10 +5271,10 @@ function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
             {saveMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Speichern...
+                {t('common.saving')}
               </>
             ) : (
-              'Einstellungen speichern'
+              t('common.saveSettings')
             )}
           </Button>
         </div>
@@ -5329,11 +5320,11 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Gespeichert", description: "Session-Timeout-Einstellungen wurden gespeichert." });
+      toast({ title: t('admin.toasts.saved'), description: t('admin.sessionTimeout.saved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/session-timeout'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Einstellungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.toasts.settingsSaveError'), variant: "destructive" });
     }
   });
 
@@ -5345,9 +5336,9 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
-      return mins > 0 ? `${hours}h ${mins}m` : `${hours} Stunden`;
+      return mins > 0 ? `${hours}${t('common.hoursShort')} ${mins}${t('common.minutesShort')}` : t('common.hoursWithValue', { count: hours });
     }
-    return `${minutes} Minuten`;
+    return t('common.minutesWithValue', { count: minutes });
   };
 
   if (isLoading) {
@@ -5363,15 +5354,15 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Zurück zu Einstellungen
+          {t('admin.roles.backToSettings')}
         </Button>
-        <span className="font-medium text-foreground">Session-Timeout</span>
+        <span className="font-medium text-foreground">{t('admin.sessionTimeout.breadcrumb')}</span>
       </div>
 
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Automatische Session-Abmeldung</h2>
-          <p className="text-muted-foreground">Konfigurieren Sie rollenbasierte Timeout-Zeiten für automatische Abmeldung</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.sessionTimeout.title')}</h2>
+          <p className="text-muted-foreground">{t('admin.sessionTimeout.description')}</p>
         </div>
 
         {/* Master Switch */}
@@ -5379,17 +5370,17 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Timer className="w-5 h-5" />
-              Session-Timeout
+              {t('admin.sessionTimeout.breadcrumb')}
             </CardTitle>
             <CardDescription>
-              Benutzer werden nach Inaktivität automatisch abgemeldet
+              {t('admin.sessionTimeout.usersAutoLoggedOut')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>Session-Timeout aktiviert</Label>
-                <p className="text-sm text-muted-foreground">Automatische Abmeldung nach Inaktivität aktivieren</p>
+                <Label>{t('admin.sessionTimeout.timeoutEnabled')}</Label>
+                <p className="text-sm text-muted-foreground">{t('admin.sessionTimeout.enableAutoLogout')}</p>
               </div>
               <Switch
                 checked={settings.enabled}
@@ -5400,7 +5391,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
             
             {!settings.enabled && (
               <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground">
-                Bei deaktiviertem Session-Timeout bleiben Benutzer bis zum manuellen Logout oder Cookie-Ablauf (24 Stunden) angemeldet.
+                {t('admin.sessionTimeout.timeoutDisabledNote')}
               </div>
             )}
           </CardContent>
@@ -5411,10 +5402,10 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              Rollenbasierte Timeouts
+              {t('admin.sessionTimeout.roleBasedTimeouts')}
             </CardTitle>
             <CardDescription>
-              Unterschiedliche Timeout-Zeiten je nach Benutzerrolle
+              {t('admin.sessionTimeout.roleBasedDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -5422,7 +5413,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-red-100 text-red-800">Admin</Badge>
-                  <span className="text-sm text-muted-foreground">Längste Session für Administratoren</span>
+                  <span className="text-sm text-muted-foreground">{t('admin.sessionTimeout.longestSessionForAdmins')}</span>
                 </div>
                 <span className="text-sm font-medium">{formatDuration(settings.adminTimeoutMinutes)}</span>
               </div>
@@ -5439,7 +5430,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>30 Min</span>
-                <span>12 Stunden</span>
+                <span>12 {t('admin.sessionTimeout.hours')}</span>
               </div>
             </div>
 
@@ -5447,7 +5438,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-blue-100 text-blue-800">Manager</Badge>
-                  <span className="text-sm text-muted-foreground">Mittlere Session für Manager</span>
+                  <span className="text-sm text-muted-foreground">{t('admin.sessionTimeout.mediumSessionForManagers')}</span>
                 </div>
                 <span className="text-sm font-medium">{formatDuration(settings.managerTimeoutMinutes)}</span>
               </div>
@@ -5464,7 +5455,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>15 Min</span>
-                <span>8 Stunden</span>
+                <span>8 {t('admin.sessionTimeout.hours')}</span>
               </div>
             </div>
 
@@ -5472,7 +5463,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-gray-100 text-gray-800">User</Badge>
-                  <span className="text-sm text-muted-foreground">Kürzeste Session für normale Benutzer</span>
+                  <span className="text-sm text-muted-foreground">{t('admin.sessionTimeout.shortestSessionForUsers')}</span>
                 </div>
                 <span className="text-sm font-medium">{formatDuration(settings.userTimeoutMinutes)}</span>
               </div>
@@ -5489,7 +5480,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>5 Min</span>
-                <span>4 Stunden</span>
+                <span>4 {t('admin.sessionTimeout.hours')}</span>
               </div>
             </div>
           </CardContent>
@@ -5500,15 +5491,15 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
-              Warnhinweis
+              {t('admin.sessionTimeout.warningSettings')}
             </CardTitle>
             <CardDescription>
-              Benutzer vor der automatischen Abmeldung warnen
+              {t('admin.roles.warnBeforeLogout')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Warnung anzeigen (Minuten vor Abmeldung)</Label>
+              <Label>{t('admin.roles.showWarningMinutes')}</Label>
               <Input
                 type="number"
                 min={1}
@@ -5520,7 +5511,7 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
                 data-testid="input-warning-minutes"
               />
               <p className="text-sm text-muted-foreground">
-                Benutzer sehen {settings.showWarningMinutes} Minute(n) vor der Abmeldung einen Warnhinweis mit der Möglichkeit, die Session zu verlängern.
+                {t('admin.sessionTimeout.warningNote', { minutes: settings.showWarningMinutes })}
               </p>
             </div>
           </CardContent>
@@ -5532,10 +5523,9 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium">Hinweis zur Implementierung</p>
+                <p className="font-medium">{t('admin.roles.implementationNote')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Die Session-Timeout-Funktion überprüft die letzte Aktivität des Benutzers und meldet ihn nach der konfigurierten Inaktivitätszeit automatisch ab. 
-                  Aktivitäten wie Mausklicks, Tastatureingaben und Seitenwechsel verlängern die Session.
+                  {t('admin.sessionTimeout.sessionInfo')}
                 </p>
               </div>
             </div>
@@ -5552,10 +5542,10 @@ function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
             {saveMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Speichern...
+                {t('common.saving')}
               </>
             ) : (
-              'Einstellungen speichern'
+              t('common.saveSettings')
             )}
           </Button>
         </div>
@@ -5606,12 +5596,12 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Gespeichert", description: "Matrix-Einstellungen wurden gespeichert." });
+      toast({ title: t('admin.toasts.saved'), description: t('admin.matrix.saved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
       setBotAccessToken('');
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Einstellungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.toasts.settingsSaveError'), variant: "destructive" });
     }
   });
 
@@ -5633,14 +5623,14 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
       const result = await response.json();
       if (result.success) {
         setTestStatus('success');
-        setTestMessage(`Verbunden als ${result.userId}`);
+        setTestMessage(t('admin.matrix.connectedAs', { userId: result.userId }));
       } else {
         setTestStatus('error');
-        setTestMessage(result.error || 'Verbindung fehlgeschlagen');
+        setTestMessage(result.error || t('admin.matrix.connectionFailed'));
       }
     } catch (error: any) {
       setTestStatus('error');
-      setTestMessage('Verbindungstest fehlgeschlagen');
+      setTestMessage(t('admin.matrix.connectionTestFailed'));
     }
   };
 
@@ -5657,7 +5647,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-settings">
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Zurück zu Einstellungen
+          {t('admin.matrix.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
         <span className="font-medium text-foreground">Matrix Chat</span>
@@ -5665,19 +5655,19 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Matrix Chat Integration</h2>
-          <p className="text-muted-foreground">Chat-Benachrichtigungen über Matrix für SSO-Benutzer</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.matrix.title')}</h2>
+          <p className="text-muted-foreground">{t('admin.matrix.description')}</p>
         </div>
         <Badge variant="outline" className={matrixEnabled ? "text-green-600 border-green-600" : "text-muted-foreground border-muted"}>
           {matrixEnabled ? (
             <>
               <CheckCircle className="w-3 h-3 mr-1" />
-              Aktiviert
+              {t('admin.matrix.enabled')}
             </>
           ) : (
             <>
               <XCircle className="w-3 h-3 mr-1" />
-              Deaktiviert
+              {t('admin.matrix.disabled')}
             </>
           )}
         </Badge>
@@ -5688,13 +5678,13 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center">
               <MessageSquare className="w-5 h-5 mr-2" />
-              Matrix Verbindung
+              {t('admin.matrix.connection')}
             </div>
             {saveMutation.isPending && (
               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
             )}
           </CardTitle>
-          <CardDescription>Konfigurieren Sie die Verbindung zu Ihrem Matrix Homeserver</CardDescription>
+          <CardDescription>{t('admin.matrix.connectionDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className={`flex items-center justify-between p-4 border rounded-lg ${matrixEnabled ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' : 'bg-muted/50 border-muted'}`}>
@@ -5703,11 +5693,11 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                 <MessageSquare className={`w-6 h-6 ${matrixEnabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
               </div>
               <div>
-                <p className="font-medium text-foreground">Matrix Integration aktivieren</p>
+                <p className="font-medium text-foreground">{t('admin.matrix.enableIntegration')}</p>
                 <p className="text-sm text-muted-foreground">
                   {matrixEnabled 
-                    ? "SSO-Benutzer können Chat-Benachrichtigungen erhalten" 
-                    : "Nur E-Mail-Benachrichtigungen aktiv"}
+                    ? t('admin.matrix.ssoUsersCanReceive') 
+                    : t('admin.matrix.onlyEmailActive')}
                 </p>
               </div>
             </div>
@@ -5725,10 +5715,9 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                 <div className="flex items-start space-x-3">
                   <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                   <div>
-                    <p className="font-medium text-blue-800 dark:text-blue-200">Matrix Homeserver</p>
+                    <p className="font-medium text-blue-800 dark:text-blue-200">{t('admin.matrix.homeserverUrl')}</p>
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      Diese Integration funktioniert mit jedem Matrix-kompatiblen Homeserver, inkl. dem Bundesmessenger (BUM) 
-                      oder Ihrem eigenen Matrix-Server.
+                      {t('admin.matrix.homeserverNote')}
                     </p>
                   </div>
                 </div>
@@ -5736,7 +5725,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="matrix-homeserver">Homeserver URL</Label>
+                  <Label htmlFor="matrix-homeserver">{t('admin.matrix.homeserverUrl')}</Label>
                   <Input 
                     id="matrix-homeserver" 
                     placeholder="https://matrix.example.com"
@@ -5744,10 +5733,10 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                     onChange={(e) => setHomeserverUrl(e.target.value)}
                     data-testid="input-matrix-homeserver"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Die URL Ihres Matrix Homeservers</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('admin.matrix.homeserverUrlLabel')}</p>
                 </div>
                 <div>
-                  <Label htmlFor="matrix-bot-user">Bot User ID</Label>
+                  <Label htmlFor="matrix-bot-user">{t('admin.matrix.botUserId')}</Label>
                   <Input 
                     id="matrix-bot-user" 
                     placeholder="@pollbot:matrix.example.com"
@@ -5755,12 +5744,12 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                     onChange={(e) => setBotUserId(e.target.value)}
                     data-testid="input-matrix-bot-user"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Die Matrix User-ID des Bots</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('admin.matrix.botUserIdLabel')}</p>
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="matrix-token">Bot Access Token</Label>
+                <Label htmlFor="matrix-token">{t('admin.matrix.botAccessToken')}</Label>
                 <div className="relative">
                   <Input 
                     id="matrix-token" 
@@ -5781,7 +5770,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Access Token des Bot-Accounts. Leer lassen, um den vorhandenen Token beizubehalten.
+                  {t('admin.matrix.leaveEmptyToKeep')}
                 </p>
               </div>
 
@@ -5793,9 +5782,9 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                   data-testid="switch-matrix-search"
                 />
                 <div className="flex-1">
-                  <Label htmlFor="matrix-search" className="font-medium">User Directory Suche aktivieren</Label>
+                  <Label htmlFor="matrix-search" className="font-medium">{t('admin.matrix.userDirectorySearch')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Ermöglicht Type-Ahead-Suche nach Matrix-Benutzern beim Einladen
+                    {t('admin.matrix.searchDescription')}
                   </p>
                 </div>
               </div>
@@ -5811,12 +5800,12 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                     {testStatus === 'testing' ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Teste...
+                        {t('admin.matrix.testing')}
                       </>
                     ) : (
                       <>
                         <Wifi className="w-4 h-4 mr-2" />
-                        Verbindung testen
+                        {t('admin.matrix.testConnection')}
                       </>
                     )}
                   </Button>
@@ -5842,10 +5831,10 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
                   {saveMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Speichern...
+                      {t('admin.matrix.saving')}
                     </>
                   ) : (
-                    'Einstellungen speichern'
+                    t('admin.matrix.saveSettings')
                   )}
                 </Button>
               </div>
@@ -5859,7 +5848,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
           <CardHeader>
             <CardTitle className="flex items-center">
               <AlertCircle className="w-5 h-5 mr-2" />
-              Hinweise zur Einrichtung
+              {t('admin.matrix.setupTitle')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -5867,23 +5856,23 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
               <div className="flex items-start space-x-3 p-3 bg-muted rounded-lg">
                 <span className="font-bold text-polly-orange">1.</span>
                 <div>
-                  <p className="font-medium">Bot-Account erstellen</p>
-                  <p className="text-muted-foreground">Erstellen Sie einen Matrix-Benutzer (z.B. @pollbot:matrix.example.com) mit einem sicheren Passwort.</p>
+                  <p className="font-medium">{t('admin.matrix.setupHints.createBotAccount')}</p>
+                  <p className="text-muted-foreground">{t('admin.matrix.setupHints.createBotAccountDescription')}</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-muted rounded-lg">
                 <span className="font-bold text-polly-orange">2.</span>
                 <div>
-                  <p className="font-medium">Access Token generieren</p>
-                  <p className="text-muted-foreground">Melden Sie sich als Bot an und generieren Sie einen Access Token über Element oder die Admin-API.</p>
+                  <p className="font-medium">{t('admin.matrix.setupHints.generateToken')}</p>
+                  <p className="text-muted-foreground">{t('admin.matrix.setupHints.generateTokenDescription')}</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-muted rounded-lg">
                 <span className="font-bold text-polly-orange">3.</span>
                 <div>
-                  <p className="font-medium">User Directory Suche</p>
+                  <p className="font-medium">{t('admin.matrix.setupHints.userDirectory')}</p>
                   <p className="text-muted-foreground">
-                    Für die vollständige Benutzersuche setzen Sie in Ihrer Synapse-Konfiguration: 
+                    {t('admin.matrix.setupHints.userDirectoryDescription')} 
                     <code className="mx-1 px-1 bg-background rounded">user_directory.search_all_users: true</code>
                   </p>
                 </div>
@@ -5939,14 +5928,9 @@ function CustomizationPanel() {
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
   const [footerSettings, setFooterSettings] = useState({
-    description: 'Die professionelle Open-Source Abstimmungsplattform für Teams. Sicher, einfach und DSGVO-konform.',
-    copyrightText: '© 2025 Polly. Open-Source Software unter MIT-Lizenz.',
-    supportLinks: [
-      { label: 'Hilfe & FAQ', url: '#' },
-      { label: 'Kontakt', url: '#' },
-      { label: 'Datenschutz', url: '#' },
-      { label: 'Impressum', url: '#' },
-    ] as FooterLink[],
+    description: '',
+    copyrightText: '',
+    supportLinks: [] as FooterLink[],
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -5989,7 +5973,7 @@ function CustomizationPanel() {
       return response.json();
     },
     onSuccess: (savedData) => {
-      toast({ title: "Gespeichert", description: "Anpassungen wurden gespeichert." });
+      toast({ title: t('admin.toasts.saved'), description: t('admin.toasts.customizationSaved') });
       
       // Directly update local state with saved data to ensure UI reflects changes immediately
       if (savedData) {
@@ -6031,7 +6015,7 @@ function CustomizationPanel() {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Anpassungen konnten nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.toasts.customizationSaveError'), variant: "destructive" });
     },
   });
 
@@ -6049,13 +6033,13 @@ function CustomizationPanel() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Upload fehlgeschlagen');
+      if (!response.ok) throw new Error(t('admin.customization.uploadFailed'));
 
       const data = await response.json();
       setBrandingSettings(prev => ({ ...prev, logoUrl: data.imageUrl }));
-      toast({ title: "Logo hochgeladen", description: "Das Logo wurde erfolgreich hochgeladen." });
+      toast({ title: t('admin.toasts.logoUploaded'), description: t('admin.toasts.logoUploadedDescription') });
     } catch (error) {
-      toast({ title: "Fehler", description: "Logo konnte nicht hochgeladen werden.", variant: "destructive" });
+      toast({ title: t('admin.toasts.uploadFailed'), description: t('admin.toasts.logoUploadError'), variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
@@ -6104,8 +6088,8 @@ function CustomizationPanel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Anpassen</h2>
-          <p className="text-muted-foreground">Design, Branding und Footer individualisieren</p>
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.nav.customize')}</h2>
+          <p className="text-muted-foreground">{t('admin.customization.brandingDescription')}</p>
         </div>
         <Button 
           className="polly-button-primary" 
@@ -6114,7 +6098,7 @@ function CustomizationPanel() {
           data-testid="button-save-customization"
         >
           {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Alle Änderungen speichern
+          {t('admin.customization.saveAllChanges')}
         </Button>
       </div>
 
@@ -6123,14 +6107,14 @@ function CustomizationPanel() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Palette className="w-5 h-5 mr-2" />
-            Farbschema
+            {t('profile.colorScheme')}
           </CardTitle>
-          <CardDescription>Primär- und Sekundärfarben für die gesamte Anwendung</CardDescription>
+          <CardDescription>{t('admin.customization.colorsDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="primary-color">Primärfarbe (Akzentfarbe)</Label>
+              <Label htmlFor="primary-color">{t('admin.customization.primaryColor')}</Label>
               <div className="flex items-center gap-3">
                 <input 
                   type="color" 
@@ -6151,14 +6135,14 @@ function CustomizationPanel() {
                   className="w-20 h-10 rounded border flex items-center justify-center text-white text-sm font-medium"
                   style={{ backgroundColor: themeSettings.primaryColor }}
                 >
-                  Vorschau
+                  {t('common.preview')}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Wird für Buttons, Links und Akzente verwendet</p>
+              <p className="text-xs text-muted-foreground">{t('admin.customization.primaryColorUsage')}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="secondary-color">Sekundärfarbe</Label>
+              <Label htmlFor="secondary-color">{t('admin.customization.secondaryColor')}</Label>
               <div className="flex items-center gap-3">
                 <input 
                   type="color" 
@@ -6179,23 +6163,23 @@ function CustomizationPanel() {
                   className="w-20 h-10 rounded border flex items-center justify-center text-white text-sm font-medium"
                   style={{ backgroundColor: themeSettings.secondaryColor }}
                 >
-                  Vorschau
+                  {t('common.preview')}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Wird für sekundäre Elemente und Hintergründe verwendet</p>
+              <p className="text-xs text-muted-foreground">{t('admin.customization.secondaryColorUsage')}</p>
             </div>
           </div>
           
           {/* Feature Colors */}
           <div className="pt-4 border-t">
-            <h4 className="font-medium mb-4">Feature-Farben</h4>
-            <p className="text-sm text-muted-foreground mb-4">Jede Umfrage-Art erhält eine eigene Farbe für konsistentes Design.</p>
+            <h4 className="font-medium mb-4">{t('admin.featureColors')}</h4>
+            <p className="text-sm text-muted-foreground mb-4">{t('admin.customization.pollTypeColorsDescription')}</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Schedule Color */}
               <div className="space-y-2">
                 <Label htmlFor="schedule-color" className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  Termin-Farbe
+                  {t('admin.customization.scheduleColor')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <input 
@@ -6221,7 +6205,7 @@ function CustomizationPanel() {
                     textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                   }}
                 >
-                  Termin finden
+                  {t('admin.customization.findSchedule')}
                 </div>
               </div>
 
@@ -6229,7 +6213,7 @@ function CustomizationPanel() {
               <div className="space-y-2">
                 <Label htmlFor="survey-color" className="flex items-center gap-2">
                   <BarChart3 className="w-4 h-4" />
-                  Umfrage-Farbe
+                  {t('admin.customization.surveyColor')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <input 
@@ -6255,7 +6239,7 @@ function CustomizationPanel() {
                     textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                   }}
                 >
-                  Umfrage erstellen
+                  {t('admin.customization.createSurvey')}
                 </div>
               </div>
 
@@ -6263,7 +6247,7 @@ function CustomizationPanel() {
               <div className="space-y-2">
                 <Label htmlFor="organization-color" className="flex items-center gap-2">
                   <ClipboardList className="w-4 h-4" />
-                  Orga-Farbe
+                  {t('admin.customization.orgaColor')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <input 
@@ -6289,7 +6273,7 @@ function CustomizationPanel() {
                     textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                   }}
                 >
-                  Orga festlegen
+                  {t('admin.customization.setOrga')}
                 </div>
               </div>
             </div>
@@ -6299,15 +6283,15 @@ function CustomizationPanel() {
           <div className="pt-4 border-t">
             <h4 className="font-medium mb-4 flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
-              Status-Farben (4 Farben)
+              {t('admin.customization.statusColors')}
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Diese Farben werden für Status-Badges, Benachrichtigungen und Feedback-Elemente verwendet.
+              {t('admin.customization.statusColorsDescription')}
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {/* Success Color */}
               <div className="space-y-2">
-                <Label htmlFor="success-color" className="text-sm">Erfolg</Label>
+                <Label htmlFor="success-color" className="text-sm">{t('admin.customization.success')}</Label>
                 <div className="flex items-center gap-2">
                   <input 
                     type="color" 
@@ -6328,7 +6312,7 @@ function CustomizationPanel() {
               
               {/* Warning Color */}
               <div className="space-y-2">
-                <Label htmlFor="warning-color" className="text-sm">Warnung</Label>
+                <Label htmlFor="warning-color" className="text-sm">{t('admin.customization.warning')}</Label>
                 <div className="flex items-center gap-2">
                   <input 
                     type="color" 
@@ -6349,7 +6333,7 @@ function CustomizationPanel() {
               
               {/* Error Color */}
               <div className="space-y-2">
-                <Label htmlFor="error-color" className="text-sm">Fehler</Label>
+                <Label htmlFor="error-color" className="text-sm">{t('admin.customization.error')}</Label>
                 <div className="flex items-center gap-2">
                   <input 
                     type="color" 
@@ -6395,15 +6379,15 @@ function CustomizationPanel() {
           <div className="pt-4 border-t">
             <h4 className="font-medium mb-4 flex items-center gap-2">
               <Palette className="w-4 h-4" />
-              Akzent-Farben (3 Farben)
+              {t('admin.customization.accentColors')}
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Zusätzliche Farben für aktive Zustände, gedämpfte Texte und Hintergründe.
+              {t('admin.customization.extendedColorsDescription')}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Accent Color */}
               <div className="space-y-2">
-                <Label htmlFor="accent-color" className="text-sm">Akzent (Highlights)</Label>
+                <Label htmlFor="accent-color" className="text-sm">{t('admin.customization.accentHighlights')}</Label>
                 <div className="flex items-center gap-2">
                   <input 
                     type="color" 
@@ -6424,7 +6408,7 @@ function CustomizationPanel() {
               
               {/* Muted Color */}
               <div className="space-y-2">
-                <Label htmlFor="muted-color" className="text-sm">Gedämpft (Texte)</Label>
+                <Label htmlFor="muted-color" className="text-sm">{t('admin.customization.mutedColor')}</Label>
                 <div className="flex items-center gap-2">
                   <input 
                     type="color" 
@@ -6445,7 +6429,7 @@ function CustomizationPanel() {
               
               {/* Neutral Color */}
               <div className="space-y-2">
-                <Label htmlFor="neutral-color" className="text-sm">Neutral (Hintergründe)</Label>
+                <Label htmlFor="neutral-color" className="text-sm">{t('admin.customization.neutralColor')}</Label>
                 <div className="flex items-center gap-2">
                   <input 
                     type="color" 
@@ -6476,14 +6460,14 @@ function CustomizationPanel() {
                     ...DEFAULT_THEME_COLORS
                   }));
                   toast({ 
-                    title: "Farben zurückgesetzt", 
-                    description: "Alle Farben wurden auf die Standardwerte zurückgesetzt. Klicken Sie auf 'Speichern' um die Änderungen zu übernehmen." 
+                    title: t('admin.customization.colorsReset'), 
+                    description: t('admin.customization.colorsResetDescription') 
                   });
                 }}
                 data-testid="button-reset-all-colors"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                Alle Farben zurücksetzen
+                {t('admin.customization.resetAllColors')}
               </Button>
             </div>
           </div>
@@ -6492,10 +6476,10 @@ function CustomizationPanel() {
           <div className="pt-4 border-t">
             <h4 className="font-medium mb-4 flex items-center gap-2">
               <Moon className="w-4 h-4" />
-              Standard-Farbmodus
+              {t('admin.customization.defaultColorMode')}
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Wählen Sie den Standard-Farbmodus für neue Besucher. Benutzer können ihren bevorzugten Modus in den Profileinstellungen ändern.
+              {t('admin.customization.defaultColorMode')}
             </p>
             <div className="flex items-center gap-4">
               <Select 
@@ -6509,13 +6493,13 @@ function CustomizationPanel() {
                   <SelectItem value="light">
                     <div className="flex items-center gap-2">
                       <Sun className="w-4 h-4" />
-                      <span>Hell</span>
+                      <span>{t('admin.customization.light')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="dark">
                     <div className="flex items-center gap-2">
                       <Moon className="w-4 h-4" />
-                      <span>Dunkel</span>
+                      <span>{t('admin.customization.dark')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="system">
@@ -6528,10 +6512,10 @@ function CustomizationPanel() {
               </Select>
               <span className="text-sm text-muted-foreground">
                 {themeSettings.defaultThemeMode === 'system' 
-                  ? 'Folgt den Systemeinstellungen des Besuchers' 
+                  ? t('admin.customization.followsSystemSettings') 
                   : themeSettings.defaultThemeMode === 'dark' 
-                    ? 'Dunkler Modus für alle neuen Besucher'
-                    : 'Heller Modus für alle neuen Besucher'}
+                    ? t('admin.customization.darkModeForNewVisitors')
+                    : t('admin.customization.lightModeForNewVisitors')}
               </span>
             </div>
           </div>
@@ -6543,15 +6527,15 @@ function CustomizationPanel() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Image className="w-5 h-5 mr-2" />
-            Branding & Logo
+            {t('admin.branding')}
           </CardTitle>
-          <CardDescription>Logo und Markenname für Ihre Instanz</CardDescription>
+          <CardDescription>{t('admin.customization.brandingDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="site-name">Seitenname</Label>
+                <Label htmlFor="site-name">{t('admin.customization.siteName')}</Label>
                 <Input 
                   id="site-name"
                   value={brandingSettings.siteName}
@@ -6561,7 +6545,7 @@ function CustomizationPanel() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="site-name-accent">Akzent-Teil (farbig)</Label>
+                <Label htmlFor="site-name-accent">{t('admin.customization.siteNameAccent')}</Label>
                 <Input 
                   id="site-name-accent"
                   value={brandingSettings.siteNameAccent}
@@ -6569,16 +6553,16 @@ function CustomizationPanel() {
                   placeholder="Poll"
                   data-testid="input-site-name-accent"
                 />
-                <p className="text-xs text-muted-foreground">Dieser Teil wird in der Primärfarbe angezeigt</p>
+                <p className="text-xs text-muted-foreground">{t('admin.customization.primaryColorPart')}</p>
               </div>
               <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">Vorschau:</p>
+                <p className="text-sm text-muted-foreground mb-2">{t('admin.customization.preview')}:</p>
                 <h3 className="text-2xl font-bold">
                   {brandingSettings.siteName}
                   <span style={{ color: themeSettings.primaryColor }}>{brandingSettings.siteNameAccent}</span>
                 </h3>
                 {!brandingSettings.siteName && !brandingSettings.siteNameAccent && (
-                  <p className="text-xs text-muted-foreground mt-1">Standard: Polly</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('admin.customization.defaultPolly')}</p>
                 )}
               </div>
             </div>
@@ -6598,7 +6582,7 @@ function CustomizationPanel() {
                         <Button variant="outline" size="sm" asChild>
                           <span>
                             <Upload className="w-4 h-4 mr-2" />
-                            Ändern
+                            {t('admin.customization.change')}
                           </span>
                         </Button>
                         <input 
@@ -6616,7 +6600,7 @@ function CustomizationPanel() {
                         data-testid="button-remove-logo"
                       >
                         <X className="w-4 h-4 mr-2" />
-                        Entfernen
+                        {t('admin.customization.remove')}
                       </Button>
                     </div>
                   </div>
@@ -6629,9 +6613,9 @@ function CustomizationPanel() {
                         <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
                       )}
                       <p className="text-sm text-muted-foreground">
-                        {isUploading ? 'Wird hochgeladen...' : 'Klicken zum Hochladen'}
+                        {isUploading ? t('admin.customization.uploading') : t('admin.customization.clickToUpload')}
                       </p>
-                      <p className="text-xs text-muted-foreground">PNG, JPG oder SVG (max. 2MB)</p>
+                      <p className="text-xs text-muted-foreground">{t('admin.customization.fileTypes')}</p>
                     </div>
                     <input 
                       type="file" 
@@ -6656,11 +6640,11 @@ function CustomizationPanel() {
             <FileText className="w-5 h-5 mr-2" />
             Footer
           </CardTitle>
-          <CardDescription>Fußzeile mit Beschreibung, Copyright und Links</CardDescription>
+          <CardDescription>{t('admin.customization.footerDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="footer-description">Beschreibungstext</Label>
+            <Label htmlFor="footer-description">{t('admin.customization.descriptionText')}</Label>
             <Textarea 
               id="footer-description"
               value={footerSettings.description}
@@ -6672,19 +6656,19 @@ function CustomizationPanel() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="footer-copyright">Copyright-Text</Label>
+            <Label htmlFor="footer-copyright">{t('admin.customization.copyrightText')}</Label>
             <Input 
               id="footer-copyright"
               value={footerSettings.copyrightText}
               onChange={(e) => setFooterSettings(prev => ({ ...prev, copyrightText: e.target.value }))}
-              placeholder="© 2025 Ihre Organisation"
+              placeholder={t('admin.customization.copyrightPlaceholder')}
               data-testid="input-footer-copyright"
             />
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Support-Links</Label>
+              <Label>{t('admin.customization.supportLinks')}</Label>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -6692,7 +6676,7 @@ function CustomizationPanel() {
                 data-testid="button-add-footer-link"
               >
                 <Plus className="w-4 h-4 mr-1" />
-                Link hinzufügen
+                {t('admin.customization.addLink')}
               </Button>
             </div>
             <div className="space-y-2">
@@ -6724,7 +6708,7 @@ function CustomizationPanel() {
               ))}
               {footerSettings.supportLinks.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Keine Links konfiguriert. Klicken Sie auf "Link hinzufügen" um einen neuen Link zu erstellen.
+                  {t('admin.customization.noLinksConfigured')}
                 </p>
               )}
             </div>
@@ -6737,7 +6721,7 @@ function CustomizationPanel() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Eye className="w-5 h-5 mr-2" />
-            Footer-Vorschau
+            {t('admin.customization.footerPreview')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -6757,11 +6741,11 @@ function CustomizationPanel() {
                 <p className="text-gray-300 text-sm">{footerSettings.description}</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Unterstützung</h4>
+                <h4 className="font-semibold mb-2">{t('admin.customization.support')}</h4>
                 <ul className="space-y-1 text-gray-300 text-sm">
                   {footerSettings.supportLinks.map((link, index) => (
                     <li key={index}>
-                      <a href={link.url || '#'} className="hover:text-white">{link.label || '(Kein Text)'}</a>
+                      <a href={link.url || '#'} className="hover:text-white">{link.label || t('admin.customization.noText')}</a>
                     </li>
                   ))}
                 </ul>
@@ -6845,6 +6829,7 @@ interface PollyTargetInfo {
 }
 
 function PentestToolsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedScan, setSelectedScan] = useState<string | null>(null);
@@ -6873,12 +6858,12 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Token gespeichert", description: "API-Token wurde erfolgreich gespeichert." });
+      toast({ title: t('admin.pentest.tokenSaved'), description: t('admin.pentest.tokenSavedDescription') });
       setTokenInput('');
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/pentest-tools/status'] });
     },
     onError: (error: any) => {
-      toast({ title: "Fehler", description: error.message || "Token konnte nicht gespeichert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: error.message || t('admin.tests.tokenSaveError'), variant: "destructive" });
     },
     onSettled: () => {
       setIsSavingToken(false);
@@ -6887,7 +6872,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
 
   const handleSaveToken = () => {
     if (!tokenInput.trim()) {
-      toast({ title: "Fehler", description: "Bitte geben Sie einen API-Token ein.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.tests.pleaseEnterToken'), variant: "destructive" });
       return;
     }
     setIsSavingToken(true);
@@ -6925,11 +6910,11 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Target synchronisiert", description: "Polly wurde als Scan-Ziel registriert." });
+      toast({ title: t('admin.tests.targetSynced'), description: t('admin.tests.targetSyncedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/pentest-tools/target'] });
     },
     onError: (error: any) => {
-      toast({ title: "Fehler", description: error.message || "Target konnte nicht synchronisiert werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: error.message || t('admin.tests.targetSyncError'), variant: "destructive" });
     },
     onSettled: () => {
       setIsSyncingTarget(false);
@@ -6942,12 +6927,12 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: (data) => {
-      toast({ title: "Scan gestartet", description: `Polly-Scan wurde gestartet (ID: ${data.scan_id})` });
+      toast({ title: t('admin.pentest.scanStarted'), description: t('admin.pentest.scanStartedDescription', { scanId: data.scan_id }) });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/pentest-tools/scans'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/pentest-tools/target'] });
     },
     onError: (error: any) => {
-      toast({ title: "Fehler", description: error.message || "Scan konnte nicht gestartet werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: error.message || t('admin.tests.scanStartError'), variant: "destructive" });
     },
     onSettled: () => {
       setIsStartingScan(false);
@@ -6960,11 +6945,11 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Scan gestoppt", description: "Der Scan wurde abgebrochen." });
+      toast({ title: t('admin.tests.scanStopped'), description: t('admin.tests.scanStoppedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/pentest-tools/scans'] });
     },
     onError: () => {
-      toast({ title: "Fehler", description: "Scan konnte nicht gestoppt werden.", variant: "destructive" });
+      toast({ title: t('errors.generic'), description: t('admin.tests.scanStopError'), variant: "destructive" });
     }
   });
 
@@ -6993,11 +6978,11 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'running': return <Badge className="bg-blue-500">Läuft</Badge>;
-      case 'finished': return <Badge className="bg-green-500">Abgeschlossen</Badge>;
-      case 'stopped': return <Badge className="bg-gray-500">Gestoppt</Badge>;
-      case 'failed': return <Badge className="bg-red-500">Fehlgeschlagen</Badge>;
-      case 'queued': return <Badge className="bg-yellow-500">In Warteschlange</Badge>;
+      case 'running': return <Badge className="bg-blue-500">{t('admin.pentest.status.running')}</Badge>;
+      case 'finished': return <Badge className="bg-green-500">{t('admin.pentest.status.finished')}</Badge>;
+      case 'stopped': return <Badge className="bg-gray-500">{t('admin.pentest.status.stopped')}</Badge>;
+      case 'failed': return <Badge className="bg-red-500">{t('admin.pentest.status.failed')}</Badge>;
+      case 'queued': return <Badge className="bg-yellow-500">{t('admin.pentest.status.queued')}</Badge>;
       default: return <Badge>{status}</Badge>;
     }
   };
@@ -7017,7 +7002,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück
+            {t('admin.pentest.backToSettings')}
           </Button>
         </div>
         <Card className="polly-card">
@@ -7034,9 +7019,9 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-pentest">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Zurück
+          {t('admin.pentest.backToSettings')}
         </Button>
-        <h2 className="text-2xl font-semibold text-foreground">Pentest-Tools.com</h2>
+        <h2 className="text-2xl font-semibold text-foreground">{t('admin.pentest.title')}</h2>
       </div>
 
       {/* Connection Status */}
@@ -7044,7 +7029,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            Verbindungsstatus
+            {t('admin.pentest.connectionStatus')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -7054,7 +7039,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                 <>
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <CheckCircle2 className="w-5 h-5" />
-                    <span className="font-medium">Verbunden</span>
+                    <span className="font-medium">{t('admin.pentest.connected')}</span>
                   </div>
                   {status.account && (
                     <div className="text-sm text-muted-foreground">
@@ -7066,13 +7051,13 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
               ) : (
                 <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                   <XCircle className="w-5 h-5" />
-                  <span className="font-medium">Verbindungsfehler: {status.message}</span>
+                  <span className="font-medium">{t('admin.pentest.connectionError')}: {status.message}</span>
                 </div>
               )
             ) : (
               <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
                 <AlertTriangle className="w-5 h-5" />
-                <span className="font-medium">API Token nicht konfiguriert</span>
+                <span className="font-medium">{t('admin.pentest.apiTokenNotConfigured')}</span>
               </div>
             )}
           </div>
@@ -7082,20 +7067,20 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
             <Alert className="mt-4">
               <Lock className="h-4 w-4" />
               <AlertDescription>
-                Der API-Token ist über eine Umgebungsvariable (<code className="bg-muted px-1 rounded">PENTEST_TOOLS_API_TOKEN</code>) konfiguriert und kann hier nicht geändert werden.
+                {t('admin.pentest.apiTokenEnvNote')}
               </AlertDescription>
             </Alert>
           ) : (
             <div className="mt-4 space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="pentest-api-token">API-Token</Label>
+                <Label htmlFor="pentest-api-token">{t('admin.pentest.apiToken')}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="pentest-api-token"
                     type="password"
                     value={tokenInput}
                     onChange={(e) => setTokenInput(e.target.value)}
-                    placeholder={status?.configured ? "••••••••••••••••" : "Token hier eingeben..."}
+                    placeholder={status?.configured ? "••••••••••••••••" : t('admin.pentest.tokenPlaceholder')}
                     data-testid="input-pentest-token"
                     className="flex-1"
                   />
@@ -7109,11 +7094,11 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                     ) : (
                       <Save className="w-4 h-4 mr-2" />
                     )}
-                    Speichern
+                    {t('common.save')}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Token erstellen: <a href="https://app.pentest-tools.com/account/api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">pentest-tools.com → Account → API</a>
+                  {t('admin.pentest.createToken')}: <a href="https://app.pentest-tools.com/account/api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">pentest-tools.com → Account → API</a>
                 </p>
               </div>
             </div>
@@ -7123,14 +7108,14 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
             <Alert variant="destructive" className="mt-4">
               <XCircle className="h-4 w-4" />
               <AlertDescription className="space-y-2">
-                <p>Mögliche Ursachen:</p>
+                <p>{t('admin.pentest.possibleCauses')}</p>
                 <ul className="list-disc list-inside text-sm space-y-1 ml-2">
-                  <li>Der API-Token ist ungültig oder abgelaufen</li>
-                  <li>Netzwerkprobleme zur Pentest-Tools.com API</li>
-                  <li>Ihr Pentest-Tools Account ist nicht aktiv</li>
+                  <li>{t('admin.pentest.tokenInvalidOrExpired')}</li>
+                  <li>{t('admin.pentest.networkProblems')}</li>
+                  <li>{t('admin.pentest.accountNotActive')}</li>
                 </ul>
                 <p className="text-sm">
-                  Prüfen Sie Ihren Token unter: <a href="https://app.pentest-tools.com/account/api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Account Settings</a>
+                  {t('admin.pentest.checkTokenHint')} <a href="https://app.pentest-tools.com/account/api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Account Settings</a>
                 </p>
               </AlertDescription>
             </Alert>
@@ -7145,14 +7130,14 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="w-5 h-5" />
-                Polly Sicherheitsscan
+                {t('admin.pentest.pollySecurityScan')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-muted/50 rounded-lg border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-muted-foreground">Scan-Ziel</Label>
+                    <Label className="text-sm text-muted-foreground">{t('admin.pentest.scanTarget')}</Label>
                     <div className="flex items-center gap-2 mt-1">
                       {targetInfo?.url ? (
                         <>
@@ -7162,17 +7147,17 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                           {targetInfo.configured && (
                             <Badge className="bg-green-500" data-testid="badge-target-synced">
                               <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Synchronisiert
+                              {t('admin.pentest.synchronized')}
                             </Badge>
                           )}
                         </>
                       ) : (
-                        <span className="text-muted-foreground text-sm">URL wird ermittelt...</span>
+                        <span className="text-muted-foreground text-sm">{t('admin.pentest.urlBeingDetermined')}</span>
                       )}
                     </div>
                     {targetInfo?.lastSynced && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Zuletzt synchronisiert: {formatDate(targetInfo.lastSynced)}
+                        {t('admin.pentest.lastSynced')}: {formatDate(targetInfo.lastSynced)}
                       </p>
                     )}
                   </div>
@@ -7188,7 +7173,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                     ) : (
                       <RefreshCw className="w-4 h-4 mr-2" />
                     )}
-                    Target synchronisieren
+                    {t('admin.pentest.syncTarget')}
                   </Button>
                 </div>
                 {targetInfo?.error && !targetInfo.configured && (
@@ -7200,7 +7185,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="scan-tool">Scan-Tool</Label>
+                  <Label htmlFor="scan-tool">{t('admin.pentest.scanTool')}</Label>
                   <Select value={String(newScanToolId)} onValueChange={(v) => setNewScanToolId(parseInt(v))}>
                     <SelectTrigger data-testid="select-scan-tool">
                       <SelectValue />
@@ -7215,7 +7200,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="scan-type">Scan-Tiefe</Label>
+                  <Label htmlFor="scan-type">{t('admin.pentest.scanDepth')}</Label>
                   <Select value={newScanType} onValueChange={setNewScanType}>
                     <SelectTrigger data-testid="select-scan-type">
                       <SelectValue />
@@ -7242,7 +7227,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                   ) : (
                     <Play className="w-4 h-4 mr-2" />
                   )}
-                  Polly scannen
+                  {t('admin.pentest.scanPolly')}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -7250,7 +7235,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                   data-testid="button-refresh-scans"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Aktualisieren
+                  {t('common.refresh')}
                 </Button>
               </div>
             </CardContent>
@@ -7261,7 +7246,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Search className="w-5 h-5" />
-                Letzte Scans
+                {t('admin.pentest.recentScans')}
               </CardTitle>
               {scansData?.scans && scansData.scans.filter(s => !hiddenScanIds.has(s.id)).length > 0 && (
                 <TooltipProvider>
@@ -7276,8 +7261,8 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                           const allIds = new Set(scansData.scans.map(s => s.id));
                           setHiddenScanIds(allIds);
                           toast({ 
-                            title: "Liste geleert", 
-                            description: "Die Anzeige wurde geleert. Neue Scans werden nach dem Start wieder angezeigt.",
+                            title: t('admin.pentest.listCleared'), 
+                            description: t('admin.pentest.listClearedDescription'),
                           });
                         }}
                         data-testid="button-clear-scans"
@@ -7286,7 +7271,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Liste leeren (nur Anzeige)</p>
+                      <p>{t('admin.pentest.clearListOnly')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -7301,13 +7286,13 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Ziel</TableHead>
-                      <TableHead>Tool</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Fortschritt</TableHead>
-                      <TableHead>Gestartet</TableHead>
-                      <TableHead>Findings</TableHead>
-                      <TableHead>Aktionen</TableHead>
+                      <TableHead>{t('admin.pentest.tableTarget')}</TableHead>
+                      <TableHead>{t('admin.pentest.tableTool')}</TableHead>
+                      <TableHead>{t('admin.pentest.tableStatus')}</TableHead>
+                      <TableHead>{t('admin.pentest.tableProgress')}</TableHead>
+                      <TableHead>{t('admin.pentest.tableStarted')}</TableHead>
+                      <TableHead>{t('admin.pentest.findings')}</TableHead>
+                      <TableHead>{t('admin.pentest.tableActions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -7365,7 +7350,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                                 data-testid={`button-view-findings-${scan.id}`}
                               >
                                 <Eye className="w-4 h-4 mr-1" />
-                                Findings
+                                {t('admin.pentest.findings')}
                               </Button>
                             )}
                             {scan.status === 'running' && (
@@ -7376,7 +7361,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                                 data-testid={`button-stop-scan-${scan.id}`}
                               >
                                 <Square className="w-4 h-4 mr-1" />
-                                Stoppen
+                                {t('common.stop')}
                               </Button>
                             )}
                           </div>
@@ -7388,8 +7373,8 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Noch keine Scans durchgeführt.</p>
-                  <p className="text-sm">Starten Sie Ihren ersten Sicherheitsscan oben.</p>
+                  <p>{t('admin.pentest.noScansYet')}</p>
+                  <p className="text-sm">{t('admin.pentest.startFirstScan')}</p>
                 </div>
               )}
             </CardContent>
@@ -7402,7 +7387,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <ShieldAlert className="w-5 h-5" />
-                    Scan-Ergebnisse
+                    {t('admin.pentest.scanResults')}
                   </DialogTitle>
                 </DialogHeader>
                 
@@ -7429,15 +7414,15 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                         <Label className="text-sm whitespace-nowrap">Filter:</Label>
                         <Select value={severityFilter} onValueChange={setSeverityFilter}>
                           <SelectTrigger className="w-[180px]" data-testid="select-severity-filter">
-                            <SelectValue placeholder="Alle anzeigen" />
+                            <SelectValue placeholder={t('admin.pentest.filterShowAll')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Alle anzeigen</SelectItem>
-                            <SelectItem value="critical">🔴 Nur Critical</SelectItem>
-                            <SelectItem value="high">🟠 Critical + High</SelectItem>
-                            <SelectItem value="medium">🟡 Bis Medium</SelectItem>
-                            <SelectItem value="low">🔵 Bis Low</SelectItem>
-                            <SelectItem value="info">ℹ️ Alle (inkl. Info)</SelectItem>
+                            <SelectItem value="all">{t('admin.pentest.filterShowAll')}</SelectItem>
+                            <SelectItem value="critical">🔴 {t('admin.pentest.filterCriticalOnly')}</SelectItem>
+                            <SelectItem value="high">🟠 {t('admin.pentest.filterCriticalHigh')}</SelectItem>
+                            <SelectItem value="medium">🟡 {t('admin.pentest.filterToMedium')}</SelectItem>
+                            <SelectItem value="low">🔵 {t('admin.pentest.filterToLow')}</SelectItem>
+                            <SelectItem value="info">ℹ️ {t('admin.pentest.filterAllIncInfo')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -7491,7 +7476,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                                     <div className="flex items-start gap-2">
                                       <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                                       <div>
-                                        <strong className="text-green-700 dark:text-green-400">Empfohlene Lösung:</strong>
+                                        <strong className="text-green-700 dark:text-green-400">{t('admin.pentest.recommendedSolution')}</strong>
                                         <p className="mt-1">{finding.solution}</p>
                                       </div>
                                     </div>
@@ -7520,7 +7505,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500" />
-                    <p>Keine Sicherheitsprobleme gefunden!</p>
+                    <p>{t('admin.pentest.noSecurityIssues')}</p>
                   </div>
                 )}
               </DialogContent>
@@ -7560,8 +7545,8 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
     },
     onSuccess: () => {
       toast({
-        title: "Benutzer gelöscht",
-        description: "Der Benutzer und alle zugehörigen Daten wurden gemäß DSGVO Art. 17 gelöscht.",
+        title: t('admin.deletionRequests.userDeleted'),
+        description: t('admin.deletionRequests.userDeletedDescription'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/deletion-requests'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
@@ -7569,8 +7554,8 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Der Benutzer konnte nicht gelöscht werden.",
+        title: t('errors.generic'),
+        description: t('admin.deletionRequests.userDeleteError'),
         variant: "destructive",
       });
     },
@@ -7583,15 +7568,15 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
     },
     onSuccess: () => {
       toast({
-        title: "Löschantrag abgelehnt",
-        description: "Der Löschantrag wurde abgelehnt und der Benutzer wurde benachrichtigt.",
+        title: t('admin.deletionRequests.requestRejected'),
+        description: t('admin.deletionRequests.requestRejectedDescription'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/deletion-requests'] });
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Der Löschantrag konnte nicht abgelehnt werden.",
+        title: t('errors.generic'),
+        description: t('admin.deletionRequests.requestRejectError'),
         variant: "destructive",
       });
     },
@@ -7607,24 +7592,24 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">
               <UserX className="w-5 h-5 text-destructive" />
-              Löschanträge (DSGVO Art. 17)
+              {t('admin.deletionRequests.title')}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Benutzeranträge auf Löschung personenbezogener Daten
+              {t('admin.deletionRequests.description')}
             </p>
           </div>
         </div>
         <Button variant="outline" onClick={() => refetch()} data-testid="button-refresh-deletion-requests">
           <RefreshCw className="w-4 h-4 mr-2" />
-          Aktualisieren
+          {t('common.refresh')}
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Offene Löschanträge</CardTitle>
+          <CardTitle className="text-lg">{t('admin.deletionRequests.openRequests')}</CardTitle>
           <CardDescription>
-            Benutzer, die die Löschung ihres Kontos beantragt haben
+            {t('admin.deletionRequests.openRequestsDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -7635,20 +7620,20 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
           ) : !requests || requests.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500" />
-              <p className="font-medium">Keine offenen Löschanträge</p>
-              <p className="text-sm mt-1">Alle Löschanträge wurden bearbeitet.</p>
+              <p className="font-medium">{t('admin.deletionRequests.noOpenRequests')}</p>
+              <p className="text-sm mt-1">{t('admin.deletionRequests.allProcessed')}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Benutzer</TableHead>
-                  <TableHead>E-Mail</TableHead>
-                  <TableHead>Rolle</TableHead>
-                  <TableHead>Anbieter</TableHead>
-                  <TableHead>Registriert am</TableHead>
-                  <TableHead>Antrag gestellt am</TableHead>
-                  <TableHead className="text-right">Aktionen</TableHead>
+                  <TableHead>{t('admin.deletionRequests.user')}</TableHead>
+                  <TableHead>{t('admin.deletionRequests.email')}</TableHead>
+                  <TableHead>{t('admin.deletionRequests.role')}</TableHead>
+                  <TableHead>{t('admin.deletionRequests.provider')}</TableHead>
+                  <TableHead>{t('admin.deletionRequests.registeredAt')}</TableHead>
+                  <TableHead>{t('admin.deletionRequests.requestedAt')}</TableHead>
+                  <TableHead className="text-right">{t('admin.deletionRequests.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -7663,21 +7648,21 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <Badge variant={user.role === 'admin' ? 'destructive' : user.role === 'manager' ? 'default' : 'secondary'}>
-                        {user.role === 'admin' ? 'Admin' : user.role === 'manager' ? 'Manager' : 'Benutzer'}
+                        {user.role === 'admin' ? 'Admin' : user.role === 'manager' ? 'Manager' : t('admin.deletionRequests.userRole')}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {user.provider === 'local' ? 'Lokal' : user.provider === 'keycloak' ? 'Keycloak' : user.provider}
+                        {user.provider === 'local' ? t('admin.deletionRequests.local') : user.provider === 'keycloak' ? 'Keycloak' : user.provider}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(user.createdAt), 'dd.MM.yyyy', { locale: de })}
+                      {format(new Date(user.createdAt), 'dd.MM.yyyy', { locale: getDateLocale() })}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-amber-500" />
-                        {user.deletionRequestedAt && format(new Date(user.deletionRequestedAt), 'dd.MM.yyyy HH:mm', { locale: de })}
+                        {user.deletionRequestedAt && format(new Date(user.deletionRequestedAt), 'dd.MM.yyyy HH:mm', { locale: getDateLocale() })}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -7690,24 +7675,23 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
                               data-testid={`button-reject-deletion-${user.id}`}
                             >
                               <XCircle className="w-4 h-4 mr-1" />
-                              Ablehnen
+                              {t('admin.deletionRequests.reject')}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Löschantrag ablehnen?</AlertDialogTitle>
+                              <AlertDialogTitle>{t('admin.deletionRequests.rejectTitle')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Sind Sie sicher, dass Sie den Löschantrag von {user.name || user.username} ablehnen möchten?
-                                Der Benutzer kann den Antrag erneut stellen.
+                                {t('admin.deletionRequests.rejectDescription', { name: user.name || user.username })}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => rejectDeletionMutation.mutate(user.id)}
                                 className="bg-amber-600 hover:bg-amber-700"
                               >
-                                Ablehnen
+                                {t('admin.deletionRequests.reject')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -7721,38 +7705,37 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
                               data-testid={`button-confirm-deletion-${user.id}`}
                             >
                               <Trash2 className="w-4 h-4 mr-1" />
-                              Löschen
+                              {t('admin.deletionRequests.delete')}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle className="text-destructive">Benutzer unwiderruflich löschen?</AlertDialogTitle>
+                              <AlertDialogTitle className="text-destructive">{t('admin.deletionRequests.deleteTitle')}</AlertDialogTitle>
                               <AlertDialogDescription asChild>
                                 <div className="space-y-3">
                                   <p>
-                                    Sie sind dabei, den Benutzer <strong>{user.name || user.username}</strong> ({user.email}) 
-                                    gemäß DSGVO Art. 17 zu löschen.
+                                    {t('admin.deletionRequests.deleteDescription', { name: user.name || user.username, email: user.email })}
                                   </p>
                                   <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-                                    <p className="text-sm font-medium text-destructive">Folgende Daten werden unwiderruflich gelöscht:</p>
+                                    <p className="text-sm font-medium text-destructive">{t('admin.deletionRequests.dataDeleted')}</p>
                                     <ul className="mt-2 text-sm list-disc list-inside space-y-1">
-                                      <li>Benutzerkonto und Profildaten</li>
-                                      <li>Alle vom Benutzer erstellten Umfragen</li>
-                                      <li>Alle abgegebenen Stimmen</li>
-                                      <li>Alle zugehörigen Tokens und Sessions</li>
+                                      <li>{t('admin.deletionRequests.dataDeletedItems.account')}</li>
+                                      <li>{t('admin.deletionRequests.dataDeletedItems.polls')}</li>
+                                      <li>{t('admin.deletionRequests.dataDeletedItems.votes')}</li>
+                                      <li>{t('admin.deletionRequests.dataDeletedItems.tokens')}</li>
                                     </ul>
                                   </div>
-                                  <p className="text-sm font-medium">Diese Aktion kann nicht rückgängig gemacht werden!</p>
+                                  <p className="text-sm font-medium">{t('admin.deletionRequests.cannotUndo')}</p>
                                 </div>
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => confirmDeletionMutation.mutate(user.id)}
                                 className="bg-destructive hover:bg-destructive/90"
                               >
-                                Unwiderruflich löschen
+                                {t('admin.deletionRequests.deleteConfirm')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -7771,7 +7754,7 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Shield className="w-5 h-5 text-blue-500" />
-            Hinweise zur DSGVO-Konformität
+            {t('admin.deletionRequests.gdprComplianceNotes')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -7779,37 +7762,37 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
             <div className="p-4 border rounded-lg">
               <h4 className="font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
-                Recht auf Löschung (Art. 17)
+                {t('admin.deletionRequests.rightToErasure')}
               </h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Benutzer haben das Recht, die Löschung ihrer personenbezogenen Daten zu verlangen.
+                {t('admin.deletionRequests.rightToErasureDescription')}
               </p>
             </div>
             <div className="p-4 border rounded-lg">
               <h4 className="font-medium flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-500" />
-                Bearbeitungsfrist
+                {t('admin.deletionRequests.processingDeadline')}
               </h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Löschanträge sollten innerhalb eines Monats bearbeitet werden (Art. 12 Abs. 3 DSGVO).
+                {t('admin.deletionRequests.processingDeadlineDescription')}
               </p>
             </div>
             <div className="p-4 border rounded-lg">
               <h4 className="font-medium flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
-                Ausnahmen beachten
+                {t('admin.deletionRequests.checkExceptions')}
               </h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Prüfen Sie, ob gesetzliche Aufbewahrungspflichten der Löschung entgegenstehen.
+                {t('admin.deletionRequests.checkExceptionsDescription')}
               </p>
             </div>
             <div className="p-4 border rounded-lg">
               <h4 className="font-medium flex items-center gap-2">
                 <FileText className="w-4 h-4 text-blue-500" />
-                Dokumentation
+                {t('admin.deletionRequests.documentation')}
               </h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Löschvorgänge werden im Server-Log protokolliert für Nachweiszwecke.
+                {t('admin.deletionRequests.documentationDescription')}
               </p>
             </div>
           </div>
@@ -7926,11 +7909,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Modus geändert', description: 'Der Test-Modus wurde aktualisiert.' });
+      toast({ title: t('admin.tests.modeChanged'), description: t('admin.tests.modeChangedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/configurations'] });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Modus konnte nicht geändert werden.', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.tests.modeChangeError'), variant: 'destructive' });
     },
   });
 
@@ -7943,7 +7926,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/configurations'] });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Test konnte nicht geändert werden.', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.tests.testChangeError'), variant: 'destructive' });
     },
   });
 
@@ -7953,11 +7936,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: (data) => {
-      toast({ title: 'Tests synchronisiert', description: `${data.count || 0} Tests gefunden.` });
+      toast({ title: t('admin.tests.testsSynced'), description: t('admin.tests.testsSyncedDescription', { count: data.count || 0 }) });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/configurations'] });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Tests konnten nicht synchronisiert werden.', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.tests.testsSyncError'), variant: 'destructive' });
     },
   });
 
@@ -7977,11 +7960,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: (data) => {
-      toast({ title: 'Tests gestartet', description: `Test-Lauf #${data.runId} wurde gestartet.` });
+      toast({ title: t('admin.tests.testsStarted'), description: t('admin.tests.testsStartedDescription', { id: data.runId }) });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/runs'] });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Tests konnten nicht gestartet werden.', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.tests.testsStartError'), variant: 'destructive' });
     },
   });
 
@@ -7991,11 +7974,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Zeitplan gespeichert', description: 'Die Scheduler-Einstellungen wurden aktualisiert.' });
+      toast({ title: t('admin.tests.scheduleSaved'), description: t('admin.tests.scheduleSavedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/schedule'] });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Zeitplan konnte nicht gespeichert werden.', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.tests.scheduleSaveError'), variant: 'destructive' });
     },
   });
 
@@ -8007,15 +7990,15 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
     <div className="space-y-6">
       <Button variant="ghost" size="sm" onClick={onBack} data-testid="button-back-tests">
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Zurück zu Einstellungen
+        {t('admin.tests.backToSettings')}
       </Button>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <FlaskConical className="w-8 h-8 text-polly-orange" />
           <div>
-            <h2 className="text-2xl font-bold">Automatisierte Tests</h2>
-            <p className="text-muted-foreground">Backend-Integrationstests ausführen und überwachen</p>
+            <h2 className="text-2xl font-bold">{t('admin.tests.title')}</h2>
+            <p className="text-muted-foreground">{t('admin.tests.description')}</p>
           </div>
         </div>
         <Button 
@@ -8026,12 +8009,12 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
           {isRunning ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Läuft...
+              {t('admin.tests.runningTests')}
             </>
           ) : (
             <>
               <Play className="w-4 h-4 mr-2" />
-              Tests starten
+              {t('admin.tests.startTests')}
             </>
           )}
         </Button>
@@ -8050,7 +8033,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                 ) : (
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
                 )}
-                Letzter Test-Lauf #{latestRun.id}
+                {t('admin.tests.lastTestRun', { id: latestRun.id })}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -8059,7 +8042,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                   onClick={() => setSelectedRun(latestRun.id)}
                   data-testid="button-view-run-details"
                 >
-                  Details
+                  {t('common.details')}
                 </Button>
                 <Button
                   variant="outline"
@@ -8077,23 +8060,23 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
               <div>
                 <div className="text-2xl font-bold">{latestRun.totalTests}</div>
-                <div className="text-sm text-muted-foreground">Gesamt</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.total')}</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-green-600">{latestRun.passed}</div>
-                <div className="text-sm text-muted-foreground">Bestanden</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.passed')}</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-red-600">{latestRun.failed}</div>
-                <div className="text-sm text-muted-foreground">Fehlgeschlagen</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.failed')}</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-yellow-600">{latestRun.skipped}</div>
-                <div className="text-sm text-muted-foreground">Übersprungen</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.skipped')}</div>
               </div>
               <div>
                 <div className="text-2xl font-bold">{latestRun.duration ? `${(latestRun.duration / 1000).toFixed(1)}s` : '-'}</div>
-                <div className="text-sm text-muted-foreground">Dauer</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.duration')}</div>
               </div>
             </div>
             {latestRun.status === 'running' && (
@@ -8108,17 +8091,17 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Clock className="w-5 h-5" />
-            Test-Historie
+            {t('admin.tests.history')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {runsLoading ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Lade Historie...
+              {t('admin.tests.loadingHistory')}
             </div>
           ) : runs.length === 0 ? (
-            <p className="text-muted-foreground">Noch keine Tests durchgeführt.</p>
+            <p className="text-muted-foreground">{t('admin.tests.noTestsRun')}</p>
           ) : (
             <div className="space-y-2">
               {runs.slice(0, historyLimit).map((run) => (
@@ -8139,7 +8122,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                     <div>
                       <span className="font-medium">#{run.id}</span>
                       <span className="text-sm text-muted-foreground ml-2">
-                        {run.triggeredBy === 'manual' ? 'Manuell' : 'Geplant'}
+                        {run.triggeredBy === 'manual' ? t('admin.tests.manual') : t('admin.tests.scheduled')}
                       </span>
                     </div>
                   </div>
@@ -8147,7 +8130,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                     <span className="text-green-600">{run.passed} ✓</span>
                     <span className="text-red-600">{run.failed} ✗</span>
                     <span className="text-muted-foreground">
-                      {run.startedAt ? formatDistanceToNow(new Date(run.startedAt), { addSuffix: true, locale: de }) : '-'}
+                      {run.startedAt ? formatDistanceToNow(new Date(run.startedAt), { addSuffix: true, locale: getDateLocale() }) : '-'}
                     </span>
                   </div>
                 </div>
@@ -8161,7 +8144,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                   data-testid="button-load-more-history"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Ältere Ergebnisse laden ({runs.length - historyLimit} weitere)
+                  {t('admin.tests.loadOlderResults', { count: runs.length - historyLimit })}
                 </Button>
               )}
             </div>
@@ -8177,10 +8160,10 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Layers className="w-5 h-5" />
-            Test-Modus
+            {t('admin.tests.testMode')}
           </CardTitle>
           <CardDescription>
-            Wählen Sie, ob alle Tests automatisch oder nur ausgewählte Tests ausgeführt werden sollen.
+            {t('admin.tests.testModeDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -8195,16 +8178,16 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                 <RadioGroupItem value="auto" id="mode-auto" data-testid="radio-mode-auto" />
                 <Label htmlFor="mode-auto" className="flex items-center gap-2 cursor-pointer">
                   <ToggleRight className="w-4 h-4 text-green-500" />
-                  <span>Automatisch</span>
-                  <span className="text-sm text-muted-foreground">(alle Tests)</span>
+                  <span>{t('admin.tests.automatic')}</span>
+                  <span className="text-sm text-muted-foreground">{t('admin.tests.allTests')}</span>
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="manual" id="mode-manual" data-testid="radio-mode-manual" />
                 <Label htmlFor="mode-manual" className="flex items-center gap-2 cursor-pointer">
                   <ToggleLeft className="w-4 h-4 text-orange-500" />
-                  <span>Manuell</span>
-                  <span className="text-sm text-muted-foreground">(ausgewählte Tests)</span>
+                  <span>{t('admin.tests.manual')}</span>
+                  <span className="text-sm text-muted-foreground">{t('admin.tests.selectedTests')}</span>
                 </Label>
               </div>
             </RadioGroup>
@@ -8231,18 +8214,18 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <ClipboardList className="w-5 h-5" />
-            Test-Konfiguration
+            {t('admin.tests.testConfiguration')}
           </CardTitle>
           <CardDescription>
             {isAutoMode ? (
               <span className="flex items-center gap-1 text-green-600">
                 <CheckCircle2 className="w-4 h-4" />
-                Automatischer Modus: Alle Tests werden ausgeführt
+                {t('admin.tests.automaticModeNote')}
               </span>
             ) : (
               <span className="flex items-center gap-1 text-orange-600">
                 <AlertCircle className="w-4 h-4" />
-                Manueller Modus: Nur aktivierte Tests werden ausgeführt
+                {t('admin.tests.manualModeNote')}
               </span>
             )}
           </CardDescription>
@@ -8251,7 +8234,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
           {configsLoading ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Lade Test-Konfiguration...
+              {t('admin.tests.loadingTestConfig')}
             </div>
           ) : testConfigs?.tests ? (
             <Accordion type="multiple" defaultValue={[]} className="w-full">
@@ -8281,7 +8264,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                     <AccordionContent>
                       {tests.length === 0 ? (
                         <div className="py-4 text-center text-muted-foreground">
-                          Keine Tests in dieser Kategorie gefunden.
+                          {t('admin.tests.noTestsInCategory')}
                         </div>
                       ) : (
                         <div className="space-y-2 py-2">
@@ -8337,7 +8320,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <FlaskConical className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Keine Tests gefunden. Klicken Sie auf "Synchronisieren" um Tests zu scannen.</p>
+              <p>{t('admin.tests.noTestsFoundClickSync')}</p>
             </div>
           )}
         </CardContent>
@@ -8348,7 +8331,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <CalendarClock className="w-5 h-5" />
-            Automatische Ausführung
+            {t('admin.tests.automaticExecution')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -8359,13 +8342,13 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
               onCheckedChange={(checked) => setScheduleForm(prev => ({ ...prev, enabled: checked }))}
               data-testid="switch-schedule-enabled"
             />
-            <Label htmlFor="schedule-enabled">Automatische Tests aktivieren</Label>
+            <Label htmlFor="schedule-enabled">{t('admin.tests.enableAutomaticTests')}</Label>
           </div>
           
           {scheduleForm.enabled && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="interval-days">Intervall (Tage)</Label>
+                <Label htmlFor="interval-days">{t('admin.tests.intervalDays')}</Label>
                 <Input
                   id="interval-days"
                   type="number"
@@ -8377,7 +8360,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                 />
               </div>
               <div>
-                <Label htmlFor="run-time">Uhrzeit</Label>
+                <Label htmlFor="run-time">{t('admin.tests.runTime')}</Label>
                 <Input
                   id="run-time"
                   type="time"
@@ -8387,7 +8370,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                 />
               </div>
               <div className="col-span-2">
-                <Label htmlFor="notify-email">Benachrichtigungs-E-Mail</Label>
+                <Label htmlFor="notify-email">{t('admin.tests.notificationEmail')}</Label>
                 <Input
                   id="notify-email"
                   type="email"
@@ -8410,7 +8393,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
-            Speichern
+            {t('common.save')}
           </Button>
         </CardContent>
       </Card>
@@ -8421,7 +8404,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FlaskConical className="w-5 h-5" />
-              Test-Lauf #{selectedRun} - Details
+              {t('admin.tests.testRunDetailsTitle', { id: selectedRun })}
             </DialogTitle>
           </DialogHeader>
           {runDetails ? (
@@ -8435,11 +8418,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                       : 'bg-muted hover:bg-muted/80'
                   }`}
                   aria-pressed={resultStatusFilter === 'all'}
-                  aria-label="Alle Tests anzeigen"
+                  aria-label={t('admin.tests.showAllTests')}
                   data-testid="filter-all"
                 >
                   <div className="text-xl font-bold">{runDetails.totalTests}</div>
-                  <div className="text-sm text-muted-foreground">Gesamt</div>
+                  <div className="text-sm text-muted-foreground">{t('admin.tests.total')}</div>
                 </button>
                 <button
                   onClick={() => setResultStatusFilter('passed')}
@@ -8449,11 +8432,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                       : 'bg-green-100 dark:bg-green-950 hover:bg-green-200 dark:hover:bg-green-900'
                   }`}
                   aria-pressed={resultStatusFilter === 'passed'}
-                  aria-label="Nur bestandene Tests anzeigen"
+                  aria-label={t('admin.tests.showPassedOnly')}
                   data-testid="filter-passed"
                 >
                   <div className="text-xl font-bold text-green-600">{runDetails.passed}</div>
-                  <div className="text-sm text-muted-foreground">Bestanden</div>
+                  <div className="text-sm text-muted-foreground">{t('admin.tests.passed')}</div>
                 </button>
                 <button
                   onClick={() => setResultStatusFilter('failed')}
@@ -8463,11 +8446,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                       : 'bg-red-100 dark:bg-red-950 hover:bg-red-200 dark:hover:bg-red-900'
                   }`}
                   aria-pressed={resultStatusFilter === 'failed'}
-                  aria-label="Nur fehlgeschlagene Tests anzeigen"
+                  aria-label={t('admin.tests.showFailedOnly')}
                   data-testid="filter-failed"
                 >
                   <div className="text-xl font-bold text-red-600">{runDetails.failed}</div>
-                  <div className="text-sm text-muted-foreground">Fehlgeschlagen</div>
+                  <div className="text-sm text-muted-foreground">{t('admin.tests.failed')}</div>
                 </button>
                 <button
                   onClick={() => setResultStatusFilter('skipped')}
@@ -8477,11 +8460,11 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                       : 'bg-yellow-100 dark:bg-yellow-950 hover:bg-yellow-200 dark:hover:bg-yellow-900'
                   }`}
                   aria-pressed={resultStatusFilter === 'skipped'}
-                  aria-label="Nur übersprungene Tests anzeigen"
+                  aria-label={t('admin.tests.showSkippedOnly')}
                   data-testid="filter-skipped"
                 >
                   <div className="text-xl font-bold text-yellow-600">{runDetails.skipped}</div>
-                  <div className="text-sm text-muted-foreground">Übersprungen</div>
+                  <div className="text-sm text-muted-foreground">{t('admin.tests.skipped')}</div>
                 </button>
               </div>
               
@@ -8555,8 +8538,8 @@ function TestDataManagementSection() {
     },
     onSuccess: (data) => {
       toast({ 
-        title: 'Testdaten gelöscht', 
-        description: `${data.deletedPolls || 0} Umfragen, ${data.deletedUsers || 0} Benutzer entfernt.` 
+        title: t('admin.tests.testDataDeleted'), 
+        description: t('admin.tests.testDataDeletedDescription', { polls: data.deletedPolls || 0, users: data.deletedUsers || 0 }) 
       });
       refetchStats();
       setShowPurgeConfirm(false);
@@ -8564,7 +8547,7 @@ function TestDataManagementSection() {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
     },
     onError: () => {
-      toast({ title: 'Fehler', description: 'Testdaten konnten nicht gelöscht werden.', variant: 'destructive' });
+      toast({ title: t('errors.generic'), description: t('admin.tests.testDataDeleteError'), variant: 'destructive' });
     },
   });
 
@@ -8575,36 +8558,36 @@ function TestDataManagementSection() {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <DatabaseIcon className="w-5 h-5" />
-          Testdaten-Verwaltung
+          {t('admin.tests.testDataManagement')}
         </CardTitle>
         <CardDescription>
-          Testdaten werden während der Testläufe erstellt und sind von den Dashboard-Statistiken ausgeschlossen.
+          {t('admin.tests.testDataDescription')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {statsLoading ? (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Lade Testdaten-Statistiken...
+            {t('admin.tests.loadingTestDataStats')}
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div className="p-4 rounded-lg bg-muted/50">
                 <div className="text-2xl font-bold text-blue-600">{testDataStats?.testPolls || 0}</div>
-                <div className="text-sm text-muted-foreground">Test-Umfragen</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.testPolls')}</div>
               </div>
               <div className="p-4 rounded-lg bg-muted/50">
                 <div className="text-2xl font-bold text-blue-600">{testDataStats?.testOptions || 0}</div>
-                <div className="text-sm text-muted-foreground">Test-Optionen</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.testOptions')}</div>
               </div>
               <div className="p-4 rounded-lg bg-muted/50">
                 <div className="text-2xl font-bold text-blue-600">{testDataStats?.testVotes || 0}</div>
-                <div className="text-sm text-muted-foreground">Test-Stimmen</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.testVotes')}</div>
               </div>
               <div className="p-4 rounded-lg bg-muted/50">
                 <div className="text-2xl font-bold text-blue-600">{testDataStats?.testUsers || 0}</div>
-                <div className="text-sm text-muted-foreground">Test-Benutzer</div>
+                <div className="text-sm text-muted-foreground">{t('admin.tests.testUsers')}</div>
               </div>
             </div>
             
@@ -8613,12 +8596,12 @@ function TestDataManagementSection() {
                 {totalTestItems === 0 ? (
                   <span className="flex items-center gap-1 text-green-600">
                     <CheckCircle2 className="w-4 h-4" />
-                    Keine Testdaten vorhanden
+                    {t('admin.tests.noTestDataPresent')}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
-                    {totalTestItems} Testdaten-Einträge gefunden
+                    {t('admin.tests.testDataFound', { count: totalTestItems })}
                   </span>
                 )}
               </div>
@@ -8630,7 +8613,7 @@ function TestDataManagementSection() {
                   data-testid="button-refresh-test-stats"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Aktualisieren
+                  {t('common.refresh')}
                 </Button>
                 <AlertDialog open={showPurgeConfirm} onOpenChange={setShowPurgeConfirm}>
                   <AlertDialogTrigger asChild>
@@ -8645,31 +8628,31 @@ function TestDataManagementSection() {
                       ) : (
                         <Trash2 className="w-4 h-4 mr-2" />
                       )}
-                      Testdaten löschen
+                      {t('admin.tests.deleteTestData')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Testdaten löschen?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('admin.tests.deleteTestDataTitle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Diese Aktion löscht alle Testdaten aus der Datenbank:
+                        {t('admin.tests.deleteTestDataWarning')}
                         <ul className="mt-2 list-disc list-inside">
-                          <li>{testDataStats?.testPolls || 0} Test-Umfragen</li>
-                          <li>{testDataStats?.testOptions || 0} Test-Optionen</li>
-                          <li>{testDataStats?.testVotes || 0} Test-Stimmen</li>
-                          <li>{testDataStats?.testUsers || 0} Test-Benutzer</li>
+                          <li>{testDataStats?.testPolls || 0} {t('admin.tests.testPolls')}</li>
+                          <li>{testDataStats?.testOptions || 0} {t('admin.tests.testOptions')}</li>
+                          <li>{testDataStats?.testVotes || 0} {t('admin.tests.testVotes')}</li>
+                          <li>{testDataStats?.testUsers || 0} {t('admin.tests.testUsers')}</li>
                         </ul>
-                        Diese Aktion kann nicht rückgängig gemacht werden.
+                        {t('admin.tests.deleteTestDataPermanent')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel data-testid="button-cancel-purge">Abbrechen</AlertDialogCancel>
+                      <AlertDialogCancel data-testid="button-cancel-purge">{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => purgeTestDataMutation.mutate()}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         data-testid="button-confirm-purge"
                       >
-                        Löschen
+                        {t('admin.tests.delete')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

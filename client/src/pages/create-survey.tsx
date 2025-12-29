@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +38,7 @@ interface SurveyFormData {
 export default function CreateSurvey() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { user, isAuthenticated } = useAuth();
   
   const [title, setTitle] = useState("");
@@ -54,12 +56,10 @@ export default function CreateSurvey() {
     { text: "", order: 1 },
   ]);
 
-  // Form persistence for authentication redirects
   const formPersistence = useFormPersistence<SurveyFormData>({ key: 'create-survey' });
   const hasRestoredRef = useRef(false);
   const autoSubmitTriggeredRef = useRef(false);
 
-  // Restore form data on mount if returning from login
   useEffect(() => {
     if (hasRestoredRef.current) return;
     
@@ -82,14 +82,13 @@ export default function CreateSurvey() {
       
       if (stored.pendingSubmit) {
         toast({
-          title: "Willkommen zurück!",
-          description: "Ihre Eingaben wurden wiederhergestellt. Sie können die Umfrage jetzt absenden.",
+          title: t('pollCreation.welcomeBack'),
+          description: t('pollCreation.formRestored'),
         });
       }
     }
   }, []);
 
-  // Auto-submit after restoration if user is now authenticated
   useEffect(() => {
     if (autoSubmitTriggeredRef.current) return;
     if (!hasRestoredRef.current) return;
@@ -100,13 +99,12 @@ export default function CreateSurvey() {
     if (stored?.pendingSubmit && stored.data && title && validOptions.length >= 2) {
       autoSubmitTriggeredRef.current = true;
       
-      // Capture stored expiresAt before clearing
       const storedExpiresAt = stored.data.expiresAt;
       formPersistence.clearStoredData();
       
       toast({
-        title: "Automatisches Absenden...",
-        description: "Ihre Umfrage wird jetzt erstellt.",
+        title: t('pollCreation.autoSubmitting'),
+        description: t('createSurvey.autoSubmitDescription'),
       });
       
       setTimeout(() => {
@@ -136,10 +134,8 @@ export default function CreateSurvey() {
       return response.json();
     },
     onSuccess: (data) => {
-      // Clear any stored form data on success
       formPersistence.clearStoredData();
       
-      // Store poll data for success page
       const successData = {
         poll: data.poll,
         publicLink: `/poll/${data.publicToken}`,
@@ -148,12 +144,10 @@ export default function CreateSurvey() {
       };
       sessionStorage.setItem('poll-success-data', JSON.stringify(successData));
       
-      // Redirect to success page
       setLocation("/success");
     },
     onError: async (error: any) => {
-      // Check if it's a REQUIRES_LOGIN error
-      let errorMessage = "Die Umfrage konnte nicht erstellt werden.";
+      let errorMessage = t('createSurvey.createError');
       let requiresLogin = false;
       
       if (error?.message) {
@@ -167,21 +161,19 @@ export default function CreateSurvey() {
       }
       
       toast({
-        title: requiresLogin ? "Anmeldung erforderlich" : "Fehler",
+        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
         description: requiresLogin 
-          ? "Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an. Ihre Eingaben werden gespeichert."
+          ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
         variant: "destructive",
       });
       
       if (requiresLogin) {
-        // Save form data before redirect
         formPersistence.saveBeforeRedirect(
           { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-survey'
         );
         
-        // Redirect to login page with email pre-filled
         setTimeout(() => {
           const emailParam = creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : '';
           setLocation(`/anmelden?returnTo=/create-survey${emailParam}`);
@@ -230,8 +222,8 @@ export default function CreateSurvey() {
     
     if (!title.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie einen Titel ein.",
+        title: t('pollCreation.error'),
+        description: t('pollCreation.pleaseEnterTitle'),
         variant: "destructive",
       });
       return;
@@ -240,8 +232,8 @@ export default function CreateSurvey() {
     const validOptions = options.filter(opt => opt.text.trim());
     if (validOptions.length < 2) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie mindestens 2 Optionen ein.",
+        title: t('pollCreation.error'),
+        description: t('createSurvey.minOptionsError'),
         variant: "destructive",
       });
       return;
@@ -249,8 +241,8 @@ export default function CreateSurvey() {
 
     if (!isAuthenticated && !creatorEmail.trim()) {
       toast({
-        title: "Fehler",
-        description: "Bitte geben Sie eine E-Mail-Adresse ein.",
+        title: t('pollCreation.error'),
+        description: t('pollCreation.pleaseEnterEmail'),
         variant: "destructive",
       });
       return;
@@ -295,31 +287,30 @@ export default function CreateSurvey() {
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Zurück
+          {t('pollCreation.back')}
         </Button>
-        <h1 className="text-3xl font-bold text-foreground">Umfrage erstellen</h1>
+        <h1 className="text-3xl font-bold text-foreground">{t('createSurvey.pageTitle')}</h1>
         <p className="text-muted-foreground mt-2">
-          Sammeln Sie Meinungen und treffen Sie gemeinsam Entscheidungen.
+          {t('createSurvey.pageSubtitle')}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Information */}
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Vote className="w-5 h-5 mr-2 text-polly-orange" />
-              Grundinformationen
+              {t('pollCreation.basicInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="title">Titel der Umfrage *</Label>
+              <Label htmlFor="title">{t('createSurvey.titleLabel')}</Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="z.B. Sommerfest-Planung 2025"
+                placeholder={t('createSurvey.titlePlaceholder')}
                 className="mt-1"
                 required
                 data-testid="input-title"
@@ -327,12 +318,12 @@ export default function CreateSurvey() {
             </div>
             
             <div>
-              <Label htmlFor="description">Beschreibung (optional)</Label>
+              <Label htmlFor="description">{t('pollCreation.descriptionOptional')}</Label>
               <Textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Welche Aktivitäten sollen wir beim Sommerfest anbieten?"
+                placeholder={t('createSurvey.descriptionPlaceholder')}
                 className="mt-1"
                 rows={3}
                 data-testid="input-description"
@@ -340,22 +331,21 @@ export default function CreateSurvey() {
             </div>
 
             <div>
-              <Label>Laufzeit / Enddatum (optional)</Label>
+              <Label>{t('pollCreation.expiryDateOptional')}</Label>
               <div className="mt-1">
                 <DatePicker
                   date={expiresAt}
                   onDateChange={setExpiresAt}
-                  placeholder="tt.mm.jjjj"
+                  placeholder={t('pollCreation.datePlaceholder')}
                   minDate={new Date()}
                   data-testid="input-expires-at"
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Nach diesem Datum kann nicht mehr abgestimmt werden.
+                {t('pollCreation.expiryHint')}
               </p>
             </div>
 
-            {/* Expiry Reminder Option - only shown when expiry date is set */}
             {expiresAt && (() => {
               const hoursUntilExpiry = Math.max(0, (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60));
               const isTooShort = hoursUntilExpiry < 6;
@@ -367,12 +357,12 @@ export default function CreateSurvey() {
                     <div className="space-y-0.5">
                       <Label className="flex items-center gap-2">
                         <Bell className="w-4 h-4" />
-                        Erinnerung vor Ablauf
+                        {t('pollCreation.expiryReminder')}
                       </Label>
                       <p className="text-sm text-muted-foreground">
                         {isTooShort 
-                          ? `Die Umfrage endet in ${hoursUntilExpiry.toFixed(0)} Stunden - zu kurz für Erinnerungen`
-                          : "Teilnehmer erhalten eine E-Mail-Erinnerung vor dem Ablaufdatum"
+                          ? t('pollCreation.expiryTooShort', { hours: hoursUntilExpiry.toFixed(0) })
+                          : t('pollCreation.expiryReminderDescription')
                         }
                       </p>
                     </div>
@@ -387,7 +377,7 @@ export default function CreateSurvey() {
                   {enableExpiryReminder && !isTooShort && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <Label htmlFor="reminderHours" className="shrink-0">Erinnerung senden</Label>
+                        <Label htmlFor="reminderHours" className="shrink-0">{t('pollCreation.sendReminder')}</Label>
                         <Input
                           id="reminderHours"
                           type="number"
@@ -398,11 +388,11 @@ export default function CreateSurvey() {
                           className="w-20"
                           data-testid="input-reminder-hours"
                         />
-                        <span className="text-sm text-muted-foreground">Stunden vor Ablauf</span>
+                        <span className="text-sm text-muted-foreground">{t('pollCreation.hoursBeforeExpiry')}</span>
                       </div>
                       {expiryReminderHours > maxReminderHours && (
                         <p className="text-xs text-amber-600 dark:text-amber-400">
-                          Maximum für diese Umfrage: {maxReminderHours} Stunden
+                          {t('pollCreation.maxReminderHours', { hours: maxReminderHours })}
                         </p>
                       )}
                     </div>
@@ -413,9 +403,9 @@ export default function CreateSurvey() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Stimmen ändern erlauben</Label>
+                <Label>{t('pollCreation.allowVoteEdit')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende ihre Abstimmung nachträglich ändern?
+                  {t('pollCreation.allowVoteEditDescription')}
                 </p>
               </div>
               <Switch
@@ -427,9 +417,9 @@ export default function CreateSurvey() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Stimmen zurückziehen erlauben</Label>
+                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende ihre Abstimmung komplett zurückziehen?
+                  {t('pollCreation.allowVoteWithdrawalDescription')}
                 </p>
               </div>
               <Switch
@@ -441,9 +431,9 @@ export default function CreateSurvey() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>Ergebnisse öffentlich</Label>
+                <Label>{t('pollCreation.resultsPublic')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Dürfen Teilnehmende die Ergebnisse einsehen?
+                  {t('pollCreation.resultsPublicDescription')}
                 </p>
               </div>
               <Switch
@@ -455,9 +445,9 @@ export default function CreateSurvey() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-0.5">
-                <Label>"Vielleicht"-Option anbieten</Label>
+                <Label>{t('createSurvey.allowMaybe')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Können Teilnehmende mit "Vielleicht" antworten?
+                  {t('createSurvey.allowMaybeDescription')}
                 </p>
               </div>
               <Switch
@@ -469,13 +459,12 @@ export default function CreateSurvey() {
           </CardContent>
         </Card>
 
-        {/* Survey Options */}
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center">
                 <Vote className="w-5 h-5 mr-2 text-polly-blue" />
-                Auswahlmöglichkeiten
+                {t('createSurvey.choices')}
               </span>
               <Button
                 type="button"
@@ -485,14 +474,14 @@ export default function CreateSurvey() {
                 data-testid="button-add-option"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Option hinzufügen
+                {t('createSurvey.addOption')}
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Fügen Sie mindestens 2 Optionen hinzu, zwischen denen die Teilnehmer wählen können.
+                {t('createSurvey.optionsHint')}
               </p>
               
               {options.map((option, index) => (
@@ -504,7 +493,7 @@ export default function CreateSurvey() {
                     <Input
                       value={option.text}
                       onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder={`Option ${index + 1}`}
+                      placeholder={t('createSurvey.optionPlaceholder', { number: index + 1 })}
                       className="flex-1"
                       data-testid={`input-option-${index}`}
                     />
@@ -522,7 +511,7 @@ export default function CreateSurvey() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <span className="text-sm text-muted-foreground">Bild hinzufügen (optional):</span>
+                    <span className="text-sm text-muted-foreground">{t('createSurvey.addImage')}</span>
                     <ImageUpload
                       onImageUploaded={(imageUrl) => updateOptionImage(index, imageUrl)}
                       onImageRemoved={() => removeOptionImage(index)}
@@ -536,20 +525,19 @@ export default function CreateSurvey() {
             </div>
             
             <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">💡 Tipp</h4>
+              <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">{t('createSurvey.tipTitle')}</h4>
               <p className="text-sm text-blue-800 dark:text-blue-300">
-                Verwenden Sie Bilder, um Ihre Optionen visuell ansprechender zu gestalten. Bilder helfen den Teilnehmern bei der Entscheidung.
+                {t('createSurvey.tipContent')}
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Creation Options */}
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Mail className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />
-              Erstellungsoptionen
+              {t('pollCreation.creationOptions')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -559,23 +547,23 @@ export default function CreateSurvey() {
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="font-medium text-green-800 dark:text-green-200">
-                      Angemeldet als {user?.name || user?.username}
+                      {t('pollCreation.loggedInAs', { name: user?.name || user?.username })}
                     </p>
                     <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                      Sie erhalten alle Links an: <strong>{user?.email}</strong>
+                      {t('pollCreation.linksWillBeSentTo')} <strong>{user?.email}</strong>
                     </p>
                     <div className="mt-3 space-y-2 text-sm text-green-700 dark:text-green-300">
                       <div className="flex items-center gap-2">
                         <LinkIcon className="w-4 h-4" />
-                        <span>Teilnahme-Link zum Teilen</span>
+                        <span>{t('pollCreation.participationLink')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Info className="w-4 h-4" />
-                        <span>Privater Administrations-Link (nur für Sie)</span>
+                        <span>{t('pollCreation.privateAdminLink')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <QrCode className="w-4 h-4" />
-                        <span>QR-Code zum einfachen Teilen</span>
+                        <span>{t('pollCreation.qrCodeShare')}</span>
                       </div>
                     </div>
                   </div>
@@ -587,16 +575,16 @@ export default function CreateSurvey() {
                   <Mail className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="font-medium text-amber-800 dark:text-amber-200">
-                      E-Mail-Adresse für Benachrichtigungen
+                      {t('pollCreation.emailForNotifications')}
                     </p>
                     <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                      Sie erhalten per E-Mail einen Teilnahme-Link, einen Administrations-Link und einen QR-Code.
+                      {t('pollCreation.emailNotificationDescription')}
                     </p>
                     <Input
                       type="email"
                       value={creatorEmail}
                       onChange={(e) => setCreatorEmail(e.target.value)}
-                      placeholder="ihre.email@polly-bayern.de"
+                      placeholder={t('pollCreation.emailPlaceholder')}
                       className="mt-3"
                       required
                       data-testid="input-creator-email"
@@ -608,7 +596,6 @@ export default function CreateSurvey() {
           </CardContent>
         </Card>
 
-        {/* Submit */}
         <div className="flex justify-end space-x-4">
           <Button
             type="button"
@@ -616,7 +603,7 @@ export default function CreateSurvey() {
             onClick={() => setLocation("/")}
             data-testid="button-cancel"
           >
-            Abbrechen
+            {t('pollCreation.cancel')}
           </Button>
           <Button
             type="submit"
@@ -624,7 +611,7 @@ export default function CreateSurvey() {
             disabled={createSurveyMutation.isPending}
             data-testid="button-submit"
           >
-            {createSurveyMutation.isPending ? "Erstelle..." : "Umfrage erstellen"}
+            {createSurveyMutation.isPending ? t('pollCreation.creating') : t('createSurvey.submitButton')}
           </Button>
         </div>
       </form>

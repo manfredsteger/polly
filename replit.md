@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language (German).
 - **Authentication**: Anonymous token-based, local email/password, and optional Keycloak OIDC with role-based access.
 - **Data Export**: CSV and PDF export of results, including QR code sharing for polls.
 - **Customization**: Admin panel for branding (theme, logo, site name) and dark mode settings.
+- **Multi-Language Support**: German (de) and English (en) with automatic browser detection and per-user preference storage.
 - **API Versioning**: `/api/v1/` endpoints with redirects from legacy paths.
 - **Notification System**: Configurable email reminders (expiry, manual), with spam protection and rate limiting.
 - **Profile Security**: Secure password reset, email change, and GDPR-compliant account deletion request flow.
@@ -32,6 +33,15 @@ Preferred communication style: Simple, everyday language (German).
 - **Timezone Handling**: Schedule poll times stored in UTC, frontend displays and converts to local time.
 - **PDF Export**: Utilizes Puppeteer (Headless Chrome) for high-quality HTML/CSS-based PDF generation.
 - **Email Templates**: JSON-based, customizable templates with variable substitution and admin preview/test functionality.
+- **Internationalization (i18n)**:
+    -   **Library**: react-i18next with i18next-browser-languagedetector
+    -   **Languages**: German (de) - default, English (en)
+    -   **Translation Files**: `client/src/locales/de.json`, `client/src/locales/en.json`
+    -   **Configuration**: `client/src/lib/i18n.ts`
+    -   **Language Switcher**: Globe icon in navigation bar
+    -   **User Preference**: Stored in database (`users.language_preference`), synced with localStorage
+    -   **API Endpoint**: `PATCH /api/v1/users/me/language` for updating preference
+    -   **Detection Order**: localStorage → browser navigator → fallback to German
 - **Security Scanning**:
     -   **ClamAV**: On-the-fly virus scanning of file uploads using `multer.memoryStorage`.
     -   **npm Audit**: Local scanning for dependency vulnerabilities with severity and impact labels.

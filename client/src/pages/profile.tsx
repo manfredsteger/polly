@@ -13,6 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, User, Mail, Building, Shield, Moon, Sun, Monitor, Calendar, Save, Key, ExternalLink, AlertCircle, Trash2, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { ThemePreference } from "@shared/schema";
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -41,23 +42,21 @@ export default function Profile() {
   const { user, isLoading: authLoading } = useAuth();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
   const [selectedTheme, setSelectedTheme] = useState<ThemePreference>("system");
 
-  // Password change state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Email change state
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
 
-  // Account deletion state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery<UserProfile>({
@@ -65,7 +64,6 @@ export default function Profile() {
     enabled: !!user,
   });
 
-  // Get Keycloak account URL for OIDC users
   const { data: authMethods } = useQuery<{ local: boolean; keycloak: boolean; keycloakAccountUrl?: string }>({
     queryKey: ['/api/v1/auth/methods'],
   });
@@ -85,25 +83,24 @@ export default function Profile() {
     },
     onSuccess: () => {
       toast({
-        title: "Profil aktualisiert",
-        description: "Ihre Änderungen wurden gespeichert.",
+        title: t('profile.profileUpdated'),
+        description: t('profile.profileUpdatedDescription'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Profil konnte nicht aktualisiert werden.",
+        title: t('common.error'),
+        description: t('profile.profileUpdateError'),
         variant: "destructive",
       });
     },
   });
 
   const parseErrorMessage = (error: any): string => {
-    if (!error?.message) return "Ein unbekannter Fehler ist aufgetreten.";
+    if (!error?.message) return t('profile.unknownError');
     const msg = error.message;
-    // Parse error format "400: {json}" or just use message directly
     const colonIndex = msg.indexOf(': ');
     if (colonIndex > -1) {
       const jsonPart = msg.substring(colonIndex + 2);
@@ -124,8 +121,8 @@ export default function Profile() {
     },
     onSuccess: () => {
       toast({
-        title: "Passwort geändert",
-        description: "Ihr Passwort wurde erfolgreich geändert.",
+        title: t('profile.passwordChanged'),
+        description: t('profile.passwordChangedDescription'),
       });
       setPasswordDialogOpen(false);
       setCurrentPassword("");
@@ -134,7 +131,7 @@ export default function Profile() {
     },
     onError: (error: any) => {
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: parseErrorMessage(error),
         variant: "destructive",
       });
@@ -148,8 +145,8 @@ export default function Profile() {
     },
     onSuccess: () => {
       toast({
-        title: "Bestätigungslink gesendet",
-        description: "Bitte überprüfen Sie Ihre neue E-Mail-Adresse für den Bestätigungslink.",
+        title: t('profile.confirmationLinkSent'),
+        description: t('profile.confirmationLinkDescription'),
       });
       setEmailDialogOpen(false);
       setNewEmail("");
@@ -157,7 +154,7 @@ export default function Profile() {
     },
     onError: (error: any) => {
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: parseErrorMessage(error),
         variant: "destructive",
       });
@@ -171,15 +168,15 @@ export default function Profile() {
     },
     onSuccess: () => {
       toast({
-        title: "Löschantrag übermittelt",
-        description: "Ein Administrator wird Ihren Antrag bearbeiten.",
+        title: t('profile.deletionRequestedTitle'),
+        description: t('profile.deletionRequestedDescription'),
       });
       setDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
     },
     onError: (error: any) => {
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: parseErrorMessage(error),
         variant: "destructive",
       });
@@ -193,14 +190,14 @@ export default function Profile() {
     },
     onSuccess: () => {
       toast({
-        title: "Löschantrag zurückgezogen",
-        description: "Ihr Konto wird nicht mehr gelöscht.",
+        title: t('profile.deletionCancelledTitle'),
+        description: t('profile.deletionCancelledDescription'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
     },
     onError: (error: any) => {
       toast({
-        title: "Fehler",
+        title: t('common.error'),
         description: parseErrorMessage(error),
         variant: "destructive",
       });
@@ -223,16 +220,16 @@ export default function Profile() {
   const handlePasswordChange = () => {
     if (newPassword !== confirmPassword) {
       toast({
-        title: "Fehler",
-        description: "Die Passwörter stimmen nicht überein.",
+        title: t('common.error'),
+        description: t('profile.passwordMismatchError'),
         variant: "destructive",
       });
       return;
     }
     if (newPassword.length < 8) {
       toast({
-        title: "Fehler",
-        description: "Das Passwort muss mindestens 8 Zeichen lang sein.",
+        title: t('common.error'),
+        description: t('profile.passwordTooShort'),
         variant: "destructive",
       });
       return;
@@ -243,8 +240,8 @@ export default function Profile() {
   const handleEmailChange = () => {
     if (!newEmail || !emailPassword) {
       toast({
-        title: "Fehler",
-        description: "Bitte füllen Sie alle Felder aus.",
+        title: t('common.error'),
+        description: t('profile.fillAllFields'),
         variant: "destructive",
       });
       return;
@@ -253,6 +250,17 @@ export default function Profile() {
   };
 
   const isLocalAccount = profile?.provider === 'local';
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return t('profile.roleAdmin');
+      case 'manager':
+        return t('profile.roleManager');
+      default:
+        return t('profile.roleUser');
+    }
+  };
 
   if (authLoading) {
     return (
@@ -268,10 +276,10 @@ export default function Profile() {
         <Card className="max-w-md mx-auto">
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground mb-4">
-              Bitte melden Sie sich an, um Ihr Profil zu sehen.
+              {t('profile.pleaseLogin')}
             </p>
             <Button className="w-full" onClick={() => setLocation("/anmelden")}>
-              Anmelden
+              {t('nav.login')}
             </Button>
           </CardContent>
         </Card>
@@ -288,13 +296,13 @@ export default function Profile() {
         data-testid="button-back"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Zurück zur Startseite
+        {t('profile.backToHome')}
       </Button>
 
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Mein Profil</h1>
-          <p className="text-muted-foreground mt-1">Verwalten Sie Ihre persönlichen Einstellungen</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('profile.myProfile')}</h1>
+          <p className="text-muted-foreground mt-1">{t('profile.manageSettings')}</p>
         </div>
 
         {isLoading ? (
@@ -307,10 +315,10 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="w-5 h-5" />
-                  Persönliche Daten
+                  {t('profile.personalData')}
                 </CardTitle>
                 <CardDescription>
-                  Ihre grundlegenden Kontoinformationen
+                  {t('profile.basicAccountInfo')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -318,7 +326,7 @@ export default function Profile() {
                   <div>
                     <Label htmlFor="username" className="flex items-center gap-2">
                       <User className="w-4 h-4 text-muted-foreground" />
-                      Benutzername
+                      {t('profile.username')}
                     </Label>
                     <Input
                       id="username"
@@ -327,12 +335,12 @@ export default function Profile() {
                       className="mt-1 bg-muted"
                       data-testid="input-username"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Kann nicht geändert werden</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('profile.cannotBeChanged')}</p>
                   </div>
                   <div>
                     <Label htmlFor="email" className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-muted-foreground" />
-                      E-Mail
+                      {t('auth.email')}
                     </Label>
                     <Input
                       id="email"
@@ -341,7 +349,7 @@ export default function Profile() {
                       className="mt-1 bg-muted"
                       data-testid="input-email"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Kann nicht geändert werden</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('profile.cannotBeChanged')}</p>
                   </div>
                 </div>
 
@@ -349,7 +357,7 @@ export default function Profile() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label htmlFor="name">Name</Label>
+                    <Label htmlFor="name">{t('auth.name')}</Label>
                     <Input
                       id="name"
                       value={name}
@@ -361,13 +369,13 @@ export default function Profile() {
                   <div>
                     <Label htmlFor="organization" className="flex items-center gap-2">
                       <Building className="w-4 h-4 text-muted-foreground" />
-                      Organisation
+                      {t('profile.organization')}
                     </Label>
                     <Input
                       id="organization"
                       value={organization}
                       onChange={(e) => setOrganization(e.target.value)}
-                      placeholder="z.B. Mein Team"
+                      placeholder={t('profile.organizationPlaceholder')}
                       className="mt-1"
                       data-testid="input-organization"
                     />
@@ -377,11 +385,11 @@ export default function Profile() {
                 <div className="grid gap-4 md:grid-cols-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4" />
-                    <span>Rolle: {profile?.role === 'admin' ? 'Administrator' : profile?.role === 'manager' ? 'Manager' : 'Benutzer'}</span>
+                    <span>{t('profile.role')}: {getRoleLabel(profile?.role || 'user')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    <span>Mitglied seit: {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('de-DE') : '-'}</span>
+                    <span>{t('profile.memberSince')}: {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('de-DE') : '-'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -391,10 +399,10 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Key className="w-5 h-5" />
-                  Sicherheit
+                  {t('profile.security')}
                 </CardTitle>
                 <CardDescription>
-                  Passwort und E-Mail-Adresse verwalten
+                  {t('profile.securityDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -402,8 +410,8 @@ export default function Profile() {
                   <>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg">
                       <div>
-                        <p className="font-medium">Passwort ändern</p>
-                        <p className="text-sm text-muted-foreground">Vergeben Sie ein neues Passwort für Ihr Konto</p>
+                        <p className="font-medium">{t('profile.changePassword')}</p>
+                        <p className="text-sm text-muted-foreground">{t('profile.changePasswordDescription')}</p>
                       </div>
                       <Button 
                         variant="outline" 
@@ -411,13 +419,13 @@ export default function Profile() {
                         data-testid="button-change-password"
                       >
                         <Key className="w-4 h-4 mr-2" />
-                        Passwort ändern
+                        {t('profile.changePassword')}
                       </Button>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg">
                       <div>
-                        <p className="font-medium">E-Mail-Adresse ändern</p>
-                        <p className="text-sm text-muted-foreground">Aktuelle E-Mail: {profile?.email}</p>
+                        <p className="font-medium">{t('profile.changeEmail')}</p>
+                        <p className="text-sm text-muted-foreground">{t('profile.changeEmailDescription')}: {profile?.email}</p>
                       </div>
                       <Button 
                         variant="outline" 
@@ -425,7 +433,7 @@ export default function Profile() {
                         data-testid="button-change-email"
                       >
                         <Mail className="w-4 h-4 mr-2" />
-                        E-Mail ändern
+                        {t('profile.changeEmail')}
                       </Button>
                     </div>
                   </>
@@ -434,10 +442,9 @@ export default function Profile() {
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium">Single Sign-On Konto</p>
+                        <p className="font-medium">{t('profile.ssoAccount')}</p>
                         <p className="text-sm text-muted-foreground">
-                          Ihr Konto wird über einen externen Identitätsanbieter (Keycloak) verwaltet. 
-                          Passwort- und E-Mail-Änderungen erfolgen über Ihr Organisationskonto.
+                          {t('profile.ssoAccountDescription')}
                         </p>
                       </div>
                     </div>
@@ -448,7 +455,7 @@ export default function Profile() {
                         data-testid="button-keycloak-account"
                       >
                         <ExternalLink className="w-4 h-4 mr-2" />
-                        Konto verwalten
+                        {t('profile.manageAccount')}
                       </Button>
                     )}
                   </div>
@@ -460,15 +467,15 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Moon className="w-5 h-5" />
-                  Darstellung
+                  {t('profile.appearance')}
                 </CardTitle>
                 <CardDescription>
-                  Wählen Sie Ihr bevorzugtes Farbschema
+                  {t('profile.appearanceDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <Label>Farbschema</Label>
+                  <Label>{t('profile.colorScheme')}</Label>
                   <Select value={selectedTheme} onValueChange={(value) => handleThemeChange(value as ThemePreference)}>
                     <SelectTrigger className="w-full md:w-[280px]" data-testid="select-theme">
                       <SelectValue />
@@ -477,43 +484,42 @@ export default function Profile() {
                       <SelectItem value="light">
                         <div className="flex items-center gap-2">
                           <Sun className="w-4 h-4" />
-                          <span>Hell</span>
+                          <span>{t('profile.themeLight')}</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="dark">
                         <div className="flex items-center gap-2">
                           <Moon className="w-4 h-4" />
-                          <span>Dunkel</span>
+                          <span>{t('profile.themeDark')}</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="system">
                         <div className="flex items-center gap-2">
                           <Monitor className="w-4 h-4" />
-                          <span>System</span>
+                          <span>{t('profile.themeSystem')}</span>
                         </div>
                       </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
                     {selectedTheme === 'system' 
-                      ? 'Folgt Ihren Systemeinstellungen' 
+                      ? t('profile.themeSystemDescription')
                       : selectedTheme === 'dark' 
-                        ? 'Dunkles Farbschema für Ihre Augen'
-                        : 'Helles Farbschema für klare Lesbarkeit'}
+                        ? t('profile.themeDarkDescription')
+                        : t('profile.themeLightDescription')}
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* GDPR Account Deletion Card */}
             <Card className="border-destructive/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-destructive">
                   <Trash2 className="w-5 h-5" />
-                  Konto löschen
+                  {t('profile.deleteAccountTitle')}
                 </CardTitle>
                 <CardDescription>
-                  Gemäß DSGVO Art. 17 haben Sie das Recht auf Löschung Ihrer personenbezogenen Daten.
+                  {t('profile.deleteAccountGdpr')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -522,15 +528,17 @@ export default function Profile() {
                     <div className="flex items-start gap-3 p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
                       <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-medium text-amber-800 dark:text-amber-200">Löschantrag eingereicht</p>
+                        <p className="font-medium text-amber-800 dark:text-amber-200">{t('profile.deletionRequestSubmitted')}</p>
                         <p className="text-sm text-amber-700 dark:text-amber-300">
-                          Ihr Löschantrag wurde am {new Date(profile.deletionRequestedAt).toLocaleDateString('de-DE', { 
-                            day: '2-digit', 
-                            month: '2-digit', 
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })} Uhr eingereicht und wartet auf Bearbeitung durch einen Administrator.
+                          {t('profile.deletionRequestDescription', { 
+                            date: new Date(profile.deletionRequestedAt).toLocaleDateString('de-DE', { 
+                              day: '2-digit', 
+                              month: '2-digit', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          })}
                         </p>
                       </div>
                     </div>
@@ -540,15 +548,15 @@ export default function Profile() {
                       disabled={cancelDeletionMutation.isPending}
                       data-testid="button-cancel-deletion"
                     >
-                      {cancelDeletionMutation.isPending ? "Zurückziehen..." : "Löschantrag zurückziehen"}
+                      {cancelDeletionMutation.isPending ? t('profile.cancelling') : t('profile.cancelDeletionRequest')}
                     </Button>
                   </div>
                 ) : (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg">
                     <div>
-                      <p className="font-medium">Konto und alle Daten löschen</p>
+                      <p className="font-medium">{t('profile.deleteAccountAndData')}</p>
                       <p className="text-sm text-muted-foreground">
-                        Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre persönlichen Daten werden gelöscht.
+                        {t('profile.deleteAccountWarning')}
                       </p>
                     </div>
                     <Button 
@@ -557,7 +565,7 @@ export default function Profile() {
                       data-testid="button-request-deletion"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
-                      Löschung beantragen
+                      {t('profile.requestDeletion')}
                     </Button>
                   </div>
                 )}
@@ -572,42 +580,41 @@ export default function Profile() {
                 data-testid="button-save-profile"
               >
                 <Save className="w-4 h-4 mr-2" />
-                {updateProfileMutation.isPending ? "Speichern..." : "Änderungen speichern"}
+                {updateProfileMutation.isPending ? t('profile.saving') : t('profile.saveChanges')}
               </Button>
             </div>
           </>
         )}
       </div>
 
-      {/* GDPR Deletion Request Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="w-5 h-5" />
-              Konto löschen beantragen
+              {t('profile.requestDeletionDialogTitle')}
             </DialogTitle>
             <DialogDescription>
-              Sie sind dabei, die Löschung Ihres Kontos zu beantragen. Diese Aktion ist unwiderruflich.
+              {t('profile.requestDeletionDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
-              <p className="text-sm font-medium text-destructive">Was wird gelöscht:</p>
+              <p className="text-sm font-medium text-destructive">{t('profile.whatWillBeDeleted')}</p>
               <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside space-y-1">
-                <li>Ihr Benutzerkonto und Profildaten</li>
-                <li>Alle von Ihnen erstellten Umfragen</li>
-                <li>Alle Ihre abgegebenen Stimmen</li>
-                <li>Alle E-Mail-Bestätigungen und Tokens</li>
+                <li>{t('profile.deleteItem1')}</li>
+                <li>{t('profile.deleteItem2')}</li>
+                <li>{t('profile.deleteItem3')}</li>
+                <li>{t('profile.deleteItem4')}</li>
               </ul>
             </div>
             <p className="text-sm text-muted-foreground">
-              Ein Administrator wird Ihren Antrag prüfen und Ihre Daten gemäß DSGVO Art. 17 löschen.
+              {t('profile.deletionAdminInfo')}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button 
               variant="destructive"
@@ -615,24 +622,23 @@ export default function Profile() {
               disabled={requestDeletionMutation.isPending}
               data-testid="button-confirm-deletion"
             >
-              {requestDeletionMutation.isPending ? "Beantragen..." : "Löschung unwiderruflich beantragen"}
+              {requestDeletionMutation.isPending ? t('profile.requesting') : t('profile.confirmDeletion')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Password Change Dialog */}
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Passwort ändern</DialogTitle>
+            <DialogTitle>{t('profile.changePasswordDialogTitle')}</DialogTitle>
             <DialogDescription>
-              Geben Sie Ihr aktuelles Passwort und das neue Passwort ein.
+              {t('profile.changePasswordDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="currentPassword">Aktuelles Passwort</Label>
+              <Label htmlFor="currentPassword">{t('auth.currentPassword')}</Label>
               <Input
                 id="currentPassword"
                 type="password"
@@ -643,7 +649,7 @@ export default function Profile() {
               />
             </div>
             <div>
-              <Label htmlFor="newPassword">Neues Passwort</Label>
+              <Label htmlFor="newPassword">{t('auth.newPassword')}</Label>
               <Input
                 id="newPassword"
                 type="password"
@@ -652,10 +658,10 @@ export default function Profile() {
                 className="mt-1"
                 data-testid="input-new-password"
               />
-              <p className="text-xs text-muted-foreground mt-1">Mindestens 8 Zeichen</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('profile.minCharacters')}</p>
             </div>
             <div>
-              <Label htmlFor="confirmPassword">Neues Passwort bestätigen</Label>
+              <Label htmlFor="confirmPassword">{t('profile.confirmNewPassword')}</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -668,7 +674,7 @@ export default function Profile() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handlePasswordChange}
@@ -676,37 +682,35 @@ export default function Profile() {
               className="polly-button-primary"
               data-testid="button-submit-password"
             >
-              {changePasswordMutation.isPending ? "Speichern..." : "Passwort ändern"}
+              {changePasswordMutation.isPending ? t('profile.saving') : t('profile.changePassword')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Email Change Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>E-Mail-Adresse ändern</DialogTitle>
+            <DialogTitle>{t('profile.changeEmailDialogTitle')}</DialogTitle>
             <DialogDescription>
-              Geben Sie Ihre neue E-Mail-Adresse und Ihr Passwort zur Bestätigung ein. 
-              Sie erhalten einen Bestätigungslink an die neue Adresse.
+              {t('profile.changeEmailDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="newEmail">Neue E-Mail-Adresse</Label>
+              <Label htmlFor="newEmail">{t('profile.newEmailAddress')}</Label>
               <Input
                 id="newEmail"
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="mt-1"
-                placeholder="neue.email@beispiel.de"
+                placeholder={t('profile.newEmailPlaceholder')}
                 data-testid="input-new-email"
               />
             </div>
             <div>
-              <Label htmlFor="emailPassword">Passwort zur Bestätigung</Label>
+              <Label htmlFor="emailPassword">{t('profile.passwordForConfirmation')}</Label>
               <Input
                 id="emailPassword"
                 type="password"
@@ -719,7 +723,7 @@ export default function Profile() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleEmailChange}
@@ -727,7 +731,7 @@ export default function Profile() {
               className="polly-button-primary"
               data-testid="button-submit-email"
             >
-              {requestEmailChangeMutation.isPending ? "Senden..." : "Bestätigungslink senden"}
+              {requestEmailChangeMutation.isPending ? t('profile.sending') : t('profile.sendConfirmationLink')}
             </Button>
           </DialogFooter>
         </DialogContent>

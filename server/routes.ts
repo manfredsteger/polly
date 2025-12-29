@@ -3580,6 +3580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: user.role,
         provider: user.provider,
         themePreference: user.themePreference || 'system',
+        languagePreference: user.languagePreference || 'de',
         createdAt: user.createdAt,
         lastLoginAt: user.lastLoginAt,
         deletionRequestedAt: user.deletionRequestedAt,
@@ -3597,13 +3598,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Nicht angemeldet' });
       }
       
-      const { name, organization, themePreference } = req.body;
+      const { name, organization, themePreference, languagePreference } = req.body;
       const updates: Record<string, any> = {};
       
       if (name) updates.name = name;
       if (organization !== undefined) updates.organization = organization;
       if (themePreference && ['light', 'dark', 'system'].includes(themePreference)) {
         updates.themePreference = themePreference;
+      }
+      if (languagePreference && ['de', 'en'].includes(languagePreference)) {
+        updates.languagePreference = languagePreference;
       }
       
       if (Object.keys(updates).length === 0) {
@@ -3620,11 +3624,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: user.role,
         provider: user.provider,
         themePreference: user.themePreference || 'system',
+        languagePreference: user.languagePreference || 'de',
         createdAt: user.createdAt,
         lastLoginAt: user.lastLoginAt,
       });
     } catch (error) {
       console.error('Error updating user profile:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Update user language preference (dedicated endpoint)
+  v1Router.patch('/users/me/language', async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Nicht angemeldet' });
+      }
+      
+      const { language } = req.body;
+      if (!language || !['de', 'en'].includes(language)) {
+        return res.status(400).json({ error: 'Ungültige Sprache. Erlaubt: de, en' });
+      }
+      
+      const user = await storage.updateUser(req.session.userId, { languagePreference: language });
+      res.json({
+        languagePreference: user.languagePreference || 'de',
+      });
+    } catch (error) {
+      console.error('Error updating language preference:', error);
       res.status(500).json({ error: 'Interner Fehler' });
     }
   });

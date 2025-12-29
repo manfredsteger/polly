@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   keycloakId: text("keycloak_id").unique(), // OIDC subject identifier from Keycloak
   provider: text("provider").default("local"), // 'local' or 'keycloak'
   themePreference: text("theme_preference").default("system"), // 'light', 'dark', or 'system'
+  languagePreference: text("language_preference").default("de"), // 'de' or 'en'
   calendarToken: text("calendar_token").unique(), // Secret token for calendar subscription feed
   isTestData: boolean("is_test_data").default(false).notNull(), // Test accounts cannot log in
   isInitialAdmin: boolean("is_initial_admin").default(false).notNull(), // Initial admin created on first start - shows warning banner

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Check, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface PasswordRequirement {
   label: string;
@@ -15,13 +16,15 @@ interface PasswordRequirement {
 }
 
 function PasswordStrengthIndicator({ password, confirmPassword }: { password: string; confirmPassword: string }) {
+  const { t } = useTranslation();
+  
   const requirements: PasswordRequirement[] = useMemo(() => [
-    { label: 'Mindestens 8 Zeichen', met: password.length >= 8 },
-    { label: 'Mindestens ein Großbuchstabe', met: /[A-Z]/.test(password) },
-    { label: 'Mindestens ein Kleinbuchstabe', met: /[a-z]/.test(password) },
-    { label: 'Mindestens eine Zahl', met: /[0-9]/.test(password) },
-    { label: 'Mindestens ein Sonderzeichen (!@#$%^&*...)', met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password) },
-  ], [password]);
+    { label: t('auth.passwordRequirements.minLength'), met: password.length >= 8 },
+    { label: t('auth.passwordRequirements.uppercase'), met: /[A-Z]/.test(password) },
+    { label: t('auth.passwordRequirements.lowercase'), met: /[a-z]/.test(password) },
+    { label: t('auth.passwordRequirements.number'), met: /[0-9]/.test(password) },
+    { label: t('auth.passwordRequirements.special'), met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password) },
+  ], [password, t]);
 
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const allRequirementsMet = requirements.every(r => r.met);
@@ -35,9 +38,9 @@ function PasswordStrengthIndicator({ password, confirmPassword }: { password: st
   };
 
   const getStrengthLabel = () => {
-    if (strengthPercentage < 40) return 'Schwach';
-    if (strengthPercentage < 80) return 'Mittel';
-    return 'Stark';
+    if (strengthPercentage < 40) return t('auth.passwordStrength.weak');
+    if (strengthPercentage < 80) return t('auth.passwordStrength.medium');
+    return t('auth.passwordStrength.strong');
   };
 
   if (password.length === 0) return null;
@@ -46,7 +49,7 @@ function PasswordStrengthIndicator({ password, confirmPassword }: { password: st
     <div className="space-y-3 mt-2 p-3 bg-muted/50 rounded-lg border" data-testid="password-strength-indicator">
       <div className="space-y-1">
         <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Passwortstärke</span>
+          <span className="text-muted-foreground">{t('auth.passwordStrength.label')}</span>
           <span className={`font-medium ${strengthPercentage === 100 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
             {getStrengthLabel()}
           </span>
@@ -85,7 +88,7 @@ function PasswordStrengthIndicator({ password, confirmPassword }: { password: st
             ) : (
               <X className="h-3.5 w-3.5 flex-shrink-0" />
             )}
-            <span>Passwörter stimmen überein</span>
+            <span>{t('auth.passwordsMatch')}</span>
           </div>
         )}
       </div>
@@ -93,7 +96,7 @@ function PasswordStrengthIndicator({ password, confirmPassword }: { password: st
       {allRequirementsMet && passwordsMatch && (
         <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 font-medium pt-1 border-t border-green-200 dark:border-green-800">
           <Check className="h-4 w-4" />
-          <span>Passwort erfüllt alle Anforderungen</span>
+          <span>{t('auth.passwordMeetsRequirements')}</span>
         </div>
       )}
     </div>
@@ -110,33 +113,37 @@ function validatePassword(password: string): boolean {
   );
 }
 
-function parseErrorMessage(rawError: string): string {
-  try {
-    const jsonMatch = rawError.match(/\d+:\s*(.+)/);
-    if (jsonMatch) {
-      const jsonPart = jsonMatch[1];
-      const parsed = JSON.parse(jsonPart);
-      if (parsed.error) {
-        return parsed.error;
+function useParseErrorMessage() {
+  const { t } = useTranslation();
+  
+  return (rawError: string): string => {
+    try {
+      const jsonMatch = rawError.match(/\d+:\s*(.+)/);
+      if (jsonMatch) {
+        const jsonPart = jsonMatch[1];
+        const parsed = JSON.parse(jsonPart);
+        if (parsed.error) {
+          return parsed.error;
+        }
       }
+    } catch {
     }
-  } catch {
-  }
-  
-  if (rawError.includes('401')) {
-    return 'Benutzername oder Passwort ist falsch. Bitte überprüfen Sie Ihre Eingaben.';
-  }
-  if (rawError.includes('403')) {
-    return 'Der Zugang wurde verweigert. Die Registrierung ist möglicherweise deaktiviert.';
-  }
-  if (rawError.includes('409')) {
-    return 'Ein Benutzer mit diesem Namen oder dieser E-Mail existiert bereits.';
-  }
-  if (rawError.includes('500')) {
-    return 'Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
-  }
-  
-  return rawError;
+    
+    if (rawError.includes('401')) {
+      return t('auth.errors.invalidCredentials');
+    }
+    if (rawError.includes('403')) {
+      return t('auth.errors.registrationDisabled');
+    }
+    if (rawError.includes('409')) {
+      return t('auth.errors.userExists');
+    }
+    if (rawError.includes('500')) {
+      return t('auth.errors.serverError');
+    }
+    
+    return rawError;
+  };
 }
 
 export default function Login() {
@@ -144,8 +151,9 @@ export default function Login() {
   const { login, register, authMethods, isAuthenticated, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
+  const parseErrorMessage = useParseErrorMessage();
 
-  // Get email from URL params for pre-filling
   const getEmailFromUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const email = searchParams.get('email');
@@ -155,21 +163,18 @@ export default function Login() {
   const [loginForm, setLoginForm] = useState({ usernameOrEmail: getEmailFromUrl(), password: '' });
   const [registerForm, setRegisterForm] = useState({ username: '', email: getEmailFromUrl(), name: '', password: '', confirmPassword: '' });
 
-  // Get redirect URL from query params
   const getRedirectUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
     return redirect ? decodeURIComponent(redirect) : '/meine-umfragen';
   };
 
-  // Scroll to top on mount to prevent auto-focus scroll issues
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Admins direkt zum Admin-Bereich weiterleiten (außer expliziter Redirect)
       const searchParams = new URLSearchParams(window.location.search);
       const hasExplicitRedirect = searchParams.get('redirect') || searchParams.get('returnTo');
       if (user.role === 'admin' && !hasExplicitRedirect) {
@@ -191,7 +196,6 @@ export default function Login() {
 
     try {
       const loggedInUser = await login(loginForm.usernameOrEmail, loginForm.password);
-      // Admins direkt zum Admin-Bereich weiterleiten (außer expliziter Redirect)
       const searchParams = new URLSearchParams(window.location.search);
       const hasExplicitRedirect = searchParams.get('redirect') || searchParams.get('returnTo');
       if (loggedInUser.role === 'admin' && !hasExplicitRedirect) {
@@ -200,7 +204,7 @@ export default function Login() {
         navigate(getRedirectUrl());
       }
     } catch (err: any) {
-      const rawError = err?.message || 'Anmeldung fehlgeschlagen';
+      const rawError = err?.message || t('auth.loginError');
       setError(parseErrorMessage(rawError));
     } finally {
       setIsLoading(false);
@@ -219,12 +223,12 @@ export default function Login() {
     setError(null);
 
     if (!isPasswordValid) {
-      setError('Bitte erfüllen Sie alle Passwort-Anforderungen');
+      setError(t('auth.errors.passwordRequirements'));
       return;
     }
 
     if (!passwordsMatch) {
-      setError('Passwörter stimmen nicht überein');
+      setError(t('errors.passwordMismatch'));
       return;
     }
 
@@ -234,7 +238,7 @@ export default function Login() {
       await register(registerForm.username, registerForm.email, registerForm.name, registerForm.password);
       navigate(getRedirectUrl());
     } catch (err: any) {
-      const rawError = err?.message || 'Registrierung fehlgeschlagen';
+      const rawError = err?.message || t('auth.registerError');
       setError(parseErrorMessage(rawError));
     } finally {
       setIsLoading(false);
@@ -251,7 +255,7 @@ export default function Login() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Poll<span className="text-polly-orange">y</span></CardTitle>
           <CardDescription>
-            Melden Sie sich an, um Ihre Umfragen zu verwalten
+            {t('auth.loginDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -267,18 +271,18 @@ export default function Login() {
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login" data-testid="tab-login">
                   <LogIn className="h-4 w-4 mr-2" />
-                  Anmelden
+                  {t('auth.login')}
                 </TabsTrigger>
                 <TabsTrigger value="register" data-testid="tab-register">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Registrieren
+                  {t('auth.register')}
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-username">Benutzername oder E-Mail</Label>
+                    <Label htmlFor="login-username">{t('auth.usernameOrEmail')}</Label>
                     <Input
                       id="login-username"
                       type="text"
@@ -290,7 +294,7 @@ export default function Login() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password">Passwort</Label>
+                    <Label htmlFor="login-password">{t('auth.password')}</Label>
                     <Input
                       id="login-password"
                       type="password"
@@ -303,7 +307,7 @@ export default function Login() {
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login-submit">
                     {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}
-                    Anmelden
+                    {t('auth.login')}
                   </Button>
                   <div className="text-center mt-3">
                     <a 
@@ -311,7 +315,7 @@ export default function Login() {
                       className="text-sm text-muted-foreground hover:text-primary hover:underline"
                       data-testid="link-forgot-password"
                     >
-                      Passwort vergessen?
+                      {t('auth.forgotPassword')}
                     </a>
                   </div>
                 </form>
@@ -320,7 +324,7 @@ export default function Login() {
               <TabsContent value="register">
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="register-name">Vollständiger Name</Label>
+                    <Label htmlFor="register-name">{t('auth.fullName')}</Label>
                     <Input
                       id="register-name"
                       type="text"
@@ -332,7 +336,7 @@ export default function Login() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="register-username">Benutzername</Label>
+                    <Label htmlFor="register-username">{t('auth.username')}</Label>
                     <Input
                       id="register-username"
                       type="text"
@@ -345,7 +349,7 @@ export default function Login() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="register-email">E-Mail-Adresse</Label>
+                    <Label htmlFor="register-email">{t('auth.emailAddress')}</Label>
                     <Input
                       id="register-email"
                       type="email"
@@ -357,25 +361,25 @@ export default function Login() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="register-password">Passwort</Label>
+                    <Label htmlFor="register-password">{t('auth.password')}</Label>
                     <Input
                       id="register-password"
                       type="password"
                       value={registerForm.password}
                       onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                      placeholder="Sicheres Passwort eingeben"
+                      placeholder={t('auth.enterSecurePassword')}
                       required
                       data-testid="input-register-password"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="register-confirm">Passwort bestätigen</Label>
+                    <Label htmlFor="register-confirm">{t('auth.confirmPassword')}</Label>
                     <Input
                       id="register-confirm"
                       type="password"
                       value={registerForm.confirmPassword}
                       onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                      placeholder="Passwort wiederholen"
+                      placeholder={t('auth.repeatPassword')}
                       required
                       data-testid="input-register-confirm"
                     />
@@ -393,7 +397,7 @@ export default function Login() {
                     data-testid="button-register-submit"
                   >
                     {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
-                    Registrieren
+                    {t('auth.register')}
                   </Button>
                 </form>
               </TabsContent>
@@ -401,7 +405,7 @@ export default function Login() {
           ) : (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="login-username">Benutzername oder E-Mail</Label>
+                <Label htmlFor="login-username">{t('auth.usernameOrEmail')}</Label>
                 <Input
                   id="login-username"
                   type="text"
@@ -413,7 +417,7 @@ export default function Login() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="login-password">Passwort</Label>
+                <Label htmlFor="login-password">{t('auth.password')}</Label>
                 <Input
                   id="login-password"
                   type="password"
@@ -426,7 +430,7 @@ export default function Login() {
               </div>
               <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login-submit">
                 {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}
-                Anmelden
+                {t('auth.login')}
               </Button>
               <div className="text-center mt-3">
                 <a 
@@ -434,7 +438,7 @@ export default function Login() {
                   className="text-sm text-muted-foreground hover:text-primary hover:underline"
                   data-testid="link-forgot-password"
                 >
-                  Passwort vergessen?
+                  {t('auth.forgotPassword')}
                 </a>
               </div>
             </form>
@@ -447,7 +451,7 @@ export default function Login() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">oder</span>
+                  <span className="bg-background px-2 text-muted-foreground">{t('common.or')}</span>
                 </div>
               </div>
 
@@ -459,16 +463,16 @@ export default function Login() {
                 data-testid="button-keycloak-login"
               >
                 <KeyRound className="h-4 w-4 mr-2" />
-                Mit Keycloak anmelden
+                {t('auth.loginWithKeycloak')}
               </Button>
             </>
           )}
         </CardContent>
         <CardFooter className="text-center text-sm text-muted-foreground">
           <p className="w-full">
-            Sie können auch ohne Anmeldung Umfragen erstellen und abstimmen.{' '}
+            {t('auth.noLoginRequired')}{' '}
             <a href="/" className="text-primary hover:underline" data-testid="link-home">
-              Zur Startseite
+              {t('nav.home')}
             </a>
           </p>
         </CardFooter>

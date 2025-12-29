@@ -5,6 +5,8 @@ import { LogIn, LogOut, User, ClipboardList, Shield, Moon, Sun } from "lucide-re
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomization } from "@/contexts/CustomizationContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTranslation } from 'react-i18next';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,6 +17,7 @@ export default function Layout({ children }: LayoutProps) {
   const { user, isAuthenticated, logout, isLoading } = useAuth();
   const { settings } = useCustomization();
   const { theme, setTheme, effectiveTheme } = useTheme();
+  const { t } = useTranslation();
 
   const handleLogout = async () => {
     await logout();
@@ -34,21 +37,16 @@ export default function Layout({ children }: LayoutProps) {
     return <Moon className="w-4 h-4" />;
   };
 
-  // Site name: base part (normal color) + accent part (primary color)
-  // Both can be empty - use defaults only if BOTH are empty
-  // Default branding: "Poll" + "y" (orange) = "Polly"
   const rawSiteName = settings?.branding?.siteName ?? '';
   const rawSiteNameAccent = settings?.branding?.siteNameAccent ?? '';
   const siteName = (rawSiteName || rawSiteNameAccent) ? rawSiteName : 'Poll';
   const siteNameAccent = (rawSiteName || rawSiteNameAccent) ? rawSiteNameAccent : 'y';
   const logoUrl = settings?.branding?.logoUrl;
-  const footerDescription = settings?.footer?.description || 'Die professionelle Open-Source Abstimmungsplattform für Teams. Sicher, einfach und DSGVO-konform.';
-  const footerCopyright = settings?.footer?.copyrightText || '© 2025 Polly. Open-Source Software unter MIT-Lizenz.';
+  const footerDescription = settings?.footer?.description || t('footer.defaultDescription');
+  const footerCopyright = settings?.footer?.copyrightText || t('footer.defaultCopyright');
   const footerLinks = settings?.footer?.supportLinks || [
-    { label: 'Hilfe & FAQ', url: '#' },
-    { label: 'Kontakt', url: '#' },
-    { label: 'Datenschutz', url: '#' },
-    { label: 'Impressum', url: '#' },
+    { label: t('footer.privacy'), url: '#' },
+    { label: t('footer.imprint'), url: '#' },
   ];
 
   return (
@@ -70,12 +68,14 @@ export default function Layout({ children }: LayoutProps) {
             </div>
             
             <div className="flex items-center space-x-2">
+              <LanguageSwitcher />
+              
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleTheme}
                 className="h-9 w-9"
-                title={effectiveTheme === 'light' ? 'Wechseln zu Dunkel' : 'Wechseln zu Hell'}
+                title={effectiveTheme === 'light' ? t('theme.switchToDark') : t('theme.switchToLight')}
                 data-testid="button-theme-toggle"
               >
                 {getThemeIcon()}
@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
                   <Link href="/meine-umfragen">
                     <Button variant="ghost" size="sm" data-testid="link-my-polls">
                       <ClipboardList className="w-4 h-4 mr-2" />
-                      Meine Umfragen
+                      {t('nav.myPolls')}
                     </Button>
                   </Link>
                   
@@ -102,25 +102,25 @@ export default function Layout({ children }: LayoutProps) {
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem onClick={() => navigate('/profil')} data-testid="menu-profile">
                         <User className="w-4 h-4 mr-2" />
-                        Mein Profil
+                        {t('nav.profile')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate('/meine-umfragen')} data-testid="menu-my-polls">
                         <ClipboardList className="w-4 h-4 mr-2" />
-                        Meine Umfragen
+                        {t('nav.myPolls')}
                       </DropdownMenuItem>
                       {user.role === 'admin' && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => navigate('/admin')} data-testid="menu-admin">
                             <Shield className="w-4 h-4 mr-2" />
-                            Administration
+                            {t('nav.admin')}
                           </DropdownMenuItem>
                         </>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
                         <LogOut className="w-4 h-4 mr-2" />
-                        Abmelden
+                        {t('nav.logout')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -129,7 +129,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Link href="/anmelden">
                   <Button variant="ghost" size="sm" data-testid="button-login">
                     <LogIn className="w-4 h-4 mr-2" />
-                    Anmelden
+                    {t('nav.login')}
                   </Button>
                 </Link>
               )}
@@ -160,16 +160,16 @@ export default function Layout({ children }: LayoutProps) {
             </div>
             
             <div>
-              <h4 className="text-lg font-semibold mb-4">Dienst</h4>
+              <h4 className="text-lg font-semibold mb-4">{t('footer.services')}</h4>
               <ul className="space-y-2 text-gray-300">
-                <li><Link href="/create-poll" className="hover:text-white">Terminumfragen</Link></li>
-                <li><Link href="/create-survey" className="hover:text-white">Umfragen</Link></li>
-                <li><Link href="/create-organization" className="hover:text-white">Orga-Listen</Link></li>
+                <li><Link href="/create-poll" className="hover:text-white">{t('footer.schedulePolls')}</Link></li>
+                <li><Link href="/create-survey" className="hover:text-white">{t('footer.surveys')}</Link></li>
+                <li><Link href="/create-organization" className="hover:text-white">{t('footer.orgLists')}</Link></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="text-lg font-semibold mb-4">Unterstützung</h4>
+              <h4 className="text-lg font-semibold mb-4">{t('footer.support')}</h4>
               <ul className="space-y-2 text-gray-300">
                 {footerLinks.map((link, index) => (
                   <li key={index}>

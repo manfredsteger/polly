@@ -94,9 +94,9 @@ app.use(session({
   saveUninitialized: false,
   name: 'polly.sid', // Custom name to avoid fingerprinting
   cookie: {
-    // Replit always uses HTTPS behind proxy, so cookies must be secure
-    // For local development without proxy, allow insecure cookies
-    secure: isProxied ? true : false,
+    // Use 'auto' to let express-session determine secure based on connection
+    // This works correctly with trust proxy setting for both HTTPS (Replit) and HTTP (local)
+    secure: 'auto',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',

@@ -683,9 +683,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         </CardHeader>
         <CardContent className="space-y-4">
           {isAdminAccess && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                {t('votingInterface.adminInfo')}
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                {hasAlreadyVoted 
+                  ? t('votingInterface.adminAlreadyVoted')
+                  : t('votingInterface.adminInfo')
+                }
               </p>
               <Button
                 type="button"
@@ -694,7 +697,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 onClick={() => setShowSelfVote(!showSelfVote)}
                 className="mt-2"
               >
-                {showSelfVote ? t('votingInterface.hideVoting') : t('votingInterface.voteYourself')}
+                {showSelfVote 
+                  ? t('votingInterface.hideVoting') 
+                  : (hasAlreadyVoted ? t('votingInterface.editVote') : t('votingInterface.voteYourself'))
+                }
               </Button>
             </div>
           )}

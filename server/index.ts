@@ -1,12 +1,15 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
+import pg from "pg";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
 
 const MemoryStore = createMemoryStore(session);
+const PgSession = connectPgSimple(session);
 
 const app = express();
 
@@ -88,23 +91,41 @@ app.use((req, res, next) => {
 // Session cookie configuration
 // On Replit and other proxied environments, cookies must be secure (HTTPS only)
 // When not proxied (local dev), allow non-secure cookies for HTTP testing
+
+// Use PostgreSQL session store for production persistence
+// Falls back to MemoryStore only if DATABASE_URL is not configured
+const createSessionStore = () => {
+  if (process.env.DATABASE_URL) {
+    const pool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    console.log('Session store: PostgreSQL (persistent)');
+    return new PgSession({
+      pool,
+      tableName: 'session',
+      createTableIfMissing: true,
+      pruneSessionInterval: 60 * 15, // Prune every 15 minutes
+    });
+  }
+  console.log('Session store: MemoryStore (non-persistent - sessions lost on restart)');
+  return new MemoryStore({
+    checkPeriod: 86400000,
+  });
+};
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'polly-dev-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
-  name: 'polly.sid', // Custom name to avoid fingerprinting
+  name: 'polly.sid',
   cookie: {
-    // Use 'auto' to let express-session determine secure based on connection
-    // This works correctly with trust proxy setting for both HTTPS (Replit) and HTTP (local)
     secure: 'auto',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',
     path: '/',
   },
-  store: new MemoryStore({
-    checkPeriod: 86400000, // prune expired entries every 24h
-  }),
+  store: createSessionStore(),
 }));
 
 app.use((req, res, next) => {

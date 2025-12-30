@@ -81,12 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest('POST', '/api/v1/auth/login', { usernameOrEmail, password });
       return res.json();
     },
-    onSuccess: (data) => {
-      // After successful login, update the auth cache with the new user data
-      // instead of clearing it (which causes a race condition with navigation)
-      queryClient.setQueryData(['/api/v1/auth/me'], { user: data.user });
-      previousUserIdRef.current = data.user?.id ?? null;
-      setIsAuthReady(true);
+    onSuccess: () => {
+      clearUserCache();
     },
   });
 
@@ -95,11 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest('POST', '/api/v1/auth/register', { username, email, name, password });
       return res.json();
     },
-    onSuccess: (data) => {
-      // After successful registration, update the auth cache with the new user data
-      queryClient.setQueryData(['/api/v1/auth/me'], { user: data.user });
-      previousUserIdRef.current = data.user?.id ?? null;
-      setIsAuthReady(true);
+    onSuccess: () => {
+      clearUserCache();
     },
   });
 

@@ -252,7 +252,7 @@ function PollCard({ poll, isOwner }: PollCardProps) {
     poll.votes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)
   ).size;
 
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const getStatusBadge = () => {
     if (!poll.isActive) {

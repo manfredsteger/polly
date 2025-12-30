@@ -40,11 +40,13 @@ export async function createTestApp(): Promise<Express> {
     secret: 'test-secret-key',
     resave: false,
     saveUninitialized: false,
+    name: 'polly.sid',
     cookie: {
       secure: false,
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
       sameSite: 'lax',
+      path: '/',
     },
     store: new MemoryStore({
       checkPeriod: 86400000,

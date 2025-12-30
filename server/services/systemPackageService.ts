@@ -115,18 +115,27 @@ function parseSystemConfig(): { packages: string[]; modules: string[]; channel: 
     try {
       const replitContent = readFileSync(replitPath, 'utf-8');
       
-      const modulesMatch = replitContent.match(/modules\s*=\s*\[([\s\S]*?)\]/);
+      // Parse top-level modules = [...]
+      const modulesMatch = replitContent.match(/^modules\s*=\s*\[([\s\S]*?)\]/m);
       const modules = modulesMatch 
         ? modulesMatch[1].match(/"([^"]+)"/g)?.map(m => m.replace(/"/g, '')) || []
         : [];
       
-      const packagesMatch = replitContent.match(/packages\s*=\s*\[([\s\S]*?)\]/);
-      const packages = packagesMatch
-        ? packagesMatch[1].match(/"([^"]+)"/g)?.map(m => m.replace(/"/g, '')) || []
-        : [];
+      // Parse packages under [nix] section - look for packages = [...] after [nix]
+      const nixSectionMatch = replitContent.match(/\[nix\]([\s\S]*?)(?=\[|$)/);
+      let packages: string[] = [];
+      let channel = 'stable';
       
-      const channelMatch = replitContent.match(/channel\s*=\s*"([^"]+)"/);
-      const channel = channelMatch ? channelMatch[1] : 'stable';
+      if (nixSectionMatch) {
+        const nixSection = nixSectionMatch[1];
+        const packagesMatch = nixSection.match(/packages\s*=\s*\[([\s\S]*?)\]/);
+        packages = packagesMatch
+          ? packagesMatch[1].match(/"([^"]+)"/g)?.map(m => m.replace(/"/g, '')) || []
+          : [];
+        
+        const channelMatch = nixSection.match(/channel\s*=\s*"([^"]+)"/);
+        channel = channelMatch ? channelMatch[1] : 'stable';
+      }
       
       return { packages, modules, channel, source: '.replit' };
     } catch {

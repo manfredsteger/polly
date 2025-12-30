@@ -136,7 +136,6 @@ export default function Poll() {
   const { data: poll, isLoading, error } = useQuery<PollWithOptions>({
     queryKey: [endpoint],
     enabled: !!token,
-    refetchInterval: 10000, // Refresh every 10 seconds to keep vote counts in sync
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {

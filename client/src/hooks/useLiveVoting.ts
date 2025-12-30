@@ -19,12 +19,18 @@ interface LiveVotingState {
   viewerCount: number;
 }
 
+interface SlotUpdate {
+  currentCount: number;
+  maxCapacity: number | null;
+}
+
 interface UseLiveVotingOptions {
   pollToken: string;
   voterName?: string;
   isPresenter?: boolean;
   onResultsRefresh?: () => void;
   onVoteFinalized?: (voterName: string) => void;
+  onSlotUpdate?: (slotUpdates: Record<number, SlotUpdate>) => void;
 }
 
 export function useLiveVoting({
@@ -33,6 +39,7 @@ export function useLiveVoting({
   isPresenter = false,
   onResultsRefresh,
   onVoteFinalized,
+  onSlotUpdate,
 }: UseLiveVotingOptions) {
   const [state, setState] = useState<LiveVotingState>({
     isConnected: false,
@@ -55,10 +62,13 @@ export function useLiveVoting({
     voterNameRef.current = voterName;
   }, [voterName]);
 
+  const onSlotUpdateRef = useRef(onSlotUpdate);
+
   useEffect(() => {
     onResultsRefreshRef.current = onResultsRefresh;
     onVoteFinalizedRef.current = onVoteFinalized;
-  }, [onResultsRefresh, onVoteFinalized]);
+    onSlotUpdateRef.current = onSlotUpdate;
+  }, [onResultsRefresh, onVoteFinalized, onSlotUpdate]);
 
   const handleMessage = useCallback((message: any) => {
     switch (message.type) {
@@ -96,6 +106,12 @@ export function useLiveVoting({
       case 'results_refresh':
         if (onResultsRefreshRef.current) {
           onResultsRefreshRef.current();
+        }
+        break;
+
+      case 'slot_update':
+        if (onSlotUpdateRef.current && message.slotUpdates) {
+          onSlotUpdateRef.current(message.slotUpdates);
         }
         break;
 

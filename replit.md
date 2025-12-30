@@ -66,6 +66,13 @@ Preferred communication style: Simple, everyday language (German).
     -   **Logging**: Gesperrte Konten werden mit IP-Adresse protokolliert
     -   **Test Coverage**: Automatisierte Tests verifizieren Rate-Limit-Durchsetzung
     -   **Production Note**: Rate-Limiter-Status geht bei Server-Neustart verloren; Redis empfohlen für Produktion
+- **Real-Time Slot Reservation (Orga-Listen)**:
+    -   **Transactional Locking**: `storage.vote()` für Organization Polls nutzt PostgreSQL `db.transaction()` mit `SELECT ... FOR UPDATE` Row-Level Locking
+    -   **Advisory Locks**: `pg_advisory_xact_lock()` basierend auf Poll+Voter-Email verhindert Race Conditions beim gleichzeitigen Buchen
+    -   **Überbuchungsschutz**: Kapazitätsprüfung innerhalb der Transaktion garantiert, dass maxCapacity nie überschritten wird
+    -   **WebSocket slot_update**: Nach jeder Buchung/Stornierung werden aktuelle Platzzahlen per WebSocket an alle verbundenen Clients gesendet
+    -   **Frontend Live-Updates**: `useLiveVoting` Hook empfängt `slot_update` Events, `VotingInterface` nutzt `liveSlotUpdates` State für Echtzeit-Anzeige
+    -   **Error Codes**: `SLOT_FULL` (HTTP 409), `ALREADY_SIGNED_UP` (HTTP 409) mit lokalisierten Fehlermeldungen
 
 ## API Documentation
 

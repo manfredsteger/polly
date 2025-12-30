@@ -16,6 +16,7 @@ import { pentestToolsService, TOOL_IDS, TOOL_NAMES, SCAN_TYPES } from "./service
 import { emailTemplateService } from "./services/emailTemplateService";
 import * as icsService from "./services/icsService";
 import * as matrixService from "./matrix";
+import { liveVotingService } from "./services/liveVotingService";
 import { z } from "zod";
 import path from "path";
 import express from "express";
@@ -751,6 +752,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For authenticated users with existing votes: allow edit if poll.allowVoteEdit
       const vote = await storage.vote(voteWithPollId, poll.allowVoteEdit);
       
+      // For organization polls: Broadcast slot update via WebSocket to all connected clients
+      if (poll.type === 'organization') {
+        // Fetch fresh poll data with updated votes
+        const freshPoll = await storage.getPollByPublicToken(poll.publicToken);
+        if (freshPoll) {
+          const slotUpdates: Record<number, { currentCount: number; maxCapacity: number | null }> = {};
+          for (const option of freshPoll.options) {
+            const signupCount = freshPoll.votes.filter(v => v.optionId === option.id && v.response === 'yes').length;
+            slotUpdates[option.id] = {
+              currentCount: signupCount,
+              maxCapacity: option.maxCapacity
+            };
+          }
+          // Broadcast to both public and admin tokens (clients may be connected via either)
+          liveVotingService.broadcastSlotUpdate(poll.publicToken, slotUpdates);
+          if (poll.adminToken) {
+            liveVotingService.broadcastSlotUpdate(poll.adminToken, slotUpdates);
+          }
+        }
+      }
+      
       // Vote was successful - now send confirmation email (but only once per session)
       if (voteData.voterEmail) { // voterEmail is now always required
         const emailKey = `${voteData.voterEmail}-${poll.id}`;
@@ -799,6 +821,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ 
           error: 'Diese E-Mail-Adresse hat bereits bei dieser Umfrage abgestimmt.',
           errorCode: 'DUPLICATE_EMAIL_VOTE'
+        });
+      } else if (error instanceof Error && error.message === 'SLOT_FULL') {
+        res.status(409).json({ 
+          error: 'Dieser Platz ist leider schon voll. Es gibt keine freien Plätze mehr.',
+          errorCode: 'SLOT_FULL'
+        });
+      } else if (error instanceof Error && error.message === 'ALREADY_SIGNED_UP') {
+        res.status(409).json({ 
+          error: 'Sie haben sich bereits für einen Platz in dieser Liste eingetragen.',
+          errorCode: 'ALREADY_SIGNED_UP'
         });
       } else {
         res.status(500).json({ error: 'Internal server error' });
@@ -1081,6 +1113,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`[Vote] Withdrew ${votesToDelete.length} votes from poll ${poll.id}`);
+      
+      // For organization polls: Broadcast slot update via WebSocket after withdrawal
+      if (poll.type === 'organization') {
+        const freshPoll = await storage.getPollByPublicToken(poll.publicToken);
+        if (freshPoll) {
+          const slotUpdates: Record<number, { currentCount: number; maxCapacity: number | null }> = {};
+          for (const option of freshPoll.options) {
+            const signupCount = freshPoll.votes.filter(v => v.optionId === option.id && v.response === 'yes').length;
+            slotUpdates[option.id] = {
+              currentCount: signupCount,
+              maxCapacity: option.maxCapacity
+            };
+          }
+          liveVotingService.broadcastSlotUpdate(poll.publicToken, slotUpdates);
+          if (poll.adminToken) {
+            liveVotingService.broadcastSlotUpdate(poll.adminToken, slotUpdates);
+          }
+        }
+      }
       
       res.json({ 
         success: true, 

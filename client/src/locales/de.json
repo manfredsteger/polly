@@ -1982,7 +1982,10 @@
     "selectSlot": "Slot auswählen",
     "withdraw": "Zurückziehen",
     "submitVote": "Abstimmung abgeben",
-    "loginToVoteWithEmail": "Bitte melden Sie sich an, um mit dieser E-Mail abzustimmen."
+    "loginToVoteWithEmail": "Bitte melden Sie sich an, um mit dieser E-Mail abzustimmen.",
+    "slotFullError": "Dieser Platz ist leider schon voll. Es gibt keine freien Plätze mehr.",
+    "alreadySignedUpError": "Sie haben sich bereits für einen Platz in dieser Liste eingetragen.",
+    "overbookingPrevented": "Eine Überbuchung wurde verhindert. Bitte versuchen Sie einen anderen Slot."
   },
   "organizationSlot": {
     "note": "Hinweis:",

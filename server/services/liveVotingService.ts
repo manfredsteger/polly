@@ -394,6 +394,20 @@ class LiveVotingService {
     });
   }
 
+  /**
+   * Broadcast slot occupancy update to all connected clients for a poll.
+   * Called after a successful organization poll slot reservation/cancellation.
+   * @param pollToken - The public or admin token of the poll
+   * @param slotUpdates - Map of optionId -> current signup count
+   */
+  broadcastSlotUpdate(pollToken: string, slotUpdates: Record<number, { currentCount: number; maxCapacity: number | null }>) {
+    this.broadcastToRoom(pollToken, {
+      type: 'slot_update',
+      slotUpdates,
+    });
+    console.log(`[LiveVoting] Slot update broadcasted for poll ${pollToken}:`, slotUpdates);
+  }
+
   getStats() {
     return {
       activeRooms: this.pollRooms.size,

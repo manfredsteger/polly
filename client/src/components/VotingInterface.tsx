@@ -79,13 +79,20 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [emailRequiresLogin, setEmailRequiresLogin] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isUserEmailLocked, setIsUserEmailLocked] = useState(false);
+  
+  // Live slot updates from WebSocket for organization polls
+  const [liveSlotUpdates, setLiveSlotUpdates] = useState<Record<number, { currentCount: number; maxCapacity: number | null }>>({});
 
   const { sendVoteInProgress, sendVoteSubmitted, updateVoterName, isConnected } = useLiveVoting({
     pollToken: poll.publicToken,
     voterName: voterName || undefined,
+    onSlotUpdate: poll.type === 'organization' ? (slotUpdates) => {
+      setLiveSlotUpdates(slotUpdates);
+    } : undefined,
   });
 
   // Calculate current signups from poll.votes for organization polls
+  // Uses live WebSocket updates when available for real-time accuracy
   const currentSignups = useMemo(() => {
     if (poll.type !== 'organization') return {};
     
@@ -93,17 +100,30 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     
     // Initialize all options with their maxCapacity
     poll.options.forEach(option => {
-      signups[option.id] = {
-        count: 0,
-        maxCapacity: option.maxCapacity || 1,
-        names: []
-      };
+      // Use live slot updates if available, otherwise calculate from poll.votes
+      const liveData = liveSlotUpdates[option.id];
+      if (liveData) {
+        signups[option.id] = {
+          count: liveData.currentCount,
+          maxCapacity: liveData.maxCapacity ?? option.maxCapacity ?? 1,
+          names: [] // Names will still come from poll.votes (names aren't sent in slot updates)
+        };
+      } else {
+        signups[option.id] = {
+          count: 0,
+          maxCapacity: option.maxCapacity || 1,
+          names: []
+        };
+      }
     });
     
-    // Count 'yes' votes (signups) per option
+    // Always populate names from poll.votes (even if using live counts)
     poll.votes?.forEach(vote => {
       if (vote.response === 'yes' && signups[vote.optionId]) {
-        signups[vote.optionId].count++;
+        // Only increment count if we're not using live data
+        if (!liveSlotUpdates[vote.optionId]) {
+          signups[vote.optionId].count++;
+        }
         if (vote.voterName) {
           signups[vote.optionId].names.push(vote.voterName);
         }
@@ -111,7 +131,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     });
     
     return signups;
-  }, [poll.type, poll.options, poll.votes]);
+  }, [poll.type, poll.options, poll.votes, liveSlotUpdates]);
 
   useEffect(() => {
     if (voterName && isConnected) {

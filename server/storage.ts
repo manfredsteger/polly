@@ -414,67 +414,81 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Poll not found');
     }
 
-    // For organization polls: Check capacity and multi-slot restrictions
+    // For organization polls: Use transactional reservation with row-level locking to prevent overbooking
     if (poll.type === 'organization') {
-      // Get the option to check capacity
-      const [option] = await db.select().from(pollOptions).where(eq(pollOptions.id, insertVote.optionId));
-      if (!option) {
-        throw new Error('Option not found');
-      }
-
-      // Check if slot is full (only for signups, not cancellations)
-      // Organization polls use 'yes' as the signup response
-      if (insertVote.response === 'yes' && option.maxCapacity) {
-        const currentSignups = await db.select({ count: count() }).from(votes)
-          .where(and(
-            eq(votes.optionId, insertVote.optionId),
-            eq(votes.response, 'yes')
-          ));
-        
-        if (currentSignups[0].count >= option.maxCapacity) {
-          throw new Error('SLOT_FULL');
+      return await db.transaction(async (tx) => {
+        // Use advisory lock based on poll+voter to serialize operations per voter
+        // This prevents race conditions for the same voter trying to book multiple slots simultaneously
+        if (insertVote.voterEmail) {
+          const lockKey = `${insertVote.pollId}-${insertVote.voterEmail}`.split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+          }, 0);
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
         }
-      }
-
-      // Check multi-slot restriction
-      if (!poll.allowMultipleSlots && insertVote.voterEmail && insertVote.response === 'yes') {
-        const existingSignups = await db.select().from(votes)
-          .where(and(
-            eq(votes.pollId, insertVote.pollId),
-            eq(votes.voterEmail, insertVote.voterEmail),
-            eq(votes.response, 'yes')
-          ));
         
-        if (existingSignups.length > 0) {
-          throw new Error('ALREADY_SIGNED_UP');
-        }
-      }
-
-      // Check for existing signup on this option by this email
-      if (insertVote.voterEmail) {
-        const existingVoteOnOption = await db.select().from(votes)
-          .where(and(
-            eq(votes.optionId, insertVote.optionId),
-            eq(votes.voterEmail, insertVote.voterEmail)
-          ));
+        // Lock the option row to prevent concurrent modifications (FOR UPDATE)
+        const optionResult = await tx.execute(
+          sql`SELECT * FROM poll_options WHERE id = ${insertVote.optionId} FOR UPDATE`
+        );
+        const option = optionResult.rows[0] as { id: number; max_capacity: number | null } | undefined;
         
-        if (existingVoteOnOption.length > 0) {
-          // Update existing vote (e.g., adding/changing comment or cancelling)
-          const [updatedVote] = await db.update(votes)
-            .set({ 
-              response: insertVote.response, 
-              comment: insertVote.comment,
-              updatedAt: new Date() 
-            })
-            .where(eq(votes.id, existingVoteOnOption[0].id))
-            .returning();
-          return updatedVote;
+        if (!option) {
+          throw new Error('Option not found');
         }
-      }
 
-      // Create new signup
-      const [vote] = await db.insert(votes).values(insertVote).returning();
-      return vote;
+        // Check if slot is full (only for signups, not cancellations)
+        // Organization polls use 'yes' as the signup response
+        // Lock existing vote rows to prevent concurrent inserts from seeing the same count
+        if (insertVote.response === 'yes' && option.max_capacity) {
+          const existingVotesResult = await tx.execute(
+            sql`SELECT id FROM votes WHERE option_id = ${insertVote.optionId} AND response = 'yes' FOR UPDATE`
+          );
+          
+          if (existingVotesResult.rows.length >= option.max_capacity) {
+            throw new Error('SLOT_FULL');
+          }
+        }
+
+        // Check multi-slot restriction with FOR UPDATE lock on existing votes
+        if (!poll.allowMultipleSlots && insertVote.voterEmail && insertVote.response === 'yes') {
+          const existingSignupsResult = await tx.execute(
+            sql`SELECT * FROM votes WHERE poll_id = ${insertVote.pollId} 
+                AND voter_email = ${insertVote.voterEmail} 
+                AND response = 'yes' FOR UPDATE`
+          );
+          
+          if (existingSignupsResult.rows.length > 0) {
+            throw new Error('ALREADY_SIGNED_UP');
+          }
+        }
+
+        // Check for existing signup on this option by this email (with lock)
+        if (insertVote.voterEmail) {
+          const existingVoteResult = await tx.execute(
+            sql`SELECT * FROM votes WHERE option_id = ${insertVote.optionId} 
+                AND voter_email = ${insertVote.voterEmail} FOR UPDATE`
+          );
+          const existingVote = existingVoteResult.rows[0] as { id: number } | undefined;
+          
+          if (existingVote) {
+            // Update existing vote (e.g., adding/changing comment or cancelling)
+            const [updatedVote] = await tx.update(votes)
+              .set({ 
+                response: insertVote.response, 
+                comment: insertVote.comment,
+                updatedAt: new Date() 
+              })
+              .where(eq(votes.id, existingVote.id))
+              .returning();
+            return updatedVote;
+          }
+        }
+
+        // Create new signup within transaction
+        const [vote] = await tx.insert(votes).values(insertVote).returning();
+        return vote;
+      });
     }
 
     // For surveys: Strict email validation - prevent duplicate participation unless editing allowed

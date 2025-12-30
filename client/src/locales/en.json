@@ -1982,7 +1982,10 @@
     "selectSlot": "Select slot",
     "withdraw": "Withdraw",
     "submitVote": "Submit vote",
-    "loginToVoteWithEmail": "Please log in to vote with this email."
+    "loginToVoteWithEmail": "Please log in to vote with this email.",
+    "slotFullError": "This slot is fully booked. There are no more spots available.",
+    "alreadySignedUpError": "You have already signed up for a slot in this list.",
+    "overbookingPrevented": "Overbooking was prevented. Please try a different slot."
   },
   "organizationSlot": {
     "note": "Note:",

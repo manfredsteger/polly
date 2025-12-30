@@ -54,11 +54,12 @@ Preferred communication style: Simple, everyday language (German).
     -   **Pentest-Tools.com**: Integration for automated vulnerability scanning with real-time results.
 - **System Package Monitoring**: Displays Nix package information and versions for core dependencies.
 - **Session Management**:
-    -   **Store**: MemoryStore (development), recommended Redis/PostgreSQL for production
-    -   **Cookie**: `polly.sid`, httpOnly, secure (HTTPS), sameSite=lax
+    -   **Store**: PostgreSQL (connect-pg-simple) when DATABASE_URL is set, MemoryStore fallback otherwise
+    -   **Cookie**: `polly.sid`, httpOnly, secure='auto' (adapts to HTTPS/HTTP), sameSite=lax
     -   **Proxy Trust**: Auto-detected via REPL_ID, REPLIT_DEV_DOMAIN environment variables
     -   **Session Save**: Explicit `req.session.save()` before response in login/register/callback endpoints
-    -   **Production Note**: MemoryStore loses sessions on server restart; use persistent store in production
+    -   **Table**: `session` table auto-created by connect-pg-simple with pruning every 15 minutes
+    -   **Persistence**: Sessions survive server restarts when using PostgreSQL store
 - **Rate Limiting**:
     -   **Login Endpoint**: 5 failed attempts per IP/Account → 15 Minuten Sperre (HTTP 429)
     -   **Implementation**: `server/services/rateLimiterService.ts` mit In-Memory-Speicher

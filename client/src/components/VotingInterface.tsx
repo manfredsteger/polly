@@ -310,9 +310,11 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       setVotes({});
       setOrgaBookings([]);
       setHasOrgaChanges(false);
-      // Invalidate queries to refresh data - use exact query keys from poll.tsx
+      // Invalidate queries to refresh data - use correct tokens for each endpoint
       queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/public/${poll.publicToken}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/admin/${poll.publicToken}`] });
+      if (poll.adminToken) {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/admin/${poll.adminToken}`] });
+      }
       queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${poll.publicToken}/results`] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
     },
@@ -527,6 +529,14 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       if (isConnected) {
         sendVoteSubmitted();
       }
+      
+      // Invalidate queries to refresh data (important for admin view staying on page)
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/public/${poll.publicToken}`] });
+      if (poll.adminToken) {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/admin/${poll.adminToken}`] });
+      }
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${poll.publicToken}/results`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
       
       // Redirect to vote success page
       setLocation("/vote-success");

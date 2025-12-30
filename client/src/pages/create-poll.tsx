@@ -383,7 +383,7 @@ export default function CreatePoll() {
               const maxReminderHours = Math.min(168, Math.floor(hoursUntilExpiry * 0.8));
               
               return (
-                <div className="bg-muted/50 rounded-lg p-4 space-y-4">
+                <div className="pt-4 border-t space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label className="flex items-center gap-2">

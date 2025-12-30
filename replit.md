@@ -53,6 +53,12 @@ Preferred communication style: Simple, everyday language (German).
     -   **npm Audit**: Local scanning for dependency vulnerabilities with severity and impact labels.
     -   **Pentest-Tools.com**: Integration for automated vulnerability scanning with real-time results.
 - **System Package Monitoring**: Displays Nix package information and versions for core dependencies.
+- **Session Management**:
+    -   **Store**: MemoryStore (development), recommended Redis/PostgreSQL for production
+    -   **Cookie**: `polly.sid`, httpOnly, secure (HTTPS), sameSite=lax
+    -   **Proxy Trust**: Auto-detected via REPL_ID, REPLIT_DEV_DOMAIN environment variables
+    -   **Session Save**: Explicit `req.session.save()` before response in login/register/callback endpoints
+    -   **Production Note**: MemoryStore loses sessions on server restart; use persistent store in production
 
 ## API Documentation
 

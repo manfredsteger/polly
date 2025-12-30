@@ -13,8 +13,13 @@ const app = express();
 // Disable X-Powered-By header to hide server technology (Pentest finding: Server software exposure)
 app.disable('x-powered-by');
 
-// Trust proxy in production - required for secure cookies behind reverse proxy
-if (process.env.NODE_ENV === 'production') {
+// Trust proxy - required for secure cookies behind reverse proxy (Replit, Heroku, etc.)
+// Enable always when running behind a proxy (detected via common proxy headers or explicit config)
+const isProxied = process.env.NODE_ENV === 'production' || 
+                  process.env.BASE_URL?.includes('replit') ||
+                  process.env.REPLIT_DEV_DOMAIN ||
+                  process.env.REPL_ID;
+if (isProxied) {
   app.set('trust proxy', 1);
 }
 
@@ -80,19 +85,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Determine if cookies should be secure based on BASE_URL (not just NODE_ENV)
-// This allows production deployments over HTTP (e.g., localhost, internal networks)
-const isSecureConnection = (process.env.BASE_URL || '').startsWith('https://');
-
+// Session cookie configuration
+// On Replit and other proxied environments, cookies must be secure (HTTPS only)
+// When not proxied (local dev), allow non-secure cookies for HTTP testing
 app.use(session({
   secret: process.env.SESSION_SECRET || 'polly-dev-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
+  name: 'polly.sid', // Custom name to avoid fingerprinting
   cookie: {
-    secure: isSecureConnection,
+    // Replit always uses HTTPS behind proxy, so cookies must be secure
+    // For local development without proxy, allow insecure cookies
+    secure: isProxied,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',
+    path: '/',
   },
   store: new MemoryStore({
     checkPeriod: 86400000, // prune expired entries every 24h

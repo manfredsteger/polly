@@ -31,7 +31,7 @@ interface ExtendedStats {
 
 export default function Admin() {
   const { t } = useTranslation();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, isAuthReady } = useAuth();
   const [, navigate] = useLocation();
 
   const { data: stats, isLoading: statsLoading } = useQuery<ExtendedStats>({
@@ -54,17 +54,17 @@ export default function Admin() {
     enabled: isAuthenticated && user?.role === 'admin',
   });
 
-  const isLoading = authLoading || statsLoading || usersLoading || pollsLoading || settingsLoading;
+  const isLoading = authLoading || !isAuthReady || statsLoading || usersLoading || pollsLoading || settingsLoading;
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated (only after auth is fully ready)
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (isAuthReady && !isAuthenticated) {
       navigate('/anmelden');
     }
-  }, [authLoading, isAuthenticated, navigate]);
+  }, [isAuthReady, isAuthenticated, navigate]);
 
-  // Check if user is authenticated
-  if (authLoading || !isAuthenticated) {
+  // Wait until auth is fully ready before deciding
+  if (!isAuthReady || authLoading || !isAuthenticated) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">

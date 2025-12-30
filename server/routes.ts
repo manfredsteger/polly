@@ -3982,7 +3982,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await loginRateLimiter.recordSuccessfulLogin(data.usernameOrEmail, clientIp);
       req.session.userId = user.id;
-      res.json({ user: authService.sanitizeUser(user) });
+      
+      // Explicitly save session before responding to ensure cookie is set
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json({ error: 'Interner Fehler' });
+        }
+        res.json({ user: authService.sanitizeUser(user) });
+      });
     } catch (error) {
       console.error('Login error:', error);
       if (error instanceof z.ZodError) {
@@ -4015,7 +4023,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      res.json({ user: authService.sanitizeUser(user) });
+      
+      // Explicitly save session before responding
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json({ error: 'Interner Fehler' });
+        }
+        res.json({ user: authService.sanitizeUser(user) });
+      });
     } catch (error) {
       console.error('Register error:', error);
       if (error instanceof z.ZodError) {
@@ -4276,7 +4292,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       delete req.session.keycloakState;
       delete req.session.keycloakCodeVerifier;
 
-      res.redirect('/meine-umfragen');
+      // Explicitly save session before redirect
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.redirect('/anmelden?error=session_failed');
+        }
+        res.redirect('/meine-umfragen');
+      });
     } catch (error) {
       console.error('Keycloak callback error:', error);
       res.redirect('/anmelden?error=callback_failed');

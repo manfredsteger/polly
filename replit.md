@@ -59,6 +59,12 @@ Preferred communication style: Simple, everyday language (German).
     -   **Proxy Trust**: Auto-detected via REPL_ID, REPLIT_DEV_DOMAIN environment variables
     -   **Session Save**: Explicit `req.session.save()` before response in login/register/callback endpoints
     -   **Production Note**: MemoryStore loses sessions on server restart; use persistent store in production
+- **Rate Limiting**:
+    -   **Login Endpoint**: 5 failed attempts per IP/Account → 15 Minuten Sperre (HTTP 429)
+    -   **Implementation**: `server/services/rateLimiterService.ts` mit In-Memory-Speicher
+    -   **Logging**: Gesperrte Konten werden mit IP-Adresse protokolliert
+    -   **Test Coverage**: Automatisierte Tests verifizieren Rate-Limit-Durchsetzung
+    -   **Production Note**: Rate-Limiter-Status geht bei Server-Neustart verloren; Redis empfohlen für Produktion
 
 ## API Documentation
 

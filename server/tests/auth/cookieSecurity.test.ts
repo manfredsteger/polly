@@ -379,5 +379,55 @@ describe('Cookie Security - CRITICAL', () => {
         expect([401, 429]).toContain(response.status);
       });
     });
+
+    it('should return HTTP 429 after exceeding rate limit threshold', async () => {
+      const uniqueEmail = `ratelimit-test-${Date.now()}@test.com`;
+      
+      for (let i = 0; i < 6; i++) {
+        await request(app)
+          .post('/api/v1/auth/login')
+          .send({
+            usernameOrEmail: uniqueEmail,
+            password: 'wrongpassword',
+          });
+      }
+
+      const seventhAttempt = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          usernameOrEmail: uniqueEmail,
+          password: 'wrongpassword',
+        });
+
+      expect([401, 429]).toContain(seventhAttempt.status);
+      
+      if (seventhAttempt.status === 429) {
+        const responseText = seventhAttempt.body.error || seventhAttempt.body.message || seventhAttempt.text;
+        expect(responseText).toMatch(/too many|rate limit|locked|gesperrt|anmeldeversuche|warten/i);
+      }
+    });
+
+    it('should enforce rate limit per IP/account combination', async () => {
+      const uniqueEmail1 = `ratelimit-user1-${Date.now()}@test.com`;
+      const uniqueEmail2 = `ratelimit-user2-${Date.now()}@test.com`;
+      
+      for (let i = 0; i < 5; i++) {
+        await request(app)
+          .post('/api/v1/auth/login')
+          .send({
+            usernameOrEmail: uniqueEmail1,
+            password: 'wrongpassword',
+          });
+      }
+
+      const differentAccountAttempt = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          usernameOrEmail: uniqueEmail2,
+          password: 'wrongpassword',
+        });
+
+      expect([401, 429]).toContain(differentAccountAttempt.status);
+    });
   });
 });

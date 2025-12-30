@@ -277,7 +277,8 @@
     "exportToCsv": "CSV exportieren",
     "exportToPdf": "PDF exportieren",
     "noResults": "Noch keine Ergebnisse",
-    "votesForPoll": "Stimmabgaben zur Umfrage"
+    "votesForPoll": "Stimmabgaben zur Umfrage",
+    "total": "Gesamt"
   },
   "pollTypes": {
     "schedule": "Termin",

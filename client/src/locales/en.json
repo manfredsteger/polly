@@ -277,7 +277,8 @@
     "exportToCsv": "Export CSV",
     "exportToPdf": "Export PDF",
     "noResults": "No results yet",
-    "votesForPoll": "Votes for poll"
+    "votesForPoll": "Votes for poll",
+    "total": "Total"
   },
   "pollTypes": {
     "schedule": "Schedule",

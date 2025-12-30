@@ -378,6 +378,7 @@
   },
   "admin": {
     "dashboard": "Admin-Dashboard",
+    "systemManagement": "Systemverwaltung",
     "users": "Benutzer",
     "userManagement": "Benutzerverwaltung",
     "createUser": "Benutzer erstellen",
@@ -395,7 +396,86 @@
     "siteName": "Website-Name",
     "logo": "Logo",
     "primaryColor": "Primärfarbe",
-    "security": "Sicherheit",
+    "security": {
+      "breadcrumb": "Sicherheit",
+      "title": "Sicherheit & DSGVO",
+      "description": "DSGVO-Konformität und Datensicherheit verwalten",
+      "gdprCompliant": "DSGVO-konform",
+      "encryption": "Verschlüsselung",
+      "encryptionDescription": "Informationen zur Datenverschlüsselung",
+      "transportEncryption": "Transport-Verschlüsselung",
+      "tlsDescription": "TLS 1.3 für alle Verbindungen",
+      "databaseEncryption": "Datenbank-Verschlüsselung",
+      "aesDescription": "AES-256 at-rest Verschlüsselung",
+      "passwordHashing": "Passwort-Hashing",
+      "bcryptDescription": "bcrypt mit Salt-Runden: 12",
+      "sessionSecurity": "Session-Sicherheit",
+      "sessionDescription": "HTTP-Only, Secure, SameSite",
+      "active": "Aktiv",
+      "rateLimit": "Login-Ratenbegrenzung",
+      "rateLimitDescription": "Schutz gegen Brute-Force-Angriffe auf lokale Anmeldungen",
+      "enableRateLimit": "Ratenbegrenzung aktivieren",
+      "limitAttempts": "Begrenzt fehlgeschlagene Anmeldeversuche",
+      "maxAttempts": "Max. Versuche",
+      "attempts": "{{count}} Versuche",
+      "beforeLockout": "Anzahl vor Sperrung",
+      "timeWindow": "Zeitfenster",
+      "minutes": "{{count}} Minuten",
+      "counterWindow": "Zähler-Fenster",
+      "lockoutTime": "Sperrzeit",
+      "waitTimeAfterLockout": "Wartezeit nach Sperrung",
+      "currentlyTracked": "Aktuell verfolgt",
+      "lockedAccounts": "Gesperrte Konten",
+      "clearAllLocks": "Alle Sperren aufheben",
+      "clearLocksTitle": "Alle Rate-Limit-Sperren aufheben?",
+      "clearLocksDescription": "Dies hebt alle aktuellen Anmelde-Sperren auf. Benutzer können sofort wieder versuchen, sich anzumelden.",
+      "clearLocks": "Sperren aufheben",
+      "saveRateLimit": "Ratenbegrenzung speichern",
+      "virusScanner": "Virenscanner (ClamAV)",
+      "virusScannerDescription": "Upload-Prüfung vor Persistierung - Pflicht für behördliche Pentests",
+      "virusScanInfo": "Alle Uploads werden VOR dem Speichern durch ClamAV geprüft. Dateien mit erkannten Viren werden abgelehnt und nie persistiert.",
+      "enableVirusScanner": "Virenscanner aktivieren",
+      "scanAllUploads": "Alle Uploads vor Speicherung prüfen",
+      "clamdServerAddress": "clamd Server-Adresse",
+      "port": "Port",
+      "defaultPort": "Standard: 3310",
+      "timeout": "Timeout",
+      "seconds": "{{count}} Sekunden",
+      "maxScanWait": "Max. Scan-Wartezeit",
+      "maxFileSize": "Max. Dateigröße (MB)",
+      "largerFilesRejected": "Größere Dateien werden abgelehnt",
+      "testConnection": "Verbindung testen",
+      "testing": "Teste...",
+      "saveClamav": "ClamAV speichern",
+      "dataRetentionDescription": "Konfigurieren Sie die automatische Bereinigung alter Daten getrennt nach Benutzertyp (DSGVO Art. 5)",
+      "guestUsers": "Gastnutzer",
+      "anonymous": "Anonym",
+      "ssoUsers": "SSO-Nutzer",
+      "authenticated": "Authentifiziert",
+      "guestUsersNote": "sind anonyme Benutzer, die ohne Anmeldung an Umfragen teilnehmen. Ihre Daten sollten gemäß DSGVO-Grundsätzen zeitnah gelöscht werden.",
+      "day": "Tag",
+      "days": "Tage",
+      "never": "Nie",
+      "expiredGuestPolls": "Abgelaufene Gast-Umfragen löschen",
+      "expiredPollsDescription": "Anonyme Umfragen nach Ablauf automatisch löschen",
+      "anonymizeGuestVotes": "Gast-Stimmen anonymisieren",
+      "removeEmailsFromVotes": "E-Mail-Adressen aus Stimmen entfernen",
+      "immediateAfterPoll": "Sofort nach Umfrage-Ende",
+      "archiveExpiredPolls": "Abgelaufene Umfragen archivieren",
+      "saveDeprovision": "Deprovisionierung speichern",
+      "gdprFunctions": "DSGVO-Funktionen",
+      "gdprCompliance": "DSGVO-konforme Datenverarbeitung mit vollständiger Rechteeinhaltung",
+      "rightToAccess": "Recht auf Auskunft",
+      "dataExportAvailable": "Datenexport für Benutzer verfügbar",
+      "rightToErasure": "Recht auf Löschung",
+      "accountDeletionPossible": "Kontolöschung über Profil möglich",
+      "dataMinimization": "Datenminimierung",
+      "onlyNecessaryData": "Nur notwendige Daten werden gespeichert",
+      "storageLimitation": "Speicherbegrenzung",
+      "autoDeleteConfigurable": "Auto-Löschung konfigurierbar",
+      "saveSettings": "Einstellungen speichern",
+      "settingsSaved": "Einstellungen gespeichert"
+    },
     "securityScan": "Sicherheitsscan",
     "vulnerabilities": "Schwachstellen",
     "statistics": "Statistiken",
@@ -643,7 +723,59 @@
       "deprovisionPassword": "Passwort",
       "saveDeprovision": "Deprovisionierung speichern",
       "seconds": "Sekunden",
-      "mb": "MB"
+      "mb": "MB",
+      "authentication": {
+        "title": "Authentifizierung",
+        "description": "OIDC/Keycloak-Integration für Single Sign-On"
+      },
+      "database": {
+        "title": "Datenbank",
+        "description": "PostgreSQL-Datenbankverbindung und -konfiguration"
+      },
+      "email": {
+        "title": "E-Mail",
+        "description": "SMTP-Einstellungen für E-Mail-Benachrichtigungen"
+      },
+      "emailTemplates": {
+        "title": "E-Mail-Vorlagen",
+        "description": "Anpassbare Vorlagen für System-E-Mails"
+      },
+      "security": {
+        "title": "Sicherheit",
+        "description": "Sicherheitseinstellungen und DSGVO-Konformität"
+      },
+      "notifications": {
+        "title": "Benachrichtigungen",
+        "description": "Benachrichtigungseinstellungen konfigurieren"
+      },
+      "roles": {
+        "title": "Benutzerrollen",
+        "description": "Rollenverwaltung und Berechtigungen"
+      },
+      "sessionTimeout": {
+        "title": "Sitzungszeitlimit",
+        "description": "Automatische Sitzungsbeendigung konfigurieren"
+      },
+      "status": {
+        "available": "Verfügbar",
+        "connected": "Verbunden",
+        "enabled": "Aktiviert",
+        "templates": "{{count}} Vorlagen",
+        "configurable": "Konfigurierbar",
+        "roles": "{{count}} Rollen",
+        "optional": "Optional"
+      },
+      "integrations": {
+        "title": "Integrationen",
+        "matrix": {
+          "title": "Matrix-Chat",
+          "description": "Matrix-Messenger für Echtzeit-Benachrichtigungen"
+        },
+        "pentest": {
+          "title": "Pentest-Tools",
+          "description": "Sicherheitstests und Schwachstellenanalyse"
+        }
+      }
     },
     "customize": {
       "title": "Anpassen",

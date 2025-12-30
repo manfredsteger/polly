@@ -791,7 +791,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="flex items-center">
                     <ShieldAlert className="w-5 h-5 mr-2" />
-                    {t('admin.security')}
+                    {t('admin.monitoring.securityCheck')}
                   </CardTitle>
                   <div className="flex items-center gap-3 flex-wrap">
                     {vulnerabilities?.summary && vulnerabilities.summary.total > 0 && (
@@ -2663,6 +2663,7 @@ function SettingCard({ title, description, icon, status, statusType, onClick, te
 }
 
 function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -2898,6 +2899,7 @@ function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 }
 
 function DatabaseSettingsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -2969,6 +2971,7 @@ function DatabaseSettingsPanel({ onBack }: { onBack: () => void }) {
 }
 
 function EmailSettingsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   
   return (
@@ -3090,6 +3093,7 @@ interface EmailTheme {
 }
 
 function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
@@ -3840,6 +3844,7 @@ interface SecuritySettingsResponse {
 }
 
 function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [userTypeTab, setUserTypeTab] = useState<'guest' | 'kitahub'>('guest');
@@ -4844,6 +4849,7 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 }
 
 function RoleManagementPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { data: users } = useQuery<User[]>({
     queryKey: ['/api/v1/admin/users'],
   });
@@ -5017,6 +5023,7 @@ interface NotificationSettings {
 }
 
 function NotificationSettingsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -5293,6 +5300,7 @@ interface SessionTimeoutSettings {
 }
 
 function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -5563,6 +5571,7 @@ interface MatrixSettings {
 }
 
 function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -5886,6 +5895,7 @@ function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
 }
 
 function CustomizationPanel() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -7519,6 +7529,7 @@ function PentestToolsPanel({ onBack }: { onBack: () => void }) {
 
 // GDPR Deletion Requests Panel Component
 function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -7804,6 +7815,7 @@ function DeletionRequestsPanel({ onBack }: { onBack: () => void }) {
 
 // Automated Tests Panel Component
 function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   
   interface TestCategory {
@@ -8516,6 +8528,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
 
 // Test Data Management Section Component
 function TestDataManagementSection() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
 

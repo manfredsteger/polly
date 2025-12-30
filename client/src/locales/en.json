@@ -378,6 +378,7 @@
   },
   "admin": {
     "dashboard": "Admin Dashboard",
+    "systemManagement": "System Management",
     "users": "Users",
     "userManagement": "User Management",
     "createUser": "Create User",
@@ -395,7 +396,86 @@
     "siteName": "Site Name",
     "logo": "Logo",
     "primaryColor": "Primary Color",
-    "security": "Security",
+    "security": {
+      "breadcrumb": "Security",
+      "title": "Security & GDPR",
+      "description": "Manage GDPR compliance and data security",
+      "gdprCompliant": "GDPR Compliant",
+      "encryption": "Encryption",
+      "encryptionDescription": "Information about data encryption",
+      "transportEncryption": "Transport Encryption",
+      "tlsDescription": "TLS 1.3 for all connections",
+      "databaseEncryption": "Database Encryption",
+      "aesDescription": "AES-256 at rest encryption",
+      "passwordHashing": "Password Hashing",
+      "bcryptDescription": "bcrypt with salt rounds: 12",
+      "sessionSecurity": "Session Security",
+      "sessionDescription": "HTTP-Only, Secure, SameSite",
+      "active": "Active",
+      "rateLimit": "Login Rate Limiting",
+      "rateLimitDescription": "Protection against brute-force attacks on local logins",
+      "enableRateLimit": "Enable rate limiting",
+      "limitAttempts": "Limits failed login attempts",
+      "maxAttempts": "Max. Attempts",
+      "attempts": "{{count}} attempts",
+      "beforeLockout": "Number before lockout",
+      "timeWindow": "Time Window",
+      "minutes": "{{count}} minutes",
+      "counterWindow": "Counter window",
+      "lockoutTime": "Lockout Time",
+      "waitTimeAfterLockout": "Wait time after lockout",
+      "currentlyTracked": "Currently tracked",
+      "lockedAccounts": "Locked Accounts",
+      "clearAllLocks": "Clear All Locks",
+      "clearLocksTitle": "Clear all rate limit locks?",
+      "clearLocksDescription": "This will clear all current login locks. Users can immediately try to log in again.",
+      "clearLocks": "Release Locks",
+      "saveRateLimit": "Save Rate Limiting",
+      "virusScanner": "Virus Scanner (ClamAV)",
+      "virusScannerDescription": "Upload scanning before persistence - mandatory for government pentests",
+      "virusScanInfo": "All uploads are scanned by ClamAV BEFORE being saved. Files with detected viruses are rejected and never persisted.",
+      "enableVirusScanner": "Enable virus scanner",
+      "scanAllUploads": "Scan all uploads before storage",
+      "clamdServerAddress": "clamd server address",
+      "port": "Port",
+      "defaultPort": "Default: 3310",
+      "timeout": "Timeout",
+      "seconds": "{{count}} seconds",
+      "maxScanWait": "Max. scan wait time",
+      "maxFileSize": "Max. File Size (MB)",
+      "largerFilesRejected": "Larger files will be rejected",
+      "testConnection": "Test Connection",
+      "testing": "Testing...",
+      "saveClamav": "Save ClamAV",
+      "dataRetentionDescription": "Configure automatic cleanup of old data by user type (GDPR Art. 5)",
+      "guestUsers": "Guest Users",
+      "anonymous": "Anonymous",
+      "ssoUsers": "SSO Users",
+      "authenticated": "Authenticated",
+      "guestUsersNote": "are anonymous users who participate in polls without logging in. Their data should be deleted promptly according to GDPR principles.",
+      "day": "day",
+      "days": "days",
+      "never": "Never",
+      "expiredGuestPolls": "Delete expired guest polls",
+      "expiredPollsDescription": "Automatically delete anonymous polls after expiration",
+      "anonymizeGuestVotes": "Anonymize guest votes",
+      "removeEmailsFromVotes": "Remove email addresses from votes",
+      "immediateAfterPoll": "Immediately after poll ends",
+      "archiveExpiredPolls": "Archive expired polls",
+      "saveDeprovision": "Save Deprovisioning",
+      "gdprFunctions": "GDPR Functions",
+      "gdprCompliance": "GDPR-compliant data processing with full rights compliance",
+      "rightToAccess": "Right to Access",
+      "dataExportAvailable": "Data export available for users",
+      "rightToErasure": "Right to Erasure",
+      "accountDeletionPossible": "Account deletion possible via profile",
+      "dataMinimization": "Data Minimization",
+      "onlyNecessaryData": "Only necessary data is stored",
+      "storageLimitation": "Storage Limitation",
+      "autoDeleteConfigurable": "Auto-deletion configurable",
+      "saveSettings": "Save Settings",
+      "settingsSaved": "Settings saved"
+    },
     "securityScan": "Security Scan",
     "vulnerabilities": "Vulnerabilities",
     "statistics": "Statistics",
@@ -643,7 +723,59 @@
       "deprovisionPassword": "Password",
       "saveDeprovision": "Save Deprovisioning",
       "seconds": "Seconds",
-      "mb": "MB"
+      "mb": "MB",
+      "authentication": {
+        "title": "Authentication",
+        "description": "OIDC/Keycloak integration for Single Sign-On"
+      },
+      "database": {
+        "title": "Database",
+        "description": "PostgreSQL database connection and configuration"
+      },
+      "email": {
+        "title": "Email",
+        "description": "SMTP settings for email notifications"
+      },
+      "emailTemplates": {
+        "title": "Email Templates",
+        "description": "Customizable templates for system emails"
+      },
+      "security": {
+        "title": "Security",
+        "description": "Security settings and GDPR compliance"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Configure notification settings"
+      },
+      "roles": {
+        "title": "User Roles",
+        "description": "Role management and permissions"
+      },
+      "sessionTimeout": {
+        "title": "Session Timeout",
+        "description": "Configure automatic session expiration"
+      },
+      "status": {
+        "available": "Available",
+        "connected": "Connected",
+        "enabled": "Enabled",
+        "templates": "{{count}} Templates",
+        "configurable": "Configurable",
+        "roles": "{{count}} Roles",
+        "optional": "Optional"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "matrix": {
+          "title": "Matrix Chat",
+          "description": "Matrix messenger for real-time notifications"
+        },
+        "pentest": {
+          "title": "Pentest Tools",
+          "description": "Security testing and vulnerability analysis"
+        }
+      }
     },
     "customize": {
       "title": "Customize",

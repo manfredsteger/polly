@@ -96,7 +96,7 @@ app.use(session({
   cookie: {
     // Replit always uses HTTPS behind proxy, so cookies must be secure
     // For local development without proxy, allow insecure cookies
-    secure: isProxied,
+    secure: isProxied ? true : false,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',

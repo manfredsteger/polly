@@ -1680,7 +1680,17 @@
       "testUsers": "Test-Benutzer",
       "noTestDataPresent": "Keine Testdaten vorhanden",
       "loadingTestDataStats": "Lade Testdaten-Statistiken...",
-      "testConfiguration": "Test-Konfiguration"
+      "testConfiguration": "Test-Konfiguration",
+      "testTypes": {
+        "unit": "Unit-Tests",
+        "unitDescription": "Einzelne Funktionen und Komponenten",
+        "integration": "Integrationstests",
+        "integrationDescription": "API-Endpunkte und Datenbankoperationen",
+        "e2e": "E2E-Tests",
+        "e2eDescription": "Browser-basierte End-to-End-Tests",
+        "data": "Datentests",
+        "dataDescription": "Fixtures und Testdaten-Generierung"
+      }
     },
     "toasts": {
       "saved": "Gespeichert",

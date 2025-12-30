@@ -1680,7 +1680,17 @@
       "testUsers": "Test Users",
       "noTestDataPresent": "No test data present",
       "loadingTestDataStats": "Loading test data statistics...",
-      "testConfiguration": "Test Configuration"
+      "testConfiguration": "Test Configuration",
+      "testTypes": {
+        "unit": "Unit Tests",
+        "unitDescription": "Individual functions and components",
+        "integration": "Integration Tests",
+        "integrationDescription": "API endpoints and database operations",
+        "e2e": "E2E Tests",
+        "e2eDescription": "Browser-based end-to-end tests",
+        "data": "Data Tests",
+        "dataDescription": "Fixtures and test data generation"
+      }
     },
     "toasts": {
       "saved": "Saved",

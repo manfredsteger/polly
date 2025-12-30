@@ -7960,10 +7960,10 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
   const isAutoMode = currentMode === 'auto';
 
   const testTypeLabels: Record<string, { label: string; icon: React.ReactNode; description: string }> = {
-    unit: { label: 'Unit-Tests', icon: <TestTube className="w-4 h-4" />, description: 'Einzelne Funktionen und Komponenten' },
-    integration: { label: 'Integrationstests', icon: <Workflow className="w-4 h-4" />, description: 'API-Endpunkte und Datenbankoperationen' },
-    e2e: { label: 'E2E-Tests', icon: <Globe className="w-4 h-4" />, description: 'Browser-basierte End-to-End-Tests' },
-    data: { label: 'Datentests', icon: <DatabaseIcon className="w-4 h-4" />, description: 'Fixtures und Testdaten-Generierung' },
+    unit: { label: t('admin.tests.testTypes.unit'), icon: <TestTube className="w-4 h-4" />, description: t('admin.tests.testTypes.unitDescription') },
+    integration: { label: t('admin.tests.testTypes.integration'), icon: <Workflow className="w-4 h-4" />, description: t('admin.tests.testTypes.integrationDescription') },
+    e2e: { label: t('admin.tests.testTypes.e2e'), icon: <Globe className="w-4 h-4" />, description: t('admin.tests.testTypes.e2eDescription') },
+    data: { label: t('admin.tests.testTypes.data'), icon: <DatabaseIcon className="w-4 h-4" />, description: t('admin.tests.testTypes.dataDescription') },
   };
 
   const runTestsMutation = useMutation({

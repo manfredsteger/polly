@@ -295,10 +295,12 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
     queryKey: ['/api/v1/admin/extended-stats'],
   });
 
-  const { data: systemStatus, isLoading: systemStatusLoading, refetch: refetchSystemStatus } = useQuery<SystemStatusData>({
+  const { data: systemStatus, isLoading: systemStatusLoading, error: systemStatusError, refetch: refetchSystemStatus } = useQuery<SystemStatusData>({
     queryKey: ['/api/v1/admin/system-status'],
     staleTime: 1000 * 60 * 60, // 1 hour
     refetchOnWindowFocus: false,
+    retry: 1,
+    gcTime: 0, // Don't cache failed queries
   });
 
   const { data: vulnerabilities, isLoading: vulnerabilitiesLoading, refetch: refetchVulnerabilities } = useQuery<VulnerabilitiesData>({
@@ -710,6 +712,14 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
                 {systemStatusLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : systemStatusError ? (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-destructive" />
+                    <p className="text-muted-foreground">{t('admin.monitoring.loadError')}</p>
+                    <Button variant="outline" size="sm" className="mt-2" onClick={() => refetchSystemStatus()}>
+                      {t('admin.monitoring.retry')}
+                    </Button>
                   </div>
                 ) : systemStatus?.components ? (
                   <div className="overflow-x-auto">

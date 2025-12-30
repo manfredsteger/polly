@@ -555,6 +555,8 @@
       "systemPackages": "System-Packages",
       "systemPackagesDescription": "Installierte Nix-Packages und deren Versionen",
       "noSystemPackages": "Keine System-Packages konfiguriert",
+      "loadError": "Fehler beim Laden der Daten",
+      "retry": "Erneut versuchen",
       "package": "Package",
       "usage": "Verwendung"
     },

@@ -280,6 +280,18 @@
     "votesForPoll": "Votes for poll",
     "total": "Total"
   },
+  "resultsChart": {
+    "tie": "Tie",
+    "winner": "Winner",
+    "capacityUnlimited": "Capacity set to unlimited",
+    "capacitySaveError": "Error saving capacity",
+    "integerOnly": "Please enter an integer",
+    "minCapacity": "Capacity must be at least 1",
+    "maxCapacity": "Capacity must be at most 9999",
+    "capacitySet": "Capacity set to {{count}}",
+    "participantsOverview": "{{count}} participants",
+    "votedAt": "Voted at"
+  },
   "pollTypes": {
     "schedule": "Schedule",
     "survey": "Survey",

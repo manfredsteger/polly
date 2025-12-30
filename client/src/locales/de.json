@@ -280,6 +280,18 @@
     "votesForPoll": "Stimmabgaben zur Umfrage",
     "total": "Gesamt"
   },
+  "resultsChart": {
+    "tie": "Gleichstand",
+    "winner": "Gewinner",
+    "capacityUnlimited": "Kapazität auf unbegrenzt gesetzt",
+    "capacitySaveError": "Fehler beim Speichern der Kapazität",
+    "integerOnly": "Bitte geben Sie eine ganze Zahl ein",
+    "minCapacity": "Kapazität muss mindestens 1 sein",
+    "maxCapacity": "Kapazität darf maximal 9999 sein",
+    "capacitySet": "Kapazität auf {{count}} gesetzt",
+    "participantsOverview": "{{count}} Teilnehmer",
+    "votedAt": "Abgestimmt am"
+  },
   "pollTypes": {
     "schedule": "Termin",
     "survey": "Umfrage",

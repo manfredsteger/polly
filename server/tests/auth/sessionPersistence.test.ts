@@ -26,7 +26,7 @@ async function createTestUserDirectly() {
     passwordHash,
     role: 'user',
     provider: 'local',
-    isTestData: false,
+    isTestData: true,
   });
   
   return { email, password, username, name: 'Session Test User' };

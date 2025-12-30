@@ -3962,7 +3962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const user = await authService.localLogin(data.usernameOrEmail, data.password);
+      const user = await authService.localLogin(data.usernameOrEmail, data.password, req.isTestMode || false);
       
       if (!user) {
         const result = await loginRateLimiter.recordFailedAttempt(data.usernameOrEmail, clientIp);

@@ -228,7 +228,7 @@ export const authService = {
     }
   },
 
-  async localLogin(usernameOrEmail: string, password: string): Promise<User | null> {
+  async localLogin(usernameOrEmail: string, password: string, isTestMode: boolean = false): Promise<User | null> {
     let user = await storage.getUserByUsername(usernameOrEmail);
     if (!user) {
       user = await storage.getUserByEmail(usernameOrEmail);
@@ -238,8 +238,8 @@ export const authService = {
       return null;
     }
 
-    // Block login for test accounts
-    if (user.isTestData) {
+    // Block login for test accounts (unless in test mode)
+    if (user.isTestData && !isTestMode) {
       console.log(`[Auth] Blocked login attempt for test account: ${user.email}`);
       return null;
     }

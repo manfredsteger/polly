@@ -26,7 +26,7 @@ async function createUserAndLogin(app: Express) {
     passwordHash,
     role: 'user',
     provider: 'local',
-    isTestData: false,
+    isTestData: true,
   });
   
   const loginResponse = await request(app)

@@ -66,13 +66,23 @@ async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organ
   return await response.json();
 }
 
-// Helper to vote on a poll via API
+// Helper to vote on a poll via API (votes for all options)
 async function voteViaAPI(page: Page, publicToken: string, voterName: string, optionId: number, response: 'yes' | 'no' | 'maybe' = 'yes') {
+  // First get poll data to know all options
+  const pollResponse = await page.request.get(`${BASE_URL}/api/v1/polls/${publicToken}`);
+  const pollData = await pollResponse.json();
+  
+  // Build votes for all options (required by VotingInterface validation)
+  const votes = pollData.poll.options.map((opt: any) => ({
+    optionId: opt.id,
+    response: opt.id === optionId ? response : 'no',
+  }));
+  
   const voteResponse = await page.request.post(`${BASE_URL}/api/v1/polls/${publicToken}/vote-bulk`, {
     data: {
       voterName,
       voterEmail: `${voterName.toLowerCase().replace(/\s/g, '')}@test.com`,
-      votes: [{ optionId, response }],
+      votes,
     },
   });
   return voteResponse;
@@ -121,15 +131,20 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     // Wait for voting interface to fully render
     await popup.waitForTimeout(1000);
     
-    // Click yes on first option - try multiple selectors for text-only options
-    const yesButton = popup.locator('[data-testid="vote-yes-0"]');
-    await expect(yesButton).toBeVisible({ timeout: 15000 });
-    await yesButton.click();
+    // Click yes on first option
+    const yesButton0 = popup.locator('[data-testid="vote-yes-0"]');
+    await expect(yesButton0).toBeVisible({ timeout: 15000 });
+    await yesButton0.click();
     
-    // Wait for the vote to be registered
+    // Click no on second option (all options must be answered)
+    const noButton1 = popup.locator('[data-testid="vote-no-1"]');
+    await expect(noButton1).toBeVisible({ timeout: 10000 });
+    await noButton1.click();
+    
+    // Wait for the votes to be registered
     await popup.waitForTimeout(500);
     
-    // Submit vote - wait for button to become enabled
+    // Submit vote - button should now be enabled since all options answered
     const submitButton = popup.locator('[data-testid="button-submit-vote"]');
     await expect(submitButton).toBeVisible({ timeout: 10000 });
     await expect(submitButton).toBeEnabled({ timeout: 10000 });

@@ -128,6 +128,7 @@ export function SimpleImageVoting({
                         size="sm"
                         onClick={() => handleVoteClick(option.id, 'yes')}
                         disabled={disabled}
+                        data-testid={`vote-yes-${index}`}
                       >
                         <Check className="w-4 h-4 mr-1" />
                         Ja
@@ -139,6 +140,7 @@ export function SimpleImageVoting({
                           size="sm"
                           onClick={() => handleVoteClick(option.id, 'maybe')}
                           disabled={disabled}
+                          data-testid={`vote-maybe-${index}`}
                         >
                           <Minus className="w-4 h-4 mr-1" />
                           Vielleicht
@@ -150,6 +152,7 @@ export function SimpleImageVoting({
                         size="sm"
                         onClick={() => handleVoteClick(option.id, 'no')}
                         disabled={disabled}
+                        data-testid={`vote-no-${index}`}
                       >
                         <X className="w-4 h-4 mr-1" />
                         Nein
@@ -167,10 +170,11 @@ export function SimpleImageVoting({
       {textOptions.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold mb-4">Text Optionen</h3>
-          {textOptions.map((option) => {
+          {textOptions.map((option, textIndex) => {
             const currentVote = votes[String(option.id)];
+            const globalIndex = imageOptions.length + textIndex;
             return (
-              <div key={option.id} className="p-4 border rounded-lg">
+              <div key={option.id} className="p-4 border rounded-lg" data-testid={`option-${globalIndex}`}>
                 <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></h4>
                 {!adminPreview && (
                   <div className="flex gap-2">
@@ -180,6 +184,7 @@ export function SimpleImageVoting({
                       size="sm"
                       onClick={() => handleVoteClick(option.id, 'yes')}
                       disabled={disabled}
+                      data-testid={`vote-yes-${globalIndex}`}
                     >
                       <Check className="w-4 h-4 mr-1" />
                       Ja
@@ -191,6 +196,7 @@ export function SimpleImageVoting({
                         size="sm"
                         onClick={() => handleVoteClick(option.id, 'maybe')}
                         disabled={disabled}
+                        data-testid={`vote-maybe-${globalIndex}`}
                       >
                         <Minus className="w-4 h-4 mr-1" />
                         Vielleicht
@@ -202,6 +208,7 @@ export function SimpleImageVoting({
                       size="sm"
                       onClick={() => handleVoteClick(option.id, 'no')}
                       disabled={disabled}
+                      data-testid={`vote-no-${globalIndex}`}
                     >
                       <X className="w-4 h-4 mr-1" />
                       Nein

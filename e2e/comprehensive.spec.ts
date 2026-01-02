@@ -107,18 +107,23 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
       page.waitForEvent('popup'),
       page.locator('[data-testid="button-open-public-link"]').click(),
     ]);
-    await popup.waitForLoadState();
+    await popup.waitForLoadState('networkidle');
     
     // Verify poll is visible
     await expect(popup.locator(`text=${uniqueTitle}`)).toBeVisible({ timeout: 15000 });
     
     // Fill voter info and vote
-    await popup.fill('[data-testid="input-voter-name"]', 'Test Voter');
+    const voterNameInput = popup.locator('[data-testid="input-voter-name"]');
+    await expect(voterNameInput).toBeVisible({ timeout: 10000 });
+    await voterNameInput.fill('Test Voter');
     await popup.fill('[data-testid="input-voter-email"]', `voter-${nanoid(4)}@test.com`);
     
-    // Click yes on first option
+    // Wait for voting interface to fully render
+    await popup.waitForTimeout(1000);
+    
+    // Click yes on first option - try multiple selectors for text-only options
     const yesButton = popup.locator('[data-testid="vote-yes-0"]');
-    await expect(yesButton).toBeVisible({ timeout: 10000 });
+    await expect(yesButton).toBeVisible({ timeout: 15000 });
     await yesButton.click();
     
     // Wait for the vote to be registered

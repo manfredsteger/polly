@@ -270,8 +270,15 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
     
-    // Verify schedule options are visible - check for option text or date format
-    await expect(page.locator('text=Termin 1').or(page.locator('text=Termin 2')).first()).toBeVisible({ timeout: 10000 });
+    // Verify poll loads correctly - check for poll title
+    await expect(page.locator(`text=${pollData.poll.title}`).first()).toBeVisible({ timeout: 15000 });
+    
+    // Verify schedule options are rendered by checking for voting buttons
+    // SimpleImageVoting component uses data-testid="option-0" for options and "vote-yes-0" for buttons
+    await expect(
+      page.locator('[data-testid="option-0"]')
+        .or(page.locator('[data-testid="vote-yes-0"]'))
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test('sollte Abstimmung für Termine erlauben', async ({ page }) => {

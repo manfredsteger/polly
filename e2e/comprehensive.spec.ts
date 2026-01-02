@@ -248,8 +248,8 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     // Poll should be visible with the correct title
     await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
     
-    // Click on results tab to see voter names (handle both German and English)
-    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnis|results/i });
+    // Click on results tab to see voter names (handle both German "Ergebnisse" and English "Results")
+    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnisse|results/i });
     await resultsTab.click();
     await page.waitForTimeout(1000);
     
@@ -289,8 +289,8 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     // Poll should be visible with the correct title
     await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
     
-    // Click on results tab to see voter names (handle both German and English)
-    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnis|results/i });
+    // Click on results tab to see voter names (handle both German "Ergebnisse" and English "Results")
+    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnisse|results/i });
     await resultsTab.click();
     await page.waitForTimeout(1000);
     
@@ -342,8 +342,8 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     // Poll should be visible with the correct title
     await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
     
-    // Click on results tab to see voter names (handle both German and English)
-    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnis|results/i });
+    // Click on results tab to see voter names (handle both German "Ergebnisse" and English "Results")
+    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnisse|results/i });
     await resultsTab.click();
     await page.waitForTimeout(1000);
     
@@ -377,7 +377,8 @@ test.describe('Stimme bearbeiten', () => {
     // Assert that edit token was returned (allowVoteEdit:true should always generate one)
     expect(editToken, 'Vote response should include voterEditToken when allowVoteEdit is true').toBeTruthy();
     
-    await page.goto(`/vote/edit/${editToken}`);
+    // Route is /edit/:editToken (not /vote/edit)
+    await page.goto(`/edit/${editToken}`);
     await page.waitForLoadState('networkidle');
     
     // Should show poll title (confirms we're on the right page)

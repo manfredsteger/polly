@@ -50,8 +50,8 @@ test.describe('Umfrage erstellen', () => {
     // The success page is at /success, not /poll-success
     await page.waitForURL('**/success**', { timeout: 30000 });
     
-    // Use specific heading selector to avoid "strict mode violation" with multiple matches
-    await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 10000 });
+    // Use specific heading selector to avoid "strict mode violation" with multiple matches (supports DE and EN)
+    await expect(page.getByRole('heading', { name: /erfolgreich erstellt|successfully created/i })).toBeVisible({ timeout: 10000 });
     
     // Wait for the public link card to be visible (confirms data loaded from sessionStorage)
     const publicCard = page.locator('[data-testid="card-public-link"]');
@@ -86,8 +86,8 @@ test.describe('Umfrage erstellen', () => {
     // Wait for navigation to success page with longer timeout
     await page.waitForURL('**/success**', { timeout: 45000 });
     
-    // Verify success heading
-    await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 15000 });
+    // Verify success heading (supports both German and English)
+    await expect(page.getByRole('heading', { name: /erfolgreich erstellt|successfully created/i })).toBeVisible({ timeout: 15000 });
     
     // Wait for the public link card (confirms sessionStorage data loaded)
     const publicCard = page.locator('[data-testid="card-public-link"]');

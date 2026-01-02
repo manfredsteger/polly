@@ -26,8 +26,8 @@ test.describe('Abstimmung', () => {
     // Wait for navigation to success page with longer timeout
     await page.waitForURL('**/success**', { timeout: 45000 });
     
-    // Verify success heading
-    await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 15000 });
+    // Verify success heading (supports both German and English)
+    await expect(page.getByRole('heading', { name: /erfolgreich erstellt|successfully created/i })).toBeVisible({ timeout: 15000 });
     
     // Wait for the public link card (confirms sessionStorage data loaded)
     const publicCard = page.locator('[data-testid="card-public-link"]');
@@ -72,8 +72,8 @@ test.describe('Abstimmung', () => {
     // Wait for navigation to success page with longer timeout
     await page.waitForURL('**/success**', { timeout: 45000 });
     
-    // Verify success heading
-    await expect(page.getByRole('heading', { name: /erfolgreich erstellt/i })).toBeVisible({ timeout: 15000 });
+    // Verify success heading (supports both German and English)
+    await expect(page.getByRole('heading', { name: /erfolgreich erstellt|successfully created/i })).toBeVisible({ timeout: 15000 });
     
     // Wait for the admin link card (confirms sessionStorage data loaded)
     const adminCard = page.locator('[data-testid="card-admin-link"]');

@@ -128,13 +128,13 @@ function determineImpactArea(packageName: string, pkgInfo: { dependencies: Set<s
   
   // Check if it's a dev dependency first
   if (pkgInfo.devDependencies.has(packageName)) {
-    return { area: 'development', label: 'Nur Entwicklung' };
+    return { area: 'development', label: 'Dev' };
   }
   
   // Check dev package patterns
   for (const devPkg of Array.from(DEV_PACKAGES)) {
     if (normalizedName.startsWith(devPkg) || normalizedName === devPkg) {
-      return { area: 'development', label: 'Nur Entwicklung' };
+      return { area: 'development', label: 'Dev' };
     }
   }
   
@@ -164,7 +164,7 @@ function determineImpactArea(packageName: string, pkgInfo: { dependencies: Set<s
     return { area: 'backend', label: 'Backend' };
   }
   
-  return { area: 'development', label: 'Nur Entwicklung' };
+  return { area: 'development', label: 'Dev' };
 }
 
 function parseVulnerability(name: string, vuln: NpmAuditVulnerability, pkgInfo: { dependencies: Set<string>; devDependencies: Set<string> }): Vulnerability {

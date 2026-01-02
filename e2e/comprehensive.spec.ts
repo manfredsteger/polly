@@ -253,8 +253,8 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     await resultsTab.click();
     await page.waitForTimeout(1000);
     
-    // Results should show voter names (since resultsPublic is true)
-    await expect(page.locator('text=Voter 1')).toBeVisible({ timeout: 10000 });
+    // Results should show voter names (since resultsPublic is true) - use .first() for strict mode
+    await expect(page.locator('text=Voter 1').first()).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -270,8 +270,8 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
     
-    // Verify schedule options are visible
-    await expect(page.locator('text=Termin 1').or(page.locator('text=Termin 2'))).toBeVisible({ timeout: 10000 });
+    // Verify schedule options are visible - check for option text or date format
+    await expect(page.locator('text=Termin 1').or(page.locator('text=Termin 2')).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('sollte Abstimmung für Termine erlauben', async ({ page }) => {
@@ -287,7 +287,7 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     await page.waitForLoadState('networkidle');
     
     // Poll should be visible with the correct title
-    await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(`text=${pollData.poll.title}`).first()).toBeVisible({ timeout: 15000 });
     
     // Click on results tab to see voter names (handle both German "Ergebnisse" and English "Results")
     const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnisse|results/i });
@@ -295,7 +295,7 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     await page.waitForTimeout(1000);
     
     // Vote should be visible - check for voter name (since resultsPublic is true)
-    await expect(page.locator('text=Termin-Voter')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Termin-Voter').first()).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -316,8 +316,8 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
     
-    // Verify slots are visible
-    await expect(page.locator('text=Kuchen backen').or(page.locator('text=Aufbau helfen'))).toBeVisible({ timeout: 10000 });
+    // Verify slots are visible - use .first() for strict mode
+    await expect(page.locator('text=Kuchen backen').or(page.locator('text=Aufbau helfen')).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('sollte Kapazitätsgrenze respektieren', async ({ page }) => {
@@ -347,12 +347,12 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     await resultsTab.click();
     await page.waitForTimeout(1000);
     
-    // Slot should be visible
-    await expect(page.locator('text=Limitierter Slot')).toBeVisible({ timeout: 10000 });
+    // Slot should be visible (use .first() since text may appear in multiple places)
+    await expect(page.locator('text=Limitierter Slot').first()).toBeVisible({ timeout: 10000 });
     
     // At least first two persons should be visible (capacity is 2)
-    await expect(page.locator('text=Person 1')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Person 2')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Person 1').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Person 2').first()).toBeVisible({ timeout: 10000 });
   });
 });
 

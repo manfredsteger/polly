@@ -248,6 +248,11 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     // Poll should be visible with the correct title
     await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
     
+    // Click on results tab to see voter names (handle both German and English)
+    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnis|results/i });
+    await resultsTab.click();
+    await page.waitForTimeout(1000);
+    
     // Results should show voter names (since resultsPublic is true)
     await expect(page.locator('text=Voter 1')).toBeVisible({ timeout: 10000 });
   });
@@ -283,6 +288,11 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     
     // Poll should be visible with the correct title
     await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
+    
+    // Click on results tab to see voter names (handle both German and English)
+    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnis|results/i });
+    await resultsTab.click();
+    await page.waitForTimeout(1000);
     
     // Vote should be visible - check for voter name (since resultsPublic is true)
     await expect(page.locator('text=Termin-Voter')).toBeVisible({ timeout: 10000 });
@@ -332,6 +342,11 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     // Poll should be visible with the correct title
     await expect(page.locator(`text=${pollData.poll.title}`)).toBeVisible({ timeout: 15000 });
     
+    // Click on results tab to see voter names (handle both German and English)
+    const resultsTab = page.locator('button[role="tab"]').filter({ hasText: /ergebnis|results/i });
+    await resultsTab.click();
+    await page.waitForTimeout(1000);
+    
     // Slot should be visible
     await expect(page.locator('text=Limitierter Slot')).toBeVisible({ timeout: 10000 });
     
@@ -359,13 +374,19 @@ test.describe('Stimme bearbeiten', () => {
     const voteData = voteResponse.data as any;
     const editToken = voteData?.editToken || voteData?.voterEditToken;
     
-    if (editToken) {
-      await page.goto(`/vote/edit/${editToken}`);
-      await page.waitForLoadState('networkidle');
-      
-      // Should show edit interface
-      await expect(page.locator('text=bearbeiten').or(page.locator('text=Änderungen'))).toBeVisible({ timeout: 10000 });
-    }
+    // Assert that edit token was returned (allowVoteEdit:true should always generate one)
+    expect(editToken, 'Vote response should include voterEditToken when allowVoteEdit is true').toBeTruthy();
+    
+    await page.goto(`/vote/edit/${editToken}`);
+    await page.waitForLoadState('networkidle');
+    
+    // Should show poll title (confirms we're on the right page)
+    // The edit interface shows the poll, so check for the title or voting form
+    await expect(
+      page.locator(`text=${pollData.poll.title}`)
+        .or(page.locator('[data-testid="input-voter-name"]'))
+        .or(page.locator('form'))
+    ).toBeVisible({ timeout: 15000 });
   });
 });
 

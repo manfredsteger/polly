@@ -68,6 +68,7 @@ async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organ
 
 // Helper to vote on a poll via API (votes for all options)
 // Uses an isolated API context per call to avoid deviceToken cookie sharing
+// Returns an object with status(), json (pre-parsed data), and ok() methods
 async function voteViaAPI(page: Page, publicToken: string, voterName: string, optionId: number, voteResponse: 'yes' | 'no' | 'maybe' = 'yes') {
   // Create an isolated API context for this voter (no shared cookies)
   const api = await request.newContext({ baseURL: BASE_URL });
@@ -124,7 +125,23 @@ async function voteViaAPI(page: Page, publicToken: string, voterName: string, op
       },
     });
     
-    return apiVoteResponse;
+    // Parse JSON before disposing context (so caller can access data after dispose)
+    const statusCode = apiVoteResponse.status();
+    const isOk = apiVoteResponse.ok();
+    let jsonData = null;
+    try {
+      jsonData = await apiVoteResponse.json();
+    } catch {
+      // Response might not be JSON
+    }
+    
+    // Return a compatible object with status(), ok(), and json() that work after dispose
+    return {
+      status: () => statusCode,
+      ok: () => isOk,
+      json: async () => jsonData,
+      data: jsonData, // Direct access to parsed data
+    };
   } finally {
     await api.dispose();
   }
@@ -338,9 +355,9 @@ test.describe('Stimme bearbeiten', () => {
     const optionId = pollData.poll.options[0].id;
     const voteResponse = await voteViaAPI(page, pollData.publicToken, 'Edit Voter', optionId, 'yes');
     
-    // Get edit token from response
-    const voteData = await voteResponse.json();
-    const editToken = voteData.editToken || voteData.voterEditToken;
+    // Get edit token from response (use .data for pre-parsed JSON)
+    const voteData = voteResponse.data as any;
+    const editToken = voteData?.editToken || voteData?.voterEditToken;
     
     if (editToken) {
       await page.goto(`/vote/edit/${editToken}`);

@@ -129,7 +129,7 @@ describe('PDF Service', () => {
       // Check PDF magic bytes (%PDF-)
       const header = pdfBuffer.slice(0, 5).toString('ascii');
       expect(header).toBe('%PDF-');
-    });
+    }, 60000); // Increase timeout for first PDF generation (browser startup)
 
     it('should include branding options in PDF', async () => {
       if (!chromiumAvailable) {

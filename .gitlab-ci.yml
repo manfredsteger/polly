@@ -8,7 +8,9 @@ variables:
 
 sync-from-github:
   stage: sync
-  image: alpine/git:latest
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache git
   script:
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch github

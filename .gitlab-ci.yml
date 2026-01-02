@@ -6,6 +6,11 @@ stages:
 variables:
   NODE_VERSION: "22"
 
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .npm/
+
 sync-from-github:
   stage: sync
   image: alpine:latest
@@ -24,19 +29,21 @@ build:
   stage: build
   image: node:${NODE_VERSION}
   needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   script:
-    - npm ci
     - npm run build
   artifacts:
     paths:
-      - node_modules/
       - dist/
     expire_in: 1 hour
 
 typescript-check:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["build"]
+  needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   script:
     - npx tsc --noEmit
   allow_failure: false
@@ -44,7 +51,9 @@ typescript-check:
 unit-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["build"]
+  needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   services:
     - postgres:15
   variables:
@@ -63,7 +72,9 @@ unit-tests:
 integration-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["build"]
+  needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   services:
     - postgres:15
   variables:
@@ -78,7 +89,9 @@ integration-tests:
 api-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["build"]
+  needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   services:
     - postgres:15
   variables:
@@ -93,7 +106,9 @@ api-tests:
 auth-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["build"]
+  needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   services:
     - postgres:15
   variables:
@@ -108,7 +123,9 @@ auth-tests:
 poll-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["build"]
+  needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   services:
     - postgres:15
   variables:
@@ -123,7 +140,9 @@ poll-tests:
 e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
-  needs: ["build"]
+  needs: ["sync-from-github"]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
   services:
     - postgres:15
   variables:

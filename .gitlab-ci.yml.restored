@@ -13,11 +13,9 @@ build:
     - apt-get update && apt-get install -y git
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
     - npm run build
@@ -33,11 +31,9 @@ typescript-check:
     - apt-get update && apt-get install -y git
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
     - npx tsc --noEmit
@@ -50,7 +46,6 @@ unit-tests:
     - apt-get update && apt-get install -y git
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   services:
@@ -61,10 +56,8 @@ unit-tests:
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
-    - npm run db:push
     - npx vitest run --reporter=verbose --reporter=junit --outputFile=test-results.xml
   artifacts:
     when: always
@@ -79,7 +72,6 @@ integration-tests:
     - apt-get update && apt-get install -y git
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   services:
@@ -90,10 +82,8 @@ integration-tests:
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
-    - npm run db:push
     - npx vitest run server/tests/integration --reporter=verbose
   allow_failure: true
 
@@ -104,7 +94,6 @@ api-tests:
     - apt-get update && apt-get install -y git
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   services:
@@ -115,10 +104,8 @@ api-tests:
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
-    - npm run db:push
     - npx vitest run server/tests/api --reporter=verbose
   allow_failure: true
 
@@ -129,7 +116,6 @@ auth-tests:
     - apt-get update && apt-get install -y git
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   services:
@@ -140,10 +126,8 @@ auth-tests:
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
-    - npm run db:push
     - npx vitest run server/tests/auth --reporter=verbose
   allow_failure: true
 
@@ -154,7 +138,6 @@ poll-tests:
     - apt-get update && apt-get install -y git
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   services:
@@ -165,10 +148,8 @@ poll-tests:
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
-    - npm run db:push
     - npx vitest run server/tests/polls --reporter=verbose
   allow_failure: true
 
@@ -178,7 +159,6 @@ e2e-tests:
   before_script:
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
-    - rm -f .git/*.lock
     - git fetch --force github main --depth=1
     - git checkout FETCH_HEAD
   services:
@@ -190,10 +170,8 @@ e2e-tests:
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
     CI: "true"
   script:
-    - rm -rf node_modules
     - npm cache clean --force
     - npm ci
-    - npm run db:push
     - npm run dev &
     - sleep 15
     - npx playwright test --reporter=list

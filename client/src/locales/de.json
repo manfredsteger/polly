@@ -2579,5 +2579,14 @@
     "changeImage": "Bild ändern",
     "maxFileSize": "Maximale Dateigröße: 5 MB",
     "supportedFormats": "Unterstützte Formate: JPG, PNG, GIF, WebP"
+  },
+  "voteEdit": {
+    "votedAs": "Abgestimmt als:",
+    "saveChanges": "Änderungen speichern",
+    "toHomepage": "Zur Startseite",
+    "editTitle": "Ihre Abstimmung bearbeiten",
+    "noChanges": "Keine Änderungen vorgenommen",
+    "changesSaved": "Ihre Änderungen wurden gespeichert",
+    "errorSaving": "Fehler beim Speichern der Änderungen"
   }
 }

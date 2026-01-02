@@ -28,5 +28,11 @@ export default defineConfig({
     url: 'http://localhost:5000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL || '',
+      SESSION_SECRET: process.env.SESSION_SECRET || 'e2e-test-session-secret-minimum-32-characters-long',
+      NODE_ENV: 'test',
+    },
   } : undefined,
 });

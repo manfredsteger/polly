@@ -71,13 +71,17 @@ async function voteViaAPI(page: Page, publicToken: string, voterName: string, op
   // First get poll data to know all options - with retry for server startup timing
   let pollResponse;
   let pollData;
+  let lastContentType = '';
   
   for (let attempt = 0; attempt < 3; attempt++) {
-    pollResponse = await page.request.get(`${BASE_URL}/api/v1/polls/${publicToken}`);
+    pollResponse = await page.request.get(`${BASE_URL}/api/v1/polls/public/${publicToken}`);
     
     if (pollResponse.ok()) {
-      const contentType = pollResponse.headers()['content-type'] || '';
-      if (contentType.includes('application/json')) {
+      // Headers are case-insensitive, check both common formats
+      const headers = pollResponse.headers();
+      lastContentType = headers['content-type'] || headers['Content-Type'] || '';
+      
+      if (lastContentType.includes('application/json')) {
         pollData = await pollResponse.json();
         break;
       }
@@ -89,18 +93,21 @@ async function voteViaAPI(page: Page, publicToken: string, voterName: string, op
     }
   }
   
-  // If we still don't have poll data, fail fast with clear error
+  // If we still don't have poll data, fail fast with clear error including content-type
   if (!pollData) {
-    throw new Error(`Failed to fetch poll ${publicToken} after 3 attempts. Status: ${pollResponse?.status()}`);
+    throw new Error(`Failed to fetch poll ${publicToken} after 3 attempts. Status: ${pollResponse?.status()}, Content-Type: ${lastContentType}`);
   }
   
+  // The /polls/public/:token endpoint returns poll data directly (not wrapped in { poll: ... })
+  const poll = pollData.poll || pollData;
+  
   // For organization polls, only vote 'yes' on selected slot (no 'no' votes needed)
-  const isOrganization = pollData.poll?.type === 'organization';
+  const isOrganization = poll.type === 'organization';
   
   // Build votes for all options (required by VotingInterface validation for surveys)
   const votes = isOrganization 
     ? [{ optionId, response }]  // Organization: only vote on selected slot
-    : pollData.poll.options.map((opt: any) => ({
+    : poll.options.map((opt: any) => ({
         optionId: opt.id,
         response: opt.id === optionId ? response : 'no',
       }));

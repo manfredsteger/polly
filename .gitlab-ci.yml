@@ -1,29 +1,20 @@
 stages:
-  - sync
   - build
   - test
 
 variables:
   NODE_VERSION: "22"
-
-sync-from-github:
-  stage: sync
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache git
-  script:
-    - git remote add github https://github.com/manfredsteger/polly.git || true
-    - git fetch github
-    - git checkout github/main
-  artifacts:
-    paths:
-      - .
-    expire_in: 1 hour
+  GIT_STRATEGY: none
 
 build:
   stage: build
   image: node:${NODE_VERSION}
-  needs: ["sync-from-github"]
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   script:
     - npm ci
     - npm run build
@@ -35,7 +26,12 @@ build:
 typescript-check:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["sync-from-github"]
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   script:
     - npm ci
     - npx tsc --noEmit
@@ -44,7 +40,12 @@ typescript-check:
 unit-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["sync-from-github"]
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -64,7 +65,12 @@ unit-tests:
 integration-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["sync-from-github"]
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -80,7 +86,12 @@ integration-tests:
 api-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["sync-from-github"]
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -96,7 +107,12 @@ api-tests:
 auth-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["sync-from-github"]
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -112,7 +128,12 @@ auth-tests:
 poll-tests:
   stage: test
   image: node:${NODE_VERSION}
-  needs: ["sync-from-github"]
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -128,7 +149,11 @@ poll-tests:
 e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
-  needs: ["sync-from-github"]
+  before_script:
+    - git init
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main --depth=1
+    - git checkout FETCH_HEAD
   services:
     - postgres:15
   variables:

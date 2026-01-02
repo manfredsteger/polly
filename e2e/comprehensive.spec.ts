@@ -1,4 +1,4 @@
-import { test, expect, Page, BrowserContext } from '@playwright/test';
+import { test, expect, Page, BrowserContext, request } from '@playwright/test';
 import { nanoid } from 'nanoid';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
@@ -67,59 +67,67 @@ async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organ
 }
 
 // Helper to vote on a poll via API (votes for all options)
-async function voteViaAPI(page: Page, publicToken: string, voterName: string, optionId: number, response: 'yes' | 'no' | 'maybe' = 'yes') {
-  // First get poll data to know all options - with retry for server startup timing
-  let pollResponse;
-  let pollData;
-  let lastContentType = '';
+// Uses an isolated API context per call to avoid deviceToken cookie sharing
+async function voteViaAPI(page: Page, publicToken: string, voterName: string, optionId: number, voteResponse: 'yes' | 'no' | 'maybe' = 'yes') {
+  // Create an isolated API context for this voter (no shared cookies)
+  const api = await request.newContext({ baseURL: BASE_URL });
   
-  for (let attempt = 0; attempt < 3; attempt++) {
-    pollResponse = await page.request.get(`${BASE_URL}/api/v1/polls/public/${publicToken}`);
+  try {
+    // First get poll data to know all options - with retry for server startup timing
+    let pollResponseObj;
+    let pollData;
+    let lastContentType = '';
     
-    if (pollResponse.ok()) {
-      // Headers are case-insensitive, check both common formats
-      const headers = pollResponse.headers();
-      lastContentType = headers['content-type'] || headers['Content-Type'] || '';
+    for (let attempt = 0; attempt < 3; attempt++) {
+      pollResponseObj = await api.get(`/api/v1/polls/public/${publicToken}`);
       
-      if (lastContentType.includes('application/json')) {
-        pollData = await pollResponse.json();
-        break;
+      if (pollResponseObj.ok()) {
+        const headers = pollResponseObj.headers();
+        lastContentType = headers['content-type'] || headers['Content-Type'] || '';
+        
+        if (lastContentType.includes('application/json')) {
+          pollData = await pollResponseObj.json();
+          break;
+        }
+      }
+      
+      // Wait before retry
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    // Wait before retry
-    if (attempt < 2) {
-      await page.waitForTimeout(1000);
+    // If we still don't have poll data, fail fast with clear error including content-type
+    if (!pollData) {
+      throw new Error(`Failed to fetch poll ${publicToken} after 3 attempts. Status: ${pollResponseObj?.status()}, Content-Type: ${lastContentType}`);
     }
+    
+    // The /polls/public/:token endpoint returns poll data directly (not wrapped in { poll: ... })
+    const poll = pollData.poll || pollData;
+    
+    // For organization polls, only vote 'yes' on selected slot (no 'no' votes needed)
+    const isOrganization = poll.type === 'organization';
+    
+    // Build votes for all options (required by VotingInterface validation for surveys)
+    const votes = isOrganization 
+      ? [{ optionId, response: voteResponse }]  // Organization: only vote on selected slot
+      : poll.options.map((opt: any) => ({
+          optionId: opt.id,
+          response: opt.id === optionId ? voteResponse : 'no',
+        }));
+    
+    const apiVoteResponse = await api.post(`/api/v1/polls/${publicToken}/vote-bulk`, {
+      data: {
+        voterName,
+        voterEmail: `${voterName.toLowerCase().replace(/\s/g, '')}@test.com`,
+        votes,
+      },
+    });
+    
+    return apiVoteResponse;
+  } finally {
+    await api.dispose();
   }
-  
-  // If we still don't have poll data, fail fast with clear error including content-type
-  if (!pollData) {
-    throw new Error(`Failed to fetch poll ${publicToken} after 3 attempts. Status: ${pollResponse?.status()}, Content-Type: ${lastContentType}`);
-  }
-  
-  // The /polls/public/:token endpoint returns poll data directly (not wrapped in { poll: ... })
-  const poll = pollData.poll || pollData;
-  
-  // For organization polls, only vote 'yes' on selected slot (no 'no' votes needed)
-  const isOrganization = poll.type === 'organization';
-  
-  // Build votes for all options (required by VotingInterface validation for surveys)
-  const votes = isOrganization 
-    ? [{ optionId, response }]  // Organization: only vote on selected slot
-    : poll.options.map((opt: any) => ({
-        optionId: opt.id,
-        response: opt.id === optionId ? response : 'no',
-      }));
-  
-  const voteResponse = await page.request.post(`${BASE_URL}/api/v1/polls/${publicToken}/vote-bulk`, {
-    data: {
-      voterName,
-      voterEmail: `${voterName.toLowerCase().replace(/\s/g, '')}@test.com`,
-      votes,
-    },
-  });
-  return voteResponse;
 }
 
 // ============================================

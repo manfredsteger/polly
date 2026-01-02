@@ -2567,5 +2567,17 @@
     "confirmPassword": "Confirm Password",
     "saving": "Saving...",
     "savePassword": "Save Password"
+  },
+  "imageUpload": {
+    "image": "Upload Image",
+    "uploadSuccess": "Image uploaded successfully",
+    "uploadError": "Error uploading image",
+    "altTextLabel": "Alternative Text (Alt Text):",
+    "altTextPlaceholder": "Briefly describe the image...",
+    "altTextHelp": "Alternative text helps visually impaired users understand the image content.",
+    "removeImage": "Remove Image",
+    "changeImage": "Change Image",
+    "maxFileSize": "Maximum file size: 5 MB",
+    "supportedFormats": "Supported formats: JPG, PNG, GIF, WebP"
   }
 }

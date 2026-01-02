@@ -2567,5 +2567,17 @@
     "confirmPassword": "Passwort bestätigen",
     "saving": "Wird gespeichert...",
     "savePassword": "Passwort speichern"
+  },
+  "imageUpload": {
+    "image": "Bild hochladen",
+    "uploadSuccess": "Bild erfolgreich hochgeladen",
+    "uploadError": "Fehler beim Hochladen des Bildes",
+    "altTextLabel": "Alternativtext (Alt-Text):",
+    "altTextPlaceholder": "Beschreiben Sie das Bild kurz...",
+    "altTextHelp": "Alternativtext hilft sehbehinderten Nutzern, den Inhalt des Bildes zu verstehen.",
+    "removeImage": "Bild entfernen",
+    "changeImage": "Bild ändern",
+    "maxFileSize": "Maximale Dateigröße: 5 MB",
+    "supportedFormats": "Unterstützte Formate: JPG, PNG, GIF, WebP"
   }
 }

@@ -30,9 +30,10 @@ export default defineConfig({
     timeout: 120000,
     env: {
       ...process.env,
-      DATABASE_URL: process.env.DATABASE_URL || '',
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/polly_e2e',
       SESSION_SECRET: process.env.SESSION_SECRET || 'e2e-test-session-secret-minimum-32-characters-long',
       NODE_ENV: 'test',
+      SMTP_ENABLED: 'false',
     },
   } : undefined,
 });

@@ -275,10 +275,7 @@ test.describe('Terminumfrage (Schedule) - Vollständiger Workflow', () => {
     
     // Verify schedule options are rendered by checking for voting buttons
     // SimpleImageVoting component uses data-testid="option-0" for options and "vote-yes-0" for buttons
-    await expect(
-      page.locator('[data-testid="option-0"]')
-        .or(page.locator('[data-testid="vote-yes-0"]'))
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('option-0')).toBeVisible({ timeout: 10000 });
   });
 
   test('sollte Abstimmung für Termine erlauben', async ({ page }) => {

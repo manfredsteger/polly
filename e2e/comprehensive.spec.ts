@@ -68,15 +68,42 @@ async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organ
 
 // Helper to vote on a poll via API (votes for all options)
 async function voteViaAPI(page: Page, publicToken: string, voterName: string, optionId: number, response: 'yes' | 'no' | 'maybe' = 'yes') {
-  // First get poll data to know all options
-  const pollResponse = await page.request.get(`${BASE_URL}/api/v1/polls/${publicToken}`);
-  const pollData = await pollResponse.json();
+  // First get poll data to know all options - with retry for server startup timing
+  let pollResponse;
+  let pollData;
   
-  // Build votes for all options (required by VotingInterface validation)
-  const votes = pollData.poll.options.map((opt: any) => ({
-    optionId: opt.id,
-    response: opt.id === optionId ? response : 'no',
-  }));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    pollResponse = await page.request.get(`${BASE_URL}/api/v1/polls/${publicToken}`);
+    
+    if (pollResponse.ok()) {
+      const contentType = pollResponse.headers()['content-type'] || '';
+      if (contentType.includes('application/json')) {
+        pollData = await pollResponse.json();
+        break;
+      }
+    }
+    
+    // Wait before retry
+    if (attempt < 2) {
+      await page.waitForTimeout(1000);
+    }
+  }
+  
+  // If we still don't have poll data, fail fast with clear error
+  if (!pollData) {
+    throw new Error(`Failed to fetch poll ${publicToken} after 3 attempts. Status: ${pollResponse?.status()}`);
+  }
+  
+  // For organization polls, only vote 'yes' on selected slot (no 'no' votes needed)
+  const isOrganization = pollData.poll?.type === 'organization';
+  
+  // Build votes for all options (required by VotingInterface validation for surveys)
+  const votes = isOrganization 
+    ? [{ optionId, response }]  // Organization: only vote on selected slot
+    : pollData.poll.options.map((opt: any) => ({
+        optionId: opt.id,
+        response: opt.id === optionId ? response : 'no',
+      }));
   
   const voteResponse = await page.request.post(`${BASE_URL}/api/v1/polls/${publicToken}/vote-bulk`, {
     data: {

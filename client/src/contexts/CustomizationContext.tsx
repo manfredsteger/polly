@@ -10,7 +10,7 @@ interface CustomizationContextType {
 
 const CustomizationContext = createContext<CustomizationContextType | undefined>(undefined);
 
-function hexToHSL(hex: string): string {
+function hexToHSLComponents(hex: string): { h: number; s: number; l: number } {
   hex = hex.replace(/^#/, '');
   
   const r = parseInt(hex.substring(0, 2), 16) / 255;
@@ -32,7 +32,19 @@ function hexToHSL(hex: string): string {
     }
   }
   
-  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function hexToHSL(hex: string): string {
+  const { h, s, l } = hexToHSLComponents(hex);
+  return `${h} ${s}% ${l}%`;
+}
+
+function hexToAccessibleHSL(hex: string): string {
+  const { h, s, l } = hexToHSLComponents(hex);
+  const maxLightnessForWhiteText = 38;
+  const adjustedL = Math.min(l, maxLightnessForWhiteText);
+  return `${h} ${s}% ${adjustedL}%`;
 }
 
 function hexToHSLWithLightness(hex: string, lightness: number): string {
@@ -97,9 +109,9 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
         root.style.setProperty('--polly-blue', `hsl(${secondaryHSL})`);
       }
       
-      // Apply feature-specific colors with dark mode support
+      // Apply feature-specific colors with WCAG AA contrast enforcement
       if (settings.theme.scheduleColor) {
-        const scheduleHSL = hexToHSL(settings.theme.scheduleColor);
+        const scheduleHSL = hexToAccessibleHSL(settings.theme.scheduleColor);
         const scheduleBgHSL = isDarkMode ? hexToHSLDark(settings.theme.scheduleColor) : hexToHSLLight(settings.theme.scheduleColor);
         const scheduleForeground = getContrastForeground(settings.theme.scheduleColor);
         root.style.setProperty('--color-schedule', `hsl(${scheduleHSL})`);
@@ -108,7 +120,7 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       }
       
       if (settings.theme.surveyColor) {
-        const surveyHSL = hexToHSL(settings.theme.surveyColor);
+        const surveyHSL = hexToAccessibleHSL(settings.theme.surveyColor);
         const surveyBgHSL = isDarkMode ? hexToHSLDark(settings.theme.surveyColor) : hexToHSLLight(settings.theme.surveyColor);
         const surveyForeground = getContrastForeground(settings.theme.surveyColor);
         root.style.setProperty('--color-survey', `hsl(${surveyHSL})`);
@@ -117,7 +129,7 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       }
       
       if (settings.theme.organizationColor) {
-        const orgHSL = hexToHSL(settings.theme.organizationColor);
+        const orgHSL = hexToAccessibleHSL(settings.theme.organizationColor);
         const orgBgHSL = isDarkMode ? hexToHSLDark(settings.theme.organizationColor) : hexToHSLLight(settings.theme.organizationColor);
         const orgForeground = getContrastForeground(settings.theme.organizationColor);
         root.style.setProperty('--color-organization', `hsl(${orgHSL})`);

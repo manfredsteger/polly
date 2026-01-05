@@ -412,6 +412,7 @@ export default function CreateSurvey() {
                 checked={allowVoteEdit}
                 onCheckedChange={setAllowVoteEdit}
                 data-testid="switch-allow-vote-edit"
+                aria-label={t('pollCreation.allowVoteEdit')}
               />
             </div>
             
@@ -426,6 +427,7 @@ export default function CreateSurvey() {
                 checked={allowVoteWithdrawal}
                 onCheckedChange={setAllowVoteWithdrawal}
                 data-testid="switch-allow-vote-withdrawal"
+                aria-label={t('pollCreation.allowVoteWithdrawal')}
               />
             </div>
             
@@ -440,6 +442,7 @@ export default function CreateSurvey() {
                 checked={resultsPublic}
                 onCheckedChange={setResultsPublic}
                 data-testid="switch-results-public"
+                aria-label={t('pollCreation.resultsPublic')}
               />
             </div>
             
@@ -454,6 +457,7 @@ export default function CreateSurvey() {
                 checked={allowMaybe}
                 onCheckedChange={setAllowMaybe}
                 data-testid="switch-allow-maybe"
+                aria-label={t('createSurvey.allowMaybe')}
               />
             </div>
           </CardContent>

@@ -6,14 +6,14 @@
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(20, 14.3%, 4.1%);
   --muted: hsl(60, 4.8%, 95.9%);
-  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --muted-foreground: hsl(25, 5.3%, 37%);
   --popover: hsl(0, 0%, 100%);
   --popover-foreground: hsl(20, 14.3%, 4.1%);
   --card: hsl(0, 0%, 100%);
   --card-foreground: hsl(20, 14.3%, 4.1%);
   --border: hsl(20, 5.9%, 90%);
   --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(20, 100%, 60%);
+  --primary: hsl(20, 100%, 35%);
   --primary-foreground: hsl(0, 0%, 100%);
   --secondary: hsl(60, 4.8%, 95.9%);
   --secondary-foreground: hsl(24, 9.8%, 10%);
@@ -25,34 +25,38 @@
   --radius: 0.75rem;
 
   /* Polly Custom Colors */
-  --polly-orange: hsl(17, 100%, 60%);
-  --polly-blue: hsl(198, 38%, 47%);
+  --polly-orange: hsl(17, 100%, 35%);
+  --polly-blue: hsl(198, 38%, 35%);
   --polly-gray-50: hsl(210, 20%, 98%);
   --polly-gray-100: hsl(220, 14%, 96%);
   --polly-gray-500: hsl(220, 9%, 46%);
   --polly-gray-900: hsl(224, 71%, 4%);
 
   /* Feature Colors - Default values based on design manual */
-  /* Termin (Schedule): Orange #F97316 */
-  --color-schedule: hsl(25, 95%, 53%);
+  /* Termin (Schedule): Orange - darker for WCAG AA 4.5:1 contrast with white */
+  --color-schedule: hsl(25, 95%, 33%);
   --color-schedule-foreground: hsl(0, 0%, 100%);
   --color-schedule-light: hsl(25, 95%, 95%);
   
-  /* Umfrage (Survey): Green #22C55E */
-  --color-survey: hsl(142, 71%, 45%);
+  /* Umfrage (Survey): Green - darker for WCAG AA 4.5:1 contrast with white */
+  --color-survey: hsl(142, 71%, 28%);
   --color-survey-foreground: hsl(0, 0%, 100%);
   --color-survey-light: hsl(142, 71%, 95%);
   
-  /* Orga (Organization): Light Blue #38BDF8 */
-  --color-organization: hsl(199, 89%, 60%);
+  /* Orga (Organization): Blue - darker for WCAG AA 4.5:1 contrast with white */
+  --color-organization: hsl(199, 89%, 32%);
   --color-organization-foreground: hsl(0, 0%, 100%);
   --color-organization-light: hsl(199, 89%, 95%);
   
-  /* Semantic Status Colors (configurable via admin) */
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #3b82f6;
+  /* Semantic Status Colors (configurable via admin) - darker for WCAG AA with white text */
+  --color-success: #15803d;
+  --color-success-foreground: #ffffff;
+  --color-warning: #b45309;
+  --color-warning-foreground: #ffffff;
+  --color-error: #b91c1c;
+  --color-error-foreground: #ffffff;
+  --color-info: #1d4ed8;
+  --color-info-foreground: #ffffff;
   
   /* UI Accent Colors (configurable via admin) */
   --color-accent: #8b5cf6;
@@ -71,8 +75,8 @@
   --card-foreground: hsl(0, 0%, 98%);
   --border: hsl(240, 3.7%, 15.9%);
   --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(17, 100%, 60%);
-  --primary-foreground: hsl(0, 0%, 100%);
+  --primary: hsl(17, 100%, 55%);
+  --primary-foreground: hsl(0, 0%, 0%);
   --secondary: hsl(240, 3.7%, 15.9%);
   --secondary-foreground: hsl(0, 0%, 98%);
   --accent: hsl(240, 3.7%, 15.9%);
@@ -81,27 +85,35 @@
   --destructive-foreground: hsl(0, 0%, 98%);
   --ring: hsl(240, 4.9%, 83.9%);
   
-  /* Feature Colors - Dark Mode */
-  /* Termin (Schedule): Orange - slightly dimmed for dark mode */
-  --color-schedule: hsl(25, 95%, 48%);
-  --color-schedule-foreground: hsl(0, 0%, 100%);
+  /* Polly Custom Colors - Dark Mode - lighter with black text */
+  --polly-orange: hsl(17, 100%, 55%);
+  --polly-blue: hsl(198, 38%, 55%);
+  
+  /* Feature Colors - Dark Mode - WCAG AA 4.5:1 contrast */
+  /* Termin (Schedule): Orange with dark text for contrast */
+  --color-schedule: hsl(25, 95%, 55%);
+  --color-schedule-foreground: hsl(0, 0%, 0%);
   --color-schedule-light: hsl(25, 95%, 20%);
   
-  /* Umfrage (Survey): Green - slightly dimmed for dark mode */
-  --color-survey: hsl(142, 71%, 40%);
-  --color-survey-foreground: hsl(0, 0%, 100%);
+  /* Umfrage (Survey): Green with dark text for contrast */
+  --color-survey: hsl(142, 71%, 50%);
+  --color-survey-foreground: hsl(0, 0%, 0%);
   --color-survey-light: hsl(142, 71%, 20%);
   
-  /* Orga (Organization): Light Blue - slightly dimmed for dark mode */
-  --color-organization: hsl(199, 89%, 50%);
-  --color-organization-foreground: hsl(0, 0%, 100%);
+  /* Orga (Organization): Blue with dark text for contrast */
+  --color-organization: hsl(199, 89%, 55%);
+  --color-organization-foreground: hsl(0, 0%, 0%);
   --color-organization-light: hsl(199, 89%, 20%);
   
-  /* Semantic Status Colors (dark mode adjustments) */
-  --color-success: #16a34a;
-  --color-warning: #d97706;
-  --color-error: #dc2626;
-  --color-info: #2563eb;
+  /* Semantic Status Colors (dark mode - lighter with dark text for WCAG AA) */
+  --color-success: #4ade80;
+  --color-success-foreground: #000000;
+  --color-warning: #fbbf24;
+  --color-warning-foreground: #000000;
+  --color-error: #fca5a5;
+  --color-error-foreground: #000000;
+  --color-info: #93c5fd;
+  --color-info-foreground: #000000;
   
   /* UI Accent Colors (dark mode adjustments) */
   --color-accent: #7c3aed;
@@ -127,7 +139,8 @@
 @layer components {
   .polly-button-primary {
     background-color: var(--polly-orange);
-    @apply text-white focus:ring-2 focus:ring-offset-2;
+    color: var(--primary-foreground);
+    @apply focus:ring-2 focus:ring-offset-2;
   }
   .polly-button-primary:hover {
     filter: brightness(0.9);
@@ -135,7 +148,8 @@
 
   .polly-button-secondary {
     background-color: var(--polly-blue);
-    @apply text-white focus:ring-2 focus:ring-offset-2;
+    color: var(--primary-foreground);
+    @apply focus:ring-2 focus:ring-offset-2;
   }
   .polly-button-secondary:hover {
     filter: brightness(0.9);
@@ -145,8 +159,7 @@
   button.polly-button-schedule,
   .polly-button-schedule {
     background-color: var(--color-schedule) !important;
-    color: white !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    color: var(--color-schedule-foreground) !important;
     @apply focus:ring-2 focus:ring-offset-2;
   }
   button.polly-button-schedule:hover,
@@ -157,8 +170,7 @@
   button.polly-button-survey,
   .polly-button-survey {
     background-color: var(--color-survey) !important;
-    color: white !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    color: var(--color-survey-foreground) !important;
     @apply focus:ring-2 focus:ring-offset-2;
   }
   button.polly-button-survey:hover,
@@ -169,8 +181,7 @@
   button.polly-button-organization,
   .polly-button-organization {
     background-color: var(--color-organization) !important;
-    color: white !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    color: var(--color-organization-foreground) !important;
     @apply focus:ring-2 focus:ring-offset-2;
   }
   button.polly-button-organization:hover,
@@ -182,7 +193,7 @@
   button.polly-button-danger,
   .polly-button-danger {
     background-color: var(--color-error) !important;
-    color: white !important;
+    color: var(--color-error-foreground) !important;
     @apply focus:ring-2 focus:ring-offset-2 focus:ring-red-500;
   }
   button.polly-button-danger:hover,
@@ -193,7 +204,7 @@
   button.polly-button-success,
   .polly-button-success {
     background-color: var(--color-success) !important;
-    color: white !important;
+    color: var(--color-success-foreground) !important;
     @apply focus:ring-2 focus:ring-offset-2 focus:ring-green-500;
   }
   button.polly-button-success:hover,
@@ -286,7 +297,7 @@
   div.polly-badge-schedule-solid,
   .polly-badge-schedule-solid {
     background-color: var(--color-schedule) !important;
-    color: white !important;
+    color: var(--color-schedule-foreground) !important;
     border-color: transparent !important;
   }
 
@@ -294,7 +305,7 @@
   div.polly-badge-survey-solid,
   .polly-badge-survey-solid {
     background-color: var(--color-survey) !important;
-    color: white !important;
+    color: var(--color-survey-foreground) !important;
     border-color: transparent !important;
   }
 
@@ -302,7 +313,7 @@
   div.polly-badge-organization-solid,
   .polly-badge-organization-solid {
     background-color: var(--color-organization) !important;
-    color: white !important;
+    color: var(--color-organization-foreground) !important;
     border-color: transparent !important;
   }
 
@@ -331,9 +342,9 @@
     border: 1px solid var(--color-organization) !important;
   }
 
-  /* Status badges */
+  /* Status badges - darker backgrounds for WCAG AA */
   .polly-badge-active {
-    @apply bg-purple-500 text-white border-transparent;
+    @apply bg-purple-700 text-white border-transparent;
   }
   
   .polly-badge-inactive {
@@ -344,17 +355,17 @@
     @apply bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800;
   }
 
-  /* Severity badges */
+  /* Severity badges - darker backgrounds for WCAG AA with white text */
   .polly-badge-critical {
-    @apply bg-red-600 text-white border-transparent;
+    @apply bg-red-800 text-white border-transparent;
   }
   
   .polly-badge-high {
-    @apply bg-orange-500 text-white border-transparent;
+    @apply bg-orange-700 text-white border-transparent;
   }
   
   .polly-badge-moderate {
-    @apply bg-amber-500 text-white border-transparent;
+    @apply bg-amber-700 text-white border-transparent;
   }
   
   .polly-badge-low {
@@ -393,19 +404,19 @@
 
   /* Impact badges - solid backgrounds (use !important to override Badge defaults) */
   .polly-badge-dev-only {
-    @apply !bg-gray-500 text-white border-transparent;
+    @apply !bg-gray-700 text-white border-transparent;
   }
   
   .polly-badge-backend {
-    @apply !bg-orange-500 text-white border-transparent;
+    @apply !bg-orange-700 text-white border-transparent;
   }
   
   .polly-badge-frontend {
-    @apply !bg-red-500 text-white border-transparent;
+    @apply !bg-red-700 text-white border-transparent;
   }
   
   .polly-badge-fullstack {
-    @apply !bg-indigo-500 text-white border-transparent;
+    @apply !bg-indigo-700 text-white border-transparent;
   }
 
   .polly-card {

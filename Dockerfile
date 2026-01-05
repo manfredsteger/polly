@@ -100,8 +100,8 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy server source (needed for tsx runtime)
 COPY --from=builder /app/server ./server
-# Copy server tests (needed for admin test panel functionality)
-COPY --from=builder /app/server/tests ./server/tests
+# Copy server tests directly from context (needed for admin test panel functionality)
+COPY server/tests ./server/tests
 COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/drizzle.config.ts ./

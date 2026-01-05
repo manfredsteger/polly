@@ -2,6 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import { clamavService } from './clamavService';
+import { emailService } from './emailService';
 import { storage } from '../storage';
 import type { InsertClamavScanLog } from '@shared/schema';
 
@@ -82,6 +83,19 @@ export class ImageService {
       
       if (!scanResult.isClean) {
         console.warn(`[ClamAV] Upload abgelehnt: ${file.originalname} - ${scanResult.virusName || scanResult.error}`);
+        
+        // Send email notification to admins if virus was detected
+        if (scanResult.virusName) {
+          this.notifyAdminsOfVirusDetection({
+            filename: file.originalname,
+            fileSize: file.size,
+            virusName: scanResult.virusName,
+            uploaderEmail: context?.email,
+            requestIp: context?.requestIp,
+            scannedAt: new Date(),
+          });
+        }
+        
         return {
           success: false,
           error: scanResult.error || 'Virus erkannt',
@@ -142,6 +156,37 @@ export class ImageService {
 
   getImageUrl(filename: string): string {
     return `/uploads/${filename}`;
+  }
+
+  private async notifyAdminsOfVirusDetection(details: {
+    filename: string;
+    fileSize: number;
+    virusName: string;
+    uploaderEmail?: string | null;
+    requestIp?: string | null;
+    scannedAt: Date;
+  }): Promise<void> {
+    try {
+      // Get admin emails from the database
+      const admins = await storage.getAdminUsers();
+      const adminEmails = admins
+        .filter(admin => admin.email)
+        .map(admin => admin.email!);
+      
+      if (adminEmails.length === 0) {
+        console.log('[ClamAV] No admin emails found for virus notification');
+        return;
+      }
+      
+      // Send notification asynchronously (don't block the upload response)
+      emailService.sendVirusDetectionAlert(adminEmails, details).catch(err => {
+        console.error('[ClamAV] Failed to send virus detection email:', err);
+      });
+      
+      console.log(`[ClamAV] Virus alert queued for ${adminEmails.length} admin(s)`);
+    } catch (error) {
+      console.error('[ClamAV] Error preparing virus notification:', error);
+    }
   }
 }
 

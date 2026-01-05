@@ -695,6 +695,130 @@ Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
       throw error;
     }
   }
+
+  async sendVirusDetectionAlert(
+    adminEmails: string[],
+    details: {
+      filename: string;
+      fileSize: number;
+      virusName: string;
+      uploaderEmail?: string | null;
+      requestIp?: string | null;
+      scannedAt: Date;
+    }
+  ): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.log(`[Email] Virus detection alert would be sent to ${adminEmails.join(', ')}`);
+      console.log(`[Email] Virus detected: ${details.virusName} in ${details.filename}`);
+      return;
+    }
+
+    if (adminEmails.length === 0) {
+      console.log('[Email] No admin emails configured for virus alerts');
+      return;
+    }
+
+    const fileSizeFormatted = details.fileSize < 1024 
+      ? `${details.fileSize} Bytes` 
+      : details.fileSize < 1024 * 1024 
+        ? `${(details.fileSize / 1024).toFixed(2)} KB`
+        : `${(details.fileSize / 1024 / 1024).toFixed(2)} MB`;
+
+    const subject = `[Polly Security Alert] Virus erkannt: ${details.virusName}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+          <h2 style="margin: 0; font-size: 24px;">⚠️ Sicherheitswarnung: Virus erkannt</h2>
+        </div>
+        
+        <div style="background-color: #fff5f5; border: 1px solid #dc3545; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ClamAV hat einen Virus in einer hochgeladenen Datei erkannt. <strong>Die Datei wurde automatisch blockiert und nicht gespeichert.</strong>
+          </p>
+          
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24; width: 140px;">Erkannter Virus:</td>
+              <td style="padding: 10px 0; color: #dc3545; font-weight: bold;">${details.virusName}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Dateiname:</td>
+              <td style="padding: 10px 0;">${details.filename}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Dateigröße:</td>
+              <td style="padding: 10px 0;">${fileSizeFormatted}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Uploader:</td>
+              <td style="padding: 10px 0;">${details.uploaderEmail || 'Anonym / Unbekannt'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">IP-Adresse:</td>
+              <td style="padding: 10px 0;">${details.requestIp || 'Nicht verfügbar'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Zeitpunkt:</td>
+              <td style="padding: 10px 0;">${details.scannedAt.toLocaleString('de-DE')}</td>
+            </tr>
+          </table>
+          
+          <div style="background-color: #d4edda; border: 1px solid #28a745; padding: 15px; border-radius: 6px; margin-top: 20px;">
+            <p style="margin: 0; color: #155724;">
+              <strong>✓ Automatische Maßnahme:</strong> Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
+            </p>
+          </div>
+          
+          <p style="margin-top: 20px; font-size: 14px; color: #6c757d;">
+            Diese Benachrichtigung können Sie im Admin-Panel unter Sicherheit → ClamAV → Scan-Protokoll einsehen.
+          </p>
+        </div>
+        
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
+        <p style="color: #6c757d; font-size: 12px; text-align: center;">
+          Automatische Sicherheitsbenachrichtigung von Polly<br>
+          Open-Source Abstimmungsplattform für Teams
+        </p>
+      </div>
+    `;
+
+    const text = `
+POLLY SECURITY ALERT - Virus erkannt!
+
+ClamAV hat einen Virus in einer hochgeladenen Datei erkannt.
+Die Datei wurde automatisch blockiert und nicht gespeichert.
+
+Erkannter Virus: ${details.virusName}
+Dateiname: ${details.filename}
+Dateigröße: ${fileSizeFormatted}
+Uploader: ${details.uploaderEmail || 'Anonym / Unbekannt'}
+IP-Adresse: ${details.requestIp || 'Nicht verfügbar'}
+Zeitpunkt: ${details.scannedAt.toLocaleString('de-DE')}
+
+Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
+    `.trim();
+
+    try {
+      for (const adminEmail of adminEmails) {
+        await this.transporter.sendMail({
+          from: `"Polly Security" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+          to: adminEmail,
+          subject,
+          html,
+          text,
+          headers: {
+            'X-Mailer': 'Polly System',
+            'X-Priority': '1',
+            'X-MSMail-Priority': 'High',
+            'Importance': 'high',
+          },
+        });
+        console.log(`[Email] Virus detection alert sent to ${adminEmail}`);
+      }
+    } catch (error) {
+      console.error('Failed to send virus detection alert:', error);
+    }
+  }
 }
 
 export const emailService = new EmailService();

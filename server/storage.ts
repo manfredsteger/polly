@@ -36,6 +36,7 @@ export interface IStorage {
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User>;
   updateUserLastLogin(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
+  getAdminUsers(): Promise<User[]>;
   getUserParticipatedPolls(userId: number): Promise<PollWithOptions[]>;
   getUserParticipations(userId: number, userEmail: string): Promise<Array<{ poll: Poll; options: PollOption[]; votes: Vote[] }>>;
   deleteUser(id: number): Promise<void>;
@@ -205,6 +206,10 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getAdminUsers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.role, 'admin'));
   }
 
   async getUserByKeycloakId(keycloakId: string): Promise<User | undefined> {

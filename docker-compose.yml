@@ -87,9 +87,35 @@ services:
       start_period: 30s
       retries: 3
 
+  # ============================================
+  # ClamAV Antivirus (Optional)
+  # ============================================
+  # Start with: docker compose --profile clamav up -d
+  clamav:
+    image: clamav/clamav:stable
+    container_name: polly-clamav
+    profiles:
+      - clamav
+    restart: unless-stopped
+    volumes:
+      - clamav_data:/var/lib/clamav
+    ports:
+      - "${CLAMAV_PORT:-3310}:3310"
+    environment:
+      # Reduce memory footprint for small deployments
+      CLAMAV_NO_FRESHCLAMD: "false"
+      CLAMAV_NO_MILTERD: "true"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
 volumes:
   postgres_data:
   uploads_data:
+  clamav_data:
 
 networks:
   default:

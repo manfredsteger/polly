@@ -1,6 +1,6 @@
 # Polly 🗳️
 
-A modern, open-source polling and scheduling platform for teams. Create surveys, schedule meetings, and manage event signups with ease. Fully German-language interface, GDPR-compliant, and self-hosted.
+A modern, open-source polling and scheduling platform for teams. Create surveys, schedule meetings, and manage event signups with ease. Multi-language support (German & English), GDPR-compliant, and self-hosted.
 
 ---
 
@@ -50,13 +50,17 @@ SEED_DEMO_DATA=true docker compose up -d
 
 ### Core Capabilities
 
+- **Multi-Language Support**: Full German (de) and English (en) interface with automatic browser detection
 - **Anonymous & Authenticated Voting**: Works for guests and registered users
-- **Email Notifications**: Vote confirmation and edit links via email
+- **Real-Time Updates**: Live voting with WebSocket connections and fullscreen presentation mode
+- **Email Notifications**: Vote confirmation, edit links, and expiry reminders via email
 - **Matrix Results View**: Visual participant × options grid with color-coded responses
 - **Export Options**: CSV and PDF exports with QR codes
+- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls
 - **QR Code Sharing**: Easy poll distribution via QR codes
 - **Full Customization**: Theme colors, logo, site name via admin panel
 - **Dark Mode**: System-wide dark mode with admin defaults
+- **Transactional Slot Booking**: PostgreSQL row-level locking prevents overbooking in organization polls
 
 ### Authentication Options
 
@@ -267,29 +271,39 @@ docker pull yourusername/polly:latest
 
 ## 📖 API Documentation
 
+All API endpoints use the `/api/v1/` prefix. Full OpenAPI specification available in `docs/openapi.yaml`.
+
 ### Public Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/polls/:token` | Get poll by token |
-| POST | `/api/polls/:publicToken/vote` | Submit vote |
-| GET | `/api/polls/:token/results` | Get results |
+| GET | `/api/v1/polls/public/:token` | Get poll by public token |
+| POST | `/api/v1/polls/:publicToken/vote` | Submit vote |
+| GET | `/api/v1/polls/:token/results` | Get poll results |
+| GET | `/api/v1/polls/:publicToken/calendar.ics` | ICS calendar export |
 
 ### Authenticated Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/polls` | Create poll |
-| PATCH | `/api/polls/:id` | Update poll |
-| DELETE | `/api/polls/:id` | Delete poll |
+| POST | `/api/v1/polls` | Create poll |
+| PATCH | `/api/v1/polls/:id` | Update poll |
+| DELETE | `/api/v1/polls/:id` | Delete poll |
+| GET | `/api/v1/users/me` | Get current user |
+| PATCH | `/api/v1/users/me/language` | Update language preference |
 
 ### Admin Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/admin/polls` | List all polls |
-| GET | `/api/admin/users` | List all users |
-| PUT | `/api/admin/settings` | Update settings |
+| GET | `/api/v1/admin/polls` | List all polls |
+| GET | `/api/v1/admin/users` | List all users |
+| PUT | `/api/v1/admin/settings` | Update settings |
+| GET | `/api/v1/admin/email-templates` | Manage email templates |
+
+### WebSocket (Real-Time Voting)
+
+Connect to `/ws` for live vote updates during presentations. Events: `vote_update`, `slot_update`.
 
 ## 🤝 Contributing
 

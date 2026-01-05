@@ -98,10 +98,10 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       const isDarkMode = root.classList.contains('dark');
       
       if (settings.theme.primaryColor) {
-        const primaryHSL = hexToHSL(settings.theme.primaryColor);
+        const primaryHSL = hexToAccessibleHSL(settings.theme.primaryColor);
         root.style.setProperty('--polly-orange', `hsl(${primaryHSL})`);
-        root.style.setProperty('--primary', `hsl(${primaryHSL})`);
-        root.style.setProperty('--primary-foreground', 'hsl(0, 0%, 100%)');
+        root.style.setProperty('--primary', primaryHSL);
+        root.style.setProperty('--primary-foreground', '0 0% 100%');
       }
       
       if (settings.theme.secondaryColor) {

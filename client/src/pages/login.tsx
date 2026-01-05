@@ -471,7 +471,7 @@ export default function Login() {
         <CardFooter className="text-center text-sm text-muted-foreground">
           <p className="w-full">
             {t('auth.noLoginRequired')}{' '}
-            <a href="/" className="text-primary hover:underline" data-testid="link-home">
+            <a href="/" className="text-primary underline hover:no-underline" data-testid="link-home">
               {t('nav.home')}
             </a>
           </p>

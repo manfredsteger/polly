@@ -2,12 +2,20 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import { clamavService } from './clamavService';
+import { storage } from '../storage';
+import type { InsertClamavScanLog } from '@shared/schema';
 
 export interface UploadResult {
   success: boolean;
   imageUrl?: string;
   error?: string;
   virusName?: string;
+}
+
+export interface ScanContext {
+  userId?: number;
+  email?: string;
+  requestIp?: string;
 }
 
 export class ImageService {
@@ -41,13 +49,36 @@ export class ImageService {
     });
   }
 
-  async processUpload(file: Express.Multer.File): Promise<UploadResult> {
+  async processUpload(file: Express.Multer.File, context?: ScanContext): Promise<UploadResult> {
     const clamavEnabled = await clamavService.isEnabled();
+    const scanStartTime = Date.now();
     
     if (clamavEnabled) {
       console.log(`[ClamAV] Scanne Upload: ${file.originalname} (${file.size} bytes)`);
       
       const scanResult = await clamavService.scanBuffer(file.buffer, file.originalname);
+      const scanDuration = Date.now() - scanStartTime;
+      
+      // Log the scan to database
+      const scanLog: InsertClamavScanLog = {
+        filename: file.originalname,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        scanStatus: scanResult.isClean ? 'clean' : (scanResult.virusName ? 'infected' : 'error'),
+        virusName: scanResult.virusName || null,
+        errorMessage: scanResult.error || null,
+        actionTaken: scanResult.isClean ? 'allowed' : 'blocked',
+        uploaderUserId: context?.userId || null,
+        uploaderEmail: context?.email || null,
+        requestIp: context?.requestIp || null,
+        scanDurationMs: scanDuration,
+      };
+      
+      try {
+        await storage.createClamavScanLog(scanLog);
+      } catch (logError) {
+        console.error('[ClamAV] Fehler beim Speichern des Scan-Logs:', logError);
+      }
       
       if (!scanResult.isClean) {
         console.warn(`[ClamAV] Upload abgelehnt: ${file.originalname} - ${scanResult.virusName || scanResult.error}`);

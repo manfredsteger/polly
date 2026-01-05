@@ -1,6 +1,6 @@
 import { 
   users, polls, pollOptions, votes, systemSettings, notificationLogs,
-  passwordResetTokens, emailChangeTokens, emailTemplates,
+  passwordResetTokens, emailChangeTokens, emailTemplates, clamavScanLogs,
   type User, type InsertUser,
   type Poll, type InsertPoll, type PollWithOptions,
   type PollOption, type InsertPollOption,
@@ -11,6 +11,7 @@ import {
   type EmailChangeToken, type InsertEmailChangeToken,
   type EmailTemplate, type InsertEmailTemplate,
   type EmailTemplateType,
+  type ClamavScanLog, type InsertClamavScanLog,
   type PollResults, type VoteStats,
   type CustomizationSettings, customizationSettingsSchema,
   type SecuritySettings, securitySettingsSchema,
@@ -152,6 +153,25 @@ export interface IStorage {
   getEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
   upsertEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
   resetEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
+
+  // ClamAV scan logs
+  createClamavScanLog(log: InsertClamavScanLog): Promise<ClamavScanLog>;
+  getClamavScanLogs(options?: { 
+    limit?: number; 
+    offset?: number;
+    status?: 'clean' | 'infected' | 'error';
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<{ logs: ClamavScanLog[]; total: number }>;
+  getClamavScanLog(id: number): Promise<ClamavScanLog | undefined>;
+  markClamavScanNotified(id: number): Promise<ClamavScanLog>;
+  getClamavScanStats(): Promise<{
+    totalScans: number;
+    cleanScans: number;
+    infectedScans: number;
+    errorScans: number;
+    lastScanAt: Date | null;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1322,6 +1342,98 @@ export class DatabaseStorage implements IStorage {
     // This will be handled by the email template service which knows the defaults
     await db.delete(emailTemplates).where(eq(emailTemplates.type, type));
     return undefined;
+  }
+
+  // ClamAV scan logs
+  async createClamavScanLog(log: InsertClamavScanLog): Promise<ClamavScanLog> {
+    const [created] = await db.insert(clamavScanLogs).values(log).returning();
+    return created;
+  }
+
+  async getClamavScanLogs(options?: { 
+    limit?: number; 
+    offset?: number;
+    status?: 'clean' | 'infected' | 'error';
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<{ logs: ClamavScanLog[]; total: number }> {
+    const limit = options?.limit ?? 50;
+    const offset = options?.offset ?? 0;
+    
+    let whereConditions: any[] = [];
+    
+    if (options?.status) {
+      whereConditions.push(eq(clamavScanLogs.scanStatus, options.status));
+    }
+    if (options?.startDate) {
+      whereConditions.push(sql`${clamavScanLogs.createdAt} >= ${options.startDate}`);
+    }
+    if (options?.endDate) {
+      whereConditions.push(sql`${clamavScanLogs.createdAt} <= ${options.endDate}`);
+    }
+    
+    const whereClause = whereConditions.length > 0 
+      ? and(...whereConditions) 
+      : undefined;
+    
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(clamavScanLogs)
+      .where(whereClause);
+    
+    const logs = await db
+      .select()
+      .from(clamavScanLogs)
+      .where(whereClause)
+      .orderBy(desc(clamavScanLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return { logs, total: totalResult.count };
+  }
+
+  async getClamavScanLog(id: number): Promise<ClamavScanLog | undefined> {
+    const [log] = await db.select().from(clamavScanLogs).where(eq(clamavScanLogs.id, id));
+    return log || undefined;
+  }
+
+  async markClamavScanNotified(id: number): Promise<ClamavScanLog> {
+    const [updated] = await db
+      .update(clamavScanLogs)
+      .set({ adminNotifiedAt: new Date() })
+      .where(eq(clamavScanLogs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getClamavScanStats(): Promise<{
+    totalScans: number;
+    cleanScans: number;
+    infectedScans: number;
+    errorScans: number;
+    lastScanAt: Date | null;
+  }> {
+    const [totalResult] = await db.select({ count: count() }).from(clamavScanLogs);
+    const [cleanResult] = await db.select({ count: count() }).from(clamavScanLogs)
+      .where(eq(clamavScanLogs.scanStatus, 'clean'));
+    const [infectedResult] = await db.select({ count: count() }).from(clamavScanLogs)
+      .where(eq(clamavScanLogs.scanStatus, 'infected'));
+    const [errorResult] = await db.select({ count: count() }).from(clamavScanLogs)
+      .where(eq(clamavScanLogs.scanStatus, 'error'));
+    
+    const [lastScan] = await db
+      .select({ createdAt: clamavScanLogs.createdAt })
+      .from(clamavScanLogs)
+      .orderBy(desc(clamavScanLogs.createdAt))
+      .limit(1);
+    
+    return {
+      totalScans: totalResult.count,
+      cleanScans: cleanResult.count,
+      infectedScans: infectedResult.count,
+      errorScans: errorResult.count,
+      lastScanAt: lastScan?.createdAt || null,
+    };
   }
 }
 

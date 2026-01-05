@@ -55,7 +55,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link href="/">
+              <Link href="/" aria-label={t('nav.home')}>
                 <div className="flex items-center cursor-pointer" data-testid="logo">
                   {logoUrl ? (
                     <img src={logoUrl} alt={siteName} className="h-10 mr-2" />

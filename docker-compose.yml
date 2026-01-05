@@ -92,7 +92,7 @@ services:
   # ============================================
   # Start with: docker compose --profile clamav up -d
   clamav:
-    image: clamav/clamav:stable
+    image: clamav/clamav-debian:latest
     container_name: polly-clamav
     profiles:
       - clamav

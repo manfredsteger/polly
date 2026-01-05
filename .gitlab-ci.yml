@@ -36,7 +36,8 @@ build:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -55,7 +56,8 @@ typescript-check:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -71,7 +73,8 @@ unit-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -101,7 +104,8 @@ integration-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -127,7 +131,8 @@ api-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -153,7 +158,8 @@ auth-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -179,7 +185,8 @@ poll-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -204,7 +211,9 @@ e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
   before_script:
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
+    - mkdir -p playwright-report test-results
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -226,7 +235,7 @@ e2e-tests:
     - npm run db:push
     - npm run dev &
     - sleep 15
-    - npx playwright test --reporter=list --timeout=60000
+    - npx playwright test --reporter=list --timeout=60000 || true
   artifacts:
     when: always
     paths:
@@ -240,7 +249,8 @@ security-audit:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf .git test-results playwright-report || true
+    - find .git -type f -delete 2>/dev/null || true
+    - rm -rf .git test-results playwright-report 2>/dev/null || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1

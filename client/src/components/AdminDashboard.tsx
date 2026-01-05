@@ -124,6 +124,7 @@ import {
   Layers,
   TestTube,
   Workflow,
+  File as FileIcon,
   Globe,
   Database as DatabaseIcon,
   ChevronDown,
@@ -258,6 +259,14 @@ interface AdminDashboardProps {
 }
 
 type SettingsPanel = 'oidc' | 'database' | 'email' | 'email-templates' | 'security' | 'matrix' | 'roles' | 'notifications' | 'session-timeout' | 'pentest' | 'tests' | null;
+
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 export function AdminDashboard({ stats, users, polls, settings, userRole }: AdminDashboardProps) {
   const { t } = useTranslation();
@@ -3837,6 +3846,36 @@ interface ClamAVTestResult {
   responseTime?: number;
 }
 
+interface ClamavScanLog {
+  id: number;
+  filename: string;
+  fileSize: number;
+  mimeType: string | null;
+  scanStatus: 'clean' | 'infected' | 'error';
+  virusName: string | null;
+  errorMessage: string | null;
+  actionTaken: 'allowed' | 'blocked';
+  uploaderUserId: number | null;
+  uploaderEmail: string | null;
+  requestIp: string | null;
+  scanDurationMs: number | null;
+  adminNotifiedAt: string | null;
+  scannedAt: string;
+}
+
+interface ClamavScanLogsResponse {
+  logs: ClamavScanLog[];
+  total: number;
+}
+
+interface ClamavScanStats {
+  totalScans: number;
+  cleanScans: number;
+  infectedScans: number;
+  errorScans: number;
+  avgScanDurationMs: number | null;
+}
+
 interface SecuritySettingsResponse {
   settings: {
     loginRateLimit: {
@@ -3929,10 +3968,27 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
   const [clamavTimeout, setClamavTimeout] = useState(30);
   const [clamavMaxFileSize, setClamavMaxFileSize] = useState(25);
   const [clamavTestResult, setClamavTestResult] = useState<ClamAVTestResult | null>(null);
+  
+  // Scan logs state
+  const [showScanLogs, setShowScanLogs] = useState(false);
+  const [scanLogFilter, setScanLogFilter] = useState<string>('all');
+  const [scanLogOffset, setScanLogOffset] = useState(0);
 
   // Fetch ClamAV settings
   const { data: clamavConfig, isLoading: isLoadingClamav } = useQuery<ClamAVConfig>({
     queryKey: ['/api/v1/admin/clamav'],
+  });
+  
+  // Fetch ClamAV scan logs
+  const { data: scanLogs, isLoading: isLoadingScanLogs, refetch: refetchScanLogs } = useQuery<ClamavScanLogsResponse>({
+    queryKey: ['/api/v1/admin/clamav/scan-logs', { status: scanLogFilter === 'all' ? undefined : scanLogFilter, offset: scanLogOffset, limit: 20 }],
+    enabled: showScanLogs,
+  });
+  
+  // Fetch ClamAV scan stats
+  const { data: scanStats } = useQuery<ClamavScanStats>({
+    queryKey: ['/api/v1/admin/clamav/stats'],
+    enabled: showScanLogs,
   });
 
   // Update local state when ClamAV settings are loaded
@@ -4439,10 +4495,186 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   )}
                 </Button>
               </div>
+
+              {/* Scan Logs Button */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{t('admin.security.scanLogs')}</p>
+                    <p className="text-sm text-muted-foreground">{t('admin.security.scanLogsDescription')}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowScanLogs(!showScanLogs)}
+                    data-testid="button-view-scan-logs"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    {t('admin.security.viewScanLogs')}
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* ClamAV Scan Logs Panel */}
+      {showScanLogs && (
+        <Card className="polly-card">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center">
+                  <FileText className="w-5 h-5 mr-2" />
+                  {t('admin.security.scanLogsTitle')}
+                </CardTitle>
+                <CardDescription>{t('admin.security.scanLogsDescription')}</CardDescription>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Select value={scanLogFilter} onValueChange={setScanLogFilter}>
+                  <SelectTrigger className="w-36" data-testid="select-scan-log-filter">
+                    <SelectValue placeholder={t('admin.security.filterByStatus')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('admin.security.allStatuses')}</SelectItem>
+                    <SelectItem value="clean">{t('admin.security.clean')}</SelectItem>
+                    <SelectItem value="infected">{t('admin.security.infected')}</SelectItem>
+                    <SelectItem value="error">{t('admin.security.error')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchScanLogs()}
+                  data-testid="button-refresh-scan-logs"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Stats Summary */}
+            {scanStats && (
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-3 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold">{scanStats.totalScans}</div>
+                  <div className="text-xs text-muted-foreground">{t('admin.security.totalScans')}</div>
+                </div>
+                <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{scanStats.cleanScans}</div>
+                  <div className="text-xs text-muted-foreground">{t('admin.security.cleanFiles')}</div>
+                </div>
+                <div className="text-center p-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{scanStats.infectedScans}</div>
+                  <div className="text-xs text-muted-foreground">{t('admin.security.infectedFiles')}</div>
+                </div>
+                <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-600">{scanStats.errorScans}</div>
+                  <div className="text-xs text-muted-foreground">{t('admin.security.errorScans')}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Scan Logs Table */}
+            {isLoadingScanLogs ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <span>{t('admin.security.loadingScans')}</span>
+              </div>
+            ) : scanLogs && scanLogs.logs.length > 0 ? (
+              <div className="space-y-2">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-2">{t('admin.security.filename')}</th>
+                        <th className="text-left py-2 px-2">{t('admin.security.status')}</th>
+                        <th className="text-left py-2 px-2">{t('admin.security.virusName')}</th>
+                        <th className="text-left py-2 px-2">{t('admin.security.uploader')}</th>
+                        <th className="text-left py-2 px-2">{t('admin.security.scannedAt')}</th>
+                        <th className="text-right py-2 px-2">{t('admin.security.scanDuration')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scanLogs.logs.map((log) => (
+                        <tr key={log.id} className="border-b hover:bg-muted/50">
+                          <td className="py-2 px-2">
+                            <div className="flex items-center">
+                              <FileIcon className="w-4 h-4 mr-2 text-muted-foreground" />
+                              <span className="truncate max-w-[200px]" title={log.filename}>{log.filename}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">{formatBytes(log.fileSize)}</span>
+                          </td>
+                          <td className="py-2 px-2">
+                            <Badge 
+                              variant={log.scanStatus === 'clean' ? 'outline' : log.scanStatus === 'infected' ? 'destructive' : 'secondary'}
+                              className={log.scanStatus === 'clean' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400' : ''}
+                            >
+                              {log.scanStatus === 'clean' && <CheckCircle className="w-3 h-3 mr-1" />}
+                              {log.scanStatus === 'infected' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                              {log.scanStatus === 'error' && <XCircle className="w-3 h-3 mr-1" />}
+                              {t(`admin.security.${log.scanStatus}`)}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-2">
+                            {log.virusName ? (
+                              <span className="text-red-600 font-medium">{log.virusName}</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2">
+                            {log.uploaderEmail || t('admin.security.anonymous')}
+                          </td>
+                          <td className="py-2 px-2">
+                            {new Date(log.scannedAt).toLocaleString()}
+                          </td>
+                          <td className="py-2 px-2 text-right">
+                            {log.scanDurationMs ? `${log.scanDurationMs}ms` : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination */}
+                {scanLogs.total > 20 && (
+                  <div className="flex items-center justify-between pt-4">
+                    <span className="text-sm text-muted-foreground">
+                      {t('common.showingOfTotal', { shown: scanLogs.logs.length, total: scanLogs.total })}
+                    </span>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setScanLogOffset(Math.max(0, scanLogOffset - 20))}
+                        disabled={scanLogOffset === 0}
+                      >
+                        {t('common.previous')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setScanLogOffset(scanLogOffset + 20)}
+                        disabled={scanLogOffset + 20 >= scanLogs.total}
+                      >
+                        {t('common.next')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>{t('admin.security.noScansYet')}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Data Retention - Split by User Type */}
       <Card className="polly-card">

@@ -13,10 +13,11 @@ build:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   script:
     - npm cache clean --force
     - npm ci
@@ -31,10 +32,11 @@ typescript-check:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   script:
     - npm cache clean --force
     - npm ci
@@ -46,10 +48,11 @@ unit-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -73,10 +76,11 @@ integration-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -96,10 +100,11 @@ api-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -119,10 +124,11 @@ auth-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -142,10 +148,11 @@ poll-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -164,10 +171,11 @@ e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
   before_script:
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   services:
     - postgres:15
   variables:
@@ -199,10 +207,11 @@ security-audit:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
+    - rm -rf test-results playwright-report .git/*.lock || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
-    - git checkout FETCH_HEAD
+    - git checkout -f FETCH_HEAD
   script:
     - npm cache clean --force
     - npm ci

@@ -33,6 +33,11 @@ npm-debug.log*
 coverage
 .nyc_output
 
+# Playwright test artifacts
+test-results/
+playwright-report/
+.playwright/
+
 # Uploads (keep .gitkeep)
 uploads/*
 !uploads/.gitkeep

@@ -12,7 +12,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m # No Color
 
-.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge clamav clamav-down clamav-logs clamav-status clamav-update
+.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge complete clamav clamav-down clamav-logs clamav-status clamav-update
 
 # Default target
 help:
@@ -23,6 +23,7 @@ help:
 	@echo "  make setup-demo   - Start with demo polls"
 	@echo "  make setup-mobile - Start with auto-detected IP (for QR/smartphone)"
 	@echo "  make setup-mobile-demo - Mobile + demo data"
+	@echo "  make complete     - Full reset + all features + ClamAV + demo data"
 	@echo ""
 	@echo "$(YELLOW)Development:$(NC)"
 	@echo "  make dev          - Start development environment with hot-reload"
@@ -270,6 +271,30 @@ fresh-demo: clean
 	docker compose build --no-cache
 	SEED_DEMO_DATA=true docker compose up -d
 	@echo "$(GREEN)Fresh environment with demo data at http://localhost:3080$(NC)"
+
+complete:
+	@echo "$(YELLOW)=== COMPLETE RESET ===$(NC)"
+	@echo "$(YELLOW)This will DELETE ALL DATA and start fresh with all features!$(NC)"
+	@read -p "Type 'YES' to confirm: " confirm && [ "$$confirm" = "YES" ] || (echo "Aborted." && exit 1)
+	@echo ""
+	@echo "$(YELLOW)Step 1/4: Stopping and removing everything...$(NC)"
+	docker compose --profile clamav down -v --remove-orphans 2>/dev/null || docker compose down -v --remove-orphans
+	docker rmi $(IMAGE_NAME):$(IMAGE_TAG) 2>/dev/null || true
+	@echo ""
+	@echo "$(YELLOW)Step 2/4: Rebuilding image from scratch...$(NC)"
+	docker compose build --no-cache
+	@echo ""
+	@echo "$(YELLOW)Step 3/4: Starting all services with ClamAV...$(NC)"
+	SEED_DEMO_DATA=true CLAMAV_HOST=clamav CLAMAV_PORT=3310 CLAMAV_ENABLED=true docker compose --profile clamav up -d
+	@echo ""
+	@echo "$(YELLOW)Step 4/4: Waiting for services to be ready...$(NC)"
+	@sleep 5
+	@echo ""
+	@echo "$(GREEN)=== COMPLETE! ===$(NC)"
+	@echo "$(GREEN)App running at http://localhost:3080$(NC)"
+	@echo "$(GREEN)Default admin: admin / Admin123!$(NC)"
+	@echo "$(GREEN)Demo polls created$(NC)"
+	@echo "$(GREEN)ClamAV antivirus: active (may take 2-5 min for first virus DB download)$(NC)"
 
 # ============================================
 # CI Simulation (Local)

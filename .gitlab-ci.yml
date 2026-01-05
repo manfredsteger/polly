@@ -34,7 +34,7 @@ build:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -53,7 +53,7 @@ typescript-check:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -69,7 +69,7 @@ unit-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -99,7 +99,7 @@ integration-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -125,7 +125,7 @@ api-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -151,7 +151,7 @@ auth-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -177,7 +177,7 @@ poll-tests:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -202,7 +202,7 @@ e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
   before_script:
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1
@@ -238,7 +238,7 @@ security-audit:
   image: node:${NODE_VERSION}
   before_script:
     - apt-get update && apt-get install -y git
-    - rm -rf test-results playwright-report .git/*.lock || true
+    - rm -rf .git test-results playwright-report || true
     - git init
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch --force github main --depth=1

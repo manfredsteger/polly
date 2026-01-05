@@ -47,12 +47,12 @@ async function ensureSchema(): Promise<void> {
     
     try {
       // Check if tables exist
-      const tablesResult = await client.query(`
+      let tablesResult = await client.query(`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public'
       `);
-      const existingTables = tablesResult.rows.map(r => r.table_name);
+      let existingTables = tablesResult.rows.map(r => r.table_name);
 
       // If core tables don't exist, run initial migration
       if (!existingTables.includes('users') || !existingTables.includes('polls')) {
@@ -82,6 +82,14 @@ async function ensureSchema(): Promise<void> {
           console.log('⚠️ Migration file not found, creating tables manually...');
           await createCoreTables(client);
         }
+        
+        // Refresh table list after creating tables
+        tablesResult = await client.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public'
+        `);
+        existingTables = tablesResult.rows.map(r => r.table_name);
       } else {
         console.log('✓ Core tables already exist');
       }

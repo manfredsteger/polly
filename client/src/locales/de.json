@@ -775,6 +775,10 @@
         "title": "Sitzungszeitlimit",
         "description": "Automatische Sitzungsbeendigung konfigurieren"
       },
+      "wcag": {
+        "title": "WCAG Barrierefreiheit",
+        "description": "Farbkontrast und Barrierefreiheitseinstellungen"
+      },
       "status": {
         "available": "Verfügbar",
         "connected": "Verbunden",
@@ -1486,6 +1490,36 @@
       "warningSettings": "Warnhinweis",
       "warningNote": "Benutzer sehen {{minutes}} Minute(n) vor der Abmeldung einen Warnhinweis mit der Möglichkeit, die Session zu verlängern.",
       "sessionInfo": "Die Session-Timeout-Funktion überprüft die letzte Aktivität des Benutzers und meldet ihn nach der konfigurierten Inaktivitätszeit automatisch ab. Aktivitäten wie Mausklicks, Tastatureingaben und Seitenwechsel verlängern die Session."
+    },
+    "wcag": {
+      "title": "WCAG Barrierefreiheit",
+      "subtitle": "Farbkontrast und Zugänglichkeitseinstellungen nach WCAG 2.1 AA",
+      "settingsSaved": "WCAG-Einstellungen wurden gespeichert.",
+      "enforcementTitle": "Automatische Farbkorrektur",
+      "enforcementDescription": "Bei aktivierter Korrektur werden Farben automatisch angepasst, um die WCAG AA Kontrastanforderungen zu erfüllen.",
+      "autoCorrection": "WCAG-Farbkorrektur aktivieren",
+      "autoCorrectionDescription": "Farben werden automatisch abgedunkelt, um einen Kontrastwert von mindestens 4.5:1 mit weißem Text zu erreichen.",
+      "enforcementActiveNote": "Die automatische Farbkorrektur ist aktiv. Alle Farben werden für WCAG AA Konformität angepasst.",
+      "enforcementInactiveNote": "Die automatische Farbkorrektur ist deaktiviert. Die Originalfarben aus dem Anpassen-Tab werden verwendet. Dies kann zu Barrierefreiheitsproblemen führen.",
+      "auditTitle": "Farbkontrast-Prüfung",
+      "auditDescription": "Prüfen Sie, ob die aktuellen Farben die WCAG AA Kontrastanforderungen (4.5:1) erfüllen.",
+      "runAudit": "Prüfung starten",
+      "lastAudit": "Letzte Prüfung",
+      "auditPassed": "Prüfung bestanden",
+      "auditFailed": "Kontrastprobleme gefunden",
+      "allColorsMeetWCAG": "Alle Farben erfüllen die WCAG AA Anforderungen.",
+      "issuesFound": "{{count}} Farbe(n) erfüllen nicht die Kontrastanforderungen.",
+      "primaryColor": "Primärfarbe",
+      "scheduleColor": "Terminfarbe",
+      "surveyColor": "Umfragefarbe",
+      "organizationColor": "Orga-Farbe",
+      "contrast": "Kontrast",
+      "current": "Aktuell",
+      "suggested": "Vorschlag",
+      "requiredRatio": "Erforderlich",
+      "applyCorrections": "Vorgeschlagene Korrekturen anwenden",
+      "correctionsApplied": "Korrekturen angewendet",
+      "colorsUpdated": "Die Farbwerte wurden aktualisiert und erfüllen nun die WCAG AA Anforderungen."
     },
     "matrix": {
       "saved": "Matrix-Einstellungen wurden gespeichert.",

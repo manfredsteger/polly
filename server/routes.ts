@@ -3003,6 +3003,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== WCAG ACCESSIBILITY ROUTES ==============
+
+  // Helper function to calculate relative luminance
+  function getLuminance(hex: string): number {
+    const rgb = hex.replace('#', '').match(/.{2}/g);
+    if (!rgb) return 0;
+    const [r, g, b] = rgb.map(c => {
+      const val = parseInt(c, 16) / 255;
+      return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  // Calculate contrast ratio between two colors
+  function getContrastRatio(hex1: string, hex2: string): number {
+    const l1 = getLuminance(hex1);
+    const l2 = getLuminance(hex2);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  // Darken a hex color to meet WCAG AA contrast with white
+  function darkenToWCAG(hex: string, targetRatio: number = 4.5): string {
+    const rgb = hex.replace('#', '').match(/.{2}/g);
+    if (!rgb) return hex;
+    
+    let [r, g, b] = rgb.map(c => parseInt(c, 16));
+    const white = '#ffffff';
+    
+    // Iteratively darken until contrast is met
+    for (let i = 0; i < 100; i++) {
+      const currentHex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      if (getContrastRatio(currentHex, white) >= targetRatio) {
+        return currentHex;
+      }
+      r = Math.max(0, Math.floor(r * 0.95));
+      g = Math.max(0, Math.floor(g * 0.95));
+      b = Math.max(0, Math.floor(b * 0.95));
+    }
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+
+  // Run WCAG color audit
+  v1Router.post('/admin/wcag/audit', requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getCustomizationSettings();
+      const theme = settings.theme || {};
+      const issues: any[] = [];
+      const white = '#ffffff';
+      const requiredRatio = 4.5;
+
+      // Define color tokens to check
+      const colorTokens = [
+        { token: '--primary', value: theme.primaryColor || '#f97316', name: 'Primärfarbe' },
+        { token: '--color-schedule', value: theme.scheduleColor || '#f97316', name: 'Terminfarbe' },
+        { token: '--color-survey', value: theme.surveyColor || '#22c55e', name: 'Umfragefarbe' },
+        { token: '--color-organization', value: theme.organizationColor || '#0ea5e9', name: 'Orga-Farbe' },
+      ];
+
+      for (const { token, value, name } of colorTokens) {
+        const contrast = getContrastRatio(value, white);
+        if (contrast < requiredRatio) {
+          issues.push({
+            token,
+            originalValue: value,
+            contrastRatio: Math.round(contrast * 100) / 100,
+            requiredRatio,
+            suggestedValue: darkenToWCAG(value, requiredRatio),
+          });
+        }
+      }
+
+      const auditResult = {
+        runAt: new Date().toISOString(),
+        passed: issues.length === 0,
+        issues,
+      };
+
+      // Store audit result
+      const currentWcag = settings.wcag || { enforcementEnabled: false };
+      await storage.setCustomizationSettings({
+        ...settings,
+        wcag: { ...currentWcag, lastAudit: auditResult },
+      });
+
+      res.json(auditResult);
+    } catch (error) {
+      console.error('Error running WCAG audit:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Apply WCAG suggested corrections
+  v1Router.post('/admin/wcag/apply-corrections', requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getCustomizationSettings();
+      const lastAudit = settings.wcag?.lastAudit;
+
+      if (!lastAudit || lastAudit.issues.length === 0) {
+        return res.status(400).json({ error: 'Keine Korrekturen verfügbar' });
+      }
+
+      const theme = { ...(settings.theme || {}) };
+      const appliedCorrections: Record<string, string> = {};
+
+      for (const issue of lastAudit.issues) {
+        if (issue.token === '--primary') {
+          theme.primaryColor = issue.suggestedValue;
+          appliedCorrections[issue.token] = issue.suggestedValue;
+        } else if (issue.token === '--color-schedule') {
+          theme.scheduleColor = issue.suggestedValue;
+          appliedCorrections[issue.token] = issue.suggestedValue;
+        } else if (issue.token === '--color-survey') {
+          theme.surveyColor = issue.suggestedValue;
+          appliedCorrections[issue.token] = issue.suggestedValue;
+        } else if (issue.token === '--color-organization') {
+          theme.organizationColor = issue.suggestedValue;
+          appliedCorrections[issue.token] = issue.suggestedValue;
+        }
+      }
+
+      const updatedSettings = await storage.setCustomizationSettings({
+        ...settings,
+        theme,
+        wcag: {
+          ...settings.wcag,
+          lastAudit: { ...lastAudit, appliedCorrections },
+        },
+      });
+
+      res.json({ success: true, settings: updatedSettings, appliedCorrections });
+    } catch (error) {
+      console.error('Error applying WCAG corrections:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Update WCAG enforcement setting
+  v1Router.put('/admin/wcag/settings', requireAdmin, async (req, res) => {
+    try {
+      const { enforcementEnabled } = req.body;
+      const settings = await storage.getCustomizationSettings();
+      
+      const updatedSettings = await storage.setCustomizationSettings({
+        ...settings,
+        wcag: {
+          ...settings.wcag,
+          enforcementEnabled: Boolean(enforcementEnabled),
+        },
+      });
+
+      res.json(updatedSettings.wcag);
+    } catch (error) {
+      console.error('Error updating WCAG settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
   // ============== EMAIL TEMPLATE ROUTES ==============
 
   // Get all email templates (admin only)

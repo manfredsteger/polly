@@ -540,11 +540,37 @@ export const sessionTimeoutSettingsSchema = z.object({
 
 export type SessionTimeoutSettings = z.infer<typeof sessionTimeoutSettingsSchema>;
 
+// WCAG Accessibility Settings Schema
+export const wcagAuditIssueSchema = z.object({
+  token: z.string(), // CSS variable name, e.g. "--primary"
+  originalValue: z.string(), // Original hex color
+  contrastRatio: z.number(), // Calculated contrast ratio
+  requiredRatio: z.number(), // Required ratio (4.5:1 for normal text)
+  suggestedValue: z.string(), // WCAG-compliant hex color
+});
+
+export const wcagAuditResultSchema = z.object({
+  runAt: z.string(), // ISO timestamp
+  passed: z.boolean(),
+  issues: z.array(wcagAuditIssueSchema),
+  appliedCorrections: z.record(z.string(), z.string()).optional(), // token -> corrected value
+});
+
+export const wcagSettingsSchema = z.object({
+  enforcementEnabled: z.boolean().default(false), // When true, auto-correct colors for WCAG compliance
+  lastAudit: wcagAuditResultSchema.optional(),
+});
+
+export type WcagAuditIssue = z.infer<typeof wcagAuditIssueSchema>;
+export type WcagAuditResult = z.infer<typeof wcagAuditResultSchema>;
+export type WcagSettings = z.infer<typeof wcagSettingsSchema>;
+
 export const customizationSettingsSchema = z.object({
   theme: themeSettingsSchema.default({}),
   branding: brandingSettingsSchema.default({}),
   footer: footerSettingsSchema.default({}),
   matrix: matrixSettingsSchema.default({}),
+  wcag: wcagSettingsSchema.default({}),
 });
 
 export type ThemeSettings = z.infer<typeof themeSettingsSchema>;

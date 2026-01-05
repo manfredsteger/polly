@@ -97,8 +97,13 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       const root = document.documentElement;
       const isDarkMode = root.classList.contains('dark');
       
+      // Check if WCAG enforcement is enabled
+      const wcagEnabled = settings.wcag?.enforcementEnabled ?? false;
+      // Use hexToAccessibleHSL only if WCAG enforcement is enabled
+      const colorConverter = wcagEnabled ? hexToAccessibleHSL : hexToHSL;
+      
       if (settings.theme.primaryColor) {
-        const primaryHSL = hexToAccessibleHSL(settings.theme.primaryColor);
+        const primaryHSL = colorConverter(settings.theme.primaryColor);
         root.style.setProperty('--polly-orange', `hsl(${primaryHSL})`);
         root.style.setProperty('--primary', primaryHSL);
         root.style.setProperty('--primary-foreground', '0 0% 100%');
@@ -109,9 +114,9 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
         root.style.setProperty('--polly-blue', `hsl(${secondaryHSL})`);
       }
       
-      // Apply feature-specific colors with WCAG AA contrast enforcement
+      // Apply feature-specific colors (with WCAG enforcement if enabled)
       if (settings.theme.scheduleColor) {
-        const scheduleHSL = hexToAccessibleHSL(settings.theme.scheduleColor);
+        const scheduleHSL = colorConverter(settings.theme.scheduleColor);
         const scheduleBgHSL = isDarkMode ? hexToHSLDark(settings.theme.scheduleColor) : hexToHSLLight(settings.theme.scheduleColor);
         const scheduleForeground = getContrastForeground(settings.theme.scheduleColor);
         root.style.setProperty('--color-schedule', `hsl(${scheduleHSL})`);
@@ -120,7 +125,7 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       }
       
       if (settings.theme.surveyColor) {
-        const surveyHSL = hexToAccessibleHSL(settings.theme.surveyColor);
+        const surveyHSL = colorConverter(settings.theme.surveyColor);
         const surveyBgHSL = isDarkMode ? hexToHSLDark(settings.theme.surveyColor) : hexToHSLLight(settings.theme.surveyColor);
         const surveyForeground = getContrastForeground(settings.theme.surveyColor);
         root.style.setProperty('--color-survey', `hsl(${surveyHSL})`);
@@ -129,7 +134,7 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       }
       
       if (settings.theme.organizationColor) {
-        const orgHSL = hexToAccessibleHSL(settings.theme.organizationColor);
+        const orgHSL = colorConverter(settings.theme.organizationColor);
         const orgBgHSL = isDarkMode ? hexToHSLDark(settings.theme.organizationColor) : hexToHSLLight(settings.theme.organizationColor);
         const orgForeground = getContrastForeground(settings.theme.organizationColor);
         root.style.setProperty('--color-organization', `hsl(${orgHSL})`);

@@ -775,6 +775,10 @@
         "title": "Session Timeout",
         "description": "Configure automatic session expiration"
       },
+      "wcag": {
+        "title": "WCAG Accessibility",
+        "description": "Color contrast and accessibility settings"
+      },
       "status": {
         "available": "Available",
         "connected": "Connected",
@@ -1486,6 +1490,36 @@
       "warningSettings": "Warning",
       "warningNote": "Users see a warning {{minutes}} minute(s) before logout with the option to extend the session.",
       "sessionInfo": "The session timeout function checks the user's last activity and logs them out automatically after the configured inactivity time. Activities like mouse clicks, keyboard inputs, and page changes extend the session."
+    },
+    "wcag": {
+      "title": "WCAG Accessibility",
+      "subtitle": "Color contrast and accessibility settings according to WCAG 2.1 AA",
+      "settingsSaved": "WCAG settings have been saved.",
+      "enforcementTitle": "Automatic Color Correction",
+      "enforcementDescription": "When enabled, colors are automatically adjusted to meet WCAG AA contrast requirements.",
+      "autoCorrection": "Enable WCAG color correction",
+      "autoCorrectionDescription": "Colors are automatically darkened to achieve a contrast ratio of at least 4.5:1 with white text.",
+      "enforcementActiveNote": "Automatic color correction is active. All colors are adjusted for WCAG AA compliance.",
+      "enforcementInactiveNote": "Automatic color correction is disabled. Original colors from the Customize tab are used. This may cause accessibility issues.",
+      "auditTitle": "Color Contrast Check",
+      "auditDescription": "Check whether current colors meet WCAG AA contrast requirements (4.5:1).",
+      "runAudit": "Run Check",
+      "lastAudit": "Last check",
+      "auditPassed": "Check passed",
+      "auditFailed": "Contrast issues found",
+      "allColorsMeetWCAG": "All colors meet WCAG AA requirements.",
+      "issuesFound": "{{count}} color(s) do not meet contrast requirements.",
+      "primaryColor": "Primary Color",
+      "scheduleColor": "Schedule Color",
+      "surveyColor": "Survey Color",
+      "organizationColor": "Organization Color",
+      "contrast": "Contrast",
+      "current": "Current",
+      "suggested": "Suggested",
+      "requiredRatio": "Required",
+      "applyCorrections": "Apply Suggested Corrections",
+      "correctionsApplied": "Corrections applied",
+      "colorsUpdated": "Color values have been updated and now meet WCAG AA requirements."
     },
     "matrix": {
       "saved": "Matrix settings have been saved.",

@@ -68,13 +68,10 @@ function hexToHSLDark(hex: string): string {
   return hexToHSLWithLightness(hex, 20);
 }
 
-function getContrastForeground(hex: string): string {
-  hex = hex.replace(/^#/, '');
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? '0 0% 15%' : '0 0% 100%';
+function getContrastForeground(_hex: string): string {
+  // Always use white text for feature buttons - better visual consistency
+  // The button colors are designed for white text regardless of luminance
+  return '0 0% 100%';
 }
 
 export function CustomizationProvider({ children }: { children: React.ReactNode }) {

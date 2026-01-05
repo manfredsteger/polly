@@ -182,6 +182,24 @@ export const testConfigurations = pgTable("test_configurations", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// ClamAV scan logs - audit trail for all virus scans
+export const clamavScanLogs = pgTable("clamav_scan_logs", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  fileSize: integer("file_size").notNull(), // bytes
+  mimeType: text("mime_type"),
+  scanStatus: text("scan_status").notNull(), // "clean", "infected", "error"
+  virusName: text("virus_name"), // null if clean
+  errorMessage: text("error_message"), // null if no error
+  actionTaken: text("action_taken").notNull(), // "allowed", "blocked", "quarantined"
+  uploaderUserId: integer("uploader_user_id"), // null for anonymous
+  uploaderEmail: text("uploader_email"), // email of uploader (guest or user)
+  requestIp: text("request_ip"), // IP address of request
+  scanDurationMs: integer("scan_duration_ms"), // scan duration in milliseconds
+  adminNotifiedAt: timestamp("admin_notified_at"), // when admin was notified (if applicable)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   polls: many(polls),
@@ -296,6 +314,11 @@ export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit
   updatedAt: true,
 });
 
+export const insertClamavScanLogSchema = createInsertSchema(clamavScanLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -332,6 +355,9 @@ export type InsertTestConfiguration = z.infer<typeof insertTestConfigurationSche
 
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+
+export type ClamavScanLog = typeof clamavScanLogs.$inferSelect;
+export type InsertClamavScanLog = z.infer<typeof insertClamavScanLogSchema>;
 
 // Email template types
 export const EMAIL_TEMPLATE_TYPES = [

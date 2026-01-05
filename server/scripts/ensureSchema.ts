@@ -10,7 +10,7 @@ import * as path from 'path';
 
 const REQUIRED_TABLES = ['users', 'polls', 'poll_options', 'votes', 'system_settings', 
   'password_reset_tokens', 'email_change_tokens', 'notification_logs',
-  'test_runs', 'test_results', 'test_configurations'];
+  'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs'];
 
 const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = [
   { table: 'users', column: 'calendar_token', definition: 'TEXT UNIQUE' },
@@ -226,6 +226,26 @@ async function createCoreTables(client: any): Promise<void> {
       value JSONB NOT NULL,
       description TEXT,
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Create clamav_scan_logs table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS clamav_scan_logs (
+      id SERIAL PRIMARY KEY,
+      filename TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      mime_type TEXT,
+      scan_status TEXT NOT NULL,
+      virus_name TEXT,
+      error_message TEXT,
+      action_taken TEXT NOT NULL,
+      uploader_user_id INTEGER,
+      uploader_email TEXT,
+      request_ip TEXT,
+      scan_duration_ms INTEGER,
+      admin_notified_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);
 

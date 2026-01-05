@@ -275,7 +275,7 @@ fresh-demo: clean
 complete:
 	@echo "$(YELLOW)=== COMPLETE RESET ===$(NC)"
 	@echo "$(YELLOW)This will DELETE ALL DATA and start fresh with all features!$(NC)"
-	@read -p "Type 'YES' to confirm: " confirm && [ "$$confirm" = "YES" ] || (echo "Aborted." && exit 1)
+	@read -p "Type 'YES' to confirm: " confirm && [ "$$(echo $$confirm | tr a-z A-Z)" = "YES" ] || (echo "Aborted." && exit 1)
 	@echo ""
 	@echo "$(YELLOW)Step 1/4: Stopping and removing everything...$(NC)"
 	docker compose --profile clamav down -v --remove-orphans 2>/dev/null || docker compose down -v --remove-orphans

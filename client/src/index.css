@@ -90,20 +90,20 @@
   --polly-blue: hsl(198, 38%, 55%);
   
   /* Feature Colors - Dark Mode - WCAG AA 4.5:1 contrast */
-  /* Termin (Schedule): Orange with dark text for contrast */
-  --color-schedule: hsl(25, 95%, 55%);
-  --color-schedule-foreground: hsl(0, 0%, 0%);
+  /* Termin (Schedule): Orange with white text */
+  --color-schedule: hsl(25, 95%, 50%);
+  --color-schedule-foreground: hsl(0, 0%, 100%);
   --color-schedule-light: hsl(25, 95%, 20%);
   
-  /* Umfrage (Survey): Green with dark text for contrast */
-  --color-survey: hsl(142, 71%, 50%);
-  --color-survey-foreground: hsl(0, 0%, 0%);
-  --color-survey-light: hsl(142, 71%, 20%);
+  /* Umfrage (Survey): Teal/Cyan with white text */
+  --color-survey: hsl(174, 60%, 45%);
+  --color-survey-foreground: hsl(0, 0%, 100%);
+  --color-survey-light: hsl(174, 60%, 20%);
   
-  /* Orga (Organization): Blue with dark text for contrast */
-  --color-organization: hsl(199, 89%, 55%);
-  --color-organization-foreground: hsl(0, 0%, 0%);
-  --color-organization-light: hsl(199, 89%, 20%);
+  /* Orga (Organization): Green with white text */
+  --color-organization: hsl(85, 55%, 45%);
+  --color-organization-foreground: hsl(0, 0%, 100%);
+  --color-organization-light: hsl(85, 55%, 20%);
   
   /* Semantic Status Colors (dark mode - lighter with dark text for WCAG AA) */
   --color-success: #4ade80;

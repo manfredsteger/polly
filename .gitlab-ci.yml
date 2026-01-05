@@ -1,7 +1,28 @@
 stages:
+  - sync
   - build
   - test
   - security
+
+# Sync job: Pulls latest code from GitHub when triggered via pipeline trigger
+sync-from-github:
+  stage: sync
+  image: alpine/git:latest
+  variables:
+    GIT_STRATEGY: clone
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+  script:
+    - set -e
+    - git config --global user.email "gitlab@kita.bayern"
+    - git config --global user.name "GitLab Sync Bot"
+    - echo "Fetching latest code from GitHub..."
+    - git remote add github https://github.com/manfredsteger/polly.git || true
+    - git fetch github main
+    - echo "Syncing GitHub main to GitLab..."
+    - git checkout -B main github/main
+    - git push -f origin main
+    - echo "Sync completed successfully"
 
 variables:
   NODE_VERSION: "22"

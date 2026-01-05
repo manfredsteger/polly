@@ -2236,6 +2236,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get ClamAV scan logs with filtering
+  v1Router.get('/admin/clamav/scan-logs', requireAdmin, async (req, res) => {
+    try {
+      const { limit, offset, status, startDate, endDate } = req.query;
+      
+      const options: {
+        limit?: number;
+        offset?: number;
+        status?: 'clean' | 'infected' | 'error';
+        startDate?: Date;
+        endDate?: Date;
+      } = {};
+      
+      if (limit) options.limit = parseInt(limit as string, 10);
+      if (offset) options.offset = parseInt(offset as string, 10);
+      if (status && ['clean', 'infected', 'error'].includes(status as string)) {
+        options.status = status as 'clean' | 'infected' | 'error';
+      }
+      if (startDate) options.startDate = new Date(startDate as string);
+      if (endDate) options.endDate = new Date(endDate as string);
+      
+      const result = await storage.getClamavScanLogs(options);
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching ClamAV scan logs:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Get ClamAV scan statistics
+  v1Router.get('/admin/clamav/stats', requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getClamavScanStats();
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching ClamAV scan stats:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Get single ClamAV scan log detail
+  v1Router.get('/admin/clamav/scan-logs/:id', requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const log = await storage.getClamavScanLog(id);
+      
+      if (!log) {
+        return res.status(404).json({ error: 'Scan-Log nicht gefunden' });
+      }
+      
+      res.json(log);
+    } catch (error) {
+      console.error('Error fetching ClamAV scan log:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
   // ============== PENTEST-TOOLS API ==============
 
   // Get Pentest-Tools configuration (without exposing the token value)

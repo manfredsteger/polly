@@ -65,7 +65,8 @@
     "profile": "Profil",
     "login": "Anmelden",
     "logout": "Abmelden",
-    "register": "Registrieren"
+    "register": "Registrieren",
+    "switchLanguage": "Sprache wechseln"
   },
   "auth": {
     "login": "Anmelden",

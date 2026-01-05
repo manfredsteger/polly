@@ -65,7 +65,8 @@
     "profile": "Profile",
     "login": "Login",
     "logout": "Logout",
-    "register": "Register"
+    "register": "Register",
+    "switchLanguage": "Switch language"
   },
   "auth": {
     "login": "Login",

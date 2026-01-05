@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const { user, isAuthenticated } = useAuth();
   const currentLanguage = i18n.language as SupportedLanguage;
 
@@ -37,10 +37,10 @@ export function LanguageSwitcher() {
           variant="ghost" 
           size="icon" 
           className="h-9 w-9"
+          aria-label={t('nav.switchLanguage')}
           data-testid="button-language-switcher"
         >
           <Globe className="h-4 w-4" />
-          <span className="sr-only">Switch language</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

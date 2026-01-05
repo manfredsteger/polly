@@ -1,6 +1,13 @@
 # Polly 🗳️
 
-A modern, open-source polling and scheduling platform for teams. Create surveys, schedule meetings, and manage event signups with ease. Multi-language support (German & English), GDPR-compliant, and self-hosted.
+[![Build Status](https://github.com/manfredsteger/polly/actions/workflows/ci.yml/badge.svg)](https://github.com/manfredsteger/polly/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/)
+
+**Open-source alternative to Doodle, Calendly, and LettuceMeet**
+
+A modern, self-hosted polling and scheduling platform for teams. Create surveys, schedule meetings, and manage event signups with ease. Multi-language support (German & English), GDPR-compliant, accessibility-tested (WCAG 2.1 AA), and fully self-hosted.
 
 ---
 

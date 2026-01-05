@@ -391,6 +391,9 @@
   },
   "admin": {
     "dashboard": "Admin-Dashboard",
+    "defaultAdminAccount": "Standard-Administratorkonto erkannt",
+    "defaultAdminWarning": "Sie verwenden noch das Standard-Administratorkonto. Dies ist ein Sicherheitsrisiko, da die Zugangsdaten öffentlich bekannt sind.",
+    "createNewAdminWarning": "Bitte erstellen Sie einen neuen Administrator mit sicherem Passwort und deaktivieren Sie dieses Konto.",
     "systemManagement": "Systemverwaltung",
     "users": "Benutzer",
     "userManagement": "Benutzerverwaltung",

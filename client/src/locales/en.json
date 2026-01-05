@@ -391,6 +391,9 @@
   },
   "admin": {
     "dashboard": "Admin Dashboard",
+    "defaultAdminAccount": "Default Administrator Account Detected",
+    "defaultAdminWarning": "You are still using the default administrator account. This is a security risk as the credentials are publicly known.",
+    "createNewAdminWarning": "Please create a new administrator with a secure password and disable this account.",
     "systemManagement": "System Management",
     "users": "Users",
     "userManagement": "User Management",

@@ -2145,6 +2145,7 @@
     "dateOptions": "Terminoptionen",
     "dateOptionsCount": "Terminoptionen ({{count}})",
     "editDate": "Termin bearbeiten",
+    "removeOption": "Option entfernen",
     "submitButton": "Terminumfrage erstellen"
   },
   "createSurvey": {
@@ -2160,6 +2161,7 @@
     "allowMaybeDescription": "Können Teilnehmende mit \"Vielleicht\" antworten?",
     "choices": "Auswahlmöglichkeiten",
     "addOption": "Option hinzufügen",
+    "removeOption": "Option entfernen",
     "optionsHint": "Fügen Sie mindestens 2 Optionen hinzu, zwischen denen die Teilnehmer wählen können.",
     "optionPlaceholder": "Option {{number}}",
     "addImage": "Bild hinzufügen (optional):",
@@ -2185,6 +2187,7 @@
     "allowEntryWithdrawalDescription": "Dürfen Teilnehmende ihre Eintragungen komplett zurückziehen?",
     "slots": "Slots",
     "addSlot": "Slot hinzufügen",
+    "removeSlot": "Slot entfernen",
     "slotsHint": "Slots können z.B. \"14:00-14:30 Kuchen\" oder \"Getränke mitbringen\" heißen. Die Kapazität bestimmt, wie viele Personen sich pro Slot eintragen können.",
     "dayOrganization": "Tagesorganisation",
     "dayOrganizationDescription": "Einmal Datum wählen, dann nur noch Uhrzeiten eingeben - ideal für viele Zeitslots an einem Tag.",

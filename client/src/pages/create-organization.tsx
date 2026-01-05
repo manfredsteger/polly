@@ -757,6 +757,7 @@ export default function CreateOrganization() {
                       size="icon"
                       onClick={() => removeSlot(index)}
                       className="text-destructive hover:text-destructive"
+                      aria-label={t('createOrganization.removeSlot')}
                       data-testid={`button-remove-slot-${index}`}
                     >
                       <Trash2 className="w-4 h-4" />

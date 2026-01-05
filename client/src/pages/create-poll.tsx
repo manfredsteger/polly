@@ -525,6 +525,7 @@ export default function CreatePoll() {
                           removeOption(index);
                         }}
                         className="text-destructive hover:text-destructive"
+                        aria-label={t('createPoll.removeOption')}
                         data-testid={`delete-option-${index}`}
                       >
                         <Trash2 className="w-4 h-4" />

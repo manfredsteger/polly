@@ -508,6 +508,7 @@ export default function CreateSurvey() {
                         size="sm"
                         onClick={() => removeOption(index)}
                         className="text-destructive hover:text-destructive"
+                        aria-label={t('createSurvey.removeOption')}
                         data-testid={`button-delete-option-${index}`}
                       >
                         <Trash2 className="w-4 h-4" />

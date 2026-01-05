@@ -2145,6 +2145,7 @@
     "dateOptions": "Date Options",
     "dateOptionsCount": "Date Options ({{count}})",
     "editDate": "Edit Date",
+    "removeOption": "Remove Option",
     "submitButton": "Create Schedule Poll"
   },
   "createSurvey": {
@@ -2160,6 +2161,7 @@
     "allowMaybeDescription": "Can participants answer with \"Maybe\"?",
     "choices": "Choices",
     "addOption": "Add Option",
+    "removeOption": "Remove Option",
     "optionsHint": "Add at least 2 options for participants to choose from.",
     "optionPlaceholder": "Option {{number}}",
     "addImage": "Add image (optional):",
@@ -2185,6 +2187,7 @@
     "allowEntryWithdrawalDescription": "Can participants completely withdraw their sign-ups?",
     "slots": "Slots",
     "addSlot": "Add Slot",
+    "removeSlot": "Remove Slot",
     "slotsHint": "Slots can be named e.g., \"2:00-2:30 PM Cake\" or \"Bring drinks\". The capacity determines how many people can sign up per slot.",
     "dayOrganization": "Day Organization",
     "dayOrganizationDescription": "Select the date once, then only enter times - ideal for many time slots on one day.",

@@ -76,6 +76,7 @@ export default function Layout({ children }: LayoutProps) {
                 onClick={toggleTheme}
                 className="h-9 w-9"
                 title={effectiveTheme === 'light' ? t('theme.switchToDark') : t('theme.switchToLight')}
+                aria-label={effectiveTheme === 'light' ? t('theme.switchToDark') : t('theme.switchToLight')}
                 data-testid="button-theme-toggle"
               >
                 {getThemeIcon()}

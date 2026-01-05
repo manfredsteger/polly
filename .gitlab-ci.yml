@@ -4,7 +4,9 @@ stages:
   - test
   - security
 
-# Sync job: Pulls latest code from GitHub when triggered via pipeline trigger
+# Sync job: Verifies code sync from GitHub (pull-only, no push to GitLab)
+# Note: All other jobs already fetch from GitHub directly, so this job
+# only verifies that the trigger was received and logs the sync status.
 sync-from-github:
   stage: sync
   image: alpine:latest
@@ -16,15 +18,14 @@ sync-from-github:
     - apk add --no-cache git
   script:
     - set -e
-    - git config --global user.email "gitlab@kita.bayern"
-    - git config --global user.name "GitLab Sync Bot"
-    - echo "Fetching latest code from GitHub..."
+    - echo "GitHub sync trigger received"
     - git remote add github https://github.com/manfredsteger/polly.git || true
     - git fetch github main
-    - echo "Syncing GitHub main to GitLab..."
-    - git checkout -B main github/main
-    - git push -f origin main
-    - echo "Sync completed successfully"
+    - echo "Latest GitHub commit:"
+    - git log github/main -1 --oneline
+    - echo "Current GitLab checkout commit:"
+    - git log HEAD -1 --oneline
+    - echo "Sync verification completed - all jobs will use GitHub code directly"
 
 variables:
   NODE_VERSION: "22"

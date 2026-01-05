@@ -12,7 +12,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m # No Color
 
-.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge
+.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge clamav clamav-down clamav-logs clamav-status clamav-update
 
 # Default target
 help:
@@ -57,6 +57,13 @@ help:
 	@echo "  make rebuild      - Rebuild image without cache"
 	@echo "  make fresh        - Clean + rebuild + start (full reset)"
 	@echo "  make fresh-demo   - Fresh start with demo data"
+	@echo ""
+	@echo "$(YELLOW)ClamAV Antivirus:$(NC)"
+	@echo "  make clamav       - Start Polly with ClamAV antivirus"
+	@echo "  make clamav-down  - Stop ClamAV service only"
+	@echo "  make clamav-logs  - View ClamAV logs"
+	@echo "  make clamav-status- Check ClamAV connection status"
+	@echo "  make clamav-update- Update ClamAV virus definitions"
 	@echo ""
 	@echo "$(YELLOW)Maintenance:$(NC)"
 	@echo "  make clean        - Remove containers (keeps data)"
@@ -297,3 +304,31 @@ release:
 	docker tag $(IMAGE_NAME):$$version $(DOCKER_REGISTRY)/$(IMAGE_NAME):$$version && \
 	docker push $(DOCKER_REGISTRY)/$(IMAGE_NAME):$$version && \
 	echo "$(GREEN)Released: $(DOCKER_REGISTRY)/$(IMAGE_NAME):$$version$(NC)"
+
+# ============================================
+# ClamAV Antivirus (Optional)
+# ============================================
+
+clamav:
+	@echo "$(GREEN)Starting Polly with ClamAV antivirus...$(NC)"
+	docker compose --profile clamav up -d
+	@echo "$(GREEN)ClamAV running on port 3310$(NC)"
+	@echo "$(YELLOW)Note: First start takes ~2 min to download virus definitions$(NC)"
+	@echo "$(GREEN)Configure in Admin Panel: Settings > Security > ClamAV$(NC)"
+
+clamav-down:
+	@echo "$(YELLOW)Stopping ClamAV service...$(NC)"
+	docker compose --profile clamav stop clamav
+	@echo "$(GREEN)ClamAV stopped (Polly still running)$(NC)"
+
+clamav-logs:
+	docker compose logs -f clamav
+
+clamav-status:
+	@echo "$(GREEN)Checking ClamAV status...$(NC)"
+	@docker compose exec clamav clamdscan --ping 2>/dev/null && echo "$(GREEN)ClamAV is running and accepting connections$(NC)" || echo "$(YELLOW)ClamAV is not running or not ready$(NC)"
+
+clamav-update:
+	@echo "$(GREEN)Updating ClamAV virus definitions...$(NC)"
+	docker compose exec clamav freshclam
+	@echo "$(GREEN)Virus definitions updated$(NC)"

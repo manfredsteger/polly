@@ -1773,6 +1773,12 @@
     "enableReminders": "Enable Reminders",
     "reminderHours": "Hours before expiry"
   },
+  "notFound": {
+    "title": "Page Not Found",
+    "description": "The page you are looking for does not exist or has been moved.",
+    "goBack": "Go Back",
+    "goHome": "Go to Homepage"
+  },
   "errors": {
     "generic": "An error occurred",
     "networkError": "Network error",

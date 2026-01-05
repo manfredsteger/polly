@@ -1773,6 +1773,12 @@
     "enableReminders": "Erinnerungen aktivieren",
     "reminderHours": "Stunden vor Ablauf"
   },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "goBack": "Zurück",
+    "goHome": "Zur Startseite"
+  },
   "errors": {
     "generic": "Ein Fehler ist aufgetreten",
     "networkError": "Netzwerkfehler",

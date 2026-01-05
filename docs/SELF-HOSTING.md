@@ -182,11 +182,61 @@ npm start
 
 ### ClamAV Virus Scanning (Optional)
 
+Polly supports optional antivirus scanning of all uploaded files using ClamAV.
+
+#### Starting ClamAV with Docker Compose
+
+ClamAV is available as an optional Docker Compose profile. To enable it:
+
+```bash
+# Start Polly with ClamAV scanning enabled
+docker compose --profile clamav up -d
+
+# Or use the Makefile shortcut
+make start-with-clamav
+```
+
+#### Environment Variables
+
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `CLAMAV_HOST` | ClamAV daemon host | `clamav` |
 | `CLAMAV_PORT` | ClamAV daemon port | `3310` |
 | `CLAMAV_ENABLED` | Enable scanning | `true` |
+
+#### Features
+
+- **Automatic Scanning**: All file uploads are scanned before being stored
+- **Audit Trail**: Every scan (clean, infected, error) is logged to the database
+- **Admin Dashboard**: View scan history with filtering by status, date, and search
+- **Email Alerts**: Administrators receive instant email notifications when a virus is detected
+- **Statistics**: Real-time overview of total scans, clean files, and detected threats
+
+#### First Startup Notes
+
+ClamAV requires downloading virus definitions on first start (approximately 400MB). This may take 2-5 minutes depending on your internet connection. The service is ready when healthcheck passes.
+
+```bash
+# Check ClamAV status
+docker compose ps clamav
+
+# View ClamAV logs
+docker compose logs clamav
+```
+
+#### Kubernetes / External ClamAV
+
+If you have an existing ClamAV deployment, simply configure the environment variables to point to your ClamAV daemon:
+
+```yaml
+env:
+  - name: CLAMAV_HOST
+    value: "clamav-service.antivirus.svc.cluster.local"
+  - name: CLAMAV_PORT
+    value: "3310"
+  - name: CLAMAV_ENABLED
+    value: "true"
+```
 
 ---
 

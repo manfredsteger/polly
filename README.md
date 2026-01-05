@@ -50,7 +50,7 @@ SEED_DEMO_DATA=true docker compose up -d
 
 ### Core Capabilities
 
-- **Multi-Language Support**: Full German (de) and English (en) interface with automatic browser detection
+- **Multi-Language Support**: Full German (de) and English (en) interface with automatic browser detection. Easily extensible—add new languages by creating a translation JSON file in `client/src/locales/`
 - **Anonymous & Authenticated Voting**: Works for guests and registered users
 - **Real-Time Updates**: Live voting with WebSocket connections and fullscreen presentation mode
 - **Email Notifications**: Vote confirmation, edit links, and expiry reminders via email

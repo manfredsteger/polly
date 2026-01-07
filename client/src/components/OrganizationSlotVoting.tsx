@@ -158,10 +158,10 @@ export function OrganizationSlotVoting({
             key={option.id} 
             className={`border rounded-lg p-4 transition-all ${
               isBooked 
-                ? 'border-green-500 bg-green-50 dark:bg-green-950' 
+                ? 'border-green-500 bg-green-50 dark:bg-green-900/50 dark:border-green-600' 
                 : isFull 
-                  ? 'border-gray-300 bg-gray-50 dark:bg-gray-900 opacity-60'
-                  : 'border-border hover:border-green-300 hover:bg-green-50/50'
+                  ? 'border-gray-300 bg-gray-50 dark:bg-gray-900 dark:border-gray-700 opacity-60'
+                  : 'border-border hover:border-green-400 hover:bg-green-50/50 dark:hover:border-green-500 dark:hover:bg-green-900/40'
             }`}
             data-testid={`slot-option-${option.id}`}
           >

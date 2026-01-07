@@ -81,8 +81,8 @@
   --secondary-foreground: hsl(0, 0%, 98%);
   --accent: hsl(240, 3.7%, 15.9%);
   --accent-foreground: hsl(0, 0%, 98%);
-  --destructive: hsl(0, 62.8%, 30.6%);
-  --destructive-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 72%, 50%);
+  --destructive-foreground: hsl(0, 0%, 100%);
   --ring: hsl(240, 4.9%, 83.9%);
   
   /* Polly Custom Colors - Dark Mode - WCAG AA compliant with white text */

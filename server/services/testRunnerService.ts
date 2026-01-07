@@ -161,22 +161,54 @@ async function runTestsInBackground(runId: number): Promise<void> {
     let testFiles: string[] | undefined;
     let testNamePattern: string | undefined;
     
+    // Collect E2E tests to mark as skipped (Playwright not available in Replit)
+    // Note: E2E tests are stored in test_configurations but NOT run by Vitest
+    // They appear separately in the UI as skipped with an explanation
+    const e2eTestsToSkip: Array<{ testFile: string; testName: string; category: string }> = [];
+    
     if (modeConfig.mode === 'manual') {
       const enabledConfig = await getEnabledTestsConfig();
-      testFiles = enabledConfig.files;
+      // Filter out E2E tests from test files (they don't run in internal environment)
+      testFiles = enabledConfig.files.filter(f => !f.startsWith('e2e/') && !f.includes('/e2e/'));
       testNamePattern = enabledConfig.testNamePattern;
-      console.log(`[TestRunner] Running in manual mode with ${testFiles.length} test files and pattern: ${testNamePattern}`);
       
-      // Short-circuit if no tests are enabled in manual mode
-      if (testFiles.length === 0 || !testNamePattern) {
-        console.log('[TestRunner] No tests enabled in manual mode, skipping run');
+      // Collect skipped E2E tests for reporting (only in manual mode when explicitly enabled)
+      const skippedE2EFiles = enabledConfig.files.filter(f => f.startsWith('e2e/') || f.includes('/e2e/'));
+      for (const e2eFile of skippedE2EFiles) {
+        const tests = await getTestNamesFromFile(e2eFile);
+        for (const testName of tests) {
+          e2eTestsToSkip.push({ testFile: e2eFile, testName, category: 'e2e' });
+        }
+      }
+      
+      console.log(`[TestRunner] Running in manual mode with ${testFiles.length} test files (${e2eTestsToSkip.length} E2E tests skipped)`);
+      
+      // Short-circuit if no tests are enabled in manual mode (only E2E or nothing)
+      if (testFiles.length === 0) {
+        // Record skipped E2E tests if any
+        for (const e2eTest of e2eTestsToSkip) {
+          await db.insert(testResults).values({
+            runId,
+            testFile: e2eTest.testFile,
+            testName: e2eTest.testName,
+            category: e2eTest.category,
+            status: 'skipped',
+            duration: null,
+            error: 'E2E tests require Playwright (only available in CI/CD)',
+            errorStack: null,
+          });
+        }
+        
+        const hasOnlyE2E = e2eTestsToSkip.length > 0;
+        console.log(`[TestRunner] No runnable tests in manual mode${hasOnlyE2E ? ' (only E2E tests enabled)' : ''}`);
+        
         await db.update(testRuns)
           .set({
             status: 'completed',
-            totalTests: 0,
+            totalTests: e2eTestsToSkip.length,
             passed: 0,
             failed: 0,
-            skipped: 0,
+            skipped: e2eTestsToSkip.length,
             duration: Date.now() - startTime,
             completedAt: new Date(),
           })
@@ -184,7 +216,10 @@ async function runTestsInBackground(runId: number): Promise<void> {
         return;
       }
     } else {
-      console.log('[TestRunner] Running in auto mode (all tests)');
+      // Auto mode: E2E tests are NOT included in Vitest runs at all
+      // They're shown separately in the UI via test_configurations
+      // No need to add them to results here - they're never "run"
+      console.log('[TestRunner] Running in auto mode (server tests only, E2E excluded)');
     }
     
     const vitestOutput = await executeVitest(testFiles, testNamePattern);
@@ -224,14 +259,37 @@ async function runTestsInBackground(runId: number): Promise<void> {
       }
     }
     
+    // In manual mode only: add skipped E2E tests to results
+    // (auto mode doesn't track E2E tests in run results - they're shown via test_configurations)
+    if (e2eTestsToSkip.length > 0) {
+      for (const e2eTest of e2eTestsToSkip) {
+        const resultData = {
+          runId,
+          testFile: e2eTest.testFile,
+          testName: e2eTest.testName,
+          category: e2eTest.category,
+          status: 'skipped' as const,
+          duration: null,
+          error: 'E2E tests require Playwright (only available in CI/CD)',
+          errorStack: null,
+        };
+        testResultsData.push(resultData);
+        await db.insert(testResults).values(resultData);
+      }
+    }
+    
+    // Calculate totals: add manually-skipped E2E tests only if in manual mode
+    const totalTests = parsed.numTotalTests + e2eTestsToSkip.length;
+    const totalSkipped = (parsed.numSkippedTests || 0) + e2eTestsToSkip.length;
+    
     const completedAt = new Date();
     await db.update(testRuns)
       .set({
         status: parsed.success ? 'completed' : 'failed',
-        totalTests: parsed.numTotalTests,
+        totalTests,
         passed: parsed.numPassedTests,
         failed: parsed.numFailedTests,
-        skipped: parsed.numSkippedTests || 0,
+        skipped: totalSkipped,
         duration,
         completedAt,
       })
@@ -240,10 +298,10 @@ async function runTestsInBackground(runId: number): Promise<void> {
     // Send email notification if configured
     await sendTestReportNotification(runId, {
       status: parsed.success ? 'completed' : 'failed',
-      totalTests: parsed.numTotalTests,
+      totalTests,
       passed: parsed.numPassedTests,
       failed: parsed.numFailedTests,
-      skipped: parsed.numSkippedTests || 0,
+      skipped: totalSkipped,
       duration,
       completedAt,
     }, testResultsData);
@@ -683,6 +741,21 @@ function parseTestCases(content: string): ParsedTest[] {
   }
   
   return tests;
+}
+
+async function getTestNamesFromFile(filePath: string): Promise<string[]> {
+  try {
+    const fullPath = path.resolve(process.cwd(), filePath);
+    if (!fs.existsSync(fullPath)) {
+      return [];
+    }
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    const testCases = parseTestCases(content);
+    return testCases.map(tc => tc.name);
+  } catch (error) {
+    console.error(`[TestRunner] Error reading test file ${filePath}:`, error);
+    return [];
+  }
 }
 
 export async function scanTestFiles(): Promise<IndividualTest[]> {

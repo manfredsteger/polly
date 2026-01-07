@@ -646,12 +646,21 @@ export async function updateTestModeConfig(mode: 'auto' | 'manual'): Promise<Tes
 // ===== Test File Scanning =====
 
 function detectTestType(filePath: string, content: string): TestType {
-  // Check for explicit testMeta type declaration
-  const typeMatch = content.match(/testType:\s*['"](\w+)['"]/);
-  if (typeMatch) {
-    const type = typeMatch[1].toLowerCase();
-    if (['unit', 'integration', 'e2e', 'data', 'accessibility'].includes(type)) {
-      return type as TestType;
+  // Check for explicit testType declaration in comments or code
+  // Matches: // testType: 'data', /* testType: "accessibility" */, testType: 'e2e'
+  const typePatterns = [
+    /\/\/\s*testType:\s*['"](\w+)['"]/,      // Single-line comment
+    /\/\*\s*testType:\s*['"](\w+)['"]/,      // Multi-line comment start
+    /testType:\s*['"](\w+)['"]/,              // In code/object
+  ];
+  
+  for (const pattern of typePatterns) {
+    const match = content.match(pattern);
+    if (match) {
+      const type = match[1].toLowerCase();
+      if (['unit', 'integration', 'e2e', 'data', 'accessibility'].includes(type)) {
+        return type as TestType;
+      }
     }
   }
   
@@ -659,15 +668,28 @@ function detectTestType(filePath: string, content: string): TestType {
   const lowerPath = filePath.toLowerCase();
   const lowerContent = content.toLowerCase();
   
+  // Priority 1: Check specific test type keywords BEFORE generic e2e path check
+  // This ensures e2e/accessibility.spec.ts is detected as 'accessibility', not 'e2e'
+  
   // Accessibility tests check WCAG compliance, color contrast, etc.
   if (lowerPath.includes('accessibility') || lowerPath.includes('a11y') || 
       lowerContent.includes('wcag') || lowerContent.includes('color-contrast') ||
-      lowerContent.includes('axebuilder') || lowerContent.includes('accessibility')) {
+      lowerContent.includes('axebuilder')) {
     return 'accessibility';
   }
   
-  // E2E tests typically use browser/playwright or have e2e in path
-  if (lowerPath.includes('e2e') || lowerContent.includes('playwright') || lowerContent.includes('browser')) {
+  // Data tests deal with fixtures or test data generation
+  // Check filename specifically for data.spec.ts or data.test.ts, OR /data/ directory
+  const fileName = filePath.split('/').pop()?.toLowerCase() || '';
+  if (fileName.includes('data.spec') || fileName.includes('data.test') ||
+      lowerPath.includes('/data/') || lowerPath.includes('fixture') || 
+      lowerContent.includes('testdata') || lowerContent.includes('fixture')) {
+    return 'data';
+  }
+  
+  // Priority 2: E2E tests (generic fallback for e2e/ directory)
+  if (lowerPath.includes('/e2e/') || lowerPath.startsWith('e2e/') || 
+      lowerContent.includes('playwright') || lowerContent.includes('@playwright/test')) {
     return 'e2e';
   }
   
@@ -675,12 +697,6 @@ function detectTestType(filePath: string, content: string): TestType {
   if (lowerContent.includes('supertest') || lowerContent.includes('request(app)') || 
       lowerContent.includes('database') || lowerPath.includes('integration')) {
     return 'integration';
-  }
-  
-  // Data tests deal with fixtures or test data generation
-  if (lowerPath.includes('fixture') || lowerPath.includes('data') || 
-      lowerContent.includes('testdata') || lowerContent.includes('fixture')) {
-    return 'data';
   }
   
   // Default to unit test

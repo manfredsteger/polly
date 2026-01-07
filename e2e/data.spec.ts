@@ -77,7 +77,7 @@ test.describe('Testdaten-Generierung und Fixtures', () => {
   });
 
   test('sollte Test-Runner-Status abrufen können', async ({ request }) => {
-    const testRunsResponse = await request.get('/api/v1/admin/test-runs');
+    const testRunsResponse = await request.get('/api/v1/admin/tests/runs');
     const status = testRunsResponse.status();
     
     // Backend uses requireAdmin middleware which returns 401 JSON

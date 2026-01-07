@@ -37,12 +37,12 @@ export default function NotFound() {
                 <ArrowLeft className="h-4 w-4" />
                 {t('notFound.goBack', 'Zurück')}
               </Button>
-              <Link href="/">
-                <Button className="gap-2 polly-button-primary w-full sm:w-auto" data-testid="button-go-home">
+              <Button asChild className="gap-2 polly-button-primary w-full sm:w-auto" data-testid="button-go-home">
+                <Link href="/">
                   <Home className="h-4 w-4" />
                   {t('notFound.goHome', 'Zur Startseite')}
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </CardContent>

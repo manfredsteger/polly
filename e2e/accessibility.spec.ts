@@ -101,8 +101,16 @@ test.describe('Accessibility (WCAG 2.1 AA)', () => {
   });
 
   test('Registrierungs-Seite sollte keine kritischen A11y-Probleme haben', async ({ page }) => {
-    await page.goto('/registrieren');
+    // Registration is part of login page (tabs) - navigate there and click register tab
+    await page.goto('/anmelden');
     await page.waitForLoadState('networkidle');
+    
+    // Click register tab if available
+    const registerTab = page.locator('[data-testid="tab-register"]');
+    if (await registerTab.isVisible()) {
+      await registerTab.click();
+      await page.waitForTimeout(300);
+    }
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
@@ -111,7 +119,7 @@ test.describe('Accessibility (WCAG 2.1 AA)', () => {
     const blocking = filterBlockingViolations(results.violations);
     
     if (results.violations.length > 0) {
-      console.log('A11y issues on /registrieren:\n' + formatViolations(results.violations));
+      console.log('A11y issues on /anmelden (register tab):\n' + formatViolations(results.violations));
     }
 
     expect(blocking, `Critical/Serious violations found:\n${formatViolations(blocking)}`).toHaveLength(0);
@@ -123,8 +131,7 @@ test.describe('Accessibility (WCAG 2.1 AA)', () => {
       { url: '/create-poll', name: 'Terminumfrage' },
       { url: '/create-survey', name: 'Umfrage' },
       { url: '/create-organization', name: 'Orga-Liste' },
-      { url: '/anmelden', name: 'Login' },
-      { url: '/registrieren', name: 'Registrierung' }
+      { url: '/anmelden', name: 'Login' }
     ];
 
     const report: { page: string; url: string; critical: number; serious: number; moderate: number; minor: number; violations: any[] }[] = [];
@@ -174,12 +181,19 @@ test.describe('Accessibility (WCAG 2.1 AA)', () => {
         const blocking = r.violations.filter(v => BLOCKING_IMPACTS.includes(v.impact));
         if (blocking.length > 0) {
           console.log(`\n${r.page} (${r.url}):`);
-          console.log(formatViolations(blocking));
+          for (const v of blocking) {
+            console.log(`  - [${v.impact?.toUpperCase()}] ${v.id}: ${v.description} (${v.nodes} elements)`);
+          }
         }
       }
     }
 
-    expect(totalCritical, `${totalCritical} critical accessibility violations found`).toBe(0);
-    expect(totalSerious, `${totalSerious} serious accessibility violations found`).toBe(0);
+    // Detailed error message for CI debugging
+    const blockingDetails = report
+      .flatMap(r => r.violations.filter(v => BLOCKING_IMPACTS.includes(v.impact)).map(v => `${r.page}: [${v.impact}] ${v.id} - ${v.description}`))
+      .join('\n');
+    
+    expect(totalCritical, `${totalCritical} critical violations:\n${blockingDetails}`).toBe(0);
+    expect(totalSerious, `${totalSerious} serious violations:\n${blockingDetails}`).toBe(0);
   });
 });

@@ -8221,6 +8221,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
     integration: { label: t('admin.tests.testTypes.integration'), icon: <Workflow className="w-4 h-4" />, description: t('admin.tests.testTypes.integrationDescription') },
     e2e: { label: t('admin.tests.testTypes.e2e'), icon: <Globe className="w-4 h-4" />, description: t('admin.tests.testTypes.e2eDescription') },
     data: { label: t('admin.tests.testTypes.data'), icon: <DatabaseIcon className="w-4 h-4" />, description: t('admin.tests.testTypes.dataDescription') },
+    accessibility: { label: t('admin.tests.testTypes.accessibility'), icon: <Eye className="w-4 h-4" />, description: t('admin.tests.testTypes.accessibilityDescription') },
   };
 
   const runTestsMutation = useMutation({
@@ -8507,9 +8508,9 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
             </div>
           ) : testConfigs?.tests ? (
             <Accordion type="multiple" defaultValue={[]} className="w-full">
-              {(['unit', 'integration', 'e2e', 'data'] as const).map((testType) => {
-                const tests = testConfigs.tests[testType] || [];
-                const enabledCount = tests.filter(t => t.enabled).length;
+              {(['unit', 'integration', 'e2e', 'data', 'accessibility'] as const).map((testType) => {
+                const tests = (testConfigs.tests as Record<string, any[]>)[testType] || [];
+                const enabledCount = tests.filter((t: any) => t.enabled).length;
                 const typeInfo = testTypeLabels[testType];
                 
                 return (
@@ -8537,7 +8538,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                         </div>
                       ) : (
                         <div className="space-y-2 py-2">
-                          {tests.map((test) => (
+                          {tests.map((test: any) => (
                             <div
                               key={test.testId}
                               className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${

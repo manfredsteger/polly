@@ -983,7 +983,9 @@
         "e2e": "E2E-Tests",
         "e2eDescription": "Browser-basierte End-to-End-Tests",
         "data": "Datentests",
-        "dataDescription": "Fixtures und Testdaten-Generierung"
+        "dataDescription": "Fixtures und Testdaten-Generierung",
+        "accessibility": "Barrierefreiheit",
+        "accessibilityDescription": "WCAG 2.1 AA Farbkontrast und Zugänglichkeit"
       },
       "testDataManagement": "Testdaten-Verwaltung",
       "testDataDescription": "Testdaten werden während der Testläufe erstellt und sind von den Dashboard-Statistiken ausgeschlossen.",
@@ -1781,7 +1783,9 @@
         "e2e": "E2E-Tests",
         "e2eDescription": "Browser-basierte End-to-End-Tests",
         "data": "Datentests",
-        "dataDescription": "Fixtures und Testdaten-Generierung"
+        "dataDescription": "Fixtures und Testdaten-Generierung",
+        "accessibility": "Barrierefreiheit",
+        "accessibilityDescription": "WCAG 2.1 AA Farbkontrast und Zugänglichkeit"
       }
     },
     "toasts": {

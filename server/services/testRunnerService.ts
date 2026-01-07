@@ -8,7 +8,7 @@ import { emailService } from './emailService';
 import { generateTestReportPDF } from './pdfService';
 
 // Test type classification
-export type TestType = 'unit' | 'integration' | 'e2e' | 'data';
+export type TestType = 'unit' | 'integration' | 'e2e' | 'data' | 'accessibility';
 
 // Individual test info extracted from test files
 export interface IndividualTest {
@@ -592,7 +592,7 @@ function detectTestType(filePath: string, content: string): TestType {
   const typeMatch = content.match(/testType:\s*['"](\w+)['"]/);
   if (typeMatch) {
     const type = typeMatch[1].toLowerCase();
-    if (['unit', 'integration', 'e2e', 'data'].includes(type)) {
+    if (['unit', 'integration', 'e2e', 'data', 'accessibility'].includes(type)) {
       return type as TestType;
     }
   }
@@ -600,6 +600,13 @@ function detectTestType(filePath: string, content: string): TestType {
   // Infer from file path or content
   const lowerPath = filePath.toLowerCase();
   const lowerContent = content.toLowerCase();
+  
+  // Accessibility tests check WCAG compliance, color contrast, etc.
+  if (lowerPath.includes('accessibility') || lowerPath.includes('a11y') || 
+      lowerContent.includes('wcag') || lowerContent.includes('color-contrast') ||
+      lowerContent.includes('axebuilder') || lowerContent.includes('accessibility')) {
+    return 'accessibility';
+  }
   
   // E2E tests typically use browser/playwright or have e2e in path
   if (lowerPath.includes('e2e') || lowerContent.includes('playwright') || lowerContent.includes('browser')) {
@@ -785,6 +792,7 @@ export async function getTestConfigurationsByType(): Promise<Record<TestType, In
     integration: [],
     e2e: [],
     data: [],
+    accessibility: [],
   };
   
   for (const test of tests) {

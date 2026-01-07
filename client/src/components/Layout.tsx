@@ -86,12 +86,12 @@ export default function Layout({ children }: LayoutProps) {
                 <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
               ) : isAuthenticated && user ? (
                 <>
-                  <Link href="/meine-umfragen">
-                    <Button variant="ghost" size="sm" data-testid="link-my-polls">
+                  <Button asChild variant="ghost" size="sm" data-testid="link-my-polls">
+                    <Link href="/meine-umfragen">
                       <ClipboardList className="w-4 h-4 mr-2" />
                       {t('nav.myPolls')}
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -127,12 +127,12 @@ export default function Layout({ children }: LayoutProps) {
                   </DropdownMenu>
                 </>
               ) : (
-                <Link href="/anmelden">
-                  <Button variant="ghost" size="sm" data-testid="button-login">
+                <Button asChild variant="ghost" size="sm" data-testid="button-login">
+                  <Link href="/anmelden">
                     <LogIn className="w-4 h-4 mr-2" />
                     {t('nav.login')}
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               )}
             </div>
           </div>

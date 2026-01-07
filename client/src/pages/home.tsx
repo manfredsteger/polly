@@ -23,24 +23,24 @@ export default function Home() {
           
           {/* Main Action Buttons - Order matches title: abstimmen (Orange), planen (Green), organisieren (Teal) */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-            <Link href="/create-poll">
-              <Button variant="feature" className="polly-button-schedule text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-poll">
+            <Button asChild variant="feature" className="polly-button-schedule text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-poll">
+              <Link href="/create-poll">
                 <Calendar className="w-5 h-5 mr-3" />
                 {t('home.findDate')}
-              </Button>
-            </Link>
-            <Link href="/create-survey">
-              <Button variant="feature" className="polly-button-survey text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-survey">
+              </Link>
+            </Button>
+            <Button asChild variant="feature" className="polly-button-survey text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-survey">
+              <Link href="/create-survey">
                 <Vote className="w-5 h-5 mr-3" />
                 {t('home.createSurvey')}
-              </Button>
-            </Link>
-            <Link href="/create-organization">
-              <Button variant="feature" className="polly-button-organization text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-organization">
+              </Link>
+            </Button>
+            <Button asChild variant="feature" className="polly-button-organization text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-organization">
+              <Link href="/create-organization">
                 <ClipboardList className="w-5 h-5 mr-3" />
                 {t('home.createOrg')}
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -162,24 +162,24 @@ export default function Home() {
             {t('home.ctaDescription')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
-            <Link href="/create-poll">
-              <Button className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+            <Button asChild className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              <Link href="/create-poll">
                 <Calendar className="w-5 h-5 mr-2" />
                 {t('home.startSchedulePoll')}
-              </Button>
-            </Link>
-            <Link href="/create-survey">
-              <Button className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              </Link>
+            </Button>
+            <Button asChild className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              <Link href="/create-survey">
                 <Vote className="w-5 h-5 mr-2" />
                 {t('home.createSurvey')}
-              </Button>
-            </Link>
-            <Link href="/create-organization">
-              <Button className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              </Link>
+            </Button>
+            <Button asChild className="bg-white text-polly-orange hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+              <Link href="/create-organization">
                 <ClipboardList className="w-5 h-5 mr-2" />
                 {t('home.createOrgList')}
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
       </section>

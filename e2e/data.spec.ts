@@ -20,7 +20,11 @@ test.describe('Testdaten-Generierung und Fixtures', () => {
         title: uniqueTitle,
         description: 'Automatisch generierter Datentest',
         type: 'survey',
-        creatorEmail: 'datatest@example.com'
+        creatorEmail: 'datatest@example.com',
+        options: [
+          { text: 'Option A' },
+          { text: 'Option B' }
+        ]
       }
     });
     

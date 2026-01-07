@@ -1786,7 +1786,13 @@
         "dataDescription": "Fixtures und Testdaten-Generierung",
         "accessibility": "Barrierefreiheit",
         "accessibilityDescription": "WCAG 2.1 AA Farbkontrast und Zugänglichkeit"
-      }
+      },
+      "testDataDeleted": "Testdaten gelöscht",
+      "testDataDeletedDescription": "Alle Testdaten wurden erfolgreich aus der Datenbank entfernt.",
+      "testsStarted": "Tests gestartet",
+      "testsStartedDescription": "Die Tests werden im Hintergrund ausgeführt. Die Ergebnisse werden hier angezeigt.",
+      "e2eSkippedNote": "E2E-Tests werden nur in CI/CD-Umgebungen ausgeführt",
+      "e2eSkippedDescription": "Browser-Tests benötigen Playwright und werden in der internen Umgebung übersprungen."
     },
     "toasts": {
       "saved": "Gespeichert",

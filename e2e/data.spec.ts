@@ -37,11 +37,14 @@ test.describe('Testdaten-Generierung und Fixtures', () => {
     ).toBeTruthy();
     
     expect(createResponse.ok(), `Poll creation failed: ${createResponse.status()}`).toBeTruthy();
-    const poll = await createResponse.json();
-    expect(poll.title).toBe(uniqueTitle);
-    expect(poll.type).toBe('survey');
-    expect(poll.adminToken).toBeDefined();
-    expect(poll.publicToken).toBeDefined();
+    
+    // API returns { poll: {...}, publicToken, adminToken }
+    const response = await createResponse.json();
+    expect(response.poll, 'Response should contain poll object').toBeDefined();
+    expect(response.poll.title).toBe(uniqueTitle);
+    expect(response.poll.type).toBe('survey');
+    expect(response.adminToken).toBeDefined();
+    expect(response.publicToken).toBeDefined();
   });
 
   test('sollte Admin-Statistiken abrufen können', async ({ request }) => {

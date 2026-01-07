@@ -33,18 +33,18 @@
   --polly-gray-900: hsl(224, 71%, 4%);
 
   /* Feature Colors - Default values based on design manual */
-  /* Termin (Schedule): Orange - darker for WCAG AA 4.5:1 contrast with white */
-  --color-schedule: hsl(25, 95%, 33%);
+  /* Termin (Schedule): Orange - WCAG AA 4.5:1 contrast with white background */
+  --color-schedule: hsl(25, 95%, 25%);
   --color-schedule-foreground: hsl(0, 0%, 100%);
   --color-schedule-light: hsl(25, 95%, 95%);
   
-  /* Umfrage (Survey): Green - darker for WCAG AA 4.5:1 contrast with white */
-  --color-survey: hsl(142, 71%, 28%);
+  /* Umfrage (Survey): Green - WCAG AA 4.5:1 contrast with white background */
+  --color-survey: hsl(142, 71%, 22%);
   --color-survey-foreground: hsl(0, 0%, 100%);
   --color-survey-light: hsl(142, 71%, 95%);
   
-  /* Orga (Organization): Blue - darker for WCAG AA 4.5:1 contrast with white */
-  --color-organization: hsl(199, 89%, 32%);
+  /* Orga (Organization): Blue - WCAG AA 4.5:1 contrast with white background */
+  --color-organization: hsl(199, 89%, 25%);
   --color-organization-foreground: hsl(0, 0%, 100%);
   --color-organization-light: hsl(199, 89%, 95%);
   

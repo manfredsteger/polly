@@ -426,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const { isActive, title, description, expiresAt, resultsPublic } = req.body;
+      const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots } = req.body;
       
       const updates: Record<string, any> = {};
       if (isActive !== undefined) updates.isActive = isActive;
@@ -434,6 +434,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (description !== undefined) updates.description = description;
       if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
       if (resultsPublic !== undefined) updates.resultsPublic = resultsPublic;
+      if (allowVoteEdit !== undefined) updates.allowVoteEdit = allowVoteEdit;
+      if (allowVoteWithdrawal !== undefined) updates.allowVoteWithdrawal = allowVoteWithdrawal;
+      if (allowMaybe !== undefined) updates.allowMaybe = allowMaybe;
+      if (allowMultipleSlots !== undefined) updates.allowMultipleSlots = allowMultipleSlots;
       
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });

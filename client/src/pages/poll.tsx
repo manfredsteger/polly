@@ -99,7 +99,12 @@ export default function Poll() {
   const [editForm, setEditForm] = useState({
     title: "",
     description: "",
-    isActive: true
+    isActive: true,
+    allowVoteEdit: false,
+    allowVoteWithdrawal: false,
+    resultsPublic: true,
+    allowMaybe: true,
+    allowMultipleSlots: false
   });
   const [editingOptions, setEditingOptions] = useState<Array<{
     id?: number;
@@ -182,7 +187,12 @@ export default function Poll() {
       setEditForm({
         title: poll.title,
         description: poll.description || "",
-        isActive: poll.isActive
+        isActive: poll.isActive,
+        allowVoteEdit: poll.allowVoteEdit ?? false,
+        allowVoteWithdrawal: poll.allowVoteWithdrawal ?? false,
+        resultsPublic: poll.resultsPublic ?? true,
+        allowMaybe: poll.allowMaybe ?? true,
+        allowMultipleSlots: poll.allowMultipleSlots ?? false
       });
       setEditingOptions(poll.options?.map(opt => ({
         id: opt.id,
@@ -195,7 +205,7 @@ export default function Poll() {
   }, [poll]);
   
   const updatePollMutation = useMutation({
-    mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean }) => {
+    mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean }) => {
       const response = await apiRequest("PATCH", `/api/v1/polls/admin/${token}`, updates);
       return response.json();
     },
@@ -925,6 +935,77 @@ export default function Poll() {
                   />
                 </div>
                 
+                {/* Advanced Settings */}
+                <div className="border-t pt-4 mt-4">
+                  <Label className="text-base font-medium mb-3 block">{t('pollView.advancedSettings')}</Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="edit-allowVoteEdit">{t('pollCreation.allowVoteEdit')}</Label>
+                        <p className="text-sm text-muted-foreground">{t('pollCreation.allowVoteEditDescription')}</p>
+                      </div>
+                      <Switch
+                        id="edit-allowVoteEdit"
+                        checked={editForm.allowVoteEdit}
+                        onCheckedChange={(checked) => setEditForm({ ...editForm, allowVoteEdit: checked })}
+                        data-testid="switch-edit-allowVoteEdit"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="edit-allowVoteWithdrawal">{t('pollCreation.allowVoteWithdrawal')}</Label>
+                        <p className="text-sm text-muted-foreground">{t('pollCreation.allowVoteWithdrawalDescription')}</p>
+                      </div>
+                      <Switch
+                        id="edit-allowVoteWithdrawal"
+                        checked={editForm.allowVoteWithdrawal}
+                        onCheckedChange={(checked) => setEditForm({ ...editForm, allowVoteWithdrawal: checked })}
+                        data-testid="switch-edit-allowVoteWithdrawal"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="edit-resultsPublic">{t('pollCreation.resultsPublic')}</Label>
+                        <p className="text-sm text-muted-foreground">{t('pollCreation.resultsPublicDescription')}</p>
+                      </div>
+                      <Switch
+                        id="edit-resultsPublic"
+                        checked={editForm.resultsPublic}
+                        onCheckedChange={(checked) => setEditForm({ ...editForm, resultsPublic: checked })}
+                        data-testid="switch-edit-resultsPublic"
+                      />
+                    </div>
+                    {(poll?.type === 'schedule' || poll?.type === 'survey') && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="edit-allowMaybe">{t('pollCreation.allowMaybe')}</Label>
+                          <p className="text-sm text-muted-foreground">{t('pollCreation.allowMaybeDescription')}</p>
+                        </div>
+                        <Switch
+                          id="edit-allowMaybe"
+                          checked={editForm.allowMaybe}
+                          onCheckedChange={(checked) => setEditForm({ ...editForm, allowMaybe: checked })}
+                          data-testid="switch-edit-allowMaybe"
+                        />
+                      </div>
+                    )}
+                    {poll?.type === 'organization' && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="edit-allowMultipleSlots">{t('pollCreation.allowMultipleSlots')}</Label>
+                          <p className="text-sm text-muted-foreground">{t('pollCreation.allowMultipleSlotsDescription')}</p>
+                        </div>
+                        <Switch
+                          id="edit-allowMultipleSlots"
+                          checked={editForm.allowMultipleSlots}
+                          onCheckedChange={(checked) => setEditForm({ ...editForm, allowMultipleSlots: checked })}
+                          data-testid="switch-edit-allowMultipleSlots"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
                 {/* Options Management */}
                 <div className="border-t pt-4 mt-4">
                   <div className="flex items-center justify-between mb-3">
@@ -1086,7 +1167,12 @@ export default function Poll() {
                     setEditForm({
                       title: poll.title,
                       description: poll.description || "",
-                      isActive: poll.isActive
+                      isActive: poll.isActive,
+                      allowVoteEdit: poll.allowVoteEdit ?? false,
+                      allowVoteWithdrawal: poll.allowVoteWithdrawal ?? false,
+                      resultsPublic: poll.resultsPublic ?? true,
+                      allowMaybe: poll.allowMaybe ?? true,
+                      allowMultipleSlots: poll.allowMultipleSlots ?? false
                     });
                     setEditingOptions(poll.options?.map(opt => ({
                       id: opt.id,

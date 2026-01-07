@@ -2319,6 +2319,7 @@
     "option": "Option",
     "votesForOption": "vote(s) for this option",
     "saveChanges": "Save Changes",
+    "advancedSettings": "Advanced Settings",
     "schedulePoll": "Schedule Poll",
     "orgaPoll": "Org List",
     "surveyPoll": "Survey",

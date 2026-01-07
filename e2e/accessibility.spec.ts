@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+// testType: 'accessibility'
+
 const BLOCKING_IMPACTS = ['critical', 'serious'];
 
 function filterBlockingViolations(violations: any[]): any[] {

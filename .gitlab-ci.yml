@@ -31,6 +31,7 @@ variables:
   NODE_VERSION: "22"
   GIT_STRATEGY: none
   CI: "true"
+  npm_config_cache: "/tmp/.npm"
 
 # Reusable script for cloning from GitHub (avoids git init issues)
 .github_clone: &github_clone
@@ -39,15 +40,24 @@ variables:
   - cp -r /tmp/polly-src/. .
   - rm -rf /tmp/polly-src
 
+# Reusable script for npm install with cleanup (fixes error -116)
+.npm_install: &npm_install
+  - rm -rf node_modules 2>/dev/null || true
+  - rm -rf /tmp/.npm 2>/dev/null || true
+  - mkdir -p /tmp/.npm
+  - npm ci --prefer-offline --no-audit
+
 build:
   stage: build
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npm run build
   artifacts:
     paths:
@@ -57,18 +67,23 @@ build:
 typescript-check:
   stage: test
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npx tsc --noEmit
   allow_failure: false
 
 unit-tests:
   stage: test
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -82,8 +97,7 @@ unit-tests:
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npm run db:push
     - npx vitest run --reporter=verbose --reporter=junit --outputFile=test-results.xml
   artifacts:
@@ -95,6 +109,9 @@ unit-tests:
 integration-tests:
   stage: test
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -108,8 +125,7 @@ integration-tests:
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npm run db:push
     - npx vitest run server/tests/integration --reporter=verbose
   allow_failure: true
@@ -117,6 +133,9 @@ integration-tests:
 api-tests:
   stage: test
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -130,8 +149,7 @@ api-tests:
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npm run db:push
     - npx vitest run server/tests/api --reporter=verbose
   allow_failure: true
@@ -139,6 +157,9 @@ api-tests:
 auth-tests:
   stage: test
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -152,8 +173,7 @@ auth-tests:
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npm run db:push
     - npx vitest run server/tests/auth --reporter=verbose
   allow_failure: true
@@ -161,6 +181,9 @@ auth-tests:
 poll-tests:
   stage: test
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -174,8 +197,7 @@ poll-tests:
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npm run db:push
     - npx vitest run server/tests/polls --reporter=verbose
   allow_failure: true
@@ -183,6 +205,9 @@ poll-tests:
 e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - rm -rf /tmp/polly-src 2>/dev/null || true
     - git clone --depth=1 https://github.com/manfredsteger/polly.git /tmp/polly-src
@@ -200,9 +225,12 @@ e2e-tests:
     BASE_URL: "http://localhost:5000"
     SMTP_ENABLED: "false"
     NODE_ENV: "test"
+    npm_config_cache: "/tmp/.npm"
   script:
-    - npm cache clean --force
-    - npm ci
+    - rm -rf node_modules 2>/dev/null || true
+    - rm -rf /tmp/.npm 2>/dev/null || true
+    - mkdir -p /tmp/.npm
+    - npm ci --prefer-offline --no-audit
     - npm run db:push
     - npm run dev &
     - sleep 15
@@ -218,11 +246,13 @@ e2e-tests:
 security-audit:
   stage: security
   image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
   script:
-    - npm cache clean --force
-    - npm ci
+    - *npm_install
     - npm audit --audit-level=high || true
   allow_failure: true

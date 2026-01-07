@@ -686,10 +686,9 @@ function parseTestCases(content: string): ParsedTest[] {
 }
 
 export async function scanTestFiles(): Promise<IndividualTest[]> {
-  const testDir = path.join(process.cwd(), 'server', 'tests');
   const allTests: IndividualTest[] = [];
   
-  function scanDir(dir: string) {
+  function scanDir(dir: string, filePattern: RegExp) {
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       
@@ -697,8 +696,8 @@ export async function scanTestFiles(): Promise<IndividualTest[]> {
         const fullPath = path.join(dir, entry.name);
         
         if (entry.isDirectory()) {
-          scanDir(fullPath);
-        } else if (entry.name.endsWith('.test.ts')) {
+          scanDir(fullPath, filePattern);
+        } else if (filePattern.test(entry.name)) {
           const relativePath = path.relative(process.cwd(), fullPath);
           const content = fs.readFileSync(fullPath, 'utf-8');
           
@@ -727,7 +726,12 @@ export async function scanTestFiles(): Promise<IndividualTest[]> {
     }
   }
   
-  scanDir(testDir);
+  const serverTestDir = path.join(process.cwd(), 'server', 'tests');
+  scanDir(serverTestDir, /\.test\.ts$/);
+  
+  const e2eTestDir = path.join(process.cwd(), 'e2e');
+  scanDir(e2eTestDir, /\.spec\.ts$/);
+  
   return allTests;
 }
 

@@ -173,10 +173,13 @@ jobs:
           PGPASSWORD=test psql -h localhost -U test -d polly_e2e -c "SELECT 1 as connection_test;"
           echo "Database connection verified"
 
+      - name: Build application
+        run: npm run build
+
       - name: Run E2E tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/polly_e2e
-          NODE_ENV: test
+          NODE_ENV: production
           SESSION_SECRET: e2e-test-session-secret-minimum-32-characters-long
           BASE_URL: http://localhost:5000
           SMTP_ENABLED: false

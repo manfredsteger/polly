@@ -44,6 +44,18 @@ export default {
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
+        schedule: {
+          DEFAULT: "var(--color-schedule)",
+          foreground: "var(--color-schedule-foreground)",
+        },
+        survey: {
+          DEFAULT: "var(--color-survey)",
+          foreground: "var(--color-survey-foreground)",
+        },
+        organization: {
+          DEFAULT: "var(--color-organization)",
+          foreground: "var(--color-organization-foreground)",
+        },
         chart: {
           "1": "var(--chart-1)",
           "2": "var(--chart-2)",

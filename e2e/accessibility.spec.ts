@@ -10,9 +10,12 @@ function filterBlockingViolations(violations: any[]): any[] {
 }
 
 function formatViolations(violations: any[]): string {
-  return violations.map(v => 
-    `  - [${v.impact?.toUpperCase()}] ${v.id}: ${v.description} (${v.nodes.length} elements)`
-  ).join('\n');
+  return violations.map(v => {
+    const nodeDetails = v.nodes.slice(0, 5).map((n: any) => 
+      `      HTML: ${n.html?.substring(0, 200) || 'N/A'}\n      Target: ${JSON.stringify(n.target)}`
+    ).join('\n');
+    return `  - [${v.impact?.toUpperCase()}] ${v.id}: ${v.description} (${v.nodes.length} elements)\n${nodeDetails}`;
+  }).join('\n');
 }
 
 test.describe('Accessibility (WCAG 2.1 AA)', () => {

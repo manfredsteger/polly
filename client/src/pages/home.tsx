@@ -23,19 +23,19 @@ export default function Home() {
           
           {/* Main Action Buttons - Order matches title: abstimmen (Orange), planen (Green), organisieren (Teal) */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-            <Button asChild variant="feature" className="polly-button-schedule text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-poll">
+            <Button asChild variant="feature" className="polly-button-schedule wcag-themed-bg text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-poll">
               <Link href="/create-poll">
                 <Calendar className="w-5 h-5 mr-3" />
                 {t('home.findDate')}
               </Link>
             </Button>
-            <Button asChild variant="feature" className="polly-button-survey text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-survey">
+            <Button asChild variant="feature" className="polly-button-survey wcag-themed-bg text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-survey">
               <Link href="/create-survey">
                 <Vote className="w-5 h-5 mr-3" />
                 {t('home.createSurvey')}
               </Link>
             </Button>
-            <Button asChild variant="feature" className="polly-button-organization text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-organization">
+            <Button asChild variant="feature" className="polly-button-organization wcag-themed-bg text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-organization">
               <Link href="/create-organization">
                 <ClipboardList className="w-5 h-5 mr-3" />
                 {t('home.createOrg')}
@@ -128,7 +128,7 @@ export default function Home() {
           
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-schedule rounded-full flex items-center justify-center mx-auto mb-6 shadow-md step-circle-wcag-ok">
+              <div className="w-16 h-16 bg-schedule rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
                 <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>1</span>
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step1Title')}</h3>
@@ -136,7 +136,7 @@ export default function Home() {
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-survey rounded-full flex items-center justify-center mx-auto mb-6 shadow-md step-circle-wcag-ok">
+              <div className="w-16 h-16 bg-survey rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
                 <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>2</span>
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step2Title')}</h3>
@@ -144,7 +144,7 @@ export default function Home() {
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-organization rounded-full flex items-center justify-center mx-auto mb-6 shadow-md step-circle-wcag-ok">
+              <div className="w-16 h-16 bg-organization rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
                 <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>3</span>
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step3Title')}</h3>

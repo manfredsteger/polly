@@ -34,8 +34,10 @@ variables:
   npm_config_cache: "/tmp/.npm"
 
 # Reusable script for cloning from GitHub (avoids git init issues)
+# Note: Clears working directory first to avoid conflicts with downloaded artifacts
 .github_clone: &github_clone
   - rm -rf /tmp/polly-src 2>/dev/null || true
+  - find . -mindepth 1 -delete 2>/dev/null || rm -rf ./* ./.[!.]* 2>/dev/null || true
   - git clone --depth=1 https://github.com/manfredsteger/polly.git /tmp/polly-src
   - cp -r /tmp/polly-src/. .
   - rm -rf /tmp/polly-src

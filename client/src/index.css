@@ -13,7 +13,7 @@
   --card-foreground: hsl(20, 14.3%, 4.1%);
   --border: hsl(20, 5.9%, 90%);
   --input: hsl(20, 5.9%, 90%);
-  --primary: 20 100% 35%;
+  --primary: 20 100% 28%;
   --primary-foreground: 0 0% 100%;
   --secondary: hsl(60, 4.8%, 95.9%);
   --secondary-foreground: hsl(24, 9.8%, 10%);
@@ -24,9 +24,9 @@
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.75rem;
 
-  /* Polly Custom Colors */
-  --polly-orange: hsl(17, 100%, 35%);
-  --polly-blue: hsl(198, 38%, 35%);
+  /* Polly Custom Colors - WCAG AA 4.5:1 contrast on white background */
+  --polly-orange: hsl(17, 100%, 28%);
+  --polly-blue: hsl(198, 38%, 28%);
   --polly-gray-50: hsl(210, 20%, 98%);
   --polly-gray-100: hsl(220, 14%, 96%);
   --polly-gray-500: hsl(220, 9%, 46%);

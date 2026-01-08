@@ -8946,8 +8946,8 @@ function WCAGAccessibilityPanel({ onBack }: { onBack: () => void }) {
     queryKey: ['/api/v1/admin/customization'],
   });
   
-  const wcagSettings = customization?.wcag || { enforcementEnabled: false };
-  const lastAudit = wcagSettings.lastAudit;
+  const wcagSettings = customization?.wcag || { enforcementEnabled: false, enforceDefaultTheme: true };
+  const lastAudit = 'lastAudit' in wcagSettings ? wcagSettings.lastAudit : undefined;
   
   const toggleEnforcementMutation = useMutation({
     mutationFn: async (enabled: boolean) => {

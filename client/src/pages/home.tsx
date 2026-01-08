@@ -162,19 +162,19 @@ export default function Home() {
             {t('home.ctaDescription')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
-            <Button asChild className="bg-white text-orange-800 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+            <Button asChild className="bg-white text-gray-900 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
               <Link href="/create-poll">
                 <Calendar className="w-5 h-5 mr-2" />
                 {t('home.startSchedulePoll')}
               </Link>
             </Button>
-            <Button asChild className="bg-white text-orange-800 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+            <Button asChild className="bg-white text-gray-900 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
               <Link href="/create-survey">
                 <Vote className="w-5 h-5 mr-2" />
                 {t('home.createSurvey')}
               </Link>
             </Button>
-            <Button asChild className="bg-white text-orange-800 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
+            <Button asChild className="bg-white text-gray-900 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
               <Link href="/create-organization">
                 <ClipboardList className="w-5 h-5 mr-2" />
                 {t('home.createOrgList')}

@@ -12,6 +12,11 @@
 
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM compatibility for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 interface BrandingConfig {
   theme?: {
@@ -166,8 +171,11 @@ export async function resetBrandingToDefaults(storage: any): Promise<void> {
 
 /**
  * CLI entry point for branding:reset command
+ * ESM compatible - check if this is the main module
  */
-if (require.main === module) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
   const command = process.argv[2];
   
   if (command === 'reset') {

@@ -238,6 +238,88 @@ env:
     value: "true"
 ```
 
+### Instance-Specific Branding
+
+Polly supports instance-specific branding (colors, logo, site name) that persists across deployments without being committed to git. This is useful for organizations running their own branded instance.
+
+#### How It Works
+
+1. **Default Theme** (`branding.default.json`): WCAG 2.1 AA compliant colors, shipped with the open-source repo
+2. **Local Overrides** (`branding.local.json`): Your instance-specific branding, gitignored
+
+On server startup, Polly loads `branding.local.json` if present, otherwise falls back to `branding.default.json`.
+
+#### Setting Up Custom Branding
+
+```bash
+# Copy the example file
+cp branding.local.example.json branding.local.json
+
+# Edit with your branding
+nano branding.local.json
+```
+
+#### Configuration File Structure
+
+```json
+{
+  "theme": {
+    "primaryColor": "#1A6C41",
+    "secondaryColor": "#A1DBA3",
+    "scheduleColor": "#7DB942",
+    "surveyColor": "#1A6C41",
+    "organizationColor": "#72BEB7"
+  },
+  "branding": {
+    "siteName": "Your App",
+    "siteNameAccent": "App",
+    "logoUrl": "/uploads/your-logo.svg"
+  },
+  "footer": {
+    "description": "Your organization description",
+    "copyrightText": "© 2026 Your Organization",
+    "links": [
+      { "label": "Imprint", "url": "/imprint" },
+      { "label": "Privacy", "url": "/privacy" }
+    ]
+  },
+  "wcag": {
+    "enforcementEnabled": false,
+    "enforceDefaultTheme": false
+  }
+}
+```
+
+#### WCAG Compliance Notes
+
+- `enforceDefaultTheme: true` = Using WCAG AA compliant default colors (4.5:1 contrast)
+- `enforceDefaultTheme: false` = Custom colors, admin takes responsibility for accessibility
+
+When you customize colors via the Admin Panel or `branding.local.json`, `enforceDefaultTheme` is automatically set to `false`.
+
+#### Docker Volume Mount
+
+For Docker deployments, mount your branding file:
+
+```yaml
+volumes:
+  - ./branding.local.json:/app/branding.local.json:ro
+```
+
+#### Resetting to Defaults
+
+```bash
+# Remove local branding file to use defaults
+rm branding.local.json
+
+# Restart server to apply
+npm run dev  # or docker compose restart
+```
+
+#### Environment Override
+
+Set `POLLY_WCAG_OVERRIDE=true` to disable default theme enforcement without creating a local config file.
+
 ---
 
 ## Security Hardening

@@ -10,6 +10,25 @@ const BLOCKING_IMPACTS = ['critical', 'serious'];
 // verified to meet WCAG AA contrast ratios (4.5:1 for normal text, 3:1 for large text).
 const EXCLUDED_RULES = ['color-contrast'];
 
+interface AccessibilitySettings {
+  enforceDefaultTheme: boolean;
+  wcagOverrideEnv: boolean;
+  message: string;
+}
+
+// Fetch accessibility settings from API
+async function getAccessibilitySettings(baseURL: string): Promise<AccessibilitySettings> {
+  try {
+    const response = await fetch(`${baseURL}/api/v1/settings/accessibility`);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (e) {
+    console.log('Could not fetch accessibility settings, using defaults');
+  }
+  return { enforceDefaultTheme: true, wcagOverrideEnv: false, message: '' };
+}
+
 function filterBlockingViolations(violations: any[]): any[] {
   return violations.filter(v => 
     BLOCKING_IMPACTS.includes(v.impact) && !EXCLUDED_RULES.includes(v.id)
@@ -27,6 +46,25 @@ function formatViolations(violations: any[]): string {
 
 test.describe('Accessibility (WCAG 2.1 AA)', () => {
   
+  test('Accessibility API sollte korrekten Compliance-Modus zurückgeben', async ({ page, baseURL }) => {
+    // Test the accessibility settings API endpoint
+    const settings = await getAccessibilitySettings(baseURL || 'http://localhost:5000');
+    
+    console.log(`[WCAG] Accessibility Mode: ${settings.enforceDefaultTheme ? 'Default Theme (Strict)' : 'Custom Theme (Admin Override)'}`);
+    console.log(`[WCAG] Environment Override: ${settings.wcagOverrideEnv}`);
+    console.log(`[WCAG] Message: ${settings.message}`);
+    
+    // Verify API returns valid response
+    expect(typeof settings.enforceDefaultTheme).toBe('boolean');
+    expect(typeof settings.wcagOverrideEnv).toBe('boolean');
+    expect(settings.message).toBeTruthy();
+    
+    // In default mode, system ships WCAG AA compliant
+    if (settings.enforceDefaultTheme) {
+      expect(settings.message).toContain('WCAG');
+    }
+  });
+
   test('Startseite sollte keine kritischen A11y-Probleme haben', async ({ page }) => {
     try {
       const response = await page.goto('/', { timeout: 30000 });

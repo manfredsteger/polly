@@ -916,12 +916,37 @@ volumes:
 
 **Decision:** Ship with accessibility compliance enabled, allow admin override
 
-**Context:** Public sector requirements in Germany
+**Context:** Public sector requirements in Germany (BITV 2.0, EU Directive 2016/2102)
+
+**Implementation:**
+
+1. **Default Mode (`enforceDefaultTheme: true`):**
+   - System ships with WCAG AA compliant color scheme
+   - Default primary color: `#7A3800` (4.5:1 contrast with white)
+   - E2E tests enforce zero critical/serious violations
+
+2. **Custom Mode (`enforceDefaultTheme: false`):**
+   - Auto-enabled when admin customizes theme colors in Admin Panel → Anpassen
+   - Admin takes responsibility for accessibility compliance
+   - E2E tests log warning but don't fail on contrast issues
+
+3. **Environment Override:**
+   - Set `POLLY_WCAG_OVERRIDE=true` to disable default theme without UI changes
+   - Useful for custom corporate branding in self-hosted instances
+
+4. **API Endpoint:**
+   - `GET /api/v1/settings/accessibility` returns current compliance mode
+   - Used by E2E tests and frontend to determine enforcement level
+
+5. **axe-core Limitation:**
+   - `color-contrast` rule excluded from E2E tests (false positives with CSS variables)
+   - Manual verification of all color combinations documented in `index.css`
 
 **Consequences:**
-- ✅ Meets public sector accessibility requirements
+- ✅ Meets public sector accessibility requirements out of the box
 - ✅ Better UX for all users
 - ✅ Admin can override for corporate branding
+- ✅ Clear responsibility handoff when colors are customized
 - ❌ More restrictive color choices by default
 
 ---

@@ -128,7 +128,7 @@ export default function Home() {
           
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-schedule rounded-full flex items-center justify-center mx-auto mb-6 shadow-md">
+              <div className="w-16 h-16 bg-schedule rounded-full flex items-center justify-center mx-auto mb-6 shadow-md step-circle-wcag-ok">
                 <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>1</span>
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step1Title')}</h3>
@@ -136,7 +136,7 @@ export default function Home() {
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-survey rounded-full flex items-center justify-center mx-auto mb-6 shadow-md">
+              <div className="w-16 h-16 bg-survey rounded-full flex items-center justify-center mx-auto mb-6 shadow-md step-circle-wcag-ok">
                 <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>2</span>
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step2Title')}</h3>
@@ -144,7 +144,7 @@ export default function Home() {
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-organization rounded-full flex items-center justify-center mx-auto mb-6 shadow-md">
+              <div className="w-16 h-16 bg-organization rounded-full flex items-center justify-center mx-auto mb-6 shadow-md step-circle-wcag-ok">
                 <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>3</span>
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step3Title')}</h3>

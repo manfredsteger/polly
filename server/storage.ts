@@ -770,11 +770,13 @@ export class DatabaseStorage implements IStorage {
     const themeSetting = await this.getSetting('customization_theme');
     const brandingSetting = await this.getSetting('customization_branding');
     const footerSetting = await this.getSetting('customization_footer');
+    const wcagSetting = await this.getSetting('customization_wcag');
 
     const settings = {
       theme: themeSetting?.value || {},
       branding: brandingSetting?.value || {},
       footer: footerSetting?.value || {},
+      wcag: wcagSetting?.value || {},
     };
 
     return customizationSettingsSchema.parse(settings);
@@ -789,6 +791,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (settings.footer) {
       await this.setSetting({ key: 'customization_footer', value: settings.footer });
+    }
+    if (settings.wcag) {
+      await this.setSetting({ key: 'customization_wcag', value: settings.wcag });
     }
 
     return await this.getCustomizationSettings();

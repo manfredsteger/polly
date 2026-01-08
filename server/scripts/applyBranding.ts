@@ -110,18 +110,19 @@ export async function applyBrandingToDatabase(storage: any): Promise<void> {
       updates.footer = { ...currentSettings.footer, ...config.footer };
     }
     
-    if (config.wcag) {
-      // If loading from local config, set enforceDefaultTheme to false
+    // Handle WCAG settings - local config always means custom branding
+    if (isLocal) {
+      // Local config = custom branding, enforce default theme should be false
       updates.wcag = { 
         ...currentSettings.wcag, 
-        ...config.wcag,
-        enforceDefaultTheme: !isLocal 
-      };
-    } else if (isLocal) {
-      // If local config exists but no wcag section, still mark as custom
-      updates.wcag = { 
-        ...currentSettings.wcag, 
+        ...(config.wcag || {}),
         enforceDefaultTheme: false 
+      };
+    } else if (config.wcag) {
+      // Default config - preserve enforceDefaultTheme from config
+      updates.wcag = { 
+        ...currentSettings.wcag, 
+        ...config.wcag
       };
     }
     

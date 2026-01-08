@@ -155,7 +155,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section - background-color fallback for axe accessibility testing */}
-      <section className="py-20" style={{ backgroundColor: 'hsl(20, 100%, 47%)', backgroundImage: 'linear-gradient(to right, hsl(17, 100%, 50%), hsl(25, 100%, 45%))' }}>
+      <section className="py-20 cta-gradient-section" style={{ backgroundColor: 'hsl(20, 100%, 47%)', backgroundImage: 'linear-gradient(to right, hsl(17, 100%, 50%), hsl(25, 100%, 45%))' }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-white drop-shadow-sm mb-6">{t('home.ctaTitle')}</h2>
           <p className="text-xl text-white drop-shadow-sm mb-8 max-w-2xl mx-auto">

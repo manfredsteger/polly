@@ -36,7 +36,7 @@ test.describe('Accessibility (WCAG 2.1 AA)', () => {
       // The CTA section uses white text on orange gradient which meets WCAG AA (>4.5:1 contrast).
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-        .exclude('section[style*="background"]')
+        .exclude('.cta-gradient-section')
         .analyze();
 
       const blocking = filterBlockingViolations(results.violations);
@@ -189,7 +189,7 @@ test.describe('Accessibility (WCAG 2.1 AA)', () => {
         // gradient backgrounds and reports false positives for contrast violations.
         const results = await new AxeBuilder({ page })
           .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-          .exclude('section[style*="background"]')
+          .exclude('.cta-gradient-section')
           .analyze();
 
         const counts = {

@@ -8,9 +8,11 @@
 FROM node:22-slim AS deps
 
 # Install build dependencies for native modules (canvas, pdfkit)
-# Note: rm /var/lib/apt/lists/* -rf first to clear stale cache that causes GPG signature errors
-RUN rm -rf /var/lib/apt/lists/* && \
-    apt-get update && apt-get install -y --no-install-recommends \
+# Note: Clean apt cache completely and refresh to avoid GPG signature errors
+RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
+    apt-get clean && \
+    apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
@@ -70,9 +72,11 @@ FROM node:22-slim AS production
 # - Puppeteer: chromium (system installation, not bundled)
 # - Database: postgresql-client (for pg_isready)
 # - Utilities: wget for health checks
-# Note: rm /var/lib/apt/lists/* first to clear stale cache that causes GPG signature errors
-RUN rm -rf /var/lib/apt/lists/* && \
-    apt-get update && apt-get install -y --no-install-recommends \
+# Note: Clean apt cache completely and refresh to avoid GPG signature errors
+RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
+    apt-get clean && \
+    apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
     libcairo2 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \

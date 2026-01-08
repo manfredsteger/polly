@@ -1,0 +1,25 @@
+{
+  "$schema": "./branding.schema.json",
+  "_comment": "WCAG 2.1 AA compliant default theme - DO NOT EDIT. Copy to branding.local.json for customization.",
+  "theme": {
+    "primaryColor": "#7A3800",
+    "secondaryColor": "#FDE4D2",
+    "scheduleColor": "#7A3800",
+    "surveyColor": "#166534",
+    "organizationColor": "#075985"
+  },
+  "branding": {
+    "siteName": "Polly",
+    "siteNameAccent": "y",
+    "logoUrl": null
+  },
+  "footer": {
+    "description": "",
+    "copyrightText": "",
+    "links": []
+  },
+  "wcag": {
+    "enforcementEnabled": false,
+    "enforceDefaultTheme": true
+  }
+}

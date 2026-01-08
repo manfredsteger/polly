@@ -1,0 +1,28 @@
+{
+  "$schema": "./branding.schema.json",
+  "_comment": "Instance-specific branding - Copy to branding.local.json and customize. This file is gitignored.",
+  "theme": {
+    "primaryColor": "#7A3800",
+    "secondaryColor": "#FDE4D2",
+    "scheduleColor": "#7A3800",
+    "surveyColor": "#166534",
+    "organizationColor": "#075985"
+  },
+  "branding": {
+    "siteName": "Your App Name",
+    "siteNameAccent": "e",
+    "logoUrl": null
+  },
+  "footer": {
+    "description": "Your organization description",
+    "copyrightText": "© 2026 Your Organization",
+    "links": [
+      { "label": "Privacy Policy", "url": "/privacy" },
+      { "label": "Imprint", "url": "/imprint" }
+    ]
+  },
+  "wcag": {
+    "enforcementEnabled": false,
+    "enforceDefaultTheme": false
+  }
+}

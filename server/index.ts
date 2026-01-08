@@ -7,6 +7,7 @@ import pg from "pg";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
+import { applyBrandingToDatabase, loadBrandingConfig } from "./scripts/applyBranding";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -160,6 +161,15 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+  
+  // Apply branding configuration from branding.local.json or branding.default.json
+  // This ensures instance-specific branding persists across deploys without being in git
+  try {
+    const { storage } = await import('./storage');
+    await applyBrandingToDatabase(storage);
+  } catch (error) {
+    console.error('[Branding] Failed to apply branding on startup:', error);
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

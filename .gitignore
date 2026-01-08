@@ -51,3 +51,6 @@ test-*.ts
 
 # Replit attached assets (chat screenshots, logs, etc.)
 attached_assets/
+
+# Instance-specific branding (not part of open-source repo)
+branding.local.json

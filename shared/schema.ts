@@ -558,6 +558,7 @@ export const wcagAuditResultSchema = z.object({
 
 export const wcagSettingsSchema = z.object({
   enforcementEnabled: z.boolean().default(false), // When true, auto-correct colors for WCAG compliance
+  enforceDefaultTheme: z.boolean().default(true), // When true, use default WCAG-compliant colors; false = admin has customized
   lastAudit: wcagAuditResultSchema.optional(),
 });
 

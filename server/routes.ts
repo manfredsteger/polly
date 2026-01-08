@@ -2984,6 +2984,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   v1Router.put('/admin/customization', requireAdmin, async (req, res) => {
     try {
       const updates = req.body;
+      
+      // If theme colors are being customized, auto-set enforceDefaultTheme to false
+      // This indicates admin has taken responsibility for WCAG compliance
+      if (updates.theme && (
+        updates.theme.primaryColor ||
+        updates.theme.secondaryColor ||
+        updates.theme.scheduleColor ||
+        updates.theme.surveyColor ||
+        updates.theme.organizationColor
+      )) {
+        updates.wcag = {
+          ...(updates.wcag || {}),
+          enforceDefaultTheme: false,
+        };
+        console.log('[WCAG] Theme colors customized - enforceDefaultTheme set to false');
+      }
+      
       const settings = await storage.setCustomizationSettings(updates);
       
       // Update Matrix config if it was changed
@@ -3668,6 +3685,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(settings);
     } catch (error) {
       console.error('Error fetching public customization settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Public endpoint for accessibility settings (for E2E tests and frontend)
+  // Returns whether default WCAG-compliant theme is active
+  v1Router.get('/settings/accessibility', async (req, res) => {
+    try {
+      const settings = await storage.getCustomizationSettings();
+      const wcagOverrideEnv = process.env.POLLY_WCAG_OVERRIDE === 'true';
+      
+      // enforceDefaultTheme is true by default, false if admin customized colors or env override is set
+      const enforceDefaultTheme = wcagOverrideEnv ? false : (settings.wcag?.enforceDefaultTheme ?? true);
+      
+      res.json({
+        enforceDefaultTheme,
+        wcagOverrideEnv,
+        message: enforceDefaultTheme 
+          ? 'Using default WCAG 2.1 AA compliant theme'
+          : 'Custom theme active - admin has taken responsibility for accessibility compliance',
+      });
+    } catch (error) {
+      console.error('Error fetching accessibility settings:', error);
       res.status(500).json({ error: 'Interner Fehler' });
     }
   });

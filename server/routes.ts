@@ -3003,6 +3003,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const settings = await storage.setCustomizationSettings(updates);
       
+      // Persist customizations to branding.local.json for server restart persistence
+      const { writeBrandingToLocalFile } = await import('./scripts/applyBranding');
+      writeBrandingToLocalFile({
+        theme: settings.theme,
+        branding: settings.branding,
+        footer: settings.footer,
+        wcag: settings.wcag,
+      });
+      
       // Update Matrix config if it was changed
       if (updates.matrix) {
         const matrixConfig = settings.matrix;
@@ -3020,6 +3029,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(settings);
     } catch (error) {
       console.error('Error updating customization settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Reset branding to WCAG-compliant defaults (admin only)
+  v1Router.post('/admin/branding/reset', requireAdmin, async (req, res) => {
+    try {
+      const { resetBrandingToDefaults } = await import('./scripts/applyBranding');
+      const result = await resetBrandingToDefaults(storage);
+      
+      if (result.success) {
+        const settings = await storage.getCustomizationSettings();
+        res.json({ 
+          success: true, 
+          message: result.message,
+          settings 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: result.message 
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting branding:', error);
       res.status(500).json({ error: 'Interner Fehler' });
     }
   });

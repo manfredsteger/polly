@@ -1716,7 +1716,13 @@
       "dark": "Dunkel",
       "preview": "Vorschau",
       "defaultPolly": "Standard: Polly",
-      "uploadFailed": "Upload fehlgeschlagen"
+      "uploadFailed": "Upload fehlgeschlagen",
+      "resetToDefaults": "Auf Standard zurücksetzen",
+      "resetConfirmTitle": "Branding zurücksetzen?",
+      "resetConfirmDescription": "Dies setzt alle Farben, Logo und Branding-Einstellungen auf die WCAG-konformen Standardwerte zurück. Diese Aktion kann nicht rückgängig gemacht werden.",
+      "resetConfirm": "Ja, zurücksetzen",
+      "resetSuccess": "Branding wurde auf die Standardwerte zurückgesetzt.",
+      "resetError": "Branding konnte nicht zurückgesetzt werden."
     },
     "tests": {
       "backToSettings": "Zurück zu Einstellungen",

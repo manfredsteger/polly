@@ -6286,6 +6286,65 @@ function CustomizationPanel() {
     },
   });
 
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/v1/admin/branding/reset', {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: t('admin.toasts.saved'), description: t('admin.customization.resetSuccess') });
+      
+      // Update local state with reset defaults
+      if (data.settings) {
+        if (data.settings.theme) {
+          setThemeSettings({
+            primaryColor: data.settings.theme.primaryColor || DEFAULT_THEME_COLORS.primaryColor,
+            secondaryColor: data.settings.theme.secondaryColor || DEFAULT_THEME_COLORS.secondaryColor,
+            defaultThemeMode: data.settings.theme.defaultThemeMode || 'system',
+            scheduleColor: data.settings.theme.scheduleColor || DEFAULT_THEME_COLORS.scheduleColor,
+            surveyColor: data.settings.theme.surveyColor || DEFAULT_THEME_COLORS.surveyColor,
+            organizationColor: data.settings.theme.organizationColor || DEFAULT_THEME_COLORS.organizationColor,
+            successColor: data.settings.theme.successColor || DEFAULT_THEME_COLORS.successColor,
+            warningColor: data.settings.theme.warningColor || DEFAULT_THEME_COLORS.warningColor,
+            errorColor: data.settings.theme.errorColor || DEFAULT_THEME_COLORS.errorColor,
+            infoColor: data.settings.theme.infoColor || DEFAULT_THEME_COLORS.infoColor,
+            accentColor: data.settings.theme.accentColor || DEFAULT_THEME_COLORS.accentColor,
+            mutedColor: data.settings.theme.mutedColor || DEFAULT_THEME_COLORS.mutedColor,
+            neutralColor: data.settings.theme.neutralColor || DEFAULT_THEME_COLORS.neutralColor,
+          });
+        }
+        if (data.settings.branding) {
+          setBrandingSettings({
+            logoUrl: data.settings.branding.logoUrl || null,
+            siteName: data.settings.branding.siteName ?? '',
+            siteNameAccent: data.settings.branding.siteNameAccent ?? '',
+          });
+        }
+        if (data.settings.footer) {
+          setFooterSettings({
+            description: data.settings.footer.description || '',
+            copyrightText: data.settings.footer.copyrightText || '',
+            supportLinks: data.settings.footer.supportLinks || [],
+          });
+        }
+      }
+      
+      // Invalidate caches to refresh other parts of the app
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
+    },
+    onError: () => {
+      toast({ title: t('errors.generic'), description: t('admin.customization.resetError'), variant: "destructive" });
+    },
+  });
+
+  const [showResetDialog, setShowResetDialog] = useState(false);
+
+  const handleReset = () => {
+    setShowResetDialog(false);
+    resetMutation.mutate();
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -6358,16 +6417,45 @@ function CustomizationPanel() {
           <h2 className="text-2xl font-semibold text-foreground">{t('admin.nav.customize')}</h2>
           <p className="text-muted-foreground">{t('admin.customization.brandingDescription')}</p>
         </div>
-        <Button 
-          className="polly-button-primary" 
-          onClick={handleSaveAll}
-          disabled={saveMutation.isPending}
-          data-testid="button-save-customization"
-        >
-          {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {t('admin.customization.saveAllChanges')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => setShowResetDialog(true)}
+            disabled={resetMutation.isPending}
+            data-testid="button-reset-branding"
+          >
+            {resetMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {t('admin.customization.resetToDefaults')}
+          </Button>
+          <Button 
+            className="polly-button-primary" 
+            onClick={handleSaveAll}
+            disabled={saveMutation.isPending}
+            data-testid="button-save-customization"
+          >
+            {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {t('admin.customization.saveAllChanges')}
+          </Button>
+        </div>
       </div>
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('admin.customization.resetConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('admin.customization.resetConfirmDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t('admin.customization.resetConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Theme Colors */}
       <Card className="polly-card">

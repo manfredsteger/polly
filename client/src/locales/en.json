@@ -1716,7 +1716,13 @@
       "dark": "Dark",
       "preview": "Preview",
       "defaultPolly": "Default: Polly",
-      "uploadFailed": "Upload failed"
+      "uploadFailed": "Upload failed",
+      "resetToDefaults": "Reset to Defaults",
+      "resetConfirmTitle": "Reset Branding?",
+      "resetConfirmDescription": "This will reset all colors, logo and branding settings to the WCAG-compliant default values. This action cannot be undone.",
+      "resetConfirm": "Yes, Reset",
+      "resetSuccess": "Branding has been reset to default values.",
+      "resetError": "Failed to reset branding."
     },
     "tests": {
       "backToSettings": "Back to Settings",

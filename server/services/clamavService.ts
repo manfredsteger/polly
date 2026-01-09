@@ -118,7 +118,8 @@ export class ClamAVService {
       });
 
       client.on('data', (data) => {
-        const response = data.toString().trim();
+        // Remove null bytes and whitespace - ClamAV sends PONG\0
+        const response = data.toString().replace(/\0/g, '').trim();
         cleanup();
         if (response === 'PONG') {
           resolve({

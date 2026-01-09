@@ -2523,6 +2523,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============== AUTOMATED TESTING API ==============
 
+  // Get test environment info
+  v1Router.get('/admin/tests/environment', requireAdmin, async (req, res) => {
+    try {
+      const isReplit = !!(process.env.REPL_ID || process.env.REPLIT_DEV_DOMAIN);
+      const isDocker = !!(process.env.DOCKER_CONTAINER || process.env.container);
+      const isCI = !!(process.env.CI || process.env.GITLAB_CI || process.env.GITHUB_ACTIONS);
+      
+      let environment: 'replit' | 'docker' | 'ci' | 'local' = 'local';
+      if (isCI) {
+        environment = 'ci';
+      } else if (isReplit) {
+        environment = 'replit';
+      } else if (isDocker) {
+        environment = 'docker';
+      }
+      
+      const capabilities = {
+        unit: true,
+        integration: true,
+        data: true,
+        accessibility: environment === 'ci',
+        e2e: environment === 'ci',
+      };
+      
+      res.json({
+        environment,
+        capabilities,
+        playwrightAvailable: environment === 'ci',
+      });
+    } catch (error) {
+      console.error('Error getting test environment:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
   // Get available test categories
   v1Router.get('/admin/tests', requireAdmin, async (req, res) => {
     try {

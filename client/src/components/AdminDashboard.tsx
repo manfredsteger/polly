@@ -8218,6 +8218,22 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
     mode: TestModeConfig;
   }
 
+  interface TestEnvironmentInfo {
+    environment: 'replit' | 'docker' | 'ci' | 'local';
+    capabilities: {
+      unit: boolean;
+      integration: boolean;
+      data: boolean;
+      accessibility: boolean;
+      e2e: boolean;
+    };
+    playwrightAvailable: boolean;
+  }
+
+  const { data: environmentInfo } = useQuery<TestEnvironmentInfo>({
+    queryKey: ['/api/v1/admin/tests/environment'],
+  });
+
   const { data: categories, isLoading: categoriesLoading } = useQuery<{ categories: TestCategory[] }>({
     queryKey: ['/api/v1/admin/tests'],
   });
@@ -8567,6 +8583,21 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
         </CardContent>
       </Card>
 
+      {/* Environment Info Banner */}
+      {environmentInfo && !environmentInfo.playwrightAvailable && (
+        <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg" data-testid="environment-banner">
+          <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              {t('admin.tests.environmentDetected', { environment: t(`admin.tests.environments.${environmentInfo.environment}`) })}
+            </p>
+            <p className="text-sm text-blue-600 dark:text-blue-400">
+              {t('admin.tests.e2eOnlyInCICD')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Test Categories by Type - Accordion */}
       <Card data-testid="card-test-configurations">
         <CardHeader>
@@ -8578,7 +8609,7 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
             {isAutoMode ? (
               <span className="flex items-center gap-1 text-green-600">
                 <CheckCircle2 className="w-4 h-4" />
-                {t('admin.tests.automaticModeNote')}
+                {t('admin.tests.automaticModeNoteAvailable')}
               </span>
             ) : (
               <span className="flex items-center gap-1 text-orange-600">
@@ -8600,21 +8631,35 @@ function AutomatedTestsPanel({ onBack }: { onBack: () => void }) {
                 const tests = (testConfigs.tests as Record<string, any[]>)[testType] || [];
                 const enabledCount = tests.filter((t: any) => t.enabled).length;
                 const typeInfo = testTypeLabels[testType];
+                const isUnavailable = (testType === 'e2e' || testType === 'accessibility') && environmentInfo && !environmentInfo.playwrightAvailable;
                 
                 return (
                   <AccordionItem key={testType} value={testType} data-testid={`accordion-${testType}`}>
                     <AccordionTrigger className="hover:no-underline">
                       <div className="flex items-center justify-between w-full pr-4">
                         <div className="flex items-center gap-3">
-                          <span className="p-1.5 rounded bg-muted">{typeInfo.icon}</span>
+                          <span className={`p-1.5 rounded ${isUnavailable ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-muted'}`}>{typeInfo.icon}</span>
                           <div className="text-left">
-                            <div className="font-medium">{typeInfo.label}</div>
+                            <div className="font-medium flex items-center gap-2">
+                              {typeInfo.label}
+                              {isUnavailable && (
+                                <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400" title={t('admin.tests.cicdOnly')}>
+                                  <AlertCircle className="w-3 h-3" />
+                                  <span className="hidden sm:inline">CI/CD</span>
+                                </span>
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground">{typeInfo.description}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {isUnavailable && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700 text-xs">
+                              {t('admin.tests.notAvailable')}
+                            </Badge>
+                          )}
                           <Badge variant={isAutoMode ? "secondary" : enabledCount === tests.length ? "default" : "outline"}>
-                            {isAutoMode ? tests.length : enabledCount} / {tests.length} aktiv
+                            {isAutoMode ? tests.length : enabledCount} / {tests.length} {t('admin.tests.active')}
                           </Badge>
                         </div>
                       </div>

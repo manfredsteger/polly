@@ -3867,7 +3867,7 @@ interface ClamavScanLog {
   filename: string;
   fileSize: number;
   mimeType: string | null;
-  scanStatus: 'clean' | 'infected' | 'error';
+  scanStatus: 'clean' | 'infected' | 'error' | 'skipped';
   virusName: string | null;
   errorMessage: string | null;
   actionTaken: 'allowed' | 'blocked';
@@ -4646,11 +4646,15 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                           <td className="py-2 px-2">
                             <Badge 
                               variant={log.scanStatus === 'clean' ? 'outline' : log.scanStatus === 'infected' ? 'destructive' : 'secondary'}
-                              className={log.scanStatus === 'clean' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400' : ''}
+                              className={
+                                log.scanStatus === 'clean' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400' : 
+                                log.scanStatus === 'skipped' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400' : ''
+                              }
                             >
                               {log.scanStatus === 'clean' && <CheckCircle className="w-3 h-3 mr-1" />}
                               {log.scanStatus === 'infected' && <AlertTriangle className="w-3 h-3 mr-1" />}
                               {log.scanStatus === 'error' && <XCircle className="w-3 h-3 mr-1" />}
+                              {log.scanStatus === 'skipped' && <AlertTriangle className="w-3 h-3 mr-1" />}
                               {t(`admin.security.${log.scanStatus}`)}
                             </Badge>
                           </td>

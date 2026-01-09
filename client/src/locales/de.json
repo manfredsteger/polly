@@ -1326,6 +1326,7 @@
       "clean": "Sauber",
       "infected": "Infiziert",
       "error": "Fehler",
+      "skipped": "Übersprungen",
       "exportLogs": "Logs exportieren",
       "refreshLogs": "Aktualisieren",
       "showDetails": "Details anzeigen",

@@ -12,7 +12,7 @@ sync-from-github:
   variables:
     GIT_STRATEGY: clone
   rules:
-    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "trigger" || $CI_PIPELINE_SOURCE == "api"
   before_script:
     - apk add --no-cache git
   script:

@@ -97,24 +97,26 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
       const root = document.documentElement;
       const isDarkMode = root.classList.contains('dark');
       
-      // Check if WCAG enforcement is enabled
       const wcagEnabled = settings.wcag?.enforcementEnabled ?? false;
-      // Use hexToAccessibleHSL only if WCAG enforcement is enabled
       const colorConverter = wcagEnabled ? hexToAccessibleHSL : hexToHSL;
+      
+      const cachedColors: Record<string, string> = {};
       
       if (settings.theme.primaryColor) {
         const primaryHSL = colorConverter(settings.theme.primaryColor);
         root.style.setProperty('--polly-orange', `hsl(${primaryHSL})`);
         root.style.setProperty('--primary', primaryHSL);
         root.style.setProperty('--primary-foreground', '0 0% 100%');
+        cachedColors.primary = `hsl(${primaryHSL})`;
+        cachedColors.primaryHSL = primaryHSL;
       }
       
       if (settings.theme.secondaryColor) {
         const secondaryHSL = hexToHSL(settings.theme.secondaryColor);
         root.style.setProperty('--polly-blue', `hsl(${secondaryHSL})`);
+        cachedColors.secondary = `hsl(${secondaryHSL})`;
       }
       
-      // Apply feature-specific colors (with WCAG enforcement if enabled)
       if (settings.theme.scheduleColor) {
         const scheduleHSL = colorConverter(settings.theme.scheduleColor);
         const scheduleBgHSL = isDarkMode ? hexToHSLDark(settings.theme.scheduleColor) : hexToHSLLight(settings.theme.scheduleColor);
@@ -122,6 +124,8 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
         root.style.setProperty('--color-schedule', `hsl(${scheduleHSL})`);
         root.style.setProperty('--color-schedule-foreground', `hsl(${scheduleForeground})`);
         root.style.setProperty('--color-schedule-light', `hsl(${scheduleBgHSL})`);
+        cachedColors.schedule = `hsl(${scheduleHSL})`;
+        cachedColors.scheduleLight = `hsl(${scheduleBgHSL})`;
       }
       
       if (settings.theme.surveyColor) {
@@ -131,6 +135,8 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
         root.style.setProperty('--color-survey', `hsl(${surveyHSL})`);
         root.style.setProperty('--color-survey-foreground', `hsl(${surveyForeground})`);
         root.style.setProperty('--color-survey-light', `hsl(${surveyBgHSL})`);
+        cachedColors.survey = `hsl(${surveyHSL})`;
+        cachedColors.surveyLight = `hsl(${surveyBgHSL})`;
       }
       
       if (settings.theme.organizationColor) {
@@ -140,7 +146,13 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
         root.style.setProperty('--color-organization', `hsl(${orgHSL})`);
         root.style.setProperty('--color-organization-foreground', `hsl(${orgForeground})`);
         root.style.setProperty('--color-organization-light', `hsl(${orgBgHSL})`);
+        cachedColors.organization = `hsl(${orgHSL})`;
+        cachedColors.organizationLight = `hsl(${orgBgHSL})`;
       }
+      
+      try {
+        localStorage.setItem('polly-branding-colors', JSON.stringify(cachedColors));
+      } catch (e) {}
     }
   }, [settings]);
 

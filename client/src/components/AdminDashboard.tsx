@@ -3859,6 +3859,7 @@ interface ClamAVTestResult {
   success: boolean;
   message: string;
   responseTime?: number;
+  unavailable?: boolean;
 }
 
 interface ClamavScanLog {
@@ -4458,17 +4459,38 @@ function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
               {/* Test Result */}
               {clamavTestResult && (
-                <div className={`p-3 rounded-lg ${clamavTestResult.success ? 'bg-green-50 border border-green-200 dark:bg-green-950/30 dark:border-green-800' : 'bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-800'}`}>
-                  <div className="flex items-center space-x-2">
+                <div className={`p-3 rounded-lg ${
+                  clamavTestResult.success 
+                    ? 'bg-green-50 border border-green-200 dark:bg-green-950/30 dark:border-green-800' 
+                    : clamavTestResult.unavailable 
+                      ? 'bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
+                      : 'bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-800'
+                }`}>
+                  <div className="flex items-start space-x-2">
                     {clamavTestResult.success ? (
-                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
+                    ) : clamavTestResult.unavailable ? (
+                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
                     ) : (
-                      <XCircle className="w-4 h-4 text-red-600" />
+                      <XCircle className="w-4 h-4 text-red-600 mt-0.5" />
                     )}
-                    <span className={`text-sm ${clamavTestResult.success ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
-                      {clamavTestResult.message}
-                      {clamavTestResult.responseTime && ` (${clamavTestResult.responseTime}ms)`}
-                    </span>
+                    <div className="flex-1">
+                      <span className={`text-sm ${
+                        clamavTestResult.success 
+                          ? 'text-green-800 dark:text-green-300' 
+                          : clamavTestResult.unavailable 
+                            ? 'text-amber-800 dark:text-amber-300'
+                            : 'text-red-800 dark:text-red-300'
+                      }`}>
+                        {clamavTestResult.message}
+                        {clamavTestResult.responseTime && ` (${clamavTestResult.responseTime}ms)`}
+                      </span>
+                      {clamavTestResult.unavailable && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                          {t('admin.security.clamavUnavailableHint')}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

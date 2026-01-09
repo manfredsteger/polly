@@ -1236,6 +1236,7 @@
       "locksClearError": "Sperren konnten nicht zurückgesetzt werden.",
       "clamavSaved": "ClamAV-Einstellungen wurden gespeichert.",
       "clamavError": "ClamAV-Einstellungen konnten nicht gespeichert werden.",
+      "clamavUnavailableHint": "ClamAV-Daemon nicht erreichbar. Stellen Sie sicher, dass ClamAV läuft oder deaktivieren Sie den Scanner. Uploads werden ohne Virenscan durchgelassen.",
       "connectionSuccess": "Verbindung erfolgreich",
       "responseTime": "Antwortzeit: {{time}}ms",
       "connectionFailed": "Verbindung fehlgeschlagen",

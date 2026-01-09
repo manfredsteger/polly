@@ -13,6 +13,7 @@ export interface ScanResult {
   isClean: boolean;
   virusName?: string;
   error?: string;
+  scannerUnavailable?: boolean;
 }
 
 const DEFAULT_CONFIG: ClamAVConfig = {
@@ -54,11 +55,11 @@ export class ClamAVService {
     this.configCacheTime = 0;
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string; responseTime?: number }> {
+  async testConnection(): Promise<{ success: boolean; message: string; responseTime?: number; unavailable?: boolean }> {
     const config = await this.getConfig();
     
     if (!config.enabled) {
-      return { success: false, message: 'ClamAV ist deaktiviert' };
+      return { success: false, message: 'ClamAV is disabled' };
     }
 
     const startTime = Date.now();
@@ -86,22 +87,24 @@ export class ClamAVService {
         if (response === 'PONG') {
           resolve({
             success: true,
-            message: 'Verbindung zu ClamAV erfolgreich',
+            message: 'Connection to ClamAV successful',
             responseTime: Date.now() - startTime,
           });
         } else {
           resolve({
             success: false,
-            message: `Unerwartete Antwort: ${response}`,
+            message: `Unexpected response: ${response}`,
           });
         }
       });
 
-      client.on('error', (error) => {
+      client.on('error', (error: NodeJS.ErrnoException) => {
         cleanup();
+        const isUnavailable = error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'EHOSTUNREACH';
         resolve({
           success: false,
-          message: `Verbindungsfehler: ${error.message}`,
+          message: `Connection error: ${error.message}`,
+          unavailable: isUnavailable,
         });
       });
 
@@ -109,7 +112,8 @@ export class ClamAVService {
         cleanup();
         resolve({
           success: false,
-          message: 'Zeitüberschreitung bei der Verbindung',
+          message: 'Connection timeout',
+          unavailable: true,
         });
       });
 
@@ -197,20 +201,29 @@ export class ClamAVService {
         }
       });
 
-      client.on('error', (error) => {
+      client.on('error', (error: NodeJS.ErrnoException) => {
         cleanup();
-        console.error(`ClamAV Verbindungsfehler: ${error.message}`);
-        resolve({
-          isClean: false,
-          error: `Verbindungsfehler: ${error.message}`,
-        });
+        if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'EHOSTUNREACH') {
+          console.warn(`ClamAV daemon not reachable at ${config.host}:${config.port} - allowing upload without scan`);
+          resolve({
+            isClean: true,
+            scannerUnavailable: true,
+          });
+        } else {
+          console.error(`ClamAV connection error: ${error.message}`);
+          resolve({
+            isClean: false,
+            error: `Connection error: ${error.message}`,
+          });
+        }
       });
 
       client.on('timeout', () => {
         cleanup();
+        console.warn(`ClamAV timeout at ${config.host}:${config.port} - allowing upload without scan`);
         resolve({
-          isClean: false,
-          error: 'Zeitüberschreitung beim Scan',
+          isClean: true,
+          scannerUnavailable: true,
         });
       });
 

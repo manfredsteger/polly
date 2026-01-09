@@ -1236,6 +1236,7 @@
       "locksClearError": "Locks could not be cleared.",
       "clamavSaved": "ClamAV settings have been saved.",
       "clamavError": "ClamAV settings could not be saved.",
+      "clamavUnavailableHint": "ClamAV daemon not reachable. Make sure ClamAV is running or disable the scanner. Uploads will be allowed without virus scan.",
       "connectionSuccess": "Connection successful",
       "responseTime": "Response time: {{time}}ms",
       "connectionFailed": "Connection failed",

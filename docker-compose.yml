@@ -76,6 +76,10 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DOCKER_ENV: "true"
+      # ClamAV Antivirus Configuration
+      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-false}
+      CLAMAV_HOST: ${CLAMAV_HOST:-localhost}
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
     ports:
       - "${APP_PORT:-3080}:5000"
     volumes:

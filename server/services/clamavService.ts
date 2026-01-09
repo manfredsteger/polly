@@ -28,6 +28,42 @@ export class ClamAVService {
   private configCache: ClamAVConfig | null = null;
   private configCacheTime: number = 0;
   private readonly CONFIG_CACHE_TTL = 60000; // 1 minute
+  private envInitialized = false;
+
+  async initFromEnv(): Promise<void> {
+    if (this.envInitialized) return;
+    this.envInitialized = true;
+
+    const envEnabled = process.env.CLAMAV_ENABLED;
+    const envHost = process.env.CLAMAV_HOST;
+    const envPort = process.env.CLAMAV_PORT;
+
+    if (!envEnabled && !envHost && !envPort) {
+      return;
+    }
+
+    try {
+      const existingSetting = await storage.getSetting('clamav_config');
+      
+      if (!existingSetting?.value) {
+        const envConfig: ClamAVConfig = {
+          enabled: envEnabled === 'true',
+          host: envHost || 'localhost',
+          port: envPort ? parseInt(envPort, 10) : 3310,
+          timeout: 30000,
+          maxFileSize: 25 * 1024 * 1024,
+        };
+
+        await storage.setSetting({ key: 'clamav_config', value: envConfig });
+        console.log(`[ClamAV] Initialized from environment: enabled=${envConfig.enabled}, host=${envConfig.host}:${envConfig.port}`);
+        this.clearConfigCache();
+      } else {
+        console.log('[ClamAV] Configuration already exists in database, skipping env initialization');
+      }
+    } catch (error) {
+      console.error('[ClamAV] Failed to initialize from environment:', error);
+    }
+  }
 
   async getConfig(): Promise<ClamAVConfig> {
     const now = Date.now();

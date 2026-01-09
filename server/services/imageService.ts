@@ -80,7 +80,7 @@ export class ImageService {
         scanStatus,
         virusName: scanResult.virusName || null,
         errorMessage: scanResult.scannerUnavailable ? 'Scanner nicht erreichbar - Upload erlaubt' : (scanResult.error || null),
-        actionTaken: scanResult.isClean ? 'allowed' : 'blocked',
+        actionTaken: (scanResult.isClean || scanResult.scannerUnavailable) ? 'allowed' : 'blocked',
         uploaderUserId: context?.userId || null,
         uploaderEmail: context?.email || null,
         requestIp: context?.requestIp || null,

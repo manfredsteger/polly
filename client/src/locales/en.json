@@ -2201,7 +2201,11 @@
     "creating": "Creating...",
     "from": "From",
     "to": "To",
-    "save": "Save"
+    "save": "Save",
+    "allowMaybe": "Allow \"Maybe\" option",
+    "allowMaybeDescription": "Can participants answer with \"Maybe\"?",
+    "allowMultipleSlots": "Allow multiple sign-ups",
+    "allowMultipleSlotsDescription": "Can a person sign up for multiple slots?"
   },
   "createPoll": {
     "pageTitle": "Create Schedule Poll",

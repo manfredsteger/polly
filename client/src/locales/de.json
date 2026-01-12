@@ -2201,7 +2201,11 @@
     "creating": "Erstelle...",
     "from": "Von",
     "to": "Bis",
-    "save": "Speichern"
+    "save": "Speichern",
+    "allowMaybe": "\"Vielleicht\"-Option anbieten",
+    "allowMaybeDescription": "Können Teilnehmende mit \"Vielleicht\" antworten?",
+    "allowMultipleSlots": "Mehrfacheintragung erlauben",
+    "allowMultipleSlotsDescription": "Darf sich eine Person für mehrere Slots eintragen?"
   },
   "createPoll": {
     "pageTitle": "Terminumfrage erstellen",

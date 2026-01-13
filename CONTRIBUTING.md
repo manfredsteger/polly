@@ -299,6 +299,40 @@ Kurze Zusammenfassung der Änderungen.
 3. Alle Kommentare bearbeitet
 4. Merge nach Freigabe
 
+## GitLab-Mirroring einrichten
+
+Das Repository wird automatisch von GitHub nach GitLab gespiegelt. Um dies für Ihren Fork einzurichten:
+
+### Voraussetzungen
+
+1. GitLab Personal Access Token (PAT) mit `write_repository` Scope
+2. Zugang zu GitHub Repository Settings
+
+### Einrichtung
+
+1. **GitLab PAT erstellen**:
+   - GitLab → Settings → Access Tokens
+   - Scope: `write_repository`
+   - Token kopieren
+
+2. **GitHub Secret hinzufügen**:
+   - GitHub Repository → Settings → Secrets and variables → Actions
+   - New repository secret: `GITLAB_TOKEN` = Ihr GitLab PAT
+
+3. **GitHub Variable hinzufügen**:
+   - GitHub Repository → Settings → Secrets and variables → Actions → Variables
+   - New repository variable: `GITLAB_URL` = `gitlab.example.com/user/repo.git` (ohne https://)
+
+### Funktionsweise
+
+- Bei jedem Push auf `main` wird der Workflow `.github/workflows/gitlab-mirror.yml` ausgeführt
+- Der Workflow pusht alle Commits zu GitLab
+- Falls Secrets fehlen, wird der Mirror-Schritt übersprungen (mit Warnung)
+
+### Manueller Trigger
+
+Der Workflow kann auch manuell über GitHub Actions → "Mirror to GitLab" → "Run workflow" gestartet werden.
+
 ## Hilfe & Kontakt
 
 Bei Fragen oder Problemen:

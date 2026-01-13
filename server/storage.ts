@@ -16,7 +16,8 @@ import {
   type CustomizationSettings, customizationSettingsSchema,
   type SecuritySettings, securitySettingsSchema,
   type NotificationSettings, notificationSettingsSchema,
-  type SessionTimeoutSettings, sessionTimeoutSettingsSchema
+  type SessionTimeoutSettings, sessionTimeoutSettingsSchema,
+  type CalendarSettings, calendarSettingsSchema
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, count, isNull } from "drizzle-orm";
@@ -85,6 +86,10 @@ export interface IStorage {
   // Session timeout settings
   getSessionTimeoutSettings(): Promise<SessionTimeoutSettings>;
   setSessionTimeoutSettings(settings: Partial<SessionTimeoutSettings>): Promise<SessionTimeoutSettings>;
+
+  // Calendar settings
+  getCalendarSettings(): Promise<CalendarSettings>;
+  setCalendarSettings(settings: Partial<CalendarSettings>): Promise<CalendarSettings>;
 
   // Notification settings
   getNotificationSettings(): Promise<NotificationSettings>;
@@ -836,6 +841,30 @@ export class DatabaseStorage implements IStorage {
       key: 'session_timeout_settings', 
       value: validated,
       description: 'Role-based session timeout settings'
+    });
+    
+    return validated;
+  }
+
+  async getCalendarSettings(): Promise<CalendarSettings> {
+    const setting = await this.getSetting('calendar_settings');
+    
+    if (!setting) {
+      return calendarSettingsSchema.parse({});
+    }
+    
+    return calendarSettingsSchema.parse(setting.value);
+  }
+  
+  async setCalendarSettings(settings: Partial<CalendarSettings>): Promise<CalendarSettings> {
+    const current = await this.getCalendarSettings();
+    const merged = { ...current, ...settings };
+    const validated = calendarSettingsSchema.parse(merged);
+    
+    await this.setSetting({ 
+      key: 'calendar_settings', 
+      value: validated,
+      description: 'Calendar ICS export settings'
     });
     
     return validated;

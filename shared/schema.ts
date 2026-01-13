@@ -540,6 +540,37 @@ export const sessionTimeoutSettingsSchema = z.object({
 
 export type SessionTimeoutSettings = z.infer<typeof sessionTimeoutSettingsSchema>;
 
+// Calendar Settings Schema (ICS export configuration)
+export const calendarSettingsSchema = z.object({
+  // Prefix settings
+  prefixEnabled: z.boolean().default(true), // Enable status prefixes in calendar entries
+  tentativePrefix: z.string().default('Vorläufig'), // Prefix for running polls (DE default)
+  confirmedPrefix: z.string().default('Bestätigt'), // Prefix for completed polls (DE default)
+  myChoicePrefix: z.string().default('[Meine Wahl]'), // Prefix for user's own selections
+  
+  // Export scope settings
+  exportScope: z.enum(['all', 'own_yes', 'final_only']).default('all'),
+  // 'all' = export all poll options
+  // 'own_yes' = only export options where user voted 'yes'
+  // 'final_only' = only export final/confirmed dates (when creator sets final)
+  
+  // Marking settings
+  markOwnChoices: z.boolean().default(false), // Add [My Choice] prefix for user's yes votes
+  highlightFinalDate: z.boolean().default(true), // Add [CONFIRMED] prefix when creator sets final date
+  
+  // Localization - allows admin to override prefixes per language
+  prefixesLocalized: z.record(z.string(), z.object({
+    tentative: z.string(),
+    confirmed: z.string(),
+    myChoice: z.string(),
+  })).default({
+    de: { tentative: 'Vorläufig', confirmed: 'Bestätigt', myChoice: '[Meine Wahl]' },
+    en: { tentative: 'Tentative', confirmed: 'Confirmed', myChoice: '[My Choice]' },
+  }),
+});
+
+export type CalendarSettings = z.infer<typeof calendarSettingsSchema>;
+
 // WCAG Accessibility Settings Schema
 export const wcagAuditIssueSchema = z.object({
   token: z.string(), // CSS variable name, e.g. "--primary"

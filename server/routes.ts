@@ -1421,15 +1421,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const results = await storage.getPollResults(poll.id);
+      const calendarSettings = await storage.getCalendarSettings();
       
       const { getBaseUrl } = await import('./utils/baseUrl');
       const baseUrl = getBaseUrl();
+      
+      const language = (req.query.lang as 'de' | 'en') || 'de';
+      const voterEmail = req.query.email as string | undefined;
       
       const icsContent = icsService.generatePollIcs(
         poll,
         results.options,
         results.votes,
-        baseUrl
+        baseUrl,
+        {
+          settings: calendarSettings,
+          language,
+          voterEmail,
+        }
       );
       
       const sanitizedTitle = poll.title.replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g, '_').substring(0, 50);
@@ -1520,14 +1529,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all participations for this user
       const participations = await storage.getUserParticipations(user.id, user.email);
+      const calendarSettings = await storage.getCalendarSettings();
       
       const { getBaseUrl } = await import('./utils/baseUrl');
       const baseUrl = getBaseUrl();
       
+      const language = (user.languagePreference as 'de' | 'en') || 'de';
+      
       const icsContent = icsService.generateUserCalendarFeed(
         participations,
         user.name,
-        baseUrl
+        baseUrl,
+        {
+          settings: calendarSettings,
+          language,
+        }
       );
       
       res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
@@ -2792,6 +2808,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, settings });
     } catch (error) {
       console.error('Error updating session timeout settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // ============== CALENDAR SETTINGS API ==============
+  
+  // Get calendar settings (admin only)
+  v1Router.get('/admin/calendar', requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getCalendarSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching calendar settings:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+  
+  // Update calendar settings (admin only)
+  v1Router.put('/admin/calendar', requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.setCalendarSettings(req.body);
+      res.json({ success: true, settings });
+    } catch (error) {
+      console.error('Error updating calendar settings:', error);
       res.status(500).json({ error: 'Interner Fehler' });
     }
   });

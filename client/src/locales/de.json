@@ -777,6 +777,10 @@
         "title": "Sitzungszeitlimit",
         "description": "Automatische Sitzungsbeendigung konfigurieren"
       },
+      "calendar": {
+        "title": "Kalender-Export",
+        "description": "ICS-Kalenderexport und Abonnement-Einstellungen"
+      },
       "wcag": {
         "title": "WCAG Barrierefreiheit",
         "description": "Farbkontrast und Barrierefreiheitseinstellungen"
@@ -1496,6 +1500,34 @@
       "warningSettings": "Warnhinweis",
       "warningNote": "Benutzer sehen {{minutes}} Minute(n) vor der Abmeldung einen Warnhinweis mit der Möglichkeit, die Session zu verlängern.",
       "sessionInfo": "Die Session-Timeout-Funktion überprüft die letzte Aktivität des Benutzers und meldet ihn nach der konfigurierten Inaktivitätszeit automatisch ab. Aktivitäten wie Mausklicks, Tastatureingaben und Seitenwechsel verlängern die Session."
+    },
+    "calendar": {
+      "saved": "Kalender-Einstellungen wurden gespeichert.",
+      "prefixSettings": "Präfix-Einstellungen",
+      "prefixDescription": "Termine erhalten Präfixe je nach Status der Umfrage",
+      "enablePrefixes": "Präfixe aktivieren",
+      "enablePrefixesDescription": "Termine werden mit Status-Präfixen wie 'Vorläufig:' oder 'Bestätigt:' versehen",
+      "germanPrefixes": "Deutsche Präfixe",
+      "englishPrefixes": "Englische Präfixe",
+      "tentativePrefix": "Vorläufig-Präfix",
+      "confirmedPrefix": "Bestätigt-Präfix",
+      "myChoicePrefix": "Meine-Wahl-Präfix",
+      "exportScope": "Export-Umfang",
+      "exportScopeDescription": "Welche Termine sollen in den Kalender exportiert werden?",
+      "scopeAll": "Alle Termine",
+      "scopeAllDescription": "Alle Terminoptionen der Umfrage werden exportiert",
+      "scopeOwnYes": "Nur meine Ja-Stimmen",
+      "scopeOwnYesDescription": "Nur Termine, für die der Nutzer mit 'Ja' gestimmt hat",
+      "scopeFinalOnly": "Nur finale Termine",
+      "scopeFinalOnlyDescription": "Nur der vom Ersteller bestätigte Endtermin wird exportiert",
+      "markingSettings": "Markierungs-Einstellungen",
+      "markingDescription": "Zusätzliche Markierungen für bestimmte Termine",
+      "markOwnChoices": "Eigene Auswahl markieren",
+      "markOwnChoicesDescription": "Termine mit eigener Ja-Stimme erhalten ein Präfix (z.B. [Meine Wahl])",
+      "highlightFinal": "Finalen Termin hervorheben",
+      "highlightFinalDescription": "Der vom Ersteller gewählte Endtermin wird besonders gekennzeichnet",
+      "syncInfo": "Automatische Synchronisation",
+      "syncInfoDescription": "Kalender-Apps aktualisieren abonnierte Feeds regelmäßig automatisch. Änderungen an Präfixen werden bei der nächsten Synchronisation sichtbar."
     },
     "wcag": {
       "title": "WCAG Barrierefreiheit",

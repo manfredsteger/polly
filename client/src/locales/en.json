@@ -777,6 +777,10 @@
         "title": "Session Timeout",
         "description": "Configure automatic session expiration"
       },
+      "calendar": {
+        "title": "Calendar Export",
+        "description": "ICS calendar export and subscription settings"
+      },
       "wcag": {
         "title": "WCAG Accessibility",
         "description": "Color contrast and accessibility settings"
@@ -1496,6 +1500,34 @@
       "warningSettings": "Warning",
       "warningNote": "Users see a warning {{minutes}} minute(s) before logout with the option to extend the session.",
       "sessionInfo": "The session timeout function checks the user's last activity and logs them out automatically after the configured inactivity time. Activities like mouse clicks, keyboard inputs, and page changes extend the session."
+    },
+    "calendar": {
+      "saved": "Calendar settings have been saved.",
+      "prefixSettings": "Prefix Settings",
+      "prefixDescription": "Events receive prefixes based on poll status",
+      "enablePrefixes": "Enable prefixes",
+      "enablePrefixesDescription": "Events are prefixed with status indicators like 'Tentative:' or 'Confirmed:'",
+      "germanPrefixes": "German Prefixes",
+      "englishPrefixes": "English Prefixes",
+      "tentativePrefix": "Tentative prefix",
+      "confirmedPrefix": "Confirmed prefix",
+      "myChoicePrefix": "My choice prefix",
+      "exportScope": "Export Scope",
+      "exportScopeDescription": "Which events should be exported to the calendar?",
+      "scopeAll": "All events",
+      "scopeAllDescription": "All event options from the poll are exported",
+      "scopeOwnYes": "Only my yes votes",
+      "scopeOwnYesDescription": "Only events the user voted 'Yes' for",
+      "scopeFinalOnly": "Final events only",
+      "scopeFinalOnlyDescription": "Only the confirmed final event selected by the creator is exported",
+      "markingSettings": "Marking Settings",
+      "markingDescription": "Additional markings for specific events",
+      "markOwnChoices": "Mark own choices",
+      "markOwnChoicesDescription": "Events with own yes vote receive a prefix (e.g. [My Choice])",
+      "highlightFinal": "Highlight final event",
+      "highlightFinalDescription": "The final event chosen by the creator is specially marked",
+      "syncInfo": "Automatic Synchronization",
+      "syncInfoDescription": "Calendar apps automatically update subscribed feeds regularly. Changes to prefixes will be visible at the next sync."
     },
     "wcag": {
       "title": "WCAG Accessibility",

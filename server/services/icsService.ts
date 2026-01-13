@@ -62,6 +62,36 @@ function isPollCompleted(poll: Poll): boolean {
   return false;
 }
 
+function isPollFinalized(poll: Poll): boolean {
+  return poll.finalOptionId !== null && poll.finalOptionId !== undefined;
+}
+
+function shouldIncludeOption(
+  option: PollOption,
+  poll: Poll,
+  context: CalendarExportContext
+): boolean {
+  const { settings, userVotedOptionIds } = context;
+
+  // If poll has a final option, only include that option
+  // This prevents calendar clutter after finalization
+  if (isPollFinalized(poll)) {
+    return option.id === poll.finalOptionId;
+  }
+
+  // Apply exportScope settings for non-finalized polls
+  switch (settings.exportScope) {
+    case 'final_only':
+      // No final option yet, include nothing
+      return false;
+    case 'own_yes':
+      return userVotedOptionIds?.has(option.id) ?? false;
+    case 'all':
+    default:
+      return true;
+  }
+}
+
 function buildEventTitle(
   baseTitle: string,
   poll: Poll,
@@ -77,8 +107,9 @@ function buildEventTitle(
   }
 
   if (settings.prefixEnabled) {
-    const isCompleted = isPollCompleted(poll);
-    if (isCompleted) {
+    // Use confirmed prefix if: poll is completed OR poll has a final option selected
+    const isConfirmed = isPollCompleted(poll) || isPollFinalized(poll);
+    if (isConfirmed) {
       parts.push(`${prefixes.confirmed}:`);
     } else {
       parts.push(`${prefixes.tentative}:`);
@@ -207,10 +238,9 @@ export function generatePollIcs(
   const events: CalendarEvent[] = [];
 
   for (const option of options) {
-    if (settings.exportScope === 'own_yes') {
-      if (!userVotedOptionIds.has(option.id)) {
-        continue;
-      }
+    // Use unified filter: auto-filters to final option when poll is finalized
+    if (!shouldIncludeOption(option, poll, effectiveContext)) {
+      continue;
     }
 
     const dateTime = parseOptionDateTime(option);
@@ -267,6 +297,37 @@ export function generateUserCalendarFeed(
       userVotedOptionIds,
     };
 
+    // When poll is finalized, show only the final option (even if user didn't vote for it)
+    // This prevents calendar clutter and shows only the confirmed date
+    if (isPollFinalized(poll)) {
+      const finalOption = options.find(o => o.id === poll.finalOptionId);
+      if (finalOption) {
+        const dateTime = parseOptionDateTime(finalOption);
+        if (dateTime) {
+          const { startTime, endTime } = dateTime;
+          const uid = `participation-${poll.id}-final@polly`;
+
+          let baseTitle = poll.title;
+          if (finalOption.text && finalOption.text !== poll.title) {
+            baseTitle = `${poll.title}: ${finalOption.text}`;
+          }
+
+          const title = buildEventTitle(baseTitle, poll, finalOption.id, effectiveContext);
+
+          events.push({
+            uid,
+            title,
+            description: poll.description || undefined,
+            startTime,
+            endTime,
+            url: `${baseUrl}/poll/${poll.publicToken}`,
+          });
+        }
+      }
+      continue; // Skip to next poll, don't add individual vote entries
+    }
+
+    // For non-finalized polls, include user's yes votes
     for (const vote of userVotes) {
       const option = options.find(o => o.id === vote.optionId);
       if (!option) continue;

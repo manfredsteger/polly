@@ -451,6 +451,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Schema for finalize endpoint - only accepts optionId
+  const finalizeSchema = z.object({
+    optionId: z.number().int().nonnegative(),
+  }).strict();
+
+  // Set final option for a poll (finalizes the poll and clears other options from calendar exports)
+  v1Router.post('/polls/admin/:token/finalize', async (req, res) => {
+    try {
+      // Validate request body with Zod schema
+      const parseResult = finalizeSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: 'Ungültige Anfrage',
+          details: parseResult.error.errors 
+        });
+      }
+      
+      const { optionId } = parseResult.data;
+      
+      const poll = await storage.getPollByAdminToken(req.params.token);
+      if (!poll) {
+        return res.status(404).json({ error: 'Poll not found' });
+      }
+      
+      // Check authentication for user-created polls
+      if (poll.userId) {
+        if (!req.session.userId) {
+          return res.status(401).json({ 
+            error: 'Anmeldung erforderlich',
+            message: 'Diese Umfrage wurde von einem registrierten Benutzer erstellt. Bitte melden Sie sich an.',
+            requiresAuth: true
+          });
+        }
+        if (req.session.userId !== poll.userId) {
+          return res.status(403).json({ 
+            error: 'Keine Berechtigung',
+            message: 'Sie können nur Ihre eigenen Umfragen finalisieren.'
+          });
+        }
+      }
+      
+      // Verify the option belongs to this poll (optionId: 0 clears the finalization)
+      if (optionId !== 0) {
+        const optionExists = poll.options.some((o: { id: number }) => o.id === optionId);
+        if (!optionExists) {
+          return res.status(400).json({ error: 'Option nicht gefunden' });
+        }
+      }
+      
+      // Set the final option (optionId: 0 clears the finalization)
+      const finalOptionId = optionId === 0 ? null : optionId;
+      const updatedPoll = await storage.updatePoll(poll.id, { finalOptionId });
+      
+      res.json({ 
+        success: true, 
+        poll: updatedPoll,
+        message: finalOptionId ? 'Finaler Termin wurde festgelegt' : 'Finalisierung wurde aufgehoben'
+      });
+    } catch (error) {
+      console.error('Error finalizing poll:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Add option to poll (admin access)
   v1Router.post('/polls/admin/:token/options', async (req, res) => {
     try {

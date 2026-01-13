@@ -27,7 +27,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Profile Security**: Secure password reset, email change, and GDPR-compliant account deletion request flow.
 - **Live Voting**: Real-time vote tracking via WebSocket with fullscreen presentation mode.
 - **Admin Tools**: User management, email template customization, security scanning integration (ClamAV, npm audit, Pentest-Tools.com), and system package monitoring (Nix).
-- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls.
+- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls with dynamic status prefixes (Tentative/Confirmed) and automatic cleanup when creator sets final date.
 - **Test Data Isolation**: `isTestData` flags in database for development and purging.
 
 ### Technical Implementations

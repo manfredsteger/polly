@@ -608,6 +608,8 @@
       "votesOrSignups": "Abstimmungen",
       "signups": "Eintragungen",
       "options": "Optionen",
+      "optionsDescription": "Alle verfügbaren Antwortmöglichkeiten",
+      "slotsDescription": "Verfügbare Slots mit Kapazitäten",
       "slots": "Slots",
       "expiryDate": "Ablaufdatum",
       "availableSlots": "Verfügbare Slots mit Kapazitäten",

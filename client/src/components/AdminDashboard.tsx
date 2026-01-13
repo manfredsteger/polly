@@ -8975,6 +8975,8 @@ function TestDataManagementSection() {
       setShowPurgeConfirm(false);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/polls'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
     },
     onError: () => {
       toast({ title: t('errors.generic'), description: t('admin.tests.testDataDeleteError'), variant: 'destructive' });

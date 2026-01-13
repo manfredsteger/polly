@@ -608,6 +608,8 @@
       "votesOrSignups": "Votes",
       "signups": "Sign-ups",
       "options": "Options",
+      "optionsDescription": "All available response options",
+      "slotsDescription": "Available slots with capacities",
       "slots": "Slots",
       "expiryDate": "Expiry Date",
       "availableSlots": "Available slots with capacities",

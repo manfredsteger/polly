@@ -301,37 +301,44 @@ Kurze Zusammenfassung der Änderungen.
 
 ## GitLab-Mirroring einrichten
 
-Das Repository wird automatisch von GitHub nach GitLab gespiegelt. Um dies für Ihren Fork einzurichten:
+Falls Sie den Code zusätzlich zu GitHub auch auf einer eigenen GitLab-Instanz hosten möchten, gibt es zwei empfohlene Ansätze:
 
-### Voraussetzungen
+### Option 1: GitLab Pull-Mirroring (Empfohlen)
 
-1. GitLab Personal Access Token (PAT) mit `write_repository` Scope
-2. Zugang zu GitHub Repository Settings
+GitLab kann automatisch Änderungen von GitHub abrufen. Dies wird komplett in GitLab konfiguriert - kein Code im Repository erforderlich.
 
-### Einrichtung
+**Einrichtung:**
 
-1. **GitLab PAT erstellen**:
-   - GitLab → Settings → Access Tokens
-   - Scope: `write_repository`
-   - Token kopieren
+1. Öffnen Sie Ihr GitLab-Projekt → Settings → Repository → Mirroring repositories
+2. Git repository URL: `https://github.com/IHR-USERNAME/polly.git`
+3. Mirror direction: **Pull**
+4. Authentication method: Password (falls privates GitHub-Repo: GitHub PAT mit `read` Scope)
+5. "Mirror repository" klicken
 
-2. **GitHub Secret hinzufügen**:
-   - GitHub Repository → Settings → Secrets and variables → Actions
-   - New repository secret: `GITLAB_TOKEN` = Ihr GitLab PAT
+GitLab synchronisiert nun automatisch alle 5 Minuten oder bei manuellem Trigger.
 
-3. **GitHub Variable hinzufügen**:
-   - GitHub Repository → Settings → Secrets and variables → Actions → Variables
-   - New repository variable: `GITLAB_URL` = `gitlab.example.com/user/repo.git` (ohne https://)
+### Option 2: GitLab CI Sync-Job
 
-### Funktionsweise
+Die `.gitlab-ci.yml` enthält bereits einen `sync-from-github` Job, der Code von GitHub abruft. Dieser wird bei Pipeline-Trigger automatisch ausgeführt.
 
-- Bei jedem Push auf `main` wird der Workflow `.github/workflows/gitlab-mirror.yml` ausgeführt
-- Der Workflow pusht alle Commits zu GitLab
-- Falls Secrets fehlen, wird der Mirror-Schritt übersprungen (mit Warnung)
+**Voraussetzungen:**
+- `GITLAB_TOKEN` als CI/CD Variable mit `write_repository` Scope
 
-### Manueller Trigger
+**Konfiguration für eigenen Fork:**
+1. GitLab → Settings → CI/CD → Variables
+2. Variable hinzufügen: `GITHUB_REPO_URL` = `https://github.com/IHR-USERNAME/polly.git`
+3. Optional: `GITLAB_TOKEN` für automatisches Pushen
 
-Der Workflow kann auch manuell über GitHub Actions → "Mirror to GitLab" → "Run workflow" gestartet werden.
+**Funktionsweise:**
+- Der Job klont den neuesten Code von GitHub (aus `GITHUB_REPO_URL`)
+- Pusht diesen zu GitLab (bei gesetztem `GITLAB_TOKEN`)
+- Alle anderen CI-Jobs bauen dann vom aktuellen GitHub-Stand
+
+### Hinweise
+
+- **Kein projektspezifischer Code**: Die Sync-Konfiguration erfolgt außerhalb des Repositories
+- **Eigene Credentials**: Jeder Nutzer richtet das Mirroring mit seinen eigenen Tokens ein
+- **Bidirektionaler Sync**: Wird nicht unterstützt - GitHub ist die Single Source of Truth
 
 ## Hilfe & Kontakt
 

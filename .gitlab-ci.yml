@@ -20,8 +20,8 @@ sync-from-github:
     - echo "GitHub sync trigger received"
     - git config --global user.email "ci@gitlab.com"
     - git config --global user.name "GitLab CI"
-    # Fetch latest from GitHub
-    - git remote add github https://github.com/manfredsteger/polly.git || true
+    # Fetch latest from GitHub (uses GITHUB_REPO_URL variable)
+    - git remote add github "${GITHUB_REPO_URL}" || true
     - git fetch github main --depth=50
     - echo "Latest GitHub commit:"
     - git log github/main -1 --oneline
@@ -45,13 +45,17 @@ variables:
   GIT_STRATEGY: none
   CI: "true"
   npm_config_cache: "/tmp/.npm"
+  # Configure this in GitLab CI/CD Settings → Variables for your own fork
+  # Example: https://github.com/your-username/polly.git
+  GITHUB_REPO_URL: "https://github.com/manfredsteger/polly.git"
 
 # Reusable script for cloning from GitHub (avoids git init issues)
 # Note: Clears working directory first to avoid conflicts with downloaded artifacts
+# Uses GITHUB_REPO_URL variable - override in GitLab CI/CD settings for your fork
 .github_clone: &github_clone
   - rm -rf /tmp/polly-src 2>/dev/null || true
   - find . -mindepth 1 -delete 2>/dev/null || rm -rf ./* ./.[!.]* 2>/dev/null || true
-  - git clone --depth=1 https://github.com/manfredsteger/polly.git /tmp/polly-src
+  - git clone --depth=1 "${GITHUB_REPO_URL}" /tmp/polly-src
   - cp -r /tmp/polly-src/. .
   - rm -rf /tmp/polly-src
 
@@ -264,7 +268,7 @@ e2e-tests:
     when: unknown_failure
   before_script:
     - rm -rf /tmp/polly-src 2>/dev/null || true
-    - git clone --depth=1 https://github.com/manfredsteger/polly.git /tmp/polly-src
+    - git clone --depth=1 "${GITHUB_REPO_URL}" /tmp/polly-src
     - cp -r /tmp/polly-src/. .
     - rm -rf /tmp/polly-src
     - mkdir -p playwright-report test-results

@@ -1,7 +1,7 @@
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { VotingInterface } from "@/components/VotingInterface";
 import { ResultsChart } from "@/components/ResultsChart";
 import { LiveResultsView } from "@/components/LiveResultsView";
@@ -885,7 +885,13 @@ export default function Poll() {
                 <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-medium text-amber-800 dark:text-amber-200">{t('pollView.hasVotesWarningTitle')}</h4>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1" dangerouslySetInnerHTML={{ __html: t('pollView.hasVotesWarningMessage', { voters: uniqueVoters, votes: poll?.votes?.length }) }} />
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    <Trans 
+                      i18nKey="pollView.hasVotesWarningMessage" 
+                      values={{ voters: uniqueVoters, votes: poll?.votes?.length }}
+                      components={{ strong: <strong /> }}
+                    />
+                  </p>
                   <ul className="text-sm text-amber-700 dark:text-amber-300 mt-2 list-disc list-inside">
                     <li>{t('pollView.hasVotesWarningItem1')}</li>
                     <li>{t('pollView.hasVotesWarningItem2')}</li>

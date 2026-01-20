@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy, Mail, Calendar, Vote, ExternalLink, CheckCircle } from 'lucide-react';
@@ -174,7 +174,13 @@ export default function PollSuccess() {
           </CardHeader>
           <CardContent>
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <p className="text-yellow-800 dark:text-yellow-200" dangerouslySetInnerHTML={{ __html: t('pollSuccess.emailNotificationHint', { email: poll.creatorEmail }) }} />
+              <p className="text-yellow-800 dark:text-yellow-200">
+                <Trans 
+                  i18nKey="pollSuccess.emailNotificationHint" 
+                  values={{ email: poll.creatorEmail }}
+                  components={{ strong: <strong /> }}
+                />
+              </p>
             </div>
           </CardContent>
         </Card>

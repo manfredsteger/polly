@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -736,12 +736,21 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
             {/* Summary - how many slots will be created */}
             {templateSelectedDates.length > 0 && getTotalSlotsCount() > 0 && (
-              <p className="text-sm text-muted-foreground text-center" dangerouslySetInnerHTML={{
-                __html: t('calendarPicker.summary.willCreate', { count: getTotalSlotsCount() }) +
-                  (!individualSlotsMode ? ` ${templateSelectedDates.length > 1 || editableSlots.length > 1 
-                    ? t('calendarPicker.summary.calculation_plural', { days: templateSelectedDates.length, slots: editableSlots.length })
-                    : t('calendarPicker.summary.calculation', { days: templateSelectedDates.length, slots: editableSlots.length })}` : '')
-              }} />
+              <p className="text-sm text-muted-foreground text-center">
+                <Trans 
+                  i18nKey="calendarPicker.summary.willCreate" 
+                  values={{ count: getTotalSlotsCount() }}
+                  components={{ strong: <strong /> }}
+                />
+                {!individualSlotsMode && (
+                  <>
+                    {' '}
+                    {templateSelectedDates.length > 1 || editableSlots.length > 1 
+                      ? t('calendarPicker.summary.calculation_plural', { days: templateSelectedDates.length, slots: editableSlots.length })
+                      : t('calendarPicker.summary.calculation', { days: templateSelectedDates.length, slots: editableSlots.length })}
+                  </>
+                )}
+              </p>
             )}
             
             {/* Action buttons */}
@@ -811,9 +820,13 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
             {/* Selected count */}
             {selectedWeekdays.length > 0 && (
-              <p className="text-sm text-muted-foreground text-center" dangerouslySetInnerHTML={{
-                __html: t('calendarPicker.summary.weekdaysSelected', { count: selectedWeekdays.length })
-              }} />
+              <p className="text-sm text-muted-foreground text-center">
+                <Trans 
+                  i18nKey="calendarPicker.summary.weekdaysSelected" 
+                  values={{ count: selectedWeekdays.length }}
+                  components={{ strong: <strong /> }}
+                />
+              </p>
             )}
             
             {/* Action buttons */}

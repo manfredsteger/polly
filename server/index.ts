@@ -4,7 +4,7 @@ import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import pg from "pg";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
 import { bootstrapBranding } from "./scripts/applyBranding";

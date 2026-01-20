@@ -20,7 +20,7 @@ import {
 import type { PollWithOptions, User, SystemSetting } from '@shared/schema';
 import { format } from 'date-fns';
 import { getDateLocale } from '@/lib/i18n';
-import { AdminDashboard } from '@/components/AdminDashboard';
+import { AdminDashboard } from '@/components/admin';
 
 interface ExtendedStats {
   totalUsers: number;

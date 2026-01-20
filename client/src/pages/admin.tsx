@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from 'react-i18next';
-import { AdminDashboard } from "@/components/AdminDashboard";
+import { AdminDashboard } from "@/components/admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, uuid, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -44,13 +44,17 @@ export const polls = pgTable("polls", {
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at"),
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports
-  // Notification settings per poll
   enableExpiryReminder: boolean("enable_expiry_reminder").default(false).notNull(),
   expiryReminderHours: integer("expiry_reminder_hours").default(24), // hours before expiry to send reminder
   expiryReminderSent: boolean("expiry_reminder_sent").default(false).notNull(), // has the expiry reminder been sent?
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("polls_user_id_idx").on(table.userId),
+  index("polls_type_idx").on(table.type),
+  index("polls_is_active_idx").on(table.isActive),
+  index("polls_expires_at_idx").on(table.expiresAt),
+]);
 
 export const pollOptions = pgTable("poll_options", {
   id: serial("id").primaryKey(),
@@ -63,7 +67,9 @@ export const pollOptions = pgTable("poll_options", {
   maxCapacity: integer("max_capacity"), // for organization polls: max signups per slot (null = unlimited)
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("poll_options_poll_id_idx").on(table.pollId),
+]);
 
 export const votes = pgTable("votes", {
   id: serial("id").primaryKey(),
@@ -79,7 +85,12 @@ export const votes = pgTable("votes", {
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("votes_poll_id_idx").on(table.pollId),
+  index("votes_option_id_idx").on(table.optionId),
+  index("votes_voter_email_idx").on(table.voterEmail),
+  index("votes_voter_key_idx").on(table.voterKey),
+]);
 
 export const systemSettings = pgTable("system_settings", {
   id: serial("id").primaryKey(),

@@ -58,7 +58,7 @@ export const DATE_FORMATS = {
 export const LANGUAGES = {
   GERMAN: 'de',
   ENGLISH: 'en',
-  DEFAULT: 'en',
+  DEFAULT: 'de',
 } as const;
 
 export type Language = typeof LANGUAGES[keyof typeof LANGUAGES];

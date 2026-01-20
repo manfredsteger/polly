@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Router } from "express";
+import express from "express";
+import path from "path";
 import { storage } from "../storage";
 import bcrypt from "bcryptjs";
 import type { User } from "@shared/schema";
@@ -15,6 +17,12 @@ import exportRouter from "./export";
 import systemRouter from "./system";
 
 export function registerRoutes(app: Express): Server {
+  // Serve uploaded images (unversioned static files) - MUST be before API routes
+  app.use('/uploads', (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  }, express.static(path.join(process.cwd(), 'uploads')));
+
   const v1Router = Router();
 
   // Mount all route modules

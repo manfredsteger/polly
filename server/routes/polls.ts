@@ -6,11 +6,12 @@ import {
   extractUserId,
   createPollSchema,
 } from "./common";
+import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
 
 const router = Router();
 
-// Create poll (anonymous or authenticated)
-router.post('/', async (req, res) => {
+// Create poll (anonymous or authenticated, with rate limiting)
+router.post('/', pollCreationRateLimiter, async (req, res) => {
   try {
     const data = createPollSchema.parse(req.body);
     

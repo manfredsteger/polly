@@ -8,6 +8,7 @@ import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
 import { bootstrapBranding } from "./scripts/applyBranding";
+import { errorHandler } from "./lib/errorHandler";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -179,13 +180,7 @@ app.use((req, res, next) => {
     console.error('[ClamAV] Failed to initialize from environment:', error);
   }
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
+  app.use(errorHandler);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

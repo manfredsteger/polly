@@ -6,6 +6,9 @@ import { loginRateLimiter } from "../services/rateLimiterService";
 import { deviceTokenService } from "../services/deviceTokenService";
 import { z } from "zod";
 import "express-session";
+import { AuthenticationError, AuthorizationError } from "../lib/errors";
+export { asyncHandler } from "../lib/errorHandler";
+export * from "../lib/errors";
 
 export const API_VERSION = 'v1';
 export const API_BASE = `/api/${API_VERSION}`;
@@ -123,35 +126,34 @@ export const extractUserId = async (req: Request): Promise<number | null> => {
 
 // Middleware: require authentication
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = await extractUserId(req);
-  if (!userId) {
-    return res.status(401).json({ 
-      error: 'Nicht angemeldet',
-      errorCode: 'UNAUTHORIZED'
-    });
+  try {
+    const userId = await extractUserId(req);
+    if (!userId) {
+      throw new AuthenticationError('Nicht angemeldet');
+    }
+    next();
+  } catch (error) {
+    next(error);
   }
-  next();
 };
 
 // Middleware: require admin role
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = await extractUserId(req);
-  if (!userId) {
-    return res.status(401).json({ 
-      error: 'Nicht angemeldet',
-      errorCode: 'UNAUTHORIZED'
-    });
+  try {
+    const userId = await extractUserId(req);
+    if (!userId) {
+      throw new AuthenticationError('Nicht angemeldet');
+    }
+    
+    const user = req.tokenUser || await storage.getUser(userId);
+    if (!user || user.role !== 'admin') {
+      throw new AuthorizationError('Administratorberechtigung erforderlich');
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
   }
-  
-  const user = req.tokenUser || await storage.getUser(userId);
-  if (!user || user.role !== 'admin') {
-    return res.status(403).json({ 
-      error: 'Administratorberechtigung erforderlich',
-      errorCode: 'FORBIDDEN'
-    });
-  }
-  
-  next();
 };
 
 // Email cooldown tracking to prevent spam

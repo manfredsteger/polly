@@ -14,6 +14,7 @@ import {
   EMAIL_CHECK_LIMIT,
   EMAIL_CHECK_WINDOW,
 } from "./common";
+import { registrationRateLimiter, passwordResetRateLimiter } from "../services/apiRateLimiterService";
 
 const router = Router();
 
@@ -269,8 +270,8 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Local register
-router.post('/register', async (req, res) => {
+// Local register (with rate limiting)
+router.post('/register', registrationRateLimiter, async (req, res) => {
   try {
     // Check if registration is enabled
     const registrationSetting = await storage.getSetting('registration_enabled');
@@ -321,8 +322,8 @@ router.post('/logout', (req, res) => {
   });
 });
 
-// Request password reset (for local accounts)
-router.post('/request-password-reset', async (req, res) => {
+// Request password reset (for local accounts, with rate limiting)
+router.post('/request-password-reset', passwordResetRateLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email || typeof email !== 'string') {

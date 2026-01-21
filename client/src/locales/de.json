@@ -250,6 +250,10 @@
       "tests": {
         "title": "Automatisierte Tests",
         "description": "Backend-Integrationstests ausführen und überwachen",
+        "run": "Tests ausführen",
+        "pending": "Ausstehend",
+        "noTests": "Keine Tests verfügbar",
+        "testResults": "Testergebnisse",
         "backToSettings": "Zurück zu Einstellungen",
         "automatedTests": "Automatisierte Tests",
         "automatedTestsDescription": "Backend-Integrationstests ausführen und überwachen",

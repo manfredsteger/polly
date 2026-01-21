@@ -123,6 +123,26 @@ interface SecuritySettingsResponse {
   ssoNote: string;
 }
 
+interface ApiRateLimitItem {
+  enabled: boolean;
+  maxRequests: number;
+  windowSeconds: number;
+}
+
+interface ApiRateLimitsSettings {
+  registration: ApiRateLimitItem;
+  passwordReset: ApiRateLimitItem;
+  pollCreation: ApiRateLimitItem;
+  voting: ApiRateLimitItem;
+  email: ApiRateLimitItem;
+  apiGeneral: ApiRateLimitItem;
+}
+
+interface ApiRateLimitsResponse {
+  settings: ApiRateLimitsSettings;
+  stats: Record<string, { totalTracked: number; blockedClients: number }>;
+}
+
 const formatBytes = (bytes: number) => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -142,9 +162,28 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
   const [windowMinutes, setWindowMinutes] = useState(15);
   const [cooldownMinutes, setCooldownMinutes] = useState(15);
   
+  const [apiRateLimits, setApiRateLimits] = useState<ApiRateLimitsSettings>({
+    registration: { enabled: true, maxRequests: 5, windowSeconds: 3600 },
+    passwordReset: { enabled: true, maxRequests: 3, windowSeconds: 900 },
+    pollCreation: { enabled: true, maxRequests: 10, windowSeconds: 60 },
+    voting: { enabled: true, maxRequests: 30, windowSeconds: 10 },
+    email: { enabled: true, maxRequests: 5, windowSeconds: 60 },
+    apiGeneral: { enabled: true, maxRequests: 100, windowSeconds: 60 },
+  });
+  
   const { data: securityData, isLoading: isLoadingSecurity } = useQuery<SecuritySettingsResponse>({
     queryKey: ['/api/v1/admin/security'],
   });
+  
+  const { data: apiRateLimitsData, isLoading: isLoadingApiRateLimits } = useQuery<ApiRateLimitsResponse>({
+    queryKey: ['/api/v1/admin/api-rate-limits'],
+  });
+  
+  useEffect(() => {
+    if (apiRateLimitsData?.settings) {
+      setApiRateLimits(apiRateLimitsData.settings);
+    }
+  }, [apiRateLimitsData]);
   
   useEffect(() => {
     if (securityData?.settings?.loginRateLimit) {
@@ -183,6 +222,48 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
       toast({ title: t('errors.generic'), description: t('admin.securitySettings.locksClearError'), variant: "destructive" });
     }
   });
+  
+  const saveApiRateLimitsMutation = useMutation({
+    mutationFn: async (data: ApiRateLimitsSettings) => {
+      const response = await apiRequest('PUT', '/api/v1/admin/api-rate-limits', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('admin.securitySettings.saved'), description: t('admin.security.apiRateLimitsSaved') });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/api-rate-limits'] });
+    },
+    onError: () => {
+      toast({ title: t('errors.generic'), description: t('admin.toasts.settingsSaveError'), variant: "destructive" });
+    }
+  });
+  
+  const clearApiRateLimitsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/v1/admin/api-rate-limits/clear');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('admin.securitySettings.locksCleared'), description: t('admin.security.clearApiRateLimits') });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/api-rate-limits'] });
+    },
+    onError: () => {
+      toast({ title: t('errors.generic'), variant: "destructive" });
+    }
+  });
+  
+  const handleSaveApiRateLimits = () => {
+    saveApiRateLimitsMutation.mutate(apiRateLimits);
+  };
+  
+  const updateApiRateLimit = (key: keyof ApiRateLimitsSettings, field: keyof ApiRateLimitItem, value: number | boolean) => {
+    setApiRateLimits(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [field]: value,
+      },
+    }));
+  };
   
   const handleSaveRateLimit = () => {
     saveRateLimitMutation.mutate({
@@ -499,6 +580,87 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
                 <Button onClick={handleSaveRateLimit} disabled={saveRateLimitMutation.isPending} className="polly-button-primary" data-testid="button-save-rate-limit">
                   {saveRateLimitMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.saving')}</> : t('admin.security.saveRateLimit')}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Shield className="w-5 h-5 mr-2" />
+            {t('admin.security.apiRateLimits')}
+          </CardTitle>
+          <CardDescription>{t('admin.security.apiRateLimitsDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingApiRateLimits ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {([
+                  { key: 'registration', label: t('admin.security.registrationLimit'), description: t('admin.security.registrationLimitDescription') },
+                  { key: 'passwordReset', label: t('admin.security.passwordResetLimit'), description: t('admin.security.passwordResetLimitDescription') },
+                  { key: 'pollCreation', label: t('admin.security.pollCreationLimit'), description: t('admin.security.pollCreationLimitDescription') },
+                  { key: 'voting', label: t('admin.security.votingLimit'), description: t('admin.security.votingLimitDescription') },
+                  { key: 'email', label: t('admin.security.emailLimit'), description: t('admin.security.emailLimitDescription') },
+                  { key: 'apiGeneral', label: t('admin.security.apiGeneralLimit'), description: t('admin.security.apiGeneralLimitDescription') },
+                ] as const).map(({ key, label, description }) => (
+                  <div key={key} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{label}</p>
+                        <p className="text-sm text-muted-foreground">{description}</p>
+                      </div>
+                      <Switch 
+                        checked={apiRateLimits[key].enabled}
+                        onCheckedChange={(checked) => updateApiRateLimit(key, 'enabled', checked)}
+                        data-testid={`switch-${key}-enabled`}
+                      />
+                    </div>
+                    <div className={`grid grid-cols-2 gap-4 ${!apiRateLimits[key].enabled ? 'opacity-50' : ''}`}>
+                      <div className="space-y-2">
+                        <Label>{t('admin.security.maxRequestsLabel')}</Label>
+                        <Input 
+                          type="number" 
+                          value={apiRateLimits[key].maxRequests}
+                          onChange={(e) => updateApiRateLimit(key, 'maxRequests', parseInt(e.target.value) || 1)}
+                          disabled={!apiRateLimits[key].enabled}
+                          min={1}
+                          max={1000}
+                          data-testid={`input-${key}-max-requests`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('admin.security.timeWindowSeconds')}</Label>
+                        <Input 
+                          type="number" 
+                          value={apiRateLimits[key].windowSeconds}
+                          onChange={(e) => updateApiRateLimit(key, 'windowSeconds', parseInt(e.target.value) || 1)}
+                          disabled={!apiRateLimits[key].enabled}
+                          min={1}
+                          max={86400}
+                          data-testid={`input-${key}-window-seconds`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between pt-4">
+                <Button variant="outline" onClick={() => clearApiRateLimitsMutation.mutate()} disabled={clearApiRateLimitsMutation.isPending} data-testid="button-clear-api-rate-limits">
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  {t('admin.security.clearApiRateLimits')}
+                </Button>
+
+                <Button onClick={handleSaveApiRateLimits} disabled={saveApiRateLimitsMutation.isPending} className="polly-button-primary" data-testid="button-save-api-rate-limits">
+                  {saveApiRateLimitsMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.saving')}</> : t('admin.security.saveApiRateLimits')}
                 </Button>
               </div>
             </>

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { RateLimitError } from '../lib/errors';
+import type { ApiRateLimitsSettings } from '@shared/schema';
 
 interface RateLimitConfig {
   windowMs: number;
@@ -8,6 +9,7 @@ interface RateLimitConfig {
   keyGenerator?: (req: Request) => string;
   skipSuccessfulRequests?: boolean;
   skipFailedRequests?: boolean;
+  enabled?: boolean;
 }
 
 interface RateLimitEntry {
@@ -15,12 +17,88 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
+interface DynamicLimiterConfig {
+  name: string;
+  getConfig: () => RateLimitConfig;
+  message: string;
+}
+
 class ApiRateLimiterService {
   private limiters: Map<string, Map<string, RateLimitEntry>> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private dynamicConfigs: Map<string, RateLimitConfig> = new Map();
+  private configLoaded: boolean = false;
 
   constructor() {
     this.startCleanupInterval();
+    this.initDefaultConfigs();
+  }
+
+  private initDefaultConfigs(): void {
+    this.dynamicConfigs.set('registration', { windowMs: 3600 * 1000, maxRequests: 5, enabled: true });
+    this.dynamicConfigs.set('password-reset', { windowMs: 900 * 1000, maxRequests: 3, enabled: true });
+    this.dynamicConfigs.set('poll-creation', { windowMs: 60 * 1000, maxRequests: 10, enabled: true });
+    this.dynamicConfigs.set('vote', { windowMs: 10 * 1000, maxRequests: 30, enabled: true });
+    this.dynamicConfigs.set('email', { windowMs: 60 * 1000, maxRequests: 5, enabled: true });
+    this.dynamicConfigs.set('api-general', { windowMs: 60 * 1000, maxRequests: 100, enabled: true });
+  }
+
+  updateConfig(settings: ApiRateLimitsSettings): void {
+    if (settings.registration) {
+      this.dynamicConfigs.set('registration', {
+        windowMs: settings.registration.windowSeconds * 1000,
+        maxRequests: settings.registration.maxRequests,
+        enabled: settings.registration.enabled,
+      });
+    }
+    if (settings.passwordReset) {
+      this.dynamicConfigs.set('password-reset', {
+        windowMs: settings.passwordReset.windowSeconds * 1000,
+        maxRequests: settings.passwordReset.maxRequests,
+        enabled: settings.passwordReset.enabled,
+      });
+    }
+    if (settings.pollCreation) {
+      this.dynamicConfigs.set('poll-creation', {
+        windowMs: settings.pollCreation.windowSeconds * 1000,
+        maxRequests: settings.pollCreation.maxRequests,
+        enabled: settings.pollCreation.enabled,
+      });
+    }
+    if (settings.voting) {
+      this.dynamicConfigs.set('vote', {
+        windowMs: settings.voting.windowSeconds * 1000,
+        maxRequests: settings.voting.maxRequests,
+        enabled: settings.voting.enabled,
+      });
+    }
+    if (settings.email) {
+      this.dynamicConfigs.set('email', {
+        windowMs: settings.email.windowSeconds * 1000,
+        maxRequests: settings.email.maxRequests,
+        enabled: settings.email.enabled,
+      });
+    }
+    if (settings.apiGeneral) {
+      this.dynamicConfigs.set('api-general', {
+        windowMs: settings.apiGeneral.windowSeconds * 1000,
+        maxRequests: settings.apiGeneral.maxRequests,
+        enabled: settings.apiGeneral.enabled,
+      });
+    }
+    this.configLoaded = true;
+  }
+
+  getConfig(name: string): RateLimitConfig | undefined {
+    return this.dynamicConfigs.get(name);
+  }
+
+  getAllConfigs(): Record<string, RateLimitConfig> {
+    const result: Record<string, RateLimitConfig> = {};
+    for (const [name, config] of this.dynamicConfigs.entries()) {
+      result[name] = config;
+    }
+    return result;
   }
 
   private startCleanupInterval(): void {
@@ -51,12 +129,28 @@ class ApiRateLimiterService {
     return this.getClientIp(req);
   }
 
-  createMiddleware(name: string, config: RateLimitConfig) {
+  createMiddleware(name: string, staticConfig: RateLimitConfig) {
     if (!this.limiters.has(name)) {
       this.limiters.set(name, new Map());
     }
 
     return (req: Request, res: Response, next: NextFunction): void => {
+      const dynamicConfig = this.dynamicConfigs.get(name);
+      
+      const config: RateLimitConfig = {
+        ...staticConfig,
+        ...(dynamicConfig && {
+          windowMs: dynamicConfig.windowMs,
+          maxRequests: dynamicConfig.maxRequests,
+          enabled: dynamicConfig.enabled,
+        }),
+      };
+      
+      if (config.enabled === false) {
+        next();
+        return;
+      }
+
       const entries = this.limiters.get(name)!;
       const keyGenerator = config.keyGenerator || ((r: Request) => this.defaultKeyGenerator(r));
       const key = keyGenerator(req);
@@ -83,7 +177,7 @@ class ApiRateLimiterService {
 
       if (entry.count > config.maxRequests) {
         res.setHeader('Retry-After', resetSeconds.toString());
-        const message = config.message || `Zu viele Anfragen. Bitte warten Sie ${resetSeconds} Sekunden.`;
+        const message = staticConfig.message || `Zu viele Anfragen. Bitte warten Sie ${resetSeconds} Sekunden.`;
         next(new RateLimitError(message));
         return;
       }

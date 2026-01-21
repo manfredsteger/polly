@@ -179,6 +179,19 @@ app.use((req, res, next) => {
   } catch (error) {
     console.error('[ClamAV] Failed to initialize from environment:', error);
   }
+  
+  // Initialize API rate limiter from database settings
+  try {
+    const { storage } = await import('./storage');
+    const { apiRateLimiter } = await import('./services/apiRateLimiterService');
+    const securitySettings = await storage.getSecuritySettings();
+    if (securitySettings.apiRateLimits) {
+      apiRateLimiter.updateConfig(securitySettings.apiRateLimits);
+      console.log('[API Rate Limits] Loaded configuration from database');
+    }
+  } catch (error) {
+    console.error('[API Rate Limits] Failed to load from database:', error);
+  }
 
   app.use(errorHandler);
 

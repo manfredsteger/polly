@@ -8,7 +8,9 @@ import { emailService } from "../services/emailService";
 import { emailTemplateService } from "../services/emailTemplateService";
 import { matrixService } from "../services/matrixService";
 import { pentestToolsService, TOOL_IDS, SCAN_TYPES } from "../services/pentestToolsService";
+import { apiRateLimiter } from "../services/apiRateLimiterService";
 import type { User } from "@shared/schema";
+import { apiRateLimitsSettingsSchema } from "@shared/schema";
 
 const router = Router();
 
@@ -375,6 +377,63 @@ router.post('/security/clear-rate-limits', requireAdmin, async (req, res) => {
     res.json({ success: true, message: 'Alle Rate-Limit-Sperren wurden zurückgesetzt' });
   } catch (error) {
     console.error('Error clearing rate limits:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// ============== API RATE LIMITS ==============
+
+router.get('/api-rate-limits', requireAdmin, async (req, res) => {
+  try {
+    const settings = await storage.getSecuritySettings();
+    const apiRateLimits = settings.apiRateLimits || apiRateLimitsSettingsSchema.parse({});
+    
+    const stats: Record<string, { totalTracked: number; blockedClients: number }> = {};
+    const limiterNames = ['registration', 'password-reset', 'poll-creation', 'vote', 'email', 'api-general'];
+    for (const name of limiterNames) {
+      stats[name] = apiRateLimiter.getStats(name);
+    }
+    
+    res.json({ settings: apiRateLimits, stats });
+  } catch (error) {
+    console.error('Error fetching API rate limits:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.put('/api-rate-limits', requireAdmin, async (req, res) => {
+  try {
+    const validatedSettings = apiRateLimitsSettingsSchema.parse(req.body);
+    
+    const currentSettings = await storage.getSecuritySettings();
+    const updatedSettings = {
+      ...currentSettings,
+      apiRateLimits: validatedSettings,
+    };
+    
+    await storage.setSecuritySettings(updatedSettings);
+    
+    apiRateLimiter.updateConfig(validatedSettings);
+    
+    console.log('[API Rate Limits] Configuration updated');
+    res.json({ success: true, settings: validatedSettings });
+  } catch (error) {
+    console.error('Error updating API rate limits:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.post('/api-rate-limits/clear', requireAdmin, async (req, res) => {
+  try {
+    const { limiter } = req.body;
+    if (limiter) {
+      apiRateLimiter.clearAll(limiter);
+    } else {
+      apiRateLimiter.clearAll();
+    }
+    res.json({ success: true, message: 'API Rate-Limit-Sperren wurden zurückgesetzt' });
+  } catch (error) {
+    console.error('Error clearing API rate limits:', error);
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });

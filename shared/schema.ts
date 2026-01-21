@@ -513,11 +513,30 @@ export const loginRateLimitSettingsSchema = z.object({
   cooldownSeconds: z.number().min(60).max(86400).default(900), // 15 minutes default
 });
 
+// API Rate Limit Settings - individual limits for different endpoints
+export const apiRateLimitItemSchema = z.object({
+  enabled: z.boolean().default(true),
+  maxRequests: z.number().min(1).max(1000).default(10),
+  windowSeconds: z.number().min(1).max(86400).default(60),
+});
+
+export const apiRateLimitsSettingsSchema = z.object({
+  registration: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 5, windowSeconds: 3600 }),
+  passwordReset: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 3, windowSeconds: 900 }),
+  pollCreation: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 10, windowSeconds: 60 }),
+  voting: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 30, windowSeconds: 10 }),
+  email: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 5, windowSeconds: 60 }),
+  apiGeneral: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 100, windowSeconds: 60 }),
+});
+
 export const securitySettingsSchema = z.object({
   loginRateLimit: loginRateLimitSettingsSchema.default({}),
+  apiRateLimits: apiRateLimitsSettingsSchema.default({}),
 });
 
 export type LoginRateLimitSettings = z.infer<typeof loginRateLimitSettingsSchema>;
+export type ApiRateLimitItem = z.infer<typeof apiRateLimitItemSchema>;
+export type ApiRateLimitsSettings = z.infer<typeof apiRateLimitsSettingsSchema>;
 export type SecuritySettings = z.infer<typeof securitySettingsSchema>;
 
 // Notification Settings Schema (Admin global settings)

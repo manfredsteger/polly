@@ -954,68 +954,72 @@ export class DatabaseStorage implements IStorage {
       pollToken?: string;
     }>;
   }> {
-    // Exclude test data from all statistics
-    const [totalUsersResult] = await db.select({ count: count() }).from(users)
-      .where(eq(users.isTestData, false));
-    const [totalPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(eq(polls.isTestData, false));
-    const [activePollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(
+    // Run all count queries in parallel for better performance
+    const [
+      [totalUsersResult],
+      [totalPollsResult],
+      [activePollsResult],
+      [inactivePollsResult],
+      [totalVotesResult],
+      [monthlyPollsResult],
+      [weeklyPollsResult],
+      [todayPollsResult],
+      [schedulePollsResult],
+      [surveyPollsResult],
+      [organizationPollsResult],
+      recentPollsWithUsers,
+      recentVotesWithPolls,
+      recentUsers,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(users).where(eq(users.isTestData, false)),
+      db.select({ count: count() }).from(polls).where(eq(polls.isTestData, false)),
+      db.select({ count: count() }).from(polls).where(and(
         eq(polls.isActive, true),
         eq(polls.isTestData, false),
         sql`${polls.expiresAt} > NOW() OR ${polls.expiresAt} IS NULL`
-      ));
-    const [inactivePollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isActive, false), eq(polls.isTestData, false)));
-    const [totalVotesResult] = await db.select({ count: count() }).from(votes)
-      .innerJoin(polls, eq(votes.pollId, polls.id))
-      .where(eq(polls.isTestData, false));
-    const [monthlyPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '30 days'`));
-    const [weeklyPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '7 days'`));
-    const [todayPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '1 day'`));
-    const [schedulePollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.type, 'schedule'), eq(polls.isTestData, false)));
-    const [surveyPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.type, 'survey'), eq(polls.isTestData, false)));
-    const [organizationPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.type, 'organization'), eq(polls.isTestData, false)));
+      )),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isActive, false), eq(polls.isTestData, false))),
+      db.select({ count: count() }).from(votes).innerJoin(polls, eq(votes.pollId, polls.id)).where(eq(polls.isTestData, false)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '30 days'`)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '7 days'`)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '1 day'`)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.type, 'schedule'), eq(polls.isTestData, false))),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.type, 'survey'), eq(polls.isTestData, false))),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.type, 'organization'), eq(polls.isTestData, false))),
+      db.select({
+        poll: polls,
+        userName: users.name,
+      }).from(polls)
+        .leftJoin(users, eq(polls.userId, users.id))
+        .where(eq(polls.isTestData, false))
+        .orderBy(desc(polls.createdAt))
+        .limit(5),
+      db.select({
+        vote: votes,
+        poll: polls,
+      }).from(votes)
+        .innerJoin(polls, eq(votes.pollId, polls.id))
+        .where(eq(polls.isTestData, false))
+        .orderBy(desc(votes.createdAt))
+        .limit(5),
+      db.select({
+        id: users.id,
+        name: users.name,
+        createdAt: users.createdAt,
+      }).from(users).where(eq(users.isTestData, false)).orderBy(desc(users.createdAt)).limit(3),
+    ]);
 
-    // Get recent activity (recent polls and votes) - excluding test data
-    const recentPolls = await db.select().from(polls).where(eq(polls.isTestData, false)).orderBy(desc(polls.createdAt)).limit(5);
-
-    const recentVotesWithPolls = await db.select({
-      vote: votes,
-      poll: polls,
-    }).from(votes)
-      .innerJoin(polls, eq(votes.pollId, polls.id))
-      .where(eq(polls.isTestData, false))
-      .orderBy(desc(votes.createdAt)).limit(5);
-
-    const recentUsers = await db.select({
-      id: users.id,
-      name: users.name,
-      createdAt: users.createdAt,
-    }).from(users).where(eq(users.isTestData, false)).orderBy(desc(users.createdAt)).limit(3);
-
-    // Build activity list
+    // Build activity list - no more N+1 queries
     const activity: Array<{ type: string; message: string; timestamp: Date; actor?: string; pollToken?: string }> = [];
 
-    for (const poll of recentPolls) {
-      let actor: string | undefined;
-      if (poll.userId) {
-        const [user] = await db.select().from(users).where(eq(users.id, poll.userId));
-        actor = user?.name;
-      }
+    for (const { poll, userName } of recentPollsWithUsers) {
       const typeLabel = poll.type === 'schedule' ? 'Terminumfrage' : 
                         poll.type === 'organization' ? 'Orga' : 'Umfrage';
       activity.push({
         type: 'poll_created',
         message: `Neue ${typeLabel} erstellt: "${poll.title}"`,
         timestamp: poll.createdAt,
-        actor,
+        actor: userName || undefined,
         pollToken: poll.publicToken,
       });
     }

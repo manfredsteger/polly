@@ -2828,6 +2828,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== TEST RUNS API (Frontend-facing endpoints) ==============
+  
+  // Get test run history (frontend endpoint)
+  v1Router.get('/admin/test-runs', requireAdmin, async (req, res) => {
+    try {
+      const testRunnerService = await import('./services/testRunnerService');
+      const limit = parseInt(req.query.limit as string) || 20;
+      const runs = await testRunnerService.getTestRunHistory(limit);
+      res.json(runs);
+    } catch (error) {
+      console.error('Error fetching test runs:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Get current running test
+  v1Router.get('/admin/test-runs/current', requireAdmin, async (req, res) => {
+    try {
+      const testRunnerService = await import('./services/testRunnerService');
+      const currentRun = await testRunnerService.getCurrentTestRun();
+      res.json(currentRun);
+    } catch (error) {
+      console.error('Error fetching current test run:', error);
+      res.status(500).json({ error: 'Interner Fehler' });
+    }
+  });
+
+  // Start a new test run (frontend endpoint)
+  v1Router.post('/admin/test-runs', requireAdmin, async (req, res) => {
+    try {
+      const testRunnerService = await import('./services/testRunnerService');
+      const runId = await testRunnerService.runAllTests('manual');
+      res.json({ runId, message: 'Test-Lauf gestartet' });
+    } catch (error) {
+      console.error('Error starting test run:', error);
+      res.status(500).json({ error: 'Tests konnten nicht gestartet werden' });
+    }
+  });
+
+  // Stop a running test
+  v1Router.post('/admin/test-runs/stop', requireAdmin, async (req, res) => {
+    try {
+      const testRunnerService = await import('./services/testRunnerService');
+      await testRunnerService.stopCurrentTest();
+      res.json({ success: true, message: 'Test-Lauf gestoppt' });
+    } catch (error) {
+      console.error('Error stopping test run:', error);
+      res.status(500).json({ error: 'Test-Lauf konnte nicht gestoppt werden' });
+    }
+  });
+
   // ============== NOTIFICATION SETTINGS API ==============
 
   // Get notification settings

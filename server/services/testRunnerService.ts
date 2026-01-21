@@ -966,3 +966,52 @@ export async function getEnabledTestFiles(): Promise<string[]> {
   const config = await getEnabledTestsConfig();
   return config.files;
 }
+
+// Track currently running test
+let currentTestRunId: number | null = null;
+let currentTestProcess: ReturnType<typeof spawn> | null = null;
+
+// Get the currently running test (if any)
+export async function getCurrentTestRun() {
+  if (!currentTestRunId) {
+    return null;
+  }
+  
+  try {
+    const [run] = await db
+      .select()
+      .from(testRuns)
+      .where(eq(testRuns.id, currentTestRunId))
+      .limit(1);
+    
+    if (run && run.status === 'running') {
+      return run;
+    }
+    
+    currentTestRunId = null;
+    return null;
+  } catch (error) {
+    console.error('Error getting current test run:', error);
+    return null;
+  }
+}
+
+// Stop the currently running test
+export async function stopCurrentTest(): Promise<void> {
+  if (currentTestProcess) {
+    currentTestProcess.kill('SIGTERM');
+    currentTestProcess = null;
+  }
+  
+  if (currentTestRunId) {
+    await db
+      .update(testRuns)
+      .set({ 
+        status: 'cancelled',
+        completedAt: new Date()
+      })
+      .where(eq(testRuns.id, currentTestRunId));
+    
+    currentTestRunId = null;
+  }
+}

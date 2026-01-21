@@ -934,7 +934,8 @@
       "deleteUser": "Benutzer löschen",
       "editUser": "Benutzer bearbeiten",
       "addUserTitle": "Neuen Benutzer hinzufügen",
-      "addUserDescription": "Erstellen Sie ein neues Benutzerkonto für das System."
+      "addUserDescription": "Erstellen Sie ein neues Benutzerkonto für das System.",
+      "totalCount": "{{count}} Benutzer"
     },
     "userManagement": "Benutzerverwaltung",
     "createUser": "Benutzer erstellen",
@@ -1433,7 +1434,8 @@
       "pollActiveDescription": "Diese Umfrage ist derzeit aktiv und kann beantwortet werden.",
       "resultsPublicDescription": "Die Ergebnisse dieser Umfrage sind öffentlich sichtbar.",
       "confirmDelete": "Löschen bestätigen",
-      "confirmDeleteDescription": "Möchten Sie diese Umfrage wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+      "confirmDeleteDescription": "Möchten Sie diese Umfrage wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "totalCount": "{{count}} Umfragen"
     },
     "settings": {
       "title": "Einstellungen",

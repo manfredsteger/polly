@@ -83,6 +83,7 @@ export const votes = pgTable("votes", {
   response: text("response").notNull(), // "yes", "maybe", "no", or "signup" for organization polls
   comment: text("comment"), // optional comment (e.g., contact info, which cake they bring)
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes
+  isTestData: boolean("is_test_data").default(false).notNull(), // Test votes excluded from stats
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -473,10 +474,14 @@ export const themeSettingsSchema = z.object({
   
   // Mode setting
   defaultThemeMode: themePreferenceSchema.default('system'), // System default theme mode
+  
+  // UI dimensions
+  borderRadius: z.number().default(8), // Default border radius in pixels
 });
 
 export const brandingSettingsSchema = z.object({
   logoUrl: z.string().nullable().default(null),
+  faviconUrl: z.string().nullable().default(null),
   siteName: z.string().default('Poll'),
   siteNameAccent: z.string().default('y'), // The accented part of the name (Poll + y = Polly)
 });

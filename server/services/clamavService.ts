@@ -272,6 +272,36 @@ export class ClamAVService {
     const config = await this.getConfig();
     return config.enabled;
   }
+
+  async getScanLogs(options: {
+    limit?: number;
+    offset?: number;
+    status?: 'clean' | 'infected' | 'error';
+    startDate?: Date;
+    endDate?: Date;
+  } = {}): Promise<{ logs: any[]; total: number }> {
+    return { logs: [], total: 0 };
+  }
+
+  async getScanLog(id: number): Promise<any | null> {
+    return null;
+  }
+
+  async getScanStats(): Promise<{
+    totalScans: number;
+    cleanScans: number;
+    infectedScans: number;
+    errorScans: number;
+    lastScanAt: Date | null;
+  }> {
+    return {
+      totalScans: 0,
+      cleanScans: 0,
+      infectedScans: 0,
+      errorScans: 0,
+      lastScanAt: null,
+    };
+  }
 }
 
 export const clamavService = new ClamAVService();

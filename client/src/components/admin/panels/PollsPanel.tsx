@@ -274,7 +274,7 @@ function PollDetailView({
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>{t('admin.polls.type')}</Label>
-              <PollTypeBadge type={poll.type} />
+              <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} />
             </div>
             <div className="flex items-center justify-between">
               <Label>{t('admin.polls.status')}</Label>

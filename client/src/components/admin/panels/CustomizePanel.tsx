@@ -52,10 +52,12 @@ export function CustomizePanel() {
   const [themeSettings, setThemeSettings] = useState({
     ...DEFAULT_THEME_COLORS,
     defaultThemeMode: 'system' as 'light' | 'dark' | 'system',
+    borderRadius: 8,
   });
 
   const [brandingSettings, setBrandingSettings] = useState({
     logoUrl: null as string | null,
+    faviconUrl: null as string | null,
     siteName: '',
     siteNameAccent: '',
   });
@@ -86,9 +88,11 @@ export function CustomizePanel() {
         accentColor: customization.theme?.accentColor || DEFAULT_THEME_COLORS.accentColor,
         mutedColor: customization.theme?.mutedColor || DEFAULT_THEME_COLORS.mutedColor,
         neutralColor: customization.theme?.neutralColor || DEFAULT_THEME_COLORS.neutralColor,
+        borderRadius: customization.theme?.borderRadius || 8,
       });
       setBrandingSettings({
         logoUrl: customization.branding?.logoUrl || null,
+        faviconUrl: customization.branding?.faviconUrl || null,
         siteName: customization.branding?.siteName ?? '',
         siteNameAccent: customization.branding?.siteNameAccent ?? '',
       });
@@ -131,6 +135,7 @@ export function CustomizePanel() {
     setThemeSettings({
       ...DEFAULT_THEME_COLORS,
       defaultThemeMode: 'system',
+      borderRadius: 8,
     });
   };
 

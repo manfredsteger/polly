@@ -538,13 +538,14 @@ router.post('/admin/:token/remind', async (req, res) => {
       customMessage
     );
     
-    // Log the reminder
-    await storage.logNotification({
-      pollId: poll.id,
-      type: 'manual_reminder',
-      recipients: emails,
-      sentAt: now,
-    });
+    // Log each reminder
+    for (const email of emails) {
+      await storage.logNotification({
+        pollId: poll.id,
+        type: 'manual_reminder',
+        recipientEmail: email,
+      });
+    }
     
     res.json({ 
       success: true, 

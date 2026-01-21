@@ -136,7 +136,7 @@ router.post('/users/me/device-tokens', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Ungültige Plattform' });
     }
 
-    await deviceTokenService.registerToken(userId, token, platform);
+    await deviceTokenService.registerToken(userId, token);
     res.json({ success: true });
   } catch (error) {
     console.error('Error registering device token:', error);

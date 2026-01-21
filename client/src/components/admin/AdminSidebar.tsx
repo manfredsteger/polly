@@ -19,7 +19,7 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { NavButton } from "./common/components";
-import type { AdminTab, SettingsPanel } from "./common/types";
+import type { AdminTab, SettingsPanelId } from "./common/types";
 
 interface AdminSidebarProps {
   activeTab: AdminTab;

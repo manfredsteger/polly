@@ -61,6 +61,7 @@ export interface IStorage {
 
   // Voting
   vote(vote: InsertVote): Promise<Vote>;
+  createVote(vote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }>;
   voteBulk(pollId: string, voterName: string, voterEmail: string, userId: number | null, voterEditToken: string | null, voteItems: Array<{ optionId: number; response: string }>): Promise<{ votes: Vote[]; alreadyVoted: boolean }>;
   updateVote(id: number, response: string): Promise<Vote>;
   deleteVote(id: number): Promise<void>;
@@ -647,6 +648,13 @@ export class DatabaseStorage implements IStorage {
       
       return { votes: createdVotes, alreadyVoted: false };
     });
+  }
+
+  async createVote(insertVote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }> {
+    const editToken = existingEditToken || randomBytes(32).toString('hex');
+    const voteWithToken = { ...insertVote, voterEditToken: editToken };
+    const createdVote = await this.vote(voteWithToken);
+    return { vote: createdVote, editToken };
   }
 
   async updateVote(id: number, response: string): Promise<Vote> {

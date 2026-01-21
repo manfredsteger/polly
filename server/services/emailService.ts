@@ -819,6 +819,59 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
       console.error('Failed to send virus detection alert:', error);
     }
   }
+
+  async sendPasswordChangedEmail(email: string): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.warn(`[Email] Cannot send password changed email - SMTP not configured`);
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        to: email,
+        subject: 'Passwort geändert',
+        text: 'Ihr Passwort wurde erfolgreich geändert. Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.',
+        html: `<p>Ihr Passwort wurde erfolgreich geändert.</p><p>Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.</p>`,
+      });
+      console.log(`[Email] Password changed notification sent to ${email}`);
+    } catch (error) {
+      console.error('Failed to send password changed email:', error);
+      throw error;
+    }
+  }
+
+  async sendBulkInvitations(emails: string[], pollTitle: string, senderName: string, pollUrl: string, customMessage?: string): Promise<{ sent: number; failed: string[] }> {
+    const failed: string[] = [];
+    let sent = 0;
+
+    for (const email of emails) {
+      try {
+        await this.sendInvitationEmail('', email, pollTitle, pollUrl);
+        sent++;
+      } catch (error) {
+        failed.push(email);
+      }
+    }
+
+    return { sent, failed };
+  }
+
+  async sendBulkReminders(emails: string[], pollTitle: string, senderName: string, pollUrl: string, expiresAt?: string, customMessage?: string): Promise<{ sent: number; failed: string[] }> {
+    const failed: string[] = [];
+    let sent = 0;
+
+    for (const email of emails) {
+      try {
+        await this.sendReminderEmail('', email, pollTitle, pollUrl);
+        sent++;
+      } catch (error) {
+        failed.push(email);
+      }
+    }
+
+    return { sent, failed };
+  }
 }
 
 export const emailService = new EmailService();

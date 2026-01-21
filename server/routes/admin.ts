@@ -1075,10 +1075,10 @@ router.post('/wcag/audit', requireAdmin, async (req, res) => {
     
     const issues: Array<{
       token: string;
-      currentValue: string;
-      contrast: number;
+      originalValue: string;
+      contrastRatio: number;
+      requiredRatio: number;
       suggestedValue: string;
-      requirement: string;
     }> = [];
     
     const checkContrast = (fg: string, bg: string): number => {
@@ -1107,10 +1107,10 @@ router.post('/wcag/audit', requireAdmin, async (req, res) => {
       if (contrast < 4.5) {
         issues.push({
           token: color.token,
-          currentValue: color.value,
-          contrast: Math.round(contrast * 100) / 100,
+          originalValue: color.value,
+          contrastRatio: Math.round(contrast * 100) / 100,
+          requiredRatio: 4.5,
           suggestedValue: color.value,
-          requirement: 'WCAG 2.1 AA requires contrast ratio of at least 4.5:1',
         });
       }
     }

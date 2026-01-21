@@ -30,6 +30,9 @@ jobs:
       - name: Type Check
         run: npx tsc --noEmit
 
+      - name: Validate Translations
+        run: node scripts/validate-translations.cjs
+
   test:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest

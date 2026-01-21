@@ -13,7 +13,7 @@ import { CustomizePanel } from "./panels/CustomizePanel";
 import { SettingsPanel } from "./panels/SettingsPanel";
 import { TestsPanel } from "./panels/TestsPanel";
 import { DeletionRequestsPanel } from "./panels/DeletionRequestsPanel";
-import type { AdminTab, SettingsPanel as SettingsPanelType, ExtendedStats, SystemStatusData, VulnerabilitiesData, SystemPackagesData, ImpactArea } from "./common/types";
+import type { AdminTab, SettingsPanelId as SettingsPanelType, ExtendedStats, SystemStatusData, VulnerabilitiesData, SystemPackagesData, ImpactArea } from "./common/types";
 import type { User, PollWithOptions, SystemSetting } from "@shared/schema";
 import {
   OIDCSettingsPanel,

@@ -105,7 +105,7 @@ export function PollsPanel({
 
   const filteredPolls = polls?.filter(poll => 
     poll.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    poll.token.toLowerCase().includes(searchTerm.toLowerCase())
+    poll.publicToken.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
   if (selectedPoll) {
@@ -169,16 +169,16 @@ export function PollsPanel({
                       key={poll.id} 
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => onPollClick(poll)}
-                      data-testid={`poll-row-${poll.token}`}
+                      data-testid={`poll-row-${poll.publicToken}`}
                     >
                       <TableCell className="font-medium">
                         <div>
                           <p className="font-medium">{poll.title}</p>
-                          <p className="text-xs text-muted-foreground">{poll.token}</p>
+                          <p className="text-xs text-muted-foreground">{poll.publicToken}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <PollTypeBadge type={poll.type} />
+                        <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} />
                       </TableCell>
                       <TableCell>
                         <Badge variant={poll.isActive ? "default" : "secondary"}>
@@ -205,7 +205,7 @@ export function PollsPanel({
                             <DropdownMenuItem 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                updatePollMutation.mutate({ pollId: poll.token, updates: { isActive: !poll.isActive } });
+                                updatePollMutation.mutate({ pollId: poll.publicToken, updates: { isActive: !poll.isActive } });
                               }}
                             >
                               {poll.isActive ? (
@@ -262,7 +262,7 @@ function PollDetailView({
         </Button>
         <div>
           <h2 className="text-xl font-bold">{poll.title}</h2>
-          <p className="text-sm text-muted-foreground">{poll.token}</p>
+          <p className="text-sm text-muted-foreground">{poll.publicToken}</p>
         </div>
       </div>
 
@@ -315,7 +315,7 @@ function PollDetailView({
               </div>
               <Switch
                 checked={poll.isActive}
-                onCheckedChange={(checked) => onToggleActive(poll.token, checked)}
+                onCheckedChange={(checked) => onToggleActive(poll.publicToken, checked)}
                 disabled={isUpdating}
                 data-testid="switch-poll-active"
               />
@@ -327,7 +327,7 @@ function PollDetailView({
               </div>
               <Switch
                 checked={poll.resultsPublic || false}
-                onCheckedChange={(checked) => onToggleResultsPublic(poll.token, checked)}
+                onCheckedChange={(checked) => onToggleResultsPublic(poll.publicToken, checked)}
                 disabled={isUpdating}
                 data-testid="switch-results-public"
               />
@@ -337,7 +337,7 @@ function PollDetailView({
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => window.open(`/poll/${poll.token}`, '_blank')}
+                onClick={() => window.open(`/poll/${poll.publicToken}`, '_blank')}
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 {t('admin.polls.openPoll')}
@@ -363,7 +363,7 @@ function PollDetailView({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => onDelete(poll.token)}>
+                    <AlertDialogAction onClick={() => onDelete(poll.publicToken)}>
                       {t('common.delete')}
                     </AlertDialogAction>
                   </AlertDialogFooter>

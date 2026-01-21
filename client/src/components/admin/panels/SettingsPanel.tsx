@@ -17,7 +17,7 @@ import {
   Target
 } from "lucide-react";
 import { SettingCard } from "../common/components";
-import type { SettingsPanel as SettingsPanelType } from "../common/types";
+import type { SettingsPanelId as SettingsPanelType } from "../common/types";
 
 interface SettingsPanelProps {
   selectedSettingsPanel: SettingsPanelType;

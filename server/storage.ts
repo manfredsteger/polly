@@ -780,10 +780,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomizationSettings(): Promise<CustomizationSettings> {
-    const themeSetting = await this.getSetting('customization_theme');
-    const brandingSetting = await this.getSetting('customization_branding');
-    const footerSetting = await this.getSetting('customization_footer');
-    const wcagSetting = await this.getSetting('customization_wcag');
+    // Parallelize all 4 database queries for better performance
+    const [themeSetting, brandingSetting, footerSetting, wcagSetting] = await Promise.all([
+      this.getSetting('customization_theme'),
+      this.getSetting('customization_branding'),
+      this.getSetting('customization_footer'),
+      this.getSetting('customization_wcag'),
+    ]);
 
     const settings = {
       theme: themeSetting?.value || {},

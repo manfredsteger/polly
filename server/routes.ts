@@ -26,6 +26,30 @@ import "express-session";
 export const API_VERSION = 'v1';
 export const API_BASE = `/api/${API_VERSION}`;
 
+// Simple in-memory cache for customization settings (called on every page load)
+interface CustomizationCache {
+  data: any | null;
+  timestamp: number;
+}
+const customizationCache: CustomizationCache = { data: null, timestamp: 0 };
+const CUSTOMIZATION_CACHE_TTL = 30000; // 30 seconds
+
+export function invalidateCustomizationCache() {
+  customizationCache.data = null;
+  customizationCache.timestamp = 0;
+}
+
+async function getCachedCustomization() {
+  const now = Date.now();
+  if (customizationCache.data && (now - customizationCache.timestamp) < CUSTOMIZATION_CACHE_TTL) {
+    return customizationCache.data;
+  }
+  const settings = await storage.getCustomizationSettings();
+  customizationCache.data = settings;
+  customizationCache.timestamp = now;
+  return settings;
+}
+
 declare module "express-session" {
   interface SessionData {
     userId?: number;
@@ -3245,6 +3269,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const settings = await storage.setCustomizationSettings(updates);
       
+      // Invalidate customization cache so changes are immediately visible
+      invalidateCustomizationCache();
+      
       // Persist customizations to branding.local.json for server restart persistence
       const { writeBrandingToLocalFile } = await import('./scripts/applyBranding');
       writeBrandingToLocalFile({
@@ -3955,9 +3982,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public endpoint for theme/branding (for frontend to apply without auth)
+  // Uses caching since this is called on every page load
   v1Router.get('/customization', async (req, res) => {
     try {
-      const settings = await storage.getCustomizationSettings();
+      const settings = await getCachedCustomization();
       res.json(settings);
     } catch (error) {
       console.error('Error fetching public customization settings:', error);

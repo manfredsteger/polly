@@ -1,7 +1,7 @@
 import express, { type Express, type Request, Response, NextFunction } from 'express';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
-import { registerRoutes } from '../routes';
+import { registerRoutes } from '../routes/index';
 import { type Server } from 'http';
 
 const MemoryStore = createMemoryStore(session);

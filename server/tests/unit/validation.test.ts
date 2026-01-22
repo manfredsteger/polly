@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { passwordSchema, createPollSchema, registerSchema } from '../../routes';
+import { passwordSchema, createPollSchema, registerSchema } from '../../routes/common';
 
 export const testMeta = {
   category: 'api' as const,
   name: 'Validierungs-Schemas',
-  description: 'Prüft die Zod-Validierungs-Schemas aus routes.ts',
+  description: 'Prüft die Zod-Validierungs-Schemas',
   severity: 'high' as const,
 };
 

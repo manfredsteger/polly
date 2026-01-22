@@ -14,6 +14,15 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 -   **Frontend**: React 18 with TypeScript, Vite, Shadcn/ui (Radix UI) + Tailwind CSS, TanStack Query v5, Wouter
 -   **Backend**: Express.js server with TypeScript
 -   **Database**: PostgreSQL with Drizzle ORM
+-   **API Routing**: Modular structure in `server/routes/` with 156 endpoints:
+    -   `admin.ts` (89): Admin dashboard, tests, security, Pentest-Tools
+    -   `auth.ts` (15): Login, registration, Keycloak, password reset
+    -   `polls.ts` (17): Poll CRUD, options, invitations, reminders
+    -   `votes.ts` (7): Voting, bulk votes, edit tokens
+    -   `users.ts` (9): Profile, language, device tokens, user polls
+    -   `system.ts` (11): Health, theme, Matrix, upload, customization
+    -   `export.ts` (8): PDF, CSV, ICS, QR code, calendar feed
+    -   `common.ts`: Shared middleware, schemas, auth helpers
 
 ### Key Features
 - **Poll Types**: Terminumfrage (Schedule), Umfrage (Survey), Orga-Liste (Organization/Booking).

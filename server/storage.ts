@@ -536,7 +536,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // For surveys with edit permission: Allow updating existing votes
+    // For surveys with edit permission: Allow updating existing votes or adding new ones for different options
     if (poll.type === 'survey' && insertVote.voterEmail && allowEditExisting) {
       const existingEmailVotesOnSurvey = await db.select().from(votes)
         .where(and(
@@ -552,10 +552,8 @@ export class DatabaseStorage implements IStorage {
         return this.updateVote(existingVoteOnSameOption.id, insertVote.response);
       }
       
-      // If trying to vote on a different option when already participated, block it
-      if (existingEmailVotesOnSurvey.length > 0) {
-        throw new Error('DUPLICATE_EMAIL_VOTE');
-      }
+      // Allow voting on different options when allowEditExisting is true (bulk voting scenario)
+      // No blocking here - user can vote on multiple options in a single session
     }
 
     // For schedule polls: Check if vote exists for this voter on this specific option (for updating)
@@ -653,7 +651,10 @@ export class DatabaseStorage implements IStorage {
   async createVote(insertVote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }> {
     const editToken = existingEditToken || randomBytes(32).toString('hex');
     const voteWithToken = { ...insertVote, voterEditToken: editToken };
-    const createdVote = await this.vote(voteWithToken);
+    // If an existing token is provided, this is a continuation of the same voting session
+    // Allow inserting additional votes for different options without duplicate check
+    const allowEditExisting = !!existingEditToken;
+    const createdVote = await this.vote(voteWithToken, allowEditExisting);
     return { vote: createdVote, editToken };
   }
 

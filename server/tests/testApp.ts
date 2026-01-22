@@ -2,6 +2,7 @@ import express, { type Express, type Request, Response, NextFunction } from 'exp
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { registerRoutes } from '../routes/index';
+import { apiRateLimiter } from '../services/apiRateLimiterService';
 import { type Server } from 'http';
 
 const MemoryStore = createMemoryStore(session);
@@ -22,7 +23,7 @@ export async function createTestApp(): Promise<Express> {
   if (testApp) {
     return testApp;
   }
-
+  
   const app = express();
 
   app.disable('x-powered-by');
@@ -54,6 +55,16 @@ export async function createTestApp(): Promise<Express> {
   }));
 
   testServer = await registerRoutes(app);
+
+  // Disable rate limiting for tests
+  apiRateLimiter.updateConfig({
+    registration: { windowSeconds: 3600, maxRequests: 10000, enabled: false },
+    passwordReset: { windowSeconds: 900, maxRequests: 10000, enabled: false },
+    pollCreation: { windowSeconds: 60, maxRequests: 10000, enabled: false },
+    voting: { windowSeconds: 10, maxRequests: 10000, enabled: false },
+    email: { windowSeconds: 60, maxRequests: 10000, enabled: false },
+    apiGeneral: { windowSeconds: 60, maxRequests: 10000, enabled: false },
+  });
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

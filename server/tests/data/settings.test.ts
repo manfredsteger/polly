@@ -63,10 +63,10 @@ describe('Data - System Settings', () => {
   describe('Health and Status', () => {
     it('should return health status', async () => {
       const response = await request(app)
-        .get('/api/health');
+        .get('/api/v1/health');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('status', 'healthy');
+      expect(response.body).toHaveProperty('status', 'ok');
     });
   });
 });

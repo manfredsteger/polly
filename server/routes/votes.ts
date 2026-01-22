@@ -161,7 +161,7 @@ router.post('/polls/:token/vote', async (req, res) => {
     res.json({ 
       success: true, 
       votes: createdVotes,
-      voterEditToken: voterEditToken
+      voterEditToken: poll.allowVoteEdit ? voterEditToken : null
     });
   } catch (error) {
     console.error('Error bulk voting:', error);
@@ -330,7 +330,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     res.json({ 
       success: true, 
       votes: createdVotes,
-      voterEditToken: voterEditToken
+      voterEditToken: poll.allowVoteEdit ? voterEditToken : null
     });
   } catch (error) {
     console.error('Error bulk voting:', error);

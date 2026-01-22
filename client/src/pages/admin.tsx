@@ -36,25 +36,33 @@ export default function Admin() {
 
   const { data: stats, isLoading: statsLoading } = useQuery<ExtendedStats>({
     queryKey: ['/api/v1/admin/extended-stats'],
-    enabled: isAuthenticated && user?.role === 'admin',
+    enabled: isAuthenticated && (user?.role === 'admin' || user?.role === 'manager'),
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/v1/admin/users'],
     enabled: isAuthenticated && user?.role === 'admin',
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 
   const { data: polls, isLoading: pollsLoading } = useQuery<PollWithOptions[]>({
     queryKey: ['/api/v1/admin/polls'],
-    enabled: isAuthenticated && user?.role === 'admin',
+    enabled: isAuthenticated && (user?.role === 'admin' || user?.role === 'manager'),
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 
   const { data: settings, isLoading: settingsLoading } = useQuery<SystemSetting[]>({
     queryKey: ['/api/v1/admin/settings'],
     enabled: isAuthenticated && user?.role === 'admin',
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 
-  const isLoading = authLoading || !isAuthReady || statsLoading || usersLoading || pollsLoading || settingsLoading;
+  const isLoading = authLoading || !isAuthReady;
 
   // Redirect to login if not authenticated (only after auth is fully ready)
   useEffect(() => {

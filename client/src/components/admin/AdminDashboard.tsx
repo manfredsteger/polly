@@ -86,7 +86,11 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
 
   const { data: extendedStats, isLoading: statsLoading } = useQuery<ExtendedStats>({
     queryKey: ['/api/v1/admin/extended-stats'],
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
+
+  const showMonitoringData = activeTab === "monitoring";
 
   const { data: systemStatus, isLoading: systemStatusLoading, error: systemStatusError, refetch: refetchSystemStatus } = useQuery<SystemStatusData>({
     queryKey: ['/api/v1/admin/system-status'],
@@ -94,22 +98,27 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
     refetchOnWindowFocus: false,
     retry: 1,
     gcTime: 0,
+    enabled: showMonitoringData,
   });
 
   const { data: vulnerabilities, isLoading: vulnerabilitiesLoading, refetch: refetchVulnerabilities } = useQuery<VulnerabilitiesData>({
     queryKey: ['/api/v1/admin/vulnerabilities'],
     staleTime: 1000 * 60 * 60 * 6,
     refetchOnWindowFocus: false,
+    enabled: showMonitoringData,
   });
 
   const { data: systemPackages, isLoading: systemPackagesLoading, refetch: refetchSystemPackages } = useQuery<SystemPackagesData>({
     queryKey: ['/api/v1/admin/system-packages'],
     staleTime: 1000 * 60 * 60 * 24,
     refetchOnWindowFocus: false,
+    enabled: showMonitoringData,
   });
 
   const { data: deprovisionStatus } = useQuery<{ enabled: boolean }>({
     queryKey: ['/api/v1/admin/deprovision-settings'],
+    staleTime: 1000 * 60 * 60,
+    refetchOnWindowFocus: false,
     select: (data) => ({ enabled: data?.enabled || false }),
   });
 

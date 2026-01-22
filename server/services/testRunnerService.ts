@@ -423,9 +423,25 @@ async function sendTestReportNotification(
 
 const TEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes max for all tests
 
+// Track live progress for current test run
+interface LiveProgress {
+  passed: number;
+  failed: number;
+  skipped: number;
+  currentTest: string;
+  currentFile: string;
+}
+
+let liveProgress: LiveProgress | null = null;
+
+export function getLiveProgress(): LiveProgress | null {
+  return liveProgress;
+}
+
 function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const args = ['vitest', 'run', '--reporter=json'];
+    // Use both verbose (for live output) and json (for final results) reporters
+    const args = ['vitest', 'run', '--reporter=verbose', '--reporter=json'];
     
     // Add test name pattern filter if provided (for manual mode individual test filtering)
     // Using array args without shell=true to avoid shell interpretation of regex patterns
@@ -450,6 +466,15 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    
+    // Initialize live progress
+    liveProgress = {
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      currentTest: '',
+      currentFile: '',
+    };
 
     // Timeout after 5 minutes to prevent hanging tests
     const timeout = setTimeout(() => {
@@ -459,7 +484,46 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     }, TEST_TIMEOUT_MS);
 
     child.stdout.on('data', (data) => {
-      stdout += data.toString();
+      const chunk = data.toString();
+      stdout += chunk;
+      
+      // Parse live progress from verbose reporter output
+      // Format: " ✓ server/tests/file.test.ts > Suite > test name 3ms"
+      if (liveProgress) {
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          // Match passed test: " ✓ server/tests/... > ... > test name Xms"
+          const passedMatch = line.match(/^\s*✓\s+(server\/tests\/[^\s>]+\.test\.ts)\s+>\s+(.+?)\s+\d+m?s$/);
+          if (passedMatch) {
+            liveProgress.passed++;
+            liveProgress.currentFile = passedMatch[1];
+            // Extract last test name after " > "
+            const parts = passedMatch[2].split(' > ');
+            liveProgress.currentTest = parts[parts.length - 1].trim();
+            continue;
+          }
+          
+          // Match failed test: " × server/tests/... > ... > test name Xms"
+          const failedMatch = line.match(/^\s*[×✗]\s+(server\/tests\/[^\s>]+\.test\.ts)\s+>\s+(.+?)\s+\d+m?s$/);
+          if (failedMatch) {
+            liveProgress.failed++;
+            liveProgress.currentFile = failedMatch[1];
+            const parts = failedMatch[2].split(' > ');
+            liveProgress.currentTest = parts[parts.length - 1].trim();
+            continue;
+          }
+          
+          // Match skipped test: " ↓ server/tests/... > ... > test name"
+          const skippedMatch = line.match(/^\s*[↓○]\s+(server\/tests\/[^\s>]+\.test\.ts)\s+>\s+(.+)/);
+          if (skippedMatch) {
+            liveProgress.skipped++;
+            liveProgress.currentFile = skippedMatch[1];
+            const parts = skippedMatch[2].split(' > ');
+            liveProgress.currentTest = parts[parts.length - 1].trim();
+            continue;
+          }
+        }
+      }
     });
 
     child.stderr.on('data', (data) => {
@@ -469,6 +533,7 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     child.on('close', (code) => {
       clearTimeout(timeout);
       currentTestProcess = null;
+      liveProgress = null;
       
       if (timedOut) {
         reject(new Error('Test execution timed out after 5 minutes'));
@@ -488,6 +553,7 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     child.on('error', (err) => {
       clearTimeout(timeout);
       currentTestProcess = null;
+      liveProgress = null;
       reject(err);
     });
   });

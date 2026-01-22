@@ -1764,6 +1764,9 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
     // Transform to match frontend expected structure
     const results = await testRunnerService.getTestResultsForRun(currentRun.id);
     
+    // For running tests, get live progress
+    const liveProgress = testRunnerService.getLiveProgress();
+    
     // For running tests, use estimated total from last completed run if no results yet
     let estimatedTotal = currentRun.totalTests || 0;
     if (currentRun.status === 'running' && estimatedTotal === 0) {
@@ -1780,6 +1783,11 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
       estimatedTotal = lastRun?.totalTests || 320; // fallback estimate
     }
     
+    // Use live progress if test is running
+    const passed = liveProgress ? liveProgress.passed : (currentRun.passed || 0);
+    const failed = liveProgress ? liveProgress.failed : (currentRun.failed || 0);
+    const skipped = liveProgress ? liveProgress.skipped : (currentRun.skipped || 0);
+    
     const transformed = {
       id: String(currentRun.id),
       status: currentRun.status as 'running' | 'completed' | 'failed',
@@ -1794,11 +1802,15 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
       })),
       summary: {
         total: estimatedTotal,
-        passed: currentRun.passed || 0,
-        failed: currentRun.failed || 0,
-        skipped: currentRun.skipped || 0
+        passed,
+        failed,
+        skipped
       },
-      isEstimated: currentRun.status === 'running' && (currentRun.totalTests || 0) === 0
+      isEstimated: currentRun.status === 'running' && (currentRun.totalTests || 0) === 0,
+      liveProgress: liveProgress ? {
+        currentTest: liveProgress.currentTest,
+        currentFile: liveProgress.currentFile
+      } : null
     };
     
     res.json(transformed);

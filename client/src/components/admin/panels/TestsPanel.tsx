@@ -55,6 +55,10 @@ interface TestRun {
     failed: number;
     skipped: number;
   };
+  liveProgress?: {
+    currentTest: string;
+    currentFile: string;
+  } | null;
 }
 
 interface TestsPanelProps {
@@ -73,7 +77,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
 
   const { data: currentRun } = useQuery<TestRun | null>({
     queryKey: ['/api/v1/admin/test-runs/current'],
-    refetchInterval: isRunning ? 2000 : false,
+    refetchInterval: isRunning ? 1000 : false,
   });
 
   const { data: pentestStatus } = useQuery<PentestStatus>({
@@ -231,6 +235,14 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 <span className="text-amber-500">○ {currentRun.summary.skipped}</span>
                 <span>/ {currentRun.summary.total}</span>
               </div>
+              {currentRun.liveProgress?.currentTest && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                  <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                  <span className="truncate" title={currentRun.liveProgress.currentTest}>
+                    {currentRun.liveProgress.currentTest}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -255,11 +267,10 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
           ) : (
             <Accordion type="single" collapsible className="w-full">
               {testRuns.map((run) => {
-                const currentTest = run.status === 'running' 
-                  ? run.results.find(r => r.status === 'running')
-                  : null;
                 const completedCount = run.summary.passed + run.summary.failed + run.summary.skipped;
                 const progressPercent = run.summary.total > 0 ? (completedCount / run.summary.total) * 100 : 0;
+                const liveTestName = run.liveProgress?.currentTest || '';
+                const liveFileName = run.liveProgress?.currentFile?.replace('server/tests/', '') || '';
                 
                 return (
                 <AccordionItem key={run.id} value={run.id}>
@@ -276,27 +287,15 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                         <div className="flex-1 mx-4 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
-                            <span className="text-xs text-muted-foreground truncate">
-                              {completedCount > 0 
-                                ? (currentTest?.name || t('admin.tests.processing'))
-                                : t('admin.tests.runningVitest')}
+                            <span className="text-xs text-muted-foreground truncate" title={liveTestName || liveFileName}>
+                              {liveTestName 
+                                ? liveTestName 
+                                : (liveFileName || t('admin.tests.runningVitest'))}
                             </span>
                           </div>
-                          <div className="relative h-2 bg-muted rounded-full overflow-hidden">
-                            {completedCount === 0 ? (
-                              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-polly-orange to-blue-500 animate-pulse" 
-                                   style={{ 
-                                     animation: 'shimmer 2s infinite linear',
-                                     backgroundSize: '200% 100%'
-                                   }} />
-                            ) : (
-                              <Progress value={progressPercent} className="h-2" />
-                            )}
-                          </div>
+                          <Progress value={progressPercent} className="h-2" />
                           <div className="text-xs text-muted-foreground mt-1">
-                            {completedCount > 0 
-                              ? `${completedCount} / ${run.summary.total} Tests`
-                              : `~${run.summary.total || 320} Tests werden ausgeführt...`}
+                            {completedCount} / {run.summary.total} {t('admin.tests.testsCompleted', 'Tests')}
                           </div>
                         </div>
                       )}

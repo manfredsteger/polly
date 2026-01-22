@@ -549,10 +549,132 @@ router.get('/clamav/scan-stats', requireAdmin, async (req, res) => {
 
 router.get('/pentest-tools/status', requireAdmin, async (req, res) => {
   try {
-    const result = await pentestToolsService.getStatus();
-    res.json(result);
+    const config = await pentestToolsService.getConfig();
+    const configured = await pentestToolsService.isConfigured();
+    if (!configured) {
+      return res.json({ 
+        configured: false,
+        configuredViaEnv: config.configuredViaEnv,
+        message: 'API Token nicht konfiguriert' 
+      });
+    }
+
+    const connectionTest = await pentestToolsService.testConnection();
+    res.json({
+      configured: true,
+      configuredViaEnv: config.configuredViaEnv,
+      connected: connectionTest.success,
+      message: connectionTest.message,
+      account: connectionTest.account,
+    });
   } catch (error) {
     console.error('Error fetching Pentest-Tools status:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.get('/pentest-tools/config', requireAdmin, async (req, res) => {
+  try {
+    const config = await pentestToolsService.getConfig();
+    res.json({ 
+      configured: !!config.apiToken,
+      configuredViaEnv: config.configuredViaEnv,
+    });
+  } catch (error) {
+    console.error('Error getting Pentest-Tools config:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.post('/pentest-tools/config', requireAdmin, async (req, res) => {
+  try {
+    const { apiToken } = req.body;
+    
+    if (typeof apiToken !== 'string') {
+      return res.status(400).json({ error: 'API-Token muss ein Text sein' });
+    }
+    
+    const trimmedToken = apiToken.trim();
+    if (!trimmedToken) {
+      return res.status(400).json({ error: 'API-Token darf nicht leer sein' });
+    }
+    
+    // Check if ENV variable is set - don't allow override
+    const envToken = process.env.PENTEST_TOOLS_API_TOKEN || '';
+    if (envToken) {
+      return res.status(400).json({ 
+        error: 'Token ist via Umgebungsvariable konfiguriert und kann hier nicht geändert werden' 
+      });
+    }
+    
+    // Save to database
+    await storage.setSetting({
+      key: 'pentest_tools_config',
+      value: { apiToken: trimmedToken },
+      description: 'Pentest-Tools.com API configuration',
+    });
+    
+    res.json({ success: true, message: 'API Token gespeichert' });
+  } catch (error) {
+    console.error('Error saving Pentest-Tools config:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.get('/pentest-tools/tools', requireAdmin, async (req, res) => {
+  try {
+    const tools = pentestToolsService.getAvailableTools();
+    const scanTypes = pentestToolsService.getScanTypes();
+    res.json({ tools, scanTypes });
+  } catch (error) {
+    console.error('Error getting Pentest-Tools tools:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.get('/pentest-tools/target', requireAdmin, async (req, res) => {
+  try {
+    const requestHost = req.get('host');
+    const targetInfo = await pentestToolsService.getPollyTargetInfo(requestHost);
+    res.json(targetInfo);
+  } catch (error) {
+    console.error('Error getting Pentest-Tools target info:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.post('/pentest-tools/target/sync', requireAdmin, async (req, res) => {
+  try {
+    const requestHost = req.get('host');
+    const result = await pentestToolsService.syncPollyTarget(requestHost);
+    
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+    
+    res.json({ 
+      success: true, 
+      targetInfo: result.targetInfo,
+      message: 'Polly-Target synchronisiert'
+    });
+  } catch (error) {
+    console.error('Error syncing Polly target:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.get('/pentest-tools/scans', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const result = await pentestToolsService.getScans(limit);
+    
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+    
+    res.json({ scans: result.data });
+  } catch (error) {
+    console.error('Error getting Pentest-Tools scans:', error);
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });

@@ -9,6 +9,7 @@ import { emailTemplateService } from "../services/emailTemplateService";
 import { matrixService } from "../services/matrixService";
 import { pentestToolsService, TOOL_IDS, SCAN_TYPES } from "../services/pentestToolsService";
 import { apiRateLimiter } from "../services/apiRateLimiterService";
+import { adminCacheService } from "../services/adminCacheService";
 import type { User } from "@shared/schema";
 import { apiRateLimitsSettingsSchema } from "@shared/schema";
 
@@ -28,8 +29,13 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
 router.get('/extended-stats', requireAdmin, async (req, res) => {
   try {
-    const stats = await storage.getExtendedStats();
-    res.json(stats);
+    const forceRefresh = req.query.refresh === 'true';
+    const cached = await adminCacheService.getExtendedStats(forceRefresh);
+    res.json({
+      ...cached.data,
+      lastChecked: cached.lastChecked,
+      cacheExpiresAt: cached.cacheExpiresAt,
+    });
   } catch (error) {
     console.error('Error fetching extended stats:', error);
     res.status(500).json({ error: 'Interner Fehler' });

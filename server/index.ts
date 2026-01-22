@@ -226,15 +226,20 @@ app.use((req, res, next) => {
       try {
         const { getSystemPackages } = await import("./services/systemPackageService");
         const { runNpmAudit } = await import("./services/npmAuditService");
+        const { adminCacheService } = await import("./services/adminCacheService");
         
         // Run in parallel for faster warmup
         await Promise.all([
+          adminCacheService.getExtendedStats().then(() => console.log('[Cache] Admin stats warmed up')),
           getSystemPackages().then(() => console.log('[Cache] System packages warmed up')),
           runNpmAudit().then(() => console.log('[Cache] npm audit warmed up'))
         ]);
+        
+        // Start daily warmup scheduler for admin cache
+        adminCacheService.startDailyWarmup();
       } catch (e) {
         console.log('[Cache] Warmup completed with some errors (non-critical)');
       }
-    }, 2000); // Delay 2s to not slow down initial page loads
+    }, 1000); // Delay 1s to not slow down initial page loads
   });
 })();

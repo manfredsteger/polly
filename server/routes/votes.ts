@@ -2,6 +2,7 @@ import { Router } from "express";
 import { storage } from "../storage";
 import { emailService } from "../services/emailService";
 import { liveVotingService } from "../services/liveVotingService";
+import { deviceTokenService } from "../services/deviceTokenService";
 import { z } from "zod";
 import {
   extractUserId,
@@ -14,6 +15,175 @@ const router = Router();
 
 // Bulk vote (primary voting endpoint)
 router.post('/polls/:token/vote', async (req, res) => {
+  try {
+    const poll = await storage.getPollByPublicToken(req.params.token);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+
+    if (!poll.isActive) {
+      return res.status(400).json({ 
+        error: 'Diese Umfrage ist nicht mehr aktiv.',
+        errorCode: 'POLL_INACTIVE'
+      });
+    }
+
+    if (poll.expiresAt && new Date(poll.expiresAt) < new Date()) {
+      return res.status(400).json({ 
+        error: 'Diese Umfrage ist abgelaufen.',
+        errorCode: 'POLL_EXPIRED'
+      });
+    }
+
+    const data = bulkVoteSchema.parse(req.body);
+    
+    const currentUserId = await extractUserId(req);
+    let userId: number | null = null;
+    
+    if (currentUserId) {
+      const currentUser = await storage.getUser(currentUserId);
+      if (currentUser) {
+        if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
+          userId = currentUserId;
+        } else {
+          const targetUser = await storage.getUserByEmail(data.voterEmail.toLowerCase());
+          if (targetUser) {
+            return res.status(403).json({
+              error: 'Diese E-Mail-Adresse gehört zu einem anderen Konto. Sie können nur mit Ihrer eigenen E-Mail abstimmen.',
+              errorCode: 'EMAIL_BELONGS_TO_ANOTHER_USER'
+            });
+          }
+        }
+      }
+    } else {
+      const existingUser = await storage.getUserByEmail(data.voterEmail.toLowerCase().trim());
+      if (existingUser) {
+        return res.status(409).json({
+          error: 'Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an, um abzustimmen.',
+          errorCode: 'REQUIRES_LOGIN'
+        });
+      }
+    }
+
+    const isTestMode = req.isTestMode === true;
+
+    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
+    if (existingVotes.length > 0 && !poll.allowVoteEdit) {
+      return res.status(400).json({
+        error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
+        errorCode: 'ALREADY_VOTED'
+      });
+    }
+
+    const createdVotes = [];
+    let voterEditToken = existingVotes[0]?.voterEditToken;
+
+    for (const voteData of data.votes) {
+      const existingVote = existingVotes.find(v => v.optionId === voteData.optionId);
+
+      if (existingVote) {
+        if (poll.allowVoteEdit) {
+          const updated = await storage.updateVote(existingVote.id, voteData.response);
+          createdVotes.push(updated);
+        }
+      } else {
+        const result = await storage.createVote({
+          pollId: poll.id,
+          optionId: voteData.optionId,
+          voterName: data.voterName,
+          voterEmail: data.voterEmail,
+          response: voteData.response,
+          comment: voteData.comment,
+          userId: userId,
+          isTestData: isTestMode,
+        }, voterEditToken);
+        
+        createdVotes.push(result.vote);
+        voterEditToken = result.editToken;
+      }
+    }
+
+    // For organization polls: Broadcast slot update via WebSocket
+    if (poll.type === 'organization') {
+      const freshPoll = await storage.getPollByPublicToken(poll.publicToken);
+      if (freshPoll) {
+        const slotUpdates: Record<number, { currentCount: number; maxCapacity: number | null }> = {};
+        for (const option of freshPoll.options) {
+          const signupCount = freshPoll.votes.filter(v => v.optionId === option.id && v.response === 'yes').length;
+          slotUpdates[option.id] = {
+            currentCount: signupCount,
+            maxCapacity: option.maxCapacity
+          };
+        }
+        liveVotingService.broadcastSlotUpdate(poll.publicToken, slotUpdates);
+        if (poll.adminToken) {
+          liveVotingService.broadcastSlotUpdate(poll.adminToken, slotUpdates);
+        }
+      }
+    }
+
+    // Send confirmation email (with anti-spam check)
+    if (!isTestMode && data.voterEmail && createdVotes.length > 0) {
+      const now = Date.now();
+      const emailKey = `${poll.id}:${data.voterEmail.toLowerCase()}`;
+      const lastSent = recentEmailSends.get(emailKey);
+      
+      if (!lastSent || (now - lastSent) > EMAIL_COOLDOWN) {
+        const { getBaseUrl } = await import('../utils/baseUrl');
+        const baseUrl = getBaseUrl();
+        const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
+        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+        
+        emailService.sendVotingConfirmationEmail(
+          data.voterEmail,
+          data.voterName,
+          poll.title,
+          poll.type as 'schedule' | 'survey',
+          publicLink,
+          resultsLink
+        ).catch(err => {
+          console.error('Error sending voting confirmation email:', err);
+        });
+        
+        recentEmailSends.set(emailKey, now);
+        
+        // Clean up old entries
+        const entriesToDelete: string[] = [];
+        recentEmailSends.forEach((timestamp, key) => {
+          if (now - timestamp > 300000) { // 5 minutes
+            entriesToDelete.push(key);
+          }
+        });
+        entriesToDelete.forEach(key => recentEmailSends.delete(key));
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      votes: createdVotes,
+      voterEditToken: voterEditToken
+    });
+  } catch (error) {
+    console.error('Error bulk voting:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Invalid vote data', 
+        details: error.errors 
+      });
+    }
+    if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
+      return res.status(400).json({ 
+        error: 'Diese E-Mail-Adresse hat bereits bei dieser Umfrage abgestimmt.',
+        errorCode: 'DUPLICATE_EMAIL_VOTE'
+      });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Bulk vote endpoint (alias for backward compatibility)
+// Uses the same logic as /vote - just a different path
+router.post('/polls/:token/vote-bulk', async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -402,6 +572,67 @@ router.post('/polls/:token/resend-email', async (req, res) => {
   } catch (error) {
     console.error('Error resending email:', error);
     res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+// Check if current user/device has already voted on a poll
+router.get('/polls/:token/my-votes', async (req, res) => {
+  try {
+    const poll = await storage.getPollByPublicToken(req.params.token);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+    
+    // Calculate voterKey from session or device token
+    const deviceToken = req.cookies?.deviceToken;
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    const sessionUserId = req.session?.userId || null;
+    const { voterKey, voterSource, newDeviceToken } = deviceTokenService.getVoterKey(
+      sessionUserId,
+      deviceToken,
+      userAgent
+    );
+    
+    // Set device token cookie if a new one was generated
+    if (newDeviceToken) {
+      res.cookie('deviceToken', newDeviceToken, deviceTokenService.getCookieOptions());
+    }
+    
+    // Find existing votes by voterKey
+    const existingVotes = await storage.getVotesByVoterKey(poll.id, voterKey);
+    
+    // Also check by userId if logged in (for backwards compatibility)
+    let userVotes: typeof existingVotes = [];
+    if (sessionUserId) {
+      userVotes = await storage.getVotesByUserId(poll.id, sessionUserId);
+    }
+    
+    // Merge votes (remove duplicates by optionId)
+    const allVotes = [...existingVotes];
+    for (const userVote of userVotes) {
+      if (!allVotes.some(v => v.optionId === userVote.optionId)) {
+        allVotes.push(userVote);
+      }
+    }
+    
+    res.json({
+      hasVoted: allVotes.length > 0,
+      votes: allVotes.map(v => ({
+        optionId: v.optionId,
+        response: v.response,
+        voterName: v.voterName,
+        voterEmail: v.voterEmail,
+        comment: v.comment,
+        voterEditToken: v.voterEditToken
+      })),
+      allowVoteEdit: poll.allowVoteEdit,
+      allowVoteWithdrawal: poll.allowVoteWithdrawal,
+      voterKey,
+      voterSource
+    });
+  } catch (error) {
+    console.error('Error checking votes:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

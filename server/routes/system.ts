@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { requireAuth } from "./common";
+import { requireAuth, requireAdmin } from "./common";
 import { matrixService } from "../services/matrixService";
+import { imageService } from "../services/imageService";
 
 const router = Router();
 
@@ -165,6 +166,18 @@ router.post('/polls/:token/invite/matrix', requireAuth, async (req, res) => {
   }
 });
 
+// Legacy compatibility route: /matrix/test -> /admin/matrix/test
+// The primary endpoint is now at /admin/matrix/test
+router.post('/matrix/test', requireAdmin, async (req, res) => {
+  try {
+    const result = await matrixService.testMatrixConnection();
+    res.json(result);
+  } catch (error: any) {
+    console.error('Matrix connection test error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Helper function to convert hex to RGB
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -174,5 +187,82 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
     b: parseInt(result[3], 16)
   } : null;
 }
+
+// Get theme preference (returns user's preference, cookie, or system default)
+router.get('/theme', async (req, res) => {
+  try {
+    // First check if user is authenticated
+    if (req.session.userId) {
+      const user = await storage.getUser(req.session.userId);
+      if (user) {
+        return res.json({ 
+          themePreference: user.themePreference || 'system',
+          source: 'user'
+        });
+      }
+    }
+    
+    // Check for cookie
+    const cookieTheme = req.cookies?.theme_preference;
+    if (cookieTheme && ['light', 'dark', 'system'].includes(cookieTheme)) {
+      return res.json({ 
+        themePreference: cookieTheme,
+        source: 'cookie'
+      });
+    }
+    
+    // Get system default from customization settings
+    const settings = await storage.getCustomizationSettings();
+    return res.json({ 
+      themePreference: settings.theme?.defaultThemeMode || 'system',
+      source: 'default'
+    });
+  } catch (error) {
+    console.error('Error getting theme preference:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// Set theme cookie for guests
+router.post('/theme', async (req, res) => {
+  try {
+    const { themePreference } = req.body;
+    if (!themePreference || !['light', 'dark', 'system'].includes(themePreference)) {
+      return res.status(400).json({ error: 'Ungültige Theme-Einstellung' });
+    }
+    
+    // Set HTTP-only cookie for theme preference
+    res.cookie('theme_preference', themePreference, {
+      httpOnly: false, // Frontend needs to read this
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+    });
+    
+    res.json({ success: true, themePreference });
+  } catch (error) {
+    console.error('Error setting theme cookie:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// Upload image
+router.post('/upload/image', imageService.getUploadMiddleware().single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+  
+  const result = await imageService.processUpload(req.file);
+  
+  if (!result.success) {
+    const statusCode = result.virusName ? 422 : 500;
+    return res.status(statusCode).json({ 
+      error: result.error,
+      virusName: result.virusName,
+    });
+  }
+  
+  res.json({ imageUrl: result.imageUrl });
+});
 
 export default router;

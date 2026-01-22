@@ -632,4 +632,143 @@ router.get('/shared-polls', async (req, res) => {
   }
 });
 
+// Get vote count for admin
+router.get('/admin/:token/vote-count', async (req, res) => {
+  try {
+    const poll = await storage.getPollByAdminToken(req.params.token);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+    
+    if (poll.userId) {
+      if (!req.session.userId) {
+        return res.status(401).json({ 
+          error: 'Anmeldung erforderlich',
+          requiresAuth: true
+        });
+      }
+      if (req.session.userId !== poll.userId) {
+        return res.status(403).json({ error: 'Keine Berechtigung' });
+      }
+    }
+    
+    const totalVotes = poll.votes?.length || 0;
+    const uniqueVoters = new Set(poll.votes?.map(v => v.voterEmail)).size;
+    
+    res.json({ totalVotes, uniqueVoters });
+  } catch (error) {
+    console.error('Error getting vote count:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Legacy compatibility route: /:token/invite -> /admin/:token/invite
+// The frontend still uses /polls/${token}/invite
+router.post('/:token/invite', async (req, res) => {
+  try {
+    const poll = await storage.getPollByAdminToken(req.params.token);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+    
+    if (poll.userId) {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
+      }
+      if (req.session.userId !== poll.userId) {
+        return res.status(403).json({ error: 'Keine Berechtigung' });
+      }
+    }
+    
+    const { emails, customMessage } = req.body;
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ error: 'E-Mail-Adressen erforderlich' });
+    }
+    
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
+    
+    // Get sender name
+    let senderName = 'Jemand';
+    if (poll.userId) {
+      const user = await storage.getUser(poll.userId);
+      if (user) {
+        senderName = user.name || user.username || 'Jemand';
+      }
+    }
+    
+    const results = await emailService.sendBulkInvitations(
+      emails,
+      poll.title,
+      senderName,
+      publicLink,
+      customMessage
+    );
+    
+    res.json({ 
+      success: true, 
+      sent: results.sent,
+      failed: results.failed.length,
+      results 
+    });
+  } catch (error) {
+    console.error('Error sending invitations:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get reminder status for a poll
+router.get('/:token/reminder-status', async (req, res) => {
+  try {
+    const poll = await storage.getPollByAdminToken(req.params.token);
+    if (!poll) {
+      return res.status(404).json({ error: 'Umfrage nicht gefunden' });
+    }
+
+    const notificationSettings = await storage.getNotificationSettings();
+    const reminderCount = await storage.getManualReminderCount(poll.id);
+    const lastReminder = await storage.getLastManualReminderTime(poll.id);
+    const isGuest = !req.session.userId || !poll.userId;
+
+    const maxReminders = isGuest 
+      ? notificationSettings.guestReminderLimitPerPoll 
+      : notificationSettings.userReminderLimitPerPoll;
+
+    let canSendReminder = notificationSettings.enabled && notificationSettings.manualRemindersEnabled;
+    let reason = '';
+
+    if (!canSendReminder) {
+      reason = 'Erinnerungen sind systemweit deaktiviert';
+    } else if (isGuest && !notificationSettings.guestsCanSendReminders) {
+      canSendReminder = false;
+      reason = 'Gäste können keine Erinnerungen senden';
+    } else if (reminderCount >= maxReminders) {
+      canSendReminder = false;
+      reason = `Maximale Anzahl (${maxReminders}) erreicht`;
+    } else if (lastReminder) {
+      const cooldownMs = notificationSettings.reminderCooldownMinutes * 60 * 1000;
+      const timeSinceLastReminder = Date.now() - lastReminder.getTime();
+      if (timeSinceLastReminder < cooldownMs) {
+        canSendReminder = false;
+        const remainingMinutes = Math.ceil((cooldownMs - timeSinceLastReminder) / 60000);
+        reason = `Bitte warten Sie noch ${remainingMinutes} Minuten`;
+      }
+    }
+
+    res.json({
+      canSendReminder,
+      reason,
+      remindersSent: reminderCount,
+      maxReminders,
+      lastReminderAt: lastReminder,
+      cooldownMinutes: notificationSettings.reminderCooldownMinutes,
+      isGuest,
+    });
+  } catch (error) {
+    console.error('Error fetching reminder status:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
 export default router;

@@ -1704,4 +1704,129 @@ router.post('/matrix/test', requireAdmin, async (req, res) => {
   }
 });
 
+// ============== TEST RUNS (admin) ==============
+
+router.get('/test-runs', requireAdmin, async (req, res) => {
+  try {
+    const testRunnerService = await import('../services/testRunnerService');
+    const limit = parseInt(req.query.limit as string) || 20;
+    const runs = await testRunnerService.getTestRunHistory(limit);
+    
+    // Transform to match frontend expected structure
+    const transformedRuns = await Promise.all(runs.map(async (run) => {
+      const results = await testRunnerService.getTestResultsForRun(run.id);
+      return {
+        id: String(run.id),
+        status: run.status as 'running' | 'completed' | 'failed',
+        startedAt: run.startedAt?.toISOString() || new Date().toISOString(),
+        completedAt: run.completedAt?.toISOString(),
+        results: results.map(r => ({
+          id: String(r.id),
+          name: r.testName,
+          status: r.status as 'passed' | 'failed' | 'skipped' | 'running',
+          duration: r.duration,
+          error: r.error || undefined
+        })),
+        summary: {
+          total: run.totalTests || 0,
+          passed: run.passed || 0,
+          failed: run.failed || 0,
+          skipped: run.skipped || 0
+        }
+      };
+    }));
+    
+    res.json(transformedRuns);
+  } catch (error) {
+    console.error('Error fetching test runs:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.get('/test-runs/current', requireAdmin, async (req, res) => {
+  try {
+    const testRunnerService = await import('../services/testRunnerService');
+    const currentRun = await testRunnerService.getCurrentTestRun();
+    
+    if (!currentRun) {
+      return res.json(null);
+    }
+    
+    // Transform to match frontend expected structure
+    const results = await testRunnerService.getTestResultsForRun(currentRun.id);
+    const transformed = {
+      id: String(currentRun.id),
+      status: currentRun.status as 'running' | 'completed' | 'failed',
+      startedAt: currentRun.startedAt?.toISOString() || new Date().toISOString(),
+      completedAt: currentRun.completedAt?.toISOString(),
+      results: results.map(r => ({
+        id: String(r.id),
+        name: r.testName,
+        status: r.status as 'passed' | 'failed' | 'skipped' | 'running',
+        duration: r.duration,
+        error: r.error || undefined
+      })),
+      summary: {
+        total: currentRun.totalTests || 0,
+        passed: currentRun.passed || 0,
+        failed: currentRun.failed || 0,
+        skipped: currentRun.skipped || 0
+      }
+    };
+    
+    res.json(transformed);
+  } catch (error) {
+    console.error('Error fetching current test run:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.post('/test-runs', requireAdmin, async (req, res) => {
+  try {
+    const testRunnerService = await import('../services/testRunnerService');
+    const runId = await testRunnerService.runAllTests('manual');
+    res.json({ runId, message: 'Test-Lauf gestartet' });
+  } catch (error) {
+    console.error('Error starting test run:', error);
+    res.status(500).json({ error: 'Tests konnten nicht gestartet werden' });
+  }
+});
+
+router.post('/test-runs/stop', requireAdmin, async (req, res) => {
+  try {
+    const testRunnerService = await import('../services/testRunnerService');
+    await testRunnerService.stopCurrentTest();
+    res.json({ success: true, message: 'Test-Lauf gestoppt' });
+  } catch (error) {
+    console.error('Error stopping test run:', error);
+    res.status(500).json({ error: 'Test-Lauf konnte nicht gestoppt werden' });
+  }
+});
+
+// ============== BRANDING RESET (admin) ==============
+
+router.post('/branding/reset', requireAdmin, async (req, res) => {
+  try {
+    const { resetBrandingToDefaults } = await import('../scripts/applyBranding');
+    const result = await resetBrandingToDefaults(storage);
+    
+    if (result.success) {
+      const settings = await storage.getCustomizationSettings();
+      res.json({ 
+        success: true, 
+        message: result.message,
+        settings 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: result.message 
+      });
+    }
+  } catch (error) {
+    console.error('Error resetting branding:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
 export default router;

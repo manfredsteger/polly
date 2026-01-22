@@ -48,49 +48,8 @@ export function registerRoutes(app: Express): Server {
   // System routes - mounted on v1Router root for health, customization, matrix, etc.
   v1Router.use('/', systemRouter);
 
-  // ============== USER DASHBOARD ROUTES ==============
-
-  // Get user's own polls
-  v1Router.get('/user/polls', requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        console.error('[SECURITY] /user/polls called without userId in session');
-        return res.status(401).json({ error: 'Nicht authentifiziert' });
-      }
-      
-      const polls = await storage.getUserPolls(userId);
-      
-      console.log(`[USER-POLLS] userId=${userId} returned ${polls.length} polls`);
-      
-      res.json(polls);
-    } catch (error) {
-      console.error('Error getting user polls:', error);
-      res.status(500).json({ error: 'Interner Fehler' });
-    }
-  });
-
-  // Get polls user has participated in
-  v1Router.get('/user/participations', requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        console.error('[SECURITY] /user/participations called without userId in session');
-        return res.status(401).json({ error: 'Nicht authentifiziert' });
-      }
-      
-      const polls = await storage.getUserParticipatedPolls(userId);
-      
-      console.log(`[USER-PARTICIPATIONS] userId=${userId} returned ${polls.length} participations`);
-      
-      res.json(polls);
-    } catch (error) {
-      console.error('Error getting user participations:', error);
-      res.status(500).json({ error: 'Interner Fehler' });
-    }
-  });
-
   // ============== DEPROVISION API (External Kafka/Keycloak Integration) ==============
+  // Note: User dashboard routes (user/polls, user/participations) are now in users.ts
   
   // External Deprovisioning Endpoint (Basic Auth protected, not admin)
   v1Router.delete('/deprovision/user', async (req, res) => {

@@ -1851,7 +1851,15 @@
       "testsStarted": "Tests gestartet",
       "testsStartedDescription": "Die Tests werden im Hintergrund ausgeführt. Die Ergebnisse werden hier angezeigt.",
       "e2eSkippedNote": "E2E-Tests werden nur in CI/CD-Umgebungen ausgeführt",
-      "e2eSkippedDescription": "Browser-Tests benötigen Playwright und werden in der internen Umgebung übersprungen."
+      "e2eSkippedDescription": "Browser-Tests benötigen Playwright und werden in der internen Umgebung übersprungen.",
+      "pentestTools": {
+        "title": "Pentest-Tools Integration",
+        "description": "Sicherheitsscanning über Pentest-Tools.com",
+        "connected": "Verbunden",
+        "notConnected": "Nicht verbunden",
+        "configuredViaEnv": "Via Env konfiguriert",
+        "openSettings": "Einstellungen öffnen"
+      }
     },
     "oidc": {
       "backToSettings": "Zurück zu Einstellungen",

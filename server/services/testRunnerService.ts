@@ -503,6 +503,13 @@ export async function getTestRunHistory(limit = 20) {
     .limit(limit);
 }
 
+export async function getTestResultsForRun(runId: number) {
+  return await db.select()
+    .from(testResults)
+    .where(eq(testResults.runId, runId))
+    .orderBy(testResults.id);
+}
+
 export async function getScheduleConfig(): Promise<TestScheduleConfig> {
   const { systemSettings } = await import('@shared/schema');
   

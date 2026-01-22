@@ -1753,7 +1753,15 @@
       "testsStarted": "Tests started",
       "testsStartedDescription": "Tests are running in the background. Results will be displayed here.",
       "e2eSkippedNote": "E2E tests only run in CI/CD environments",
-      "e2eSkippedDescription": "Browser tests require Playwright and are skipped in the internal environment."
+      "e2eSkippedDescription": "Browser tests require Playwright and are skipped in the internal environment.",
+      "pentestTools": {
+        "title": "Pentest-Tools Integration",
+        "description": "Security scanning via Pentest-Tools.com",
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "configuredViaEnv": "Configured via Env",
+        "openSettings": "Open Settings"
+      }
     },
     "deprovision": {
       "title": "External Deprovisioning",

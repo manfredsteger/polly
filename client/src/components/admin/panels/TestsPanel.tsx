@@ -21,10 +21,19 @@ import {
   XCircle,
   AlertCircle,
   RefreshCw,
-  ArrowLeft
+  ArrowLeft,
+  ShieldAlert,
+  ExternalLink
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+
+interface PentestStatus {
+  configured: boolean;
+  configuredViaEnv?: boolean;
+  connected?: boolean;
+  message?: string;
+}
 
 interface TestResult {
   id: string;
@@ -65,6 +74,10 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
   const { data: currentRun } = useQuery<TestRun | null>({
     queryKey: ['/api/v1/admin/test-runs/current'],
     refetchInterval: isRunning ? 2000 : false,
+  });
+
+  const { data: pentestStatus } = useQuery<PentestStatus>({
+    queryKey: ['/api/v1/admin/pentest-tools/status'],
   });
 
   const runTestsMutation = useMutation({
@@ -259,6 +272,35 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Pentest-Tools Integration */}
+      {pentestStatus?.configured && (
+        <Card className="polly-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5" />
+              {t('admin.tests.pentestTools.title')}
+            </CardTitle>
+            <CardDescription>{t('admin.tests.pentestTools.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant={pentestStatus.connected ? "default" : "secondary"} className={pentestStatus.connected ? "bg-green-500" : ""}>
+                  {pentestStatus.connected ? t('admin.tests.pentestTools.connected') : t('admin.tests.pentestTools.notConnected')}
+                </Badge>
+                {pentestStatus.configuredViaEnv && (
+                  <Badge variant="outline">{t('admin.tests.pentestTools.configuredViaEnv')}</Badge>
+                )}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => window.open('/admin?panel=settings&settings=pentest', '_blank')}>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                {t('admin.tests.pentestTools.openSettings')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

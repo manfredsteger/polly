@@ -1661,6 +1661,8 @@
       "securityCheckUpdatedDescription": "npm audit wurde neu ausgeführt.",
       "systemPackagesUpdated": "System-Packages aktualisiert",
       "systemPackagesUpdatedDescription": "Nix-Packages wurden neu geladen.",
+      "statsUpdated": "Statistiken aktualisiert",
+      "statsUpdatedDescription": "Die Admin-Statistiken wurden neu geladen.",
       "error": "Fehler",
       "updateFailed": "Aktualisierung fehlgeschlagen.",
       "pollUpdated": "Umfrage aktualisiert",
@@ -1690,6 +1692,9 @@
       "settingsSaveError": "Einstellungen konnten nicht gespeichert werden.",
       "rateLimitSaved": "Ratenbegrenzung gespeichert",
       "clamavSaved": "ClamAV gespeichert"
+    },
+    "cache": {
+      "updated": "Aktualisiert"
     },
     "deletionRequests": {
       "title": "Löschanträge",

@@ -84,11 +84,33 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
     localStorage.setItem('admin-sidebar-collapsed', JSON.stringify(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
-  const { data: extendedStats, isLoading: statsLoading } = useQuery<ExtendedStats>({
+  const { data: extendedStats, isLoading: statsLoading, refetch: refetchExtendedStats } = useQuery<ExtendedStats>({
     queryKey: ['/api/v1/admin/extended-stats'],
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 60 * 24, // 24h - matches backend cache
     refetchOnWindowFocus: false,
   });
+
+  const [statsRefreshing, setStatsRefreshing] = useState(false);
+
+  const handleRefreshStats = async () => {
+    setStatsRefreshing(true);
+    try {
+      await queryClient.fetchQuery({
+        queryKey: ['/api/v1/admin/extended-stats'],
+        queryFn: async () => {
+          const res = await fetch('/api/v1/admin/extended-stats?refresh=true', { credentials: 'include' });
+          if (!res.ok) throw new Error('Failed to refresh');
+          return res.json();
+        },
+      });
+      await refetchExtendedStats();
+      toast({ title: t('admin.toast.statsUpdated'), description: t('admin.toast.statsUpdatedDescription') });
+    } catch {
+      toast({ title: t('admin.toast.error'), description: t('admin.toast.updateFailed'), variant: "destructive" });
+    } finally {
+      setStatsRefreshing(false);
+    }
+  };
 
   const showMonitoringData = activeTab === "monitoring";
 
@@ -215,25 +237,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
             <OverviewPanel
               extendedStats={extendedStats}
               statsLoading={statsLoading}
-              systemStatus={systemStatus}
-              systemStatusLoading={systemStatusLoading}
-              systemStatusError={systemStatusError as Error | null}
-              vulnerabilities={vulnerabilities}
-              vulnerabilitiesLoading={vulnerabilitiesLoading}
-              systemPackages={systemPackages}
-              systemPackagesLoading={systemPackagesLoading}
               onStatCardClick={handleStatCardClick}
-              onRefreshSystemStatus={handleRefreshSystemStatus}
-              onRefreshVulnerabilities={handleRefreshVulnerabilities}
-              onRefreshSystemPackages={handleRefreshSystemPackages}
-              refetchSystemStatus={() => refetchSystemStatus()}
-              refetchVulnerabilities={() => refetchVulnerabilities()}
-              refetchSystemPackages={() => refetchSystemPackages()}
-              systemStatusRefreshing={systemStatusRefreshing}
-              vulnerabilitiesRefreshing={vulnerabilitiesRefreshing}
-              systemPackagesRefreshing={systemPackagesRefreshing}
-              formatTimeUntil={(date) => formatTimeUntil(date, t)}
-              getImpactBadgeColor={getImpactBadgeColor}
+              onRefreshStats={handleRefreshStats}
+              statsRefreshing={statsRefreshing}
             />
           )}
 

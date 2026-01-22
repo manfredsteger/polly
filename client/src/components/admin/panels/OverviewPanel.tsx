@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +9,7 @@ import {
   TrendingUp,
   Vote,
   Clock,
-  Server,
   FileText,
-  AlertCircle,
   Loader2,
   RefreshCw,
   CheckCircle,
@@ -20,59 +17,25 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { getDateLocale } from "@/lib/i18n";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
 import { StatCard, ActivityItem } from "../common/components";
-import type { ExtendedStats, SystemStatusData, VulnerabilitiesData, SystemPackagesData, getImpactBadgeColor } from "../common/types";
+import type { ExtendedStats } from "../common/types";
 
 interface OverviewPanelProps {
   extendedStats: ExtendedStats | undefined;
   statsLoading: boolean;
-  systemStatus: SystemStatusData | undefined;
-  systemStatusLoading: boolean;
-  systemStatusError: Error | null;
-  vulnerabilities: VulnerabilitiesData | undefined;
-  vulnerabilitiesLoading: boolean;
-  systemPackages: SystemPackagesData | undefined;
-  systemPackagesLoading: boolean;
   onStatCardClick: (target: string) => void;
-  onRefreshSystemStatus: () => Promise<void>;
-  onRefreshVulnerabilities: () => Promise<void>;
-  onRefreshSystemPackages: () => Promise<void>;
-  refetchSystemStatus: () => void;
-  refetchVulnerabilities: () => void;
-  refetchSystemPackages: () => void;
-  systemStatusRefreshing: boolean;
-  vulnerabilitiesRefreshing: boolean;
-  systemPackagesRefreshing: boolean;
-  formatTimeUntil: (date: Date | string) => string;
-  getImpactBadgeColor: (area: 'frontend' | 'backend' | 'development' | 'shared') => string;
+  onRefreshStats: () => Promise<void>;
+  statsRefreshing: boolean;
 }
 
 export function OverviewPanel({
   extendedStats,
   statsLoading,
-  systemStatus,
-  systemStatusLoading,
-  systemStatusError,
-  vulnerabilities,
-  vulnerabilitiesLoading,
-  systemPackages,
-  systemPackagesLoading,
   onStatCardClick,
-  onRefreshSystemStatus,
-  onRefreshVulnerabilities,
-  onRefreshSystemPackages,
-  refetchSystemStatus,
-  refetchVulnerabilities,
-  refetchSystemPackages,
-  systemStatusRefreshing,
-  vulnerabilitiesRefreshing,
-  systemPackagesRefreshing,
-  formatTimeUntil,
-  getImpactBadgeColor,
+  onRefreshStats,
+  statsRefreshing,
 }: OverviewPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const displayStats = extendedStats || {
     totalUsers: 0,
@@ -86,12 +49,49 @@ export function OverviewPanel({
     schedulePolls: 0,
     surveyPolls: 0,
     recentActivity: [],
+    lastChecked: null as Date | null,
   };
+
+  const formatCacheTime = (date: Date | string | null) => {
+    if (!date) return null;
+    try {
+      return formatDistanceToNow(new Date(date), { 
+        addSuffix: true,
+        locale: getDateLocale()
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const cacheInfo = (extendedStats as any)?.lastChecked 
+    ? formatCacheTime((extendedStats as any).lastChecked)
+    : null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-foreground">{t('admin.overview.title')}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-semibold text-foreground">{t('admin.overview.title')}</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefreshStats}
+            disabled={statsRefreshing}
+            className="h-8"
+          >
+            {statsRefreshing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+          </Button>
+          {cacheInfo && (
+            <span className="text-xs text-muted-foreground">
+              {t('admin.cache.updated')} {cacheInfo}
+            </span>
+          )}
+        </div>
         <Badge variant="outline" className="text-green-600 border-green-600">
           <CheckCircle className="w-3 h-3 mr-1" />
           {t('admin.overview.systemActive')}

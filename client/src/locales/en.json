@@ -1789,6 +1789,8 @@
       "securityCheckUpdatedDescription": "npm audit has been re-run.",
       "systemPackagesUpdated": "System Packages Updated",
       "systemPackagesUpdatedDescription": "Nix packages have been reloaded.",
+      "statsUpdated": "Statistics Updated",
+      "statsUpdatedDescription": "Admin statistics have been refreshed.",
       "error": "Error",
       "updateFailed": "Update failed.",
       "pollUpdated": "Poll Updated",
@@ -1818,6 +1820,9 @@
       "settingsSaveError": "Settings could not be saved.",
       "rateLimitSaved": "Rate Limiting Saved",
       "clamavSaved": "ClamAV Saved"
+    },
+    "cache": {
+      "updated": "Updated"
     },
     "deletionRequests": {
       "title": "Deletion Requests",

@@ -104,16 +104,6 @@ export function SettingsPanel({
         />
 
         <SettingCard
-          title={t('admin.settings.matrix.title')}
-          description={t('admin.settings.matrix.description')}
-          icon={<MessageSquare className="w-5 h-5" />}
-          status={matrixStatus?.enabled ? t('admin.settings.status.enabled') : t('admin.settings.status.disabled')}
-          statusType={matrixStatus?.enabled ? 'success' : 'neutral'}
-          onClick={() => onSelectPanel('matrix')}
-          testId="setting-matrix"
-        />
-
-        <SettingCard
           title={t('admin.settings.roles.title')}
           description={t('admin.settings.roles.description')}
           icon={<Users className="w-5 h-5" />}
@@ -154,16 +144,6 @@ export function SettingsPanel({
         />
 
         <SettingCard
-          title={t('admin.settings.pentest.title')}
-          description={t('admin.settings.pentest.description')}
-          icon={<ShieldAlert className="w-5 h-5" />}
-          status={t('admin.settings.status.tools')}
-          statusType="neutral"
-          onClick={() => onSelectPanel('pentest')}
-          testId="setting-pentest"
-        />
-
-        <SettingCard
           title={t('admin.settings.wcag.title')}
           description={t('admin.settings.wcag.description')}
           icon={<Target className="w-5 h-5" />}
@@ -172,6 +152,31 @@ export function SettingsPanel({
           onClick={() => onSelectPanel('wcag')}
           testId="setting-wcag"
         />
+      </div>
+
+      <div className="pt-6 border-t border-border">
+        <h3 className="text-lg font-semibold text-foreground mb-4">{t('admin.settings.integrations.title')}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <SettingCard
+            title={t('admin.settings.matrix.title')}
+            description={t('admin.settings.matrix.description')}
+            icon={<MessageSquare className="w-5 h-5" />}
+            status={matrixStatus?.enabled ? t('admin.settings.status.enabled') : t('admin.settings.status.disabled')}
+            statusType={matrixStatus?.enabled ? 'success' : 'neutral'}
+            onClick={() => onSelectPanel('matrix')}
+            testId="setting-matrix"
+          />
+
+          <SettingCard
+            title={t('admin.settings.pentest.title')}
+            description={t('admin.settings.pentest.description')}
+            icon={<ShieldAlert className="w-5 h-5" />}
+            status={t('admin.settings.status.tools')}
+            statusType="neutral"
+            onClick={() => onSelectPanel('pentest')}
+            testId="setting-pentest"
+          />
+        </div>
       </div>
     </div>
   );

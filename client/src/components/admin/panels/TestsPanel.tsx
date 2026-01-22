@@ -294,9 +294,6 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                             </span>
                           </div>
                           <Progress value={progressPercent} className="h-2" />
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {completedCount} / {run.summary.total} {t('admin.tests.testsCompleted', 'Tests')}
-                          </div>
                         </div>
                       )}
                       

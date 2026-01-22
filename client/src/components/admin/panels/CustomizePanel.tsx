@@ -261,7 +261,12 @@ export function CustomizePanel() {
             </div>
           </div>
 
-          <Button onClick={handleSaveBranding} disabled={saveMutation.isPending} data-testid="button-save-branding">
+          <Button 
+            onClick={handleSaveBranding} 
+            disabled={saveMutation.isPending} 
+            data-testid="button-save-branding"
+            className="bg-polly-orange hover:bg-polly-orange/90 text-white font-medium"
+          >
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {t('admin.customize.saveBranding')}
           </Button>
@@ -342,7 +347,12 @@ export function CustomizePanel() {
             ))}
           </div>
 
-          <Button onClick={handleSaveTheme} disabled={saveMutation.isPending} data-testid="button-save-theme">
+          <Button 
+            onClick={handleSaveTheme} 
+            disabled={saveMutation.isPending} 
+            data-testid="button-save-theme"
+            className="bg-polly-orange hover:bg-polly-orange/90 text-white font-medium"
+          >
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {t('admin.customize.saveTheme')}
           </Button>
@@ -414,7 +424,12 @@ export function CustomizePanel() {
             </div>
           </div>
 
-          <Button onClick={handleSaveFooter} disabled={saveMutation.isPending} data-testid="button-save-footer">
+          <Button 
+            onClick={handleSaveFooter} 
+            disabled={saveMutation.isPending} 
+            data-testid="button-save-footer"
+            className="bg-polly-orange hover:bg-polly-orange/90 text-white font-medium"
+          >
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {t('admin.customize.saveFooter')}
           </Button>

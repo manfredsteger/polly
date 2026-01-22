@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -79,6 +79,27 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
   const { data: pentestStatus } = useQuery<PentestStatus>({
     queryKey: ['/api/v1/admin/pentest-tools/status'],
   });
+
+  // Sync isRunning state with backend - check if any test is actually running
+  useEffect(() => {
+    if (testRuns && testRuns.length > 0) {
+      const hasRunningTest = testRuns.some(run => run.status === 'running');
+      setIsRunning(hasRunningTest);
+    }
+  }, [testRuns]);
+
+  // Also check currentRun for faster updates - when test finishes, refresh the list
+  useEffect(() => {
+    if (currentRun === null && isRunning) {
+      setIsRunning(false);
+      // Delay to prevent race condition
+      setTimeout(() => {
+        refetch();
+      }, 500);
+    } else if (currentRun && currentRun.status === 'running') {
+      setIsRunning(true);
+    }
+  }, [currentRun]);
 
   const runTestsMutation = useMutation({
     mutationFn: async () => {
@@ -256,12 +277,26 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                           <div className="flex items-center gap-2 mb-1">
                             <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
                             <span className="text-xs text-muted-foreground truncate">
-                              {currentTest?.name || t('admin.tests.initializing')}
+                              {completedCount > 0 
+                                ? (currentTest?.name || t('admin.tests.processing'))
+                                : t('admin.tests.runningVitest')}
                             </span>
                           </div>
-                          <Progress value={progressPercent} className="h-2" />
+                          <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+                            {completedCount === 0 ? (
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-polly-orange to-blue-500 animate-pulse" 
+                                   style={{ 
+                                     animation: 'shimmer 2s infinite linear',
+                                     backgroundSize: '200% 100%'
+                                   }} />
+                            ) : (
+                              <Progress value={progressPercent} className="h-2" />
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {completedCount} / {run.summary.total || '?'} Tests
+                            {completedCount > 0 
+                              ? `${completedCount} / ${run.summary.total} Tests`
+                              : `~${run.summary.total || 320} Tests werden ausgeführt...`}
                           </div>
                         </div>
                       )}

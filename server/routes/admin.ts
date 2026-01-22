@@ -12,6 +12,9 @@ import { apiRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
 import type { User } from "@shared/schema";
 import { apiRateLimitsSettingsSchema } from "@shared/schema";
+import { db } from "../db";
+import { testRuns } from "@shared/schema";
+import { eq, ne, or, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -1760,6 +1763,23 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
     
     // Transform to match frontend expected structure
     const results = await testRunnerService.getTestResultsForRun(currentRun.id);
+    
+    // For running tests, use estimated total from last completed run if no results yet
+    let estimatedTotal = currentRun.totalTests || 0;
+    if (currentRun.status === 'running' && estimatedTotal === 0) {
+      // Get last completed test run's total as estimate
+      const [lastRun] = await db
+        .select({ totalTests: testRuns.totalTests })
+        .from(testRuns)
+        .where(and(
+          ne(testRuns.id, currentRun.id),
+          or(eq(testRuns.status, 'completed'), eq(testRuns.status, 'failed'))
+        ))
+        .orderBy(desc(testRuns.id))
+        .limit(1);
+      estimatedTotal = lastRun?.totalTests || 320; // fallback estimate
+    }
+    
     const transformed = {
       id: String(currentRun.id),
       status: currentRun.status as 'running' | 'completed' | 'failed',
@@ -1773,11 +1793,12 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
         error: r.error || undefined
       })),
       summary: {
-        total: currentRun.totalTests || 0,
+        total: estimatedTotal,
         passed: currentRun.passed || 0,
         failed: currentRun.failed || 0,
         skipped: currentRun.skipped || 0
-      }
+      },
+      isEstimated: currentRun.status === 'running' && (currentRun.totalTests || 0) === 0
     };
     
     res.json(transformed);

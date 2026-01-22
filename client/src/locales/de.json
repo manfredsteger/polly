@@ -1770,6 +1770,8 @@
       "historyDescription": "Vergangene Testläufe und deren Ergebnisse",
       "progress": "Fortschritt",
       "initializing": "Initialisiere Tests...",
+      "runningVitest": "Tests werden ausgeführt...",
+      "processing": "Verarbeite Ergebnisse...",
       "started": "Tests gestartet",
       "startedDescription": "Die Tests werden jetzt ausgeführt.",
       "startError": "Tests konnten nicht gestartet werden.",

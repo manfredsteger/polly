@@ -1667,6 +1667,8 @@
       "historyDescription": "Past test runs and their results",
       "progress": "Progress",
       "initializing": "Initializing tests...",
+      "runningVitest": "Running tests...",
+      "processing": "Processing results...",
       "started": "Tests started",
       "startedDescription": "Tests are now running.",
       "startError": "Tests could not be started.",

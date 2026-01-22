@@ -155,6 +155,9 @@ export async function runAllTests(triggeredBy: 'manual' | 'scheduled' = 'manual'
 async function runTestsInBackground(runId: number): Promise<void> {
   const startTime = Date.now();
   
+  // Track this test run for progress monitoring
+  currentTestRunId = runId;
+  
   try {
     // Get test mode and filter tests if in manual mode
     const modeConfig = await getTestModeConfig();
@@ -213,6 +216,7 @@ async function runTestsInBackground(runId: number): Promise<void> {
             completedAt: new Date(),
           })
           .where(eq(testRuns.id, runId));
+        currentTestRunId = null;
         return;
       }
     } else {
@@ -329,6 +333,10 @@ async function runTestsInBackground(runId: number): Promise<void> {
       duration,
       completedAt,
     }, []);
+  } finally {
+    // Always clear the current test run ID when done
+    currentTestRunId = null;
+    currentTestProcess = null;
   }
 }
 

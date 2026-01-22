@@ -413,6 +413,8 @@ async function sendTestReportNotification(
   }
 }
 
+const TEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes max for all tests
+
 function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const args = ['vitest', 'run', '--reporter=json'];
@@ -434,8 +436,19 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
       env: { ...process.env, CI: 'true' },
     });
 
+    // Store reference for stop functionality
+    currentTestProcess = child;
+
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+
+    // Timeout after 5 minutes to prevent hanging tests
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+      console.error('[TestRunner] Test execution timed out after 5 minutes');
+    }, TEST_TIMEOUT_MS);
 
     child.stdout.on('data', (data) => {
       stdout += data.toString();
@@ -446,6 +459,14 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     });
 
     child.on('close', (code) => {
+      clearTimeout(timeout);
+      currentTestProcess = null;
+      
+      if (timedOut) {
+        reject(new Error('Test execution timed out after 5 minutes'));
+        return;
+      }
+      
       const jsonMatch = stdout.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
       if (jsonMatch) {
         resolve(jsonMatch[0]);
@@ -457,6 +478,8 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     });
 
     child.on('error', (err) => {
+      clearTimeout(timeout);
+      currentTestProcess = null;
       reject(err);
     });
   });

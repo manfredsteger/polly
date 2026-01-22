@@ -917,21 +917,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllPolls(): Promise<PollWithOptions[]> {
-    const allPolls = await db.select().from(polls).orderBy(desc(polls.createdAt));
+    // Fetch all data in parallel to avoid N+1 queries
+    const [allPolls, allOptions, allVotes, allUsers] = await Promise.all([
+      db.select().from(polls).orderBy(desc(polls.createdAt)),
+      db.select().from(pollOptions).orderBy(pollOptions.id),
+      db.select().from(votes),
+      db.select().from(users)
+    ]);
     
-    const pollsWithDetails = await Promise.all(
-      allPolls.map(async (poll) => {
-        const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id)).orderBy(pollOptions.id);
-        const allVotes = await db.select().from(votes).where(eq(votes.pollId, poll.id));
-        let user: User | undefined;
-        if (poll.userId) {
-          [user] = await db.select().from(users).where(eq(users.id, poll.userId));
-        }
-        return { ...poll, options, votes: allVotes, user };
-      })
-    );
-
-    return pollsWithDetails;
+    // Create lookup maps for O(1) access
+    const optionsByPollId = new Map<string, typeof allOptions>();
+    for (const option of allOptions) {
+      const existing = optionsByPollId.get(option.pollId) || [];
+      existing.push(option);
+      optionsByPollId.set(option.pollId, existing);
+    }
+    
+    const votesByPollId = new Map<string, typeof allVotes>();
+    for (const vote of allVotes) {
+      const existing = votesByPollId.get(vote.pollId) || [];
+      existing.push(vote);
+      votesByPollId.set(vote.pollId, existing);
+    }
+    
+    const usersById = new Map<number, typeof allUsers[0]>();
+    for (const user of allUsers) {
+      usersById.set(user.id, user);
+    }
+    
+    // Map polls with their related data
+    return allPolls.map(poll => ({
+      ...poll,
+      options: optionsByPollId.get(poll.id) || [],
+      votes: votesByPollId.get(poll.id) || [],
+      user: poll.userId ? usersById.get(poll.userId) : undefined
+    }));
   }
 
   async getExtendedStats(): Promise<{

@@ -220,5 +220,21 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Warm up slow caches in background after server starts
+    setTimeout(async () => {
+      try {
+        const { getSystemPackages } = await import("./services/systemPackageService");
+        const { runNpmAudit } = await import("./services/npmAuditService");
+        
+        // Run in parallel for faster warmup
+        await Promise.all([
+          getSystemPackages().then(() => console.log('[Cache] System packages warmed up')),
+          runNpmAudit().then(() => console.log('[Cache] npm audit warmed up'))
+        ]);
+      } catch (e) {
+        console.log('[Cache] Warmup completed with some errors (non-critical)');
+      }
+    }, 2000); // Delay 2s to not slow down initial page loads
   });
 })();

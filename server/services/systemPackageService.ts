@@ -183,33 +183,26 @@ export async function getSystemPackages(forceRefresh = false): Promise<SystemPac
   const now = new Date();
   const config = parseSystemConfig();
   
-  const packages: SystemPackage[] = [];
+  // Combine all items to check
+  const allItems = [
+    ...config.modules.map(m => ({ name: m, type: 'module' as const })),
+    ...config.packages.map(p => ({ name: p, type: 'package' as const }))
+  ];
   
-  // Add modules as packages
-  for (const module of config.modules) {
-    const version = await getPackageVersion(module);
-    packages.push({
-      name: module,
+  // Fetch all versions in parallel for massive speedup
+  const versionPromises = allItems.map(async (item) => {
+    const version = await getPackageVersion(item.name);
+    return {
+      name: item.name,
       version,
       channel: config.channel,
-      purpose: PACKAGE_PURPOSES[module] || 'System-Modul',
+      purpose: PACKAGE_PURPOSES[item.name] || (item.type === 'module' ? 'System-Modul' : 'System-Abhängigkeit'),
       hasKnownIssues: false,
       notes: null
-    });
-  }
+    } as SystemPackage;
+  });
   
-  // Add nix packages
-  for (const pkg of config.packages) {
-    const version = await getPackageVersion(pkg);
-    packages.push({
-      name: pkg,
-      version,
-      channel: config.channel,
-      purpose: PACKAGE_PURPOSES[pkg] || 'System-Abhängigkeit',
-      hasKnownIssues: false,
-      notes: null
-    });
-  }
+  const packages = await Promise.all(versionPromises);
 
   const result: SystemPackageResult = {
     packages,

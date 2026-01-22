@@ -440,8 +440,9 @@ export function getLiveProgress(): LiveProgress | null {
 
 function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Use both verbose (for live output) and json (for final results) reporters
-    const args = ['vitest', 'run', '--reporter=verbose', '--reporter=json'];
+    // Use verbose reporter for live output, JSON output saved to file
+    const jsonOutputPath = path.join(process.cwd(), 'test-results.json');
+    const args = ['vitest', 'run', '--reporter=verbose', '--reporter=json', '--outputFile=' + jsonOutputPath];
     
     // Add test name pattern filter if provided (for manual mode individual test filtering)
     // Using array args without shell=true to avoid shell interpretation of regex patterns
@@ -455,9 +456,10 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     }
     
     // Use shell: false (default) to avoid shell interpretation of special characters in patterns
+    // Disable ANSI colors for reliable parsing
     const child = spawn('npx', args, {
       cwd: process.cwd(),
-      env: { ...process.env, CI: 'true' },
+      env: { ...process.env, CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0' },
     });
 
     // Store reference for stop functionality
@@ -540,13 +542,26 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
         return;
       }
       
-      const jsonMatch = stdout.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
-      if (jsonMatch) {
-        resolve(jsonMatch[0]);
-      } else if (code === 0) {
-        resolve(stdout);
-      } else {
-        reject(new Error(`Vitest exited with code ${code}: ${stderr || stdout}`));
+      // Read JSON results from file instead of parsing stdout (which contains verbose output)
+      try {
+        if (fs.existsSync(jsonOutputPath)) {
+          const jsonContent = fs.readFileSync(jsonOutputPath, 'utf-8');
+          // Clean up the temp file
+          fs.unlinkSync(jsonOutputPath);
+          resolve(jsonContent);
+        } else if (code === 0) {
+          // Fallback to stdout parsing if file doesn't exist
+          const jsonMatch = stdout.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
+          if (jsonMatch) {
+            resolve(jsonMatch[0]);
+          } else {
+            resolve(stdout);
+          }
+        } else {
+          reject(new Error(`Vitest exited with code ${code}: ${stderr || stdout}`));
+        }
+      } catch (err) {
+        reject(new Error(`Failed to read test results: ${err}`));
       }
     });
 

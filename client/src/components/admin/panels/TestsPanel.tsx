@@ -233,17 +233,40 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
             </div>
           ) : (
             <Accordion type="single" collapsible className="w-full">
-              {testRuns.map((run) => (
+              {testRuns.map((run) => {
+                const currentTest = run.status === 'running' 
+                  ? run.results.find(r => r.status === 'running')
+                  : null;
+                const completedCount = run.summary.passed + run.summary.failed + run.summary.skipped;
+                const progressPercent = run.summary.total > 0 ? (completedCount / run.summary.total) * 100 : 0;
+                
+                return (
                 <AccordionItem key={run.id} value={run.id}>
                   <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center justify-between w-full pr-4">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between w-full pr-4 gap-4">
+                      <div className="flex items-center gap-3 shrink-0">
                         {getStatusBadge(run.status)}
                         <span className="text-sm text-muted-foreground">
                           {new Date(run.startedAt).toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
+                      
+                      {run.status === 'running' && (
+                        <div className="flex-1 mx-4 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
+                            <span className="text-xs text-muted-foreground truncate">
+                              {currentTest?.name || t('admin.tests.initializing')}
+                            </span>
+                          </div>
+                          <Progress value={progressPercent} className="h-2" />
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {completedCount} / {run.summary.total || '?'} Tests
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-2 text-sm shrink-0">
                         <span className="text-green-500">{run.summary.passed} passed</span>
                         <span className="text-red-500">{run.summary.failed} failed</span>
                       </div>
@@ -267,7 +290,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-              ))}
+              );
+              })}
             </Accordion>
           )}
         </CardContent>

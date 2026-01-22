@@ -1666,6 +1666,7 @@
       "runTestsDescription": "Run automated tests to verify system stability.",
       "historyDescription": "Past test runs and their results",
       "progress": "Progress",
+      "initializing": "Initializing tests...",
       "started": "Tests started",
       "startedDescription": "Tests are now running.",
       "startError": "Tests could not be started.",

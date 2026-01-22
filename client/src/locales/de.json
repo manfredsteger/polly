@@ -1769,6 +1769,7 @@
       "runTestsDescription": "Führen Sie automatisierte Tests aus, um die Systemstabilität zu überprüfen.",
       "historyDescription": "Vergangene Testläufe und deren Ergebnisse",
       "progress": "Fortschritt",
+      "initializing": "Initialisiere Tests...",
       "started": "Tests gestartet",
       "startedDescription": "Die Tests werden jetzt ausgeführt.",
       "startError": "Tests konnten nicht gestartet werden.",

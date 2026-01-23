@@ -466,22 +466,19 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
     try {
       if (poll.type === 'organization') {
-        // For organization polls: Submit slot bookings
-        let lastVoterEditToken: string | undefined;
-        for (const booking of orgaBookings) {
-          const result = await voteMutation.mutateAsync({
-            pollId: poll.id,
+        // For organization polls: Use bulk vote endpoint to submit all bookings at once
+        const bulkVoteData = {
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          votes: orgaBookings.map(booking => ({
             optionId: booking.optionId,
-            voterName: voterName.trim(),
-            voterEmail: voterEmail.trim(),
-            response: 'yes',
-            comment: booking.comment?.trim() || undefined,
-          });
-          // Capture the edit token from the response
-          if (result && typeof result === 'object' && 'voterEditToken' in result) {
-            lastVoterEditToken = result.voterEditToken;
-          }
-        }
+            response: 'yes' as const,
+            comment: booking.comment?.trim() || undefined
+          }))
+        };
+        
+        const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote`, bulkVoteData);
+        const result = await response.json();
         
         // Reset unsaved changes state
         setHasOrgaChanges(false);
@@ -495,7 +492,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: lastVoterEditToken,
+          voterEditToken: result.voterEditToken,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));

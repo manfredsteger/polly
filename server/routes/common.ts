@@ -26,8 +26,19 @@ declare global {
     interface Request {
       tokenUserId?: number;
       tokenUser?: User;
+      isTestMode?: boolean;
     }
   }
+}
+
+export function testModeMiddleware(req: Request, res: Response, next: NextFunction) {
+  const testModeHeader = req.headers['x-test-mode'];
+  const testModeSecret = process.env.TEST_MODE_SECRET || 'polly-e2e-test-mode';
+  
+  if (testModeHeader === testModeSecret) {
+    req.isTestMode = true;
+  }
+  next();
 }
 
 // Validation schemas

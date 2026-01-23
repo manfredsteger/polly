@@ -6,7 +6,7 @@ import path from "path";
 import { storage } from "../storage";
 import bcrypt from "bcryptjs";
 import type { User } from "@shared/schema";
-import { API_VERSION, API_BASE, requireAuth } from "./common";
+import { API_VERSION, API_BASE, requireAuth, testModeMiddleware } from "./common";
 
 import authRouter from "./auth";
 import pollsRouter from "./polls";
@@ -24,6 +24,9 @@ export function registerRoutes(app: Express): Server {
   }, express.static(path.join(process.cwd(), 'uploads')));
 
   const v1Router = Router();
+
+  // Test mode middleware - allows E2E tests to mark data as test data
+  v1Router.use(testModeMiddleware);
 
   // Mount all route modules
   

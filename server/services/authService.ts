@@ -266,7 +266,7 @@ export const authService = {
     return user;
   },
 
-  async localRegister(username: string, email: string, name: string, password: string): Promise<User | null> {
+  async localRegister(username: string, email: string, name: string, password: string, isTestMode: boolean = false): Promise<User | null> {
     const existingUser = await storage.getUserByEmail(email);
     if (existingUser) {
       return null;
@@ -286,6 +286,7 @@ export const authService = {
       role: 'user',
       passwordHash,
       provider: 'local',
+      isTestData: isTestMode,
     });
 
     return user;

@@ -284,7 +284,8 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
       data.username,
       data.email,
       data.name,
-      data.password
+      data.password,
+      req.isTestMode || false
     );
     
     if (!user) {

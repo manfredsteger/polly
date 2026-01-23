@@ -23,8 +23,21 @@ import {
   RefreshCw,
   ArrowLeft,
   ShieldAlert,
-  ExternalLink
+  ExternalLink,
+  Trash2,
+  Database
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -82,6 +95,37 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
 
   const { data: pentestStatus } = useQuery<PentestStatus>({
     queryKey: ['/api/v1/admin/pentest-tools/status'],
+  });
+
+  const { data: testDataStats, refetch: refetchTestDataStats } = useQuery<{
+    polls: number;
+    users: number;
+    votes: number;
+    total: number;
+  }>({
+    queryKey: ['/api/v1/admin/tests/data-stats'],
+  });
+
+  const purgeTestDataMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', '/api/v1/admin/tests/purge-data');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: t('admin.tests.testDataDeleted'), 
+        description: t('admin.tests.testDataDeletedDescription') 
+      });
+      refetchTestDataStats();
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/test-runs'] });
+    },
+    onError: () => {
+      toast({ 
+        title: t('errors.generic'), 
+        description: t('admin.tests.testDataDeleteError'), 
+        variant: "destructive" 
+      });
+    },
   });
 
   // Sync isRunning state with backend - check if any test is actually running
@@ -245,6 +289,69 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Test Data Management */}
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            {t('admin.tests.testDataManagement')}
+          </CardTitle>
+          <CardDescription>{t('admin.tests.testDataDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {testDataStats && testDataStats.total > 0 ? (
+                <span>
+                  {testDataStats.polls} {t('common.polls')}, {testDataStats.users} {t('common.users')}, {testDataStats.votes} {t('common.votes')}
+                </span>
+              ) : (
+                <span>{t('admin.tests.noTestDataPresent')}</span>
+              )}
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  disabled={!testDataStats || testDataStats.total === 0 || purgeTestDataMutation.isPending}
+                >
+                  {purgeTestDataMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-2" />
+                  )}
+                  {t('admin.tests.deleteTestData')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('admin.tests.deleteTestDataTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('admin.tests.deleteTestDataWarning')}
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>{testDataStats?.polls || 0} {t('common.polls')}</li>
+                      <li>{testDataStats?.users || 0} {t('common.users')}</li>
+                      <li>{testDataStats?.votes || 0} {t('common.votes')}</li>
+                    </ul>
+                    <p className="mt-3 font-medium text-destructive">{t('admin.tests.deleteTestDataPermanent')}</p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => purgeTestDataMutation.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {t('admin.tests.deleteTestData')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </CardContent>
       </Card>
 

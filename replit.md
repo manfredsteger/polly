@@ -38,6 +38,10 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Admin Tools**: User management, email template customization, security scanning integration (ClamAV, npm audit, Pentest-Tools.com), and system package monitoring (Nix).
 - **Calendar Integration**: ICS export and webcal:// subscription for schedule polls with dynamic status prefixes (Tentative/Confirmed) and automatic cleanup when creator sets final date.
 - **Test Data Isolation**: `isTestData` flags in database for development and purging.
+    -   **Test Mode Header**: API requests with `X-Test-Mode: polly-e2e-test-mode` header automatically set `isTestData: true` on created polls, votes, and users
+    -   **Middleware**: `testModeMiddleware` in `server/routes/common.ts` sets `req.isTestMode = true`
+    -   **Secret Override**: Set `TEST_MODE_SECRET` env var to customize the header value
+    -   **Admin Purge**: Admin dashboard "Tests" panel has "Testdaten löschen" to remove all test data
 
 ### Technical Implementations
 - **Timezone Handling**: Schedule poll times stored in UTC, frontend displays and converts to local time.

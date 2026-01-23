@@ -330,14 +330,16 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>{t('admin.tests.deleteTestDataTitle')}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t('admin.tests.deleteTestDataWarning')}
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>{testDataStats?.polls || 0} {t('common.polls')}</li>
-                      <li>{testDataStats?.users || 0} {t('common.users')}</li>
-                      <li>{testDataStats?.votes || 0} {t('common.votes')}</li>
-                    </ul>
-                    <p className="mt-3 font-medium text-destructive">{t('admin.tests.deleteTestDataPermanent')}</p>
+                  <AlertDialogDescription asChild>
+                    <div>
+                      <span>{t('admin.tests.deleteTestDataWarning')}</span>
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>{testDataStats?.polls || 0} {t('common.polls')}</li>
+                        <li>{testDataStats?.users || 0} {t('common.users')}</li>
+                        <li>{testDataStats?.votes || 0} {t('common.votes')}</li>
+                      </ul>
+                      <div className="mt-3 font-medium text-destructive">{t('admin.tests.deleteTestDataPermanent')}</div>
+                    </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

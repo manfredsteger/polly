@@ -172,9 +172,20 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         if (Object.keys(existingVotes).length > 0) {
           setVotes(existingVotes);
         }
+      } else {
+        // Pre-fill slot bookings for organization polls
+        const existingBookings: SlotBookingInfo[] = myVotesData.votes
+          .filter(v => v.response === 'yes')
+          .map(v => ({
+            optionId: v.optionId,
+            comment: v.comment || undefined
+          }));
+        if (existingBookings.length > 0 && orgaBookings.length === 0) {
+          setOrgaBookings(existingBookings);
+        }
       }
     }
-  }, [myVotesData, canEdit, poll.type, voterName, voterEmail]);
+  }, [myVotesData, canEdit, poll.type, voterName, voterEmail, orgaBookings.length]);
 
   // Check if email belongs to a registered user
   const checkEmailRegistration = async (email: string) => {
@@ -938,7 +949,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       className={`px-8 ${
                         orgaBookings.length === 0 
                           ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
-                          : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                          : 'polly-button-organization'
                       }`}
                       disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
                       data-testid="button-submit-vote"

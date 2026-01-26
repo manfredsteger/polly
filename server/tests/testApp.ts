@@ -84,6 +84,14 @@ export async function closeTestApp(): Promise<void> {
     testServer = null;
   }
   testApp = null;
+  
+  // Close database pool to prevent hanging
+  try {
+    const { pool } = await import('../db');
+    await pool.end();
+  } catch {
+    // Ignore errors if pool doesn't exist
+  }
 }
 
 export function getTestApp(): Express | null {

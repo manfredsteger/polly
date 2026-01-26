@@ -5,17 +5,20 @@
 
 import { db } from "./db";
 import { polls, pollOptions, votes } from "@shared/schema";
+import { sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 async function seedDemoData() {
   console.log("🌱 Seeding demo data...");
 
-  // Check if demo data already exists
-  const existingPolls = await db.select().from(polls).limit(1);
-  if (existingPolls.length > 0) {
+  // Check if demo data already exists (look for isTestData polls)
+  const existingDemoPolls = await db.select().from(polls).where(sql`${polls.isTestData} = true`).limit(1);
+  if (existingDemoPolls.length > 0) {
     console.log("📦 Demo data already exists, skipping...");
     return;
   }
+  
+  console.log("📊 Creating demo polls (existing user polls will be preserved)...");
 
   const now = new Date();
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);

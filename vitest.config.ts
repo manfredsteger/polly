@@ -10,6 +10,9 @@ export default defineConfig({
     setupFiles: ['server/tests/setup.ts'],
     testTimeout: 30000,
     hookTimeout: 30000,
+    teardownTimeout: 10000,
+    pool: 'forks' as const,
+    isolate: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

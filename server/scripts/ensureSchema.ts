@@ -184,6 +184,7 @@ async function createCoreTables(client: any): Promise<void> {
       allow_maybe BOOLEAN NOT NULL DEFAULT TRUE,
       is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
       expires_at TIMESTAMP,
+      final_option_id INTEGER,
       enable_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
       expiry_reminder_hours INTEGER DEFAULT 24,
       expiry_reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,

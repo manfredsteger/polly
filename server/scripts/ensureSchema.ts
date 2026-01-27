@@ -28,6 +28,7 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'polls', column: 'enable_expiry_reminder', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'polls', column: 'expiry_reminder_hours', definition: 'INTEGER DEFAULT 24' },
   { table: 'polls', column: 'expiry_reminder_sent', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'polls', column: 'final_option_id', definition: 'INTEGER' },
 ];
 
 async function ensureSchema(): Promise<void> {

@@ -39,6 +39,10 @@ app.use((req, res, next) => {
   // Development: Allows unsafe-eval for Vite HMR
   const isDev = process.env.NODE_ENV !== 'production';
   
+  // Check if app is actually running over HTTPS
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || 
+    (process.env.BASE_URL && process.env.BASE_URL.startsWith('https://'));
+  
   const cspDirectives = [
     "default-src 'self'",
     // In production: no unsafe-eval (Vite bundles everything)
@@ -54,8 +58,13 @@ app.use((req, res, next) => {
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    "upgrade-insecure-requests", // Force HTTPS for all resources
   ];
+  
+  // Only add upgrade-insecure-requests when actually behind HTTPS
+  // This prevents Safari from trying to upgrade HTTP to HTTPS on local dev
+  if (isHttps) {
+    cspDirectives.push("upgrade-insecure-requests");
+  }
   
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
   
@@ -77,10 +86,9 @@ app.use((req, res, next) => {
   ].join(', '));
   
   // Strict-Transport-Security (HSTS) - Forces HTTPS
-  // Enable for all HTTPS connections (Replit uses HTTPS even in development)
+  // Only enable when actually behind HTTPS to avoid issues with local HTTP development
   // max-age=31536000 (1 year) meets the 7776000 (90 days) minimum requirement
-  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
-  if (isHttps || process.env.NODE_ENV === 'production') {
+  if (isHttps) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
   

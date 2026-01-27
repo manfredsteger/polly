@@ -10,7 +10,7 @@ import * as path from 'path';
 
 const REQUIRED_TABLES = ['users', 'polls', 'poll_options', 'votes', 'system_settings', 
   'password_reset_tokens', 'email_change_tokens', 'notification_logs',
-  'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs'];
+  'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs', 'email_templates'];
 
 const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = [
   { table: 'users', column: 'calendar_token', definition: 'TEXT UNIQUE' },
@@ -261,6 +261,24 @@ async function createCoreTables(client: any): Promise<void> {
       request_ip TEXT,
       scan_duration_ms INTEGER,
       admin_notified_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Create email_templates table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id SERIAL PRIMARY KEY,
+      type TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      json_content JSONB NOT NULL,
+      html_content TEXT,
+      text_content TEXT,
+      variables JSONB NOT NULL DEFAULT '[]',
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);

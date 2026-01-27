@@ -136,6 +136,7 @@ CREATE TABLE "users" (
         "keycloak_id" text,
         "provider" text DEFAULT 'local',
         "theme_preference" text DEFAULT 'system',
+        "language_preference" text DEFAULT 'de',
         "calendar_token" text,
         "is_test_data" boolean DEFAULT false NOT NULL,
         "is_initial_admin" boolean DEFAULT false NOT NULL,
@@ -163,4 +164,37 @@ CREATE TABLE "votes" (
         "is_test_data" boolean DEFAULT false NOT NULL,
         "created_at" timestamp DEFAULT now() NOT NULL,
         "updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "email_templates" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "type" text NOT NULL,
+        "name" text NOT NULL,
+        "subject" text NOT NULL,
+        "json_content" jsonb NOT NULL,
+        "html_content" text,
+        "text_content" text,
+        "variables" jsonb DEFAULT '[]'::jsonb NOT NULL,
+        "is_default" boolean DEFAULT false NOT NULL,
+        "is_active" boolean DEFAULT true NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        CONSTRAINT "email_templates_type_unique" UNIQUE("type")
+);
+--> statement-breakpoint
+CREATE TABLE "clamav_scan_logs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "filename" text NOT NULL,
+        "file_size" integer NOT NULL,
+        "mime_type" text,
+        "scan_status" text NOT NULL,
+        "virus_name" text,
+        "error_message" text,
+        "action_taken" text NOT NULL,
+        "uploader_user_id" integer,
+        "uploader_email" text,
+        "request_ip" text,
+        "scan_duration_ms" integer,
+        "admin_notified_at" timestamp,
+        "created_at" timestamp DEFAULT now() NOT NULL
 );

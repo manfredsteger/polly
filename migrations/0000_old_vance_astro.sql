@@ -160,6 +160,7 @@ CREATE TABLE "votes" (
         "response" text NOT NULL,
         "comment" text,
         "voter_edit_token" text,
+        "is_test_data" boolean DEFAULT false NOT NULL,
         "created_at" timestamp DEFAULT now() NOT NULL,
         "updated_at" timestamp DEFAULT now() NOT NULL
 );

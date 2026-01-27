@@ -94,6 +94,32 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 -   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` - Detaillierte Dokumentation für Mobile App Integration
 -   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` - Anleitung für Docker/Production Deployment
 
+## Docker Migration Path
+
+When schema changes are made (new columns in `shared/schema.ts`), existing Docker databases need to be updated:
+
+### For Developers Adding New Schema Columns
+1. Add the column to `shared/schema.ts` (Drizzle schema)
+2. Add matching entry to `server/scripts/ensureSchema.ts` in `COLUMN_UPDATES` array
+3. Update `migrations/0000_old_vance_astro.sql` for fresh installs
+4. Update `createCoreTables()` fallback function in `ensureSchema.ts`
+
+### For Users Updating Existing Docker Installations
+After pulling new code with schema changes:
+```bash
+docker compose down
+docker compose build --no-cache app
+make complete
+```
+
+The `ensureSchema.ts` script automatically adds missing columns via `ALTER TABLE ADD COLUMN IF NOT EXISTS`.
+
+### Fresh Install (No Existing Data)
+```bash
+docker compose down -v  # Removes database volumes
+make complete
+```
+
 ## External Dependencies
 
 -   **PostgreSQL**: Main database for all application data.

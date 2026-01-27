@@ -29,6 +29,11 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'polls', column: 'expiry_reminder_hours', definition: 'INTEGER DEFAULT 24' },
   { table: 'polls', column: 'expiry_reminder_sent', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'polls', column: 'final_option_id', definition: 'INTEGER' },
+  { table: 'votes', column: 'is_test_data', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'votes', column: 'voter_edit_token', definition: 'TEXT' },
+  { table: 'votes', column: 'voter_key', definition: 'TEXT' },
+  { table: 'votes', column: 'voter_source', definition: 'TEXT' },
+  { table: 'votes', column: 'comment', definition: 'TEXT' },
 ];
 
 async function ensureSchema(): Promise<void> {
@@ -223,6 +228,7 @@ async function createCoreTables(client: any): Promise<void> {
       response TEXT NOT NULL,
       comment TEXT,
       voter_edit_token TEXT,
+      is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     )

@@ -17,9 +17,11 @@ export class EmailService {
 
   constructor() {
     // Check if SMTP is properly configured
+    // Support both SMTP_PASSWORD (docker-compose.yml) and SMTP_PASS (legacy) for compatibility
+    const smtpPassword = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
     const hasSmtpConfig = process.env.SMTP_HOST && 
                          process.env.SMTP_USER && 
-                         process.env.SMTP_PASS;
+                         smtpPassword;
 
     if (hasSmtpConfig) {
       const config: EmailConfig = {
@@ -28,7 +30,7 @@ export class EmailService {
         secure: process.env.SMTP_SECURE === 'true',
         auth: {
           user: process.env.SMTP_USER!,
-          pass: process.env.SMTP_PASS!,
+          pass: smtpPassword!,
         },
       };
 

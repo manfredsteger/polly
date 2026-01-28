@@ -151,6 +151,10 @@ class ApiRateLimiterService {
         return;
       }
 
+      // Ensure limiter exists (may have been cleared or not initialized)
+      if (!this.limiters.has(name)) {
+        this.limiters.set(name, new Map());
+      }
       const entries = this.limiters.get(name)!;
       const keyGenerator = config.keyGenerator || ((r: Request) => this.defaultKeyGenerator(r));
       const key = keyGenerator(req);

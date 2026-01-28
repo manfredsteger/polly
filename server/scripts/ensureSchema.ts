@@ -10,7 +10,8 @@ import * as path from 'path';
 
 const REQUIRED_TABLES = ['users', 'polls', 'poll_options', 'votes', 'system_settings', 
   'password_reset_tokens', 'email_change_tokens', 'notification_logs',
-  'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs', 'email_templates'];
+  'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs', 'email_templates',
+  'email_verification_tokens'];
 
 const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = [
   { table: 'users', column: 'calendar_token', definition: 'TEXT UNIQUE' },
@@ -34,6 +35,7 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'votes', column: 'voter_key', definition: 'TEXT' },
   { table: 'votes', column: 'voter_source', definition: 'TEXT' },
   { table: 'votes', column: 'comment', definition: 'TEXT' },
+  { table: 'users', column: 'email_verified', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
 ];
 
 async function ensureSchema(): Promise<void> {
@@ -279,6 +281,17 @@ async function createCoreTables(client: any): Promise<void> {
       is_default BOOLEAN NOT NULL DEFAULT FALSE,
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
       updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Create email_verification_tokens table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMP NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);

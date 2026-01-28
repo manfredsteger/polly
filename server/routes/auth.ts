@@ -292,6 +292,20 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vergeben' });
     }
 
+    // Create email verification token and send welcome email
+    try {
+      const verificationToken = await storage.createEmailVerificationToken(user.id);
+      const { getBaseUrl } = await import('../utils/baseUrl');
+      const baseUrl = getBaseUrl();
+      const verificationLink = `${baseUrl}/email-bestaetigen/${verificationToken.token}`;
+      
+      emailService.sendWelcomeEmail(user.email, user.name, verificationLink)
+        .then(() => console.log(`[Welcome Email] Sent to ${user.email}`))
+        .catch((emailError) => console.error(`[Welcome Email] Failed to send to ${user.email}:`, emailError));
+    } catch (emailError) {
+      console.error('Failed to create verification token or send welcome email:', emailError);
+    }
+
     req.session.userId = user.id;
     
     // Explicitly save session before responding
@@ -309,6 +323,60 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
     } else {
       res.status(500).json({ error: 'Interner Fehler' });
     }
+  }
+});
+
+// Verify email address
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    const verificationToken = await storage.getEmailVerificationToken(token);
+    if (!verificationToken) {
+      return res.status(400).json({ 
+        error: 'Ungültiger oder abgelaufener Verifizierungslink',
+        expired: true 
+      });
+    }
+    
+    await storage.verifyEmail(verificationToken.userId);
+    await storage.deleteEmailVerificationToken(token);
+    
+    res.json({ success: true, message: 'E-Mail-Adresse wurde erfolgreich bestätigt' });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// Resend verification email
+router.post('/resend-verification', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Nicht autorisiert' });
+    }
+    
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(400).json({ error: 'E-Mail-Adresse bereits bestätigt' });
+    }
+    
+    const verificationToken = await storage.createEmailVerificationToken(user.id);
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const verificationLink = `${baseUrl}/email-bestaetigen/${verificationToken.token}`;
+    
+    await emailService.sendWelcomeEmail(user.email, user.name, verificationLink);
+    
+    res.json({ success: true, message: 'Bestätigungslink wurde erneut gesendet' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
   }
 });
 
@@ -345,7 +413,7 @@ router.post('/request-password-reset', passwordResetRateLimiter, async (req, res
     const resetLink = `${baseUrl}/passwort-zuruecksetzen/${resetToken.token}`;
 
     // Send email asynchronously - don't wait for it to complete
-    emailService.sendPasswordResetEmail(user.email, resetLink)
+    emailService.sendPasswordResetEmail(user.email, resetLink, user.name)
       .then(() => console.log(`[Password Reset] Email sent to ${user.email}`))
       .catch((emailError) => console.error(`[Password Reset] Failed to send email to ${user.email}:`, emailError));
     
@@ -388,7 +456,7 @@ router.post('/reset-password', async (req, res) => {
     await storage.markPasswordResetTokenUsed(token);
 
     // Send notification email
-    emailService.sendPasswordChangedEmail(user.email)
+    emailService.sendPasswordChangedEmail(user.email, user.name)
       .catch((emailError) => console.error(`[Password Changed] Failed to send notification to ${user.email}:`, emailError));
 
     res.json({ success: true, message: 'Passwort wurde erfolgreich zurückgesetzt' });
@@ -431,7 +499,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
     await storage.updateUser(user.id, { passwordHash: hashedPassword });
 
     // Send notification email
-    emailService.sendPasswordChangedEmail(user.email)
+    emailService.sendPasswordChangedEmail(user.email, user.name)
       .catch((emailError) => console.error(`[Password Changed] Failed to send notification to ${user.email}:`, emailError));
 
     res.json({ success: true, message: 'Passwort wurde erfolgreich geändert' });

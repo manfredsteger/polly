@@ -371,12 +371,15 @@ Open-Source Abstimmungsplattform für Teams`,
     }
   }
 
-  async sendPasswordResetEmail(email: string, resetLink: string): Promise<void> {
+  async sendPasswordResetEmail(email: string, resetLink: string, userName?: string): Promise<void> {
     if (!this.isConfigured || !this.transporter) {
       console.log(`[Email] Password reset would be sent to ${email}`);
       console.log(`[Email] Reset link: ${resetLink}`);
       return;
     }
+
+    const displayName = userName || '';
+    const greeting = displayName ? `Hallo ${displayName},` : 'Hallo,';
 
     try {
       const subject = '[Polly] Passwort zurücksetzen';
@@ -384,7 +387,7 @@ Open-Source Abstimmungsplattform für Teams`,
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #FF6B35;">Passwort zurücksetzen</h2>
           
-          <p>Hallo,</p>
+          <p>${greeting}</p>
           
           <p>Sie haben angefordert, Ihr Passwort für Ihren Polly Account zurückzusetzen.</p>
           
@@ -410,7 +413,7 @@ Open-Source Abstimmungsplattform für Teams`,
         to: email,
         subject,
         html,
-        text: `Passwort zurücksetzen\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nKlicken Sie auf den folgenden Link:\n${resetLink}\n\nDieser Link ist 1 Stunde gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.`,
+        text: `Passwort zurücksetzen\n\n${greeting}\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nKlicken Sie auf den folgenden Link:\n${resetLink}\n\nDieser Link ist 1 Stunde gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.`,
         headers: {
           'X-Mailer': 'Polly System',
           'X-Priority': '3',
@@ -822,23 +825,95 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
     }
   }
 
-  async sendPasswordChangedEmail(email: string): Promise<void> {
+  async sendPasswordChangedEmail(email: string, userName?: string): Promise<void> {
     if (!this.isConfigured || !this.transporter) {
       console.warn(`[Email] Cannot send password changed email - SMTP not configured`);
       return;
     }
 
+    const displayName = userName || '';
+    const greeting = displayName ? `Hallo ${displayName},` : 'Hallo,';
+
     try {
       await this.transporter.sendMail({
         from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: email,
-        subject: 'Passwort geändert',
-        text: 'Ihr Passwort wurde erfolgreich geändert. Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.',
-        html: `<p>Ihr Passwort wurde erfolgreich geändert.</p><p>Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.</p>`,
+        subject: '[Polly] Ihr Passwort wurde geändert',
+        text: `${greeting}\n\nIhr Passwort für Ihren Polly Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #FF6B35;">Passwort erfolgreich geändert</h2>
+            
+            <p>${greeting}</p>
+            
+            <p>Ihr Passwort für Ihren Polly Account wurde erfolgreich geändert.</p>
+            
+            <p style="color: #dc3545; font-weight: bold;">Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
+            <p style="color: #6c757d; font-size: 14px;">
+              Diese E-Mail wurde automatisch von Polly erstellt.<br>
+              Open-Source Abstimmungsplattform für Teams
+            </p>
+          </div>
+        `,
       });
       console.log(`[Email] Password changed notification sent to ${email}`);
     } catch (error) {
       console.error('Failed to send password changed email:', error);
+      throw error;
+    }
+  }
+
+  async sendWelcomeEmail(email: string, userName: string, verificationLink: string): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.log(`[Email] Welcome email would be sent to ${email}`);
+      console.log(`[Email] Verification link: ${verificationLink}`);
+      return;
+    }
+
+    try {
+      const subject = '[Polly] Willkommen bei Polly!';
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FF6B35;">Willkommen bei Polly!</h2>
+          
+          <p>Hallo ${userName},</p>
+          
+          <p>vielen Dank für Ihre Registrierung bei Polly!</p>
+          
+          <p>Ihr Account wurde erfolgreich erstellt. Bitte bestätigen Sie Ihre E-Mail-Adresse, indem Sie auf den folgenden Button klicken:</p>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <a href="${verificationLink}" style="background-color: #FF6B35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">E-Mail bestätigen</a>
+          </div>
+          
+          <p><strong>Dieser Link ist 24 Stunden gültig.</strong></p>
+          
+          <p>Nach der Bestätigung können Sie alle Funktionen von Polly nutzen.</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
+          <p style="color: #6c757d; font-size: 14px;">
+            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
+          </p>
+        </div>
+      `;
+
+      await this.transporter.sendMail({
+        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        to: email,
+        subject,
+        html,
+        text: `Willkommen bei Polly!\n\nHallo ${userName},\n\nvielen Dank für Ihre Registrierung bei Polly!\n\nIhr Account wurde erfolgreich erstellt. Bitte bestätigen Sie Ihre E-Mail-Adresse:\n${verificationLink}\n\nDieser Link ist 24 Stunden gültig.\n\nNach der Bestätigung können Sie alle Funktionen von Polly nutzen.`,
+        headers: {
+          'X-Mailer': 'Polly System',
+          'X-Priority': '3',
+        },
+      });
+      console.log(`[Email] Welcome email sent to ${email}`);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
       throw error;
     }
   }

@@ -578,6 +578,8 @@
     "emailAddress": "Email Address",
     "enterSecurePassword": "Enter secure password",
     "repeatPassword": "Repeat password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "noLoginRequired": "You can also create and vote on polls without logging in.",
     "passwordsMatch": "Passwords match",
     "passwordMeetsRequirements": "Password meets all requirements",

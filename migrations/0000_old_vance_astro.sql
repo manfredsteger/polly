@@ -138,6 +138,7 @@ CREATE TABLE "users" (
         "theme_preference" text DEFAULT 'system',
         "language_preference" text DEFAULT 'de',
         "calendar_token" text,
+        "email_verified" boolean DEFAULT false NOT NULL,
         "is_test_data" boolean DEFAULT false NOT NULL,
         "is_initial_admin" boolean DEFAULT false NOT NULL,
         "deletion_requested_at" timestamp,
@@ -196,5 +197,13 @@ CREATE TABLE "clamav_scan_logs" (
         "request_ip" text,
         "scan_duration_ms" integer,
         "admin_notified_at" timestamp,
+        "created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "email_verification_tokens" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "user_id" integer NOT NULL,
+        "token" text NOT NULL UNIQUE,
+        "expires_at" timestamp NOT NULL,
         "created_at" timestamp DEFAULT now() NOT NULL
 );

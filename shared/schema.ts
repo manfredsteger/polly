@@ -16,10 +16,19 @@ export const users = pgTable("users", {
   themePreference: text("theme_preference").default("system"), // 'light', 'dark', or 'system'
   languagePreference: text("language_preference").default("de"), // 'de' or 'en'
   calendarToken: text("calendar_token").unique(), // Secret token for calendar subscription feed
+  emailVerified: boolean("email_verified").default(false).notNull(), // Email address verified
   isTestData: boolean("is_test_data").default(false).notNull(), // Test accounts cannot log in
   isInitialAdmin: boolean("is_initial_admin").default(false).notNull(), // Initial admin created on first start - shows warning banner
   deletionRequestedAt: timestamp("deletion_requested_at"), // GDPR: User requested account deletion
   lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -382,6 +391,7 @@ export const EMAIL_TEMPLATE_TYPES = [
   'email_change',
   'password_changed',
   'test_report',
+  'welcome',
 ] as const;
 
 export type EmailTemplateType = typeof EMAIL_TEMPLATE_TYPES[number];
@@ -421,6 +431,7 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   password_reset: [
+    { key: 'userName', description: 'Name des Benutzers' },
     { key: 'resetLink', description: 'Link zum Passwort zurücksetzen' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
@@ -431,6 +442,7 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   password_changed: [
+    { key: 'userName', description: 'Name des Benutzers' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   test_report: [
@@ -442,6 +454,12 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'skipped', description: 'Anzahl übersprungener Tests' },
     { key: 'duration', description: 'Testdauer' },
     { key: 'startedAt', description: 'Startzeit' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  welcome: [
+    { key: 'userName', description: 'Name des Benutzers' },
+    { key: 'userEmail', description: 'E-Mail-Adresse des Benutzers' },
+    { key: 'verificationLink', description: 'Link zur E-Mail-Verifizierung' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
 };

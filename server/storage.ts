@@ -1,6 +1,7 @@
 import { 
   users, polls, pollOptions, votes, systemSettings, notificationLogs,
   passwordResetTokens, emailChangeTokens, emailTemplates, clamavScanLogs,
+  emailVerificationTokens,
   type User, type InsertUser,
   type Poll, type InsertPoll, type PollWithOptions,
   type PollOption, type InsertPollOption,
@@ -138,6 +139,12 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(token: string): Promise<void>;
   deleteExpiredPasswordResetTokens(): Promise<void>;
+
+  // Email verification tokens
+  createEmailVerificationToken(userId: number): Promise<{ token: string; expiresAt: Date }>;
+  getEmailVerificationToken(token: string): Promise<{ userId: number; token: string; expiresAt: Date } | undefined>;
+  verifyEmail(userId: number): Promise<void>;
+  deleteEmailVerificationToken(token: string): Promise<void>;
 
   // Email change tokens
   createEmailChangeToken(userId: number, newEmail: string): Promise<EmailChangeToken>;
@@ -1223,6 +1230,42 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(passwordResetTokens)
       .where(sql`${passwordResetTokens.expiresAt} < NOW()`);
+  }
+
+  // Email verification tokens
+  async createEmailVerificationToken(userId: number): Promise<{ token: string; expiresAt: Date }> {
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hour expiry
+    
+    await db
+      .insert(emailVerificationTokens)
+      .values({ userId, token, expiresAt });
+    
+    return { token, expiresAt };
+  }
+
+  async getEmailVerificationToken(token: string): Promise<{ userId: number; token: string; expiresAt: Date } | undefined> {
+    const [verificationToken] = await db
+      .select()
+      .from(emailVerificationTokens)
+      .where(and(
+        eq(emailVerificationTokens.token, token),
+        sql`${emailVerificationTokens.expiresAt} > NOW()`
+      ));
+    return verificationToken || undefined;
+  }
+
+  async verifyEmail(userId: number): Promise<void> {
+    await db
+      .update(users)
+      .set({ emailVerified: true })
+      .where(eq(users.id, userId));
+  }
+
+  async deleteEmailVerificationToken(token: string): Promise<void> {
+    await db
+      .delete(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.token, token));
   }
 
   // Email change tokens

@@ -148,7 +148,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// Middleware: require admin role
+// Middleware: require admin role (also requires verified email)
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = await extractUserId(req);
@@ -159,6 +159,46 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
     const user = req.tokenUser || await storage.getUser(userId);
     if (!user || user.role !== 'admin') {
       throw new AuthorizationError('Administratorberechtigung erforderlich');
+    }
+    
+    // Admins must have verified email
+    if (!user.emailVerified) {
+      return res.status(403).json({ 
+        error: 'E-Mail-Adresse nicht verifiziert',
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um den Admin-Bereich zu nutzen.'
+      });
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Middleware: require verified email for logged-in users
+// Note: This middleware only applies to authenticated users - anonymous actions are still allowed
+export const requireEmailVerified = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = await extractUserId(req);
+    
+    // If not logged in, allow the request (anonymous users can still create polls)
+    if (!userId) {
+      return next();
+    }
+    
+    const user = req.tokenUser || await storage.getUser(userId);
+    if (!user) {
+      return next();
+    }
+    
+    // If user is logged in but email not verified, block the action
+    if (!user.emailVerified) {
+      return res.status(403).json({ 
+        error: 'E-Mail-Adresse nicht verifiziert',
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um diese Funktion zu nutzen.'
+      });
     }
     
     next();

@@ -2383,6 +2383,14 @@
     "switchToDark": "Switch to Dark",
     "switchToLight": "Switch to Light"
   },
+  "emailVerification": {
+    "bannerMessage": "Please verify your email address to access all features.",
+    "resendButton": "Resend email",
+    "resendSuccess": "Email sent",
+    "resendSuccessDescription": "The verification email has been sent to your address again.",
+    "resendError": "Error",
+    "resendErrorDescription": "The email could not be sent. Please try again later."
+  },
   "ui": {
     "datePicker": {
       "placeholder": "Select date"

@@ -2383,6 +2383,14 @@
     "switchToDark": "Wechseln zu Dunkel",
     "switchToLight": "Wechseln zu Hell"
   },
+  "emailVerification": {
+    "bannerMessage": "Bitte bestätigen Sie Ihre E-Mail-Adresse, um alle Funktionen nutzen zu können.",
+    "resendButton": "E-Mail erneut senden",
+    "resendSuccess": "E-Mail gesendet",
+    "resendSuccessDescription": "Die Bestätigungs-E-Mail wurde erneut an Ihre Adresse gesendet.",
+    "resendError": "Fehler",
+    "resendErrorDescription": "Die E-Mail konnte nicht gesendet werden. Bitte versuchen Sie es später erneut."
+  },
   "ui": {
     "datePicker": {
       "placeholder": "Datum auswählen"

@@ -5,13 +5,15 @@ import { z } from "zod";
 import {
   extractUserId,
   createPollSchema,
+  requireEmailVerified,
 } from "./common";
 import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
 
 const router = Router();
 
 // Create poll (anonymous or authenticated, with rate limiting)
-router.post('/', pollCreationRateLimiter, async (req, res) => {
+// For logged-in users, email must be verified
+router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res) => {
   try {
     const data = createPollSchema.parse(req.body);
     

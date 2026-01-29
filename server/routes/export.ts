@@ -90,10 +90,19 @@ router.get('/polls/:token/export/pdf', async (req, res) => {
     const results = await storage.getPollResults(poll.id);
     
     const customization = await storage.getCustomizationSettings();
+    
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const pollUrl = `${baseUrl}/poll/${poll.publicToken}`;
+    
+    const qrCodeDataUrl = await qrService.generateQRCode(pollUrl, 'png');
+    
     const pdfOptions = {
       logoUrl: customization.branding?.logoUrl || undefined,
       siteName: customization.branding?.siteName || 'Poll',
       siteNameAccent: customization.branding?.siteNameAccent || 'y',
+      qrCodeDataUrl,
+      pollUrl,
     };
     
     const pdfBuffer = await pdfService.generatePollResultsPDF(results, pdfOptions);

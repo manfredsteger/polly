@@ -15,6 +15,7 @@ import {
 import { Plus, X, Calendar as CalendarIcon, Clock, CalendarDays, Repeat, Sparkles, Users } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { de, enUS } from "date-fns/locale";
+import { TimePickerDropdown } from "@/components/TimePickerDropdown";
 
 interface PollOption {
   text: string;
@@ -465,22 +466,20 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="dialog-startTime" className="text-sm font-medium">{t('calendarPicker.labels.from')}</Label>
-                <Input
-                  id="dialog-startTime"
-                  type="time"
+                <TimePickerDropdown
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={setStartTime}
+                  label={t('calendarPicker.labels.from')}
                   className="mt-1"
                   data-testid="input-start-time"
                 />
               </div>
               <div>
                 <Label htmlFor="dialog-endTime" className="text-sm font-medium">{t('calendarPicker.labels.to')}</Label>
-                <Input
-                  id="dialog-endTime"
-                  type="time"
+                <TimePickerDropdown
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={setEndTime}
+                  label={t('calendarPicker.labels.to')}
                   className="mt-1"
                   data-testid="input-end-time"
                 />

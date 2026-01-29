@@ -517,9 +517,13 @@ router.post('/request-email-change', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Nicht autorisiert' });
     }
 
-    const { newEmail } = req.body;
+    const { newEmail, password } = req.body;
     if (!newEmail || typeof newEmail !== 'string') {
       return res.status(400).json({ error: 'Neue E-Mail-Adresse erforderlich' });
+    }
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Passwort erforderlich' });
     }
 
     const emailSchema = z.string().email();
@@ -534,6 +538,17 @@ router.post('/request-email-change', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
 
+    // Verify current password
+    if (!user.passwordHash) {
+      return res.status(400).json({ error: 'Passwort-Authentifizierung nicht verfügbar' });
+    }
+
+    const bcrypt = await import('bcryptjs');
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordValid) {
+      return res.status(401).json({ error: 'Falsches Passwort' });
+    }
+
     // Check if new email is already in use
     const existingUser = await storage.getUserByEmail(newEmail.toLowerCase().trim());
     if (existingUser) {
@@ -544,7 +559,7 @@ router.post('/request-email-change', requireAuth, async (req, res) => {
     const emailChangeToken = await storage.createEmailChangeToken(userId, newEmail.toLowerCase().trim());
     const { getBaseUrl } = await import('../utils/baseUrl');
     const baseUrl = getBaseUrl();
-    const confirmLink = `${baseUrl}/bestaetigen-email/${emailChangeToken.token}`;
+    const confirmLink = `${baseUrl}/email-bestaetigen/${emailChangeToken.token}`;
 
     // Send confirmation email to new address
     await emailService.sendEmailChangeConfirmation(newEmail, user.email, confirmLink);

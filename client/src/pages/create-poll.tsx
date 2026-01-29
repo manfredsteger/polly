@@ -16,6 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { CalendarPicker } from "@/components/CalendarPicker";
+import { TimePickerDropdown } from "@/components/TimePickerDropdown";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
@@ -646,22 +647,20 @@ export default function CreatePoll() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edit-startTime" className="text-sm font-medium">{t('pollCreation.from')}</Label>
-                <Input
-                  id="edit-startTime"
-                  type="time"
+                <TimePickerDropdown
                   value={editStartTime}
-                  onChange={(e) => setEditStartTime(e.target.value)}
+                  onChange={setEditStartTime}
+                  label={t('pollCreation.from')}
                   className="mt-1"
                   data-testid="input-edit-start-time"
                 />
               </div>
               <div>
                 <Label htmlFor="edit-endTime" className="text-sm font-medium">{t('pollCreation.to')}</Label>
-                <Input
-                  id="edit-endTime"
-                  type="time"
+                <TimePickerDropdown
                   value={editEndTime}
-                  onChange={(e) => setEditEndTime(e.target.value)}
+                  onChange={setEditEndTime}
+                  label={t('pollCreation.to')}
                   className="mt-1"
                   data-testid="input-edit-end-time"
                 />

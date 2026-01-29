@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus, X, Calendar as CalendarIcon, Clock, CalendarDays, Repeat, Sparkles, Users } from "lucide-react";
+import { Plus, X, Calendar as CalendarIcon, Clock, CalendarDays, Repeat, Sparkles, Users, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { de, enUS } from "date-fns/locale";
 import { TimePickerDropdown } from "@/components/TimePickerDropdown";
@@ -796,25 +796,30 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             <div className="space-y-3">
               <Label className="text-sm font-medium">{t('calendarPicker.labels.selectWeekdays')}</Label>
               <div className="grid gap-2">
-                {weekdays.map((weekday) => (
-                  <div 
-                    key={weekday.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedWeekdays.includes(weekday.name) 
-                        ? 'bg-primary/10 border-primary' 
-                        : 'bg-background hover:bg-muted'
-                    }`}
-                    onClick={() => toggleWeekday(weekday.name)}
-                    data-testid={`weekday-${weekday.id}`}
-                  >
-                    <Checkbox 
-                      checked={selectedWeekdays.includes(weekday.name)}
-                      onClick={(e) => e.stopPropagation()}
-                      onCheckedChange={() => toggleWeekday(weekday.name)}
-                    />
-                    <span className="font-medium">{weekday.name}</span>
-                  </div>
-                ))}
+                {weekdays.map((weekday) => {
+                  const isSelected = selectedWeekdays.includes(weekday.name);
+                  return (
+                    <div 
+                      key={weekday.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        isSelected 
+                          ? 'bg-primary/10 border-primary' 
+                          : 'bg-background hover:bg-muted'
+                      }`}
+                      onClick={() => toggleWeekday(weekday.name)}
+                      data-testid={`weekday-${weekday.id}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                        isSelected 
+                          ? 'bg-primary border-primary text-white' 
+                          : 'border-gray-300 bg-white'
+                      }`}>
+                        {isSelected && <Check className="w-3 h-3" />}
+                      </div>
+                      <span className="font-medium">{weekday.name}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

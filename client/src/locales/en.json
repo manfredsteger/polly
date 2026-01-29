@@ -2564,11 +2564,11 @@
     "registeredLabel": "Registered:",
     "commentOptional": "Comment (optional)",
     "commentPlaceholder": "e.g., contact info, special notes...",
-    "registered": "Registered",
-    "register": "Register",
+    "registered": "Selected",
+    "register": "Select",
     "yourSelection": "Your selection:",
-    "registeredForSlot": "You have signed up for {{count}} slot.",
-    "registeredForSlots": "You have signed up for {{count}} slots."
+    "registeredForSlot": "You have selected {{count}} slot.",
+    "registeredForSlots": "You have selected {{count}} slots."
   },
   "home": {
     "heroTitle": "Simply <plan>plan</plan>, <vote>vote</vote> and <org>organize</org>",

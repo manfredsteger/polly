@@ -918,9 +918,14 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
     }
   }
 
-  async sendBulkInvitations(emails: string[], pollTitle: string, senderName: string, pollUrl: string, customMessage?: string): Promise<{ sent: number; failed: string[] }> {
+  async sendBulkInvitations(emails: string[], pollTitle: string, senderName: string, pollUrl: string, customMessage?: string): Promise<{ sent: number; failed: string[]; smtpConfigured: boolean }> {
     const failed: string[] = [];
     let sent = 0;
+
+    if (!this.isConfigured || !this.transporter) {
+      console.warn('[Email] SMTP not configured - invitations cannot be sent');
+      return { sent: 0, failed: emails, smtpConfigured: false };
+    }
 
     for (const email of emails) {
       try {
@@ -931,7 +936,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
       }
     }
 
-    return { sent, failed };
+    return { sent, failed, smtpConfigured: true };
   }
 
   async sendBulkReminders(emails: string[], pollTitle: string, senderName: string, pollUrl: string, expiresAt?: string, customMessage?: string): Promise<{ sent: number; failed: string[] }> {

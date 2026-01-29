@@ -460,6 +460,13 @@ router.post('/admin/:token/invite', async (req, res) => {
       customMessage
     );
     
+    if (!results.smtpConfigured) {
+      return res.status(503).json({ 
+        error: 'E-Mail-Versand nicht verfügbar. SMTP ist nicht konfiguriert.',
+        code: 'SMTP_NOT_CONFIGURED'
+      });
+    }
+    
     res.json({ success: true, results });
   } catch (error) {
     console.error('Error sending invitations:', error);
@@ -707,6 +714,13 @@ router.post('/:token/invite', async (req, res) => {
       publicLink,
       customMessage
     );
+    
+    if (!results.smtpConfigured) {
+      return res.status(503).json({ 
+        error: 'E-Mail-Versand nicht verfügbar. SMTP ist nicht konfiguriert.',
+        code: 'SMTP_NOT_CONFIGURED'
+      });
+    }
     
     res.json({ 
       success: true, 

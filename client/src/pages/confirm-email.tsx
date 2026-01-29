@@ -32,30 +32,69 @@ export default function ConfirmEmail() {
     return msg;
   };
 
-  const confirmEmailMutation = useMutation({
-    mutationFn: async (token: string) => {
-      const response = await apiRequest('POST', '/api/v1/auth/confirm-email-change', { token });
-      return response.json();
-    },
-    onSuccess: () => {
-      setStatus('success');
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
-    },
-    onError: (error: any) => {
-      setStatus('error');
-      setErrorMessage(parseErrorMessage(error));
-    },
-  });
+  const [verifiedType, setVerifiedType] = useState<'registration' | 'email-change' | null>(null);
 
   useEffect(() => {
-    if (token) {
-      confirmEmailMutation.mutate(token);
-    } else {
-      setStatus('error');
-      setErrorMessage(t('confirmEmail.invalidLink'));
-    }
-  }, [token]);
+    const verifyToken = async () => {
+      if (!token) {
+        setStatus('error');
+        setErrorMessage(t('confirmEmail.invalidLink'));
+        return;
+      }
+
+      try {
+        // First try registration verification (GET endpoint)
+        const verifyResponse = await fetch(`/api/v1/auth/verify-email/${token}`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        if (verifyResponse.ok) {
+          setVerifiedType('registration');
+          setStatus('success');
+          queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
+          return;
+        }
+
+        // Parse error from registration verification
+        let verifyError: string | null = null;
+        try {
+          const verifyErrorData = await verifyResponse.json();
+          verifyError = verifyErrorData.error;
+        } catch {
+          // Ignore JSON parse errors
+        }
+
+        // Only try email change if registration verification returned 400 (invalid/expired token)
+        // Don't fall back on network errors or server errors
+        if (verifyResponse.status === 400) {
+          const changeResponse = await apiRequest('POST', '/api/v1/auth/confirm-email-change', { token });
+          if (changeResponse.ok) {
+            setVerifiedType('email-change');
+            setStatus('success');
+            queryClient.invalidateQueries({ queryKey: ['/api/v1/user/profile'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
+            return;
+          }
+
+          // Both failed - show error from email change endpoint
+          const errorData = await changeResponse.json().catch(() => ({}));
+          setStatus('error');
+          setErrorMessage(errorData.error || verifyError || t('confirmEmail.unknownError'));
+        } else {
+          // Server error or other issue - show registration verification error
+          setStatus('error');
+          setErrorMessage(verifyError || t('confirmEmail.unknownError'));
+        }
+      } catch (error: any) {
+        setStatus('error');
+        setErrorMessage(parseErrorMessage(error));
+      }
+    };
+
+    verifyToken();
+  }, [token, t]);
 
   if (status === 'loading') {
     return (
@@ -104,16 +143,24 @@ export default function ConfirmEmail() {
         <CardContent className="pt-6">
           <div className="text-center space-y-4">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
-            <h2 className="text-2xl font-bold">{t('confirmEmail.emailChanged')}</h2>
+            <h2 className="text-2xl font-bold">
+              {verifiedType === 'registration' 
+                ? t('confirmEmail.emailVerified') 
+                : t('confirmEmail.emailChanged')}
+            </h2>
             <p className="text-muted-foreground">
-              {t('confirmEmail.emailUpdated')}
+              {verifiedType === 'registration'
+                ? t('confirmEmail.emailVerifiedMessage')
+                : t('confirmEmail.emailUpdated')}
             </p>
             <Button 
               className="w-full polly-button-primary" 
-              onClick={() => setLocation("/profil")}
+              onClick={() => setLocation(verifiedType === 'registration' ? "/" : "/profil")}
               data-testid="button-back-to-profile"
             >
-              {t('confirmEmail.backToProfile')}
+              {verifiedType === 'registration'
+                ? t('confirmEmail.goToHome')
+                : t('confirmEmail.backToProfile')}
             </Button>
           </div>
         </CardContent>

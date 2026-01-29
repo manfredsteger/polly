@@ -216,14 +216,21 @@ export default function Login() {
 
   const isPasswordValid = validatePassword(registerForm.password);
   const passwordsMatch = registerForm.password === registerForm.confirmPassword;
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailValid = isValidEmail(registerForm.email);
   const canRegister = isPasswordValid && passwordsMatch && 
     registerForm.username.length >= 3 && 
-    registerForm.email.length > 0 && 
+    emailValid && 
     registerForm.name.length > 0;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!emailValid) {
+      setError(t('auth.errors.pleaseEnterValidEmail'));
+      return;
+    }
 
     if (!isPasswordValid) {
       setError(t('auth.errors.passwordRequirements'));
@@ -373,7 +380,13 @@ export default function Login() {
                       placeholder="max@example.de"
                       required
                       data-testid="input-register-email"
+                      className={registerForm.email.length > 0 && !emailValid ? "border-red-500" : ""}
                     />
+                    {registerForm.email.length > 0 && !emailValid && (
+                      <p className="text-sm text-red-500" data-testid="email-validation-error">
+                        {t('auth.errors.pleaseEnterValidEmail')}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-password">{t('auth.password')}</Label>

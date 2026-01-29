@@ -601,7 +601,8 @@
       "registrationDisabled": "Der Zugang wurde verweigert. Die Registrierung ist möglicherweise deaktiviert.",
       "userExists": "Ein Benutzer mit diesem Namen oder dieser E-Mail existiert bereits.",
       "serverError": "Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
-      "passwordRequirements": "Bitte erfüllen Sie alle Passwort-Anforderungen"
+      "passwordRequirements": "Bitte erfüllen Sie alle Passwort-Anforderungen",
+      "pleaseEnterValidEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein."
     }
   },
   "polls": {
@@ -3004,7 +3005,10 @@
     "confirmationFailed": "Bestätigung fehlgeschlagen",
     "backToProfile": "Zurück zum Profil",
     "emailChanged": "E-Mail-Adresse geändert",
-    "emailUpdated": "Ihre E-Mail-Adresse wurde erfolgreich aktualisiert."
+    "emailUpdated": "Ihre E-Mail-Adresse wurde erfolgreich aktualisiert.",
+    "emailVerified": "E-Mail bestätigt",
+    "emailVerifiedMessage": "Ihre E-Mail-Adresse wurde erfolgreich verifiziert. Sie können jetzt alle Funktionen nutzen.",
+    "goToHome": "Zur Startseite"
   },
   "forgotPassword": {
     "unknownError": "Ein unbekannter Fehler ist aufgetreten.",

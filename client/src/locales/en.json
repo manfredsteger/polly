@@ -601,7 +601,8 @@
       "registrationDisabled": "Access denied. Registration may be disabled.",
       "userExists": "A user with this name or email already exists.",
       "serverError": "A server error occurred. Please try again later.",
-      "passwordRequirements": "Please meet all password requirements"
+      "passwordRequirements": "Please meet all password requirements",
+      "pleaseEnterValidEmail": "Please enter valid email id."
     }
   },
   "polls": {
@@ -2502,7 +2503,7 @@
     "loginRequiredDescription": "Please log in to vote with this email address.",
     "pleaseEnterName": "Please enter your name.",
     "pleaseEnterEmail": "Please enter your email address.",
-    "pleaseEnterValidEmail": "Please enter a valid email address.",
+    "pleaseEnterValidEmail": "Please enter valid email id.",
     "pleaseSelectSlot": "Please sign up for at least one slot.",
     "pleaseSelectOption": "Please vote for at least one option.",
     "alreadyVotedTitle": "You have already voted!",
@@ -3004,7 +3005,10 @@
     "confirmationFailed": "Confirmation failed",
     "backToProfile": "Back to Profile",
     "emailChanged": "Email Address Changed",
-    "emailUpdated": "Your email address has been successfully updated."
+    "emailUpdated": "Your email address has been successfully updated.",
+    "emailVerified": "Email Verified",
+    "emailVerifiedMessage": "Your email address has been successfully verified. You can now use all features.",
+    "goToHome": "Go to Home"
   },
   "forgotPassword": {
     "unknownError": "An unknown error occurred.",

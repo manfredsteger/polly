@@ -929,9 +929,10 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
 
     for (const email of emails) {
       try {
-        await this.sendInvitationEmail('', email, pollTitle, pollUrl);
+        await this.sendInvitationEmail(email, senderName, pollTitle, pollUrl, customMessage);
         sent++;
       } catch (error) {
+        console.error(`Failed to send invitation to ${email}:`, error);
         failed.push(email);
       }
     }
@@ -945,9 +946,10 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
 
     for (const email of emails) {
       try {
-        await this.sendReminderEmail('', email, pollTitle, pollUrl);
+        await this.sendReminderEmail(email, senderName, pollTitle, pollUrl, expiresAt ? new Date(expiresAt) : null);
         sent++;
       } catch (error) {
+        console.error(`Failed to send reminder to ${email}:`, error);
         failed.push(email);
       }
     }

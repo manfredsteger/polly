@@ -809,6 +809,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                   >
                     <Checkbox 
                       checked={selectedWeekdays.includes(weekday.name)}
+                      onClick={(e) => e.stopPropagation()}
                       onCheckedChange={() => toggleWeekday(weekday.name)}
                     />
                     <span className="font-medium">{weekday.name}</span>

@@ -1045,47 +1045,63 @@ export default function Poll() {
                           <div className="flex-1 space-y-2">
                             {poll?.type === 'schedule' ? (
                               <>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">{t('pollView.start')}</Label>
+                                {(option.startTime || option.endTime || option.isNew) ? (
+                                  <>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">{t('pollView.start')}</Label>
+                                        <Input
+                                          type="datetime-local"
+                                          value={option.startTime || ''}
+                                          onChange={(e) => {
+                                            const updated = [...editingOptions];
+                                            updated[index] = { ...updated[index], startTime: e.target.value };
+                                            setEditingOptions(updated);
+                                          }}
+                                          className="text-sm"
+                                          data-testid={`input-option-start-${index}`}
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
+                                        <Input
+                                          type="datetime-local"
+                                          value={option.endTime || ''}
+                                          onChange={(e) => {
+                                            const updated = [...editingOptions];
+                                            updated[index] = { ...updated[index], endTime: e.target.value };
+                                            setEditingOptions(updated);
+                                          }}
+                                          className="text-sm"
+                                          data-testid={`input-option-end-${index}`}
+                                        />
+                                      </div>
+                                    </div>
                                     <Input
-                                      type="datetime-local"
-                                      value={option.startTime || ''}
+                                      placeholder={t('pollView.descriptionOptional')}
+                                      value={option.text}
                                       onChange={(e) => {
                                         const updated = [...editingOptions];
-                                        updated[index] = { ...updated[index], startTime: e.target.value };
+                                        updated[index] = { ...updated[index], text: e.target.value };
                                         setEditingOptions(updated);
                                       }}
                                       className="text-sm"
-                                      data-testid={`input-option-start-${index}`}
+                                      data-testid={`input-option-text-${index}`}
                                     />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
-                                    <Input
-                                      type="datetime-local"
-                                      value={option.endTime || ''}
-                                      onChange={(e) => {
-                                        const updated = [...editingOptions];
-                                        updated[index] = { ...updated[index], endTime: e.target.value };
-                                        setEditingOptions(updated);
-                                      }}
-                                      className="text-sm"
-                                      data-testid={`input-option-end-${index}`}
-                                    />
-                                  </div>
-                                </div>
-                                <Input
-                                  placeholder={t('pollView.descriptionOptional')}
-                                  value={option.text}
-                                  onChange={(e) => {
-                                    const updated = [...editingOptions];
-                                    updated[index] = { ...updated[index], text: e.target.value };
-                                    setEditingOptions(updated);
-                                  }}
-                                  className="text-sm"
-                                  data-testid={`input-option-text-${index}`}
-                                />
+                                  </>
+                                ) : (
+                                  <Input
+                                    placeholder={t('pollView.weekdayOrText')}
+                                    value={option.text}
+                                    onChange={(e) => {
+                                      const updated = [...editingOptions];
+                                      updated[index] = { ...updated[index], text: e.target.value };
+                                      setEditingOptions(updated);
+                                    }}
+                                    className="text-sm"
+                                    data-testid={`input-option-text-${index}`}
+                                  />
+                                )}
                               </>
                             ) : poll?.type === 'organization' ? (
                               <div className="grid grid-cols-3 gap-2">

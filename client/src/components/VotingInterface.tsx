@@ -526,19 +526,21 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else {
-        // For schedule polls: Submit votes one by one (allows multiple votes per email on different options)
+        // For schedule polls: Use bulk vote endpoint to submit all votes at once
         const votesToSubmit = Object.entries(votes);
-        for (const [optionId, response] of votesToSubmit) {
-          await voteMutation.mutateAsync({
-            pollId: poll.id,
+        const bulkVoteData = {
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          votes: votesToSubmit.map(([optionId, response]) => ({
             optionId: parseInt(optionId),
-            voterName: voterName.trim(),
-            voterEmail: voterEmail.trim(),
-            response,
-          });
-        }
+            response
+          }))
+        };
         
-        // For schedule polls: Store success data without edit token (they can vote multiple times)
+        const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote`, bulkVoteData);
+        const result = await response.json();
+        
+        // For schedule polls: Store success data with edit token if available
         const successData = {
           poll: {
             title: poll.title,
@@ -548,6 +550,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: result.voterEditToken,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));

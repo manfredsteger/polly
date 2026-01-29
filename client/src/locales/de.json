@@ -2790,6 +2790,7 @@
     "slotName": "Slot-Name",
     "max": "Max",
     "option": "Option",
+    "weekdayOrText": "Wochentag oder Beschreibung",
     "votesForOption": "Stimme(n) für diese Option",
     "saveChanges": "Änderungen speichern",
     "advancedSettings": "Erweiterte Einstellungen",

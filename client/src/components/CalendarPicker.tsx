@@ -638,19 +638,19 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {editableSlots.map((slot, index) => (
                     <div key={index} className="flex items-center gap-2 bg-background p-2 rounded border">
-                      <Input
-                        type="time"
+                      <TimePickerDropdown
                         value={slot.startTime}
-                        onChange={(e) => updateSlot(index, 'startTime', e.target.value)}
-                        className="h-8 w-24 text-sm [color-scheme:light] dark:[color-scheme:dark]"
+                        onChange={(value) => updateSlot(index, 'startTime', value)}
+                        label={t('calendarPicker.labels.from')}
+                        className="flex-1"
                         data-testid={`input-template-start-${index}`}
                       />
                       <span className="text-muted-foreground">-</span>
-                      <Input
-                        type="time"
+                      <TimePickerDropdown
                         value={slot.endTime}
-                        onChange={(e) => updateSlot(index, 'endTime', e.target.value)}
-                        className="h-8 w-24 text-sm [color-scheme:light] dark:[color-scheme:dark]"
+                        onChange={(value) => updateSlot(index, 'endTime', value)}
+                        label={t('calendarPicker.labels.to')}
+                        className="flex-1"
                         data-testid={`input-template-end-${index}`}
                       />
                       <Button
@@ -698,19 +698,19 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                       <div className="space-y-1">
                         {slots.map((slot, index) => (
                           <div key={index} className="flex items-center gap-2 bg-background p-1.5 rounded border">
-                            <Input
-                              type="time"
+                            <TimePickerDropdown
                               value={slot.startTime}
-                              onChange={(e) => updatePerDaySlot(dateKey, index, 'startTime', e.target.value)}
-                              className="h-7 w-20 text-xs [color-scheme:light] dark:[color-scheme:dark]"
+                              onChange={(value) => updatePerDaySlot(dateKey, index, 'startTime', value)}
+                              label={t('calendarPicker.labels.from')}
+                              className="flex-1"
                               data-testid={`input-day-${dateKey}-start-${index}`}
                             />
                             <span className="text-muted-foreground text-xs">-</span>
-                            <Input
-                              type="time"
+                            <TimePickerDropdown
                               value={slot.endTime}
-                              onChange={(e) => updatePerDaySlot(dateKey, index, 'endTime', e.target.value)}
-                              className="h-7 w-20 text-xs [color-scheme:light] dark:[color-scheme:dark]"
+                              onChange={(value) => updatePerDaySlot(dateKey, index, 'endTime', value)}
+                              label={t('calendarPicker.labels.to')}
+                              className="flex-1"
                               data-testid={`input-day-${dateKey}-end-${index}`}
                             />
                             <Button

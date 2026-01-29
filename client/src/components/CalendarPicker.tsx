@@ -812,7 +812,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
                         isSelected 
                           ? 'bg-primary border-primary text-white' 
-                          : 'border-gray-300 bg-white'
+                          : 'border-gray-400 bg-white dark:border-gray-500 dark:bg-gray-700'
                       }`}>
                         {isSelected && <Check className="w-3 h-3" />}
                       </div>

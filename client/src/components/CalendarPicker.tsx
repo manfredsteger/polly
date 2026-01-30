@@ -107,25 +107,48 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [individualSlotsMode, setIndividualSlotsMode] = useState(false);
   const [perDaySlots, setPerDaySlots] = useState<Record<string, TimeSlotPreset[]>>({});
-  const [addedSlots, setAddedSlots] = useState<Set<string>>(new Set());
+  // Session-added slots (not yet synced to existingOptions) - prevents double-adds
+  const [pendingSlots, setPendingSlots] = useState<Set<string>>(new Set());
 
   const dateLocale = i18n.language === 'de' ? de : enUS;
+
+  // Build a set of existing slot keys for fast lookup
+  const existingSlotKeys = new Set(
+    existingOptions
+      .filter(opt => opt.startTime && opt.endTime)
+      .map(opt => {
+        const optDate = new Date(opt.startTime!);
+        const optStart = optDate.toTimeString().slice(0, 5);
+        const optEnd = new Date(opt.endTime!).toTimeString().slice(0, 5);
+        return `${optDate.toDateString()}-${optStart}-${optEnd}`;
+      })
+  );
+
+  // Clear pendingSlots entries that have been synced to existingOptions
+  useEffect(() => {
+    setPendingSlots(prev => {
+      const newSet = new Set<string>();
+      prev.forEach(key => {
+        // Keep only pending slots that haven't been synced yet
+        if (!existingSlotKeys.has(key)) {
+          newSet.add(key);
+        }
+      });
+      return newSet.size === prev.size ? prev : newSet;
+    });
+  }, [existingOptions]);
 
   const isDuplicateSlot = (date: Date, start: string, end: string): boolean => {
     const dateStr = date.toDateString();
     const slotKey = `${dateStr}-${start}-${end}`;
     
-    if (addedSlots.has(slotKey)) {
+    // Check pending slots (added this session, not yet synced)
+    if (pendingSlots.has(slotKey)) {
       return true;
     }
     
-    return existingOptions.some(opt => {
-      if (!opt.startTime || !opt.endTime) return false;
-      const optDate = new Date(opt.startTime);
-      const optStart = optDate.toTimeString().slice(0, 5);
-      const optEnd = new Date(opt.endTime).toTimeString().slice(0, 5);
-      return optDate.toDateString() === dateStr && optStart === start && optEnd === end;
-    });
+    // Check existing options (already persisted)
+    return existingSlotKeys.has(slotKey);
   };
 
   const tryAddTimeSlot = (date: Date, start: string, end: string): boolean => {
@@ -133,7 +156,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
       return false;
     }
     const slotKey = `${date.toDateString()}-${start}-${end}`;
-    setAddedSlots(prev => new Set(prev).add(slotKey));
+    setPendingSlots(prev => new Set(prev).add(slotKey));
     onAddTimeSlot(date, start, end);
     return true;
   };

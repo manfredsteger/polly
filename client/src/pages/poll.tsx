@@ -385,28 +385,49 @@ export default function Poll() {
     
     setReminderSending(true);
     try {
-      const response = await apiRequest("POST", `/api/v1/polls/${poll.id}/send-reminder`);
+      const response = await fetch(`/api/v1/polls/${poll.id}/send-reminder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
       const result = await response.json();
       
-      if (result.success) {
+      if (response.ok && result.success) {
         toast({ 
           title: t('pollView.toasts.remindersSent'), 
           description: t('pollView.toasts.remindersSentDesc', { sent: result.sent })
         });
       } else {
-        toast({ 
-          title: t('pollView.toasts.error'), 
-          description: result.error || t('pollView.toasts.remindersNotSent'), 
-          variant: "destructive" 
-        });
+        // Handle specific error codes with user-friendly messages
+        let title = t('pollView.toasts.error');
+        let description = result.error || t('pollView.toasts.remindersNotSent');
+        let variant: "default" | "destructive" = "destructive";
+        
+        switch (result.errorCode) {
+          case 'REMINDER_TOO_SOON':
+            title = t('pollView.toasts.reminderCooldown');
+            description = t('pollView.toasts.reminderCooldownDesc', { minutes: result.waitMinutes || 60 });
+            variant = "default"; // Not an error, just info
+            break;
+          case 'REMINDER_LIMIT_REACHED':
+            title = t('pollView.toasts.reminderLimitReached');
+            description = t('pollView.toasts.reminderLimitReachedDesc');
+            variant = "default";
+            break;
+          case 'NO_PARTICIPANTS':
+            title = t('pollView.toasts.noParticipants');
+            description = t('pollView.toasts.noParticipantsDesc');
+            variant = "default";
+            break;
+        }
+        
+        toast({ title, description, variant });
       }
     } catch (error: any) {
-      let errorMessage = t('pollView.toasts.remindersNotSent');
-      try {
-        const errorData = await error?.json?.();
-        if (errorData?.error) errorMessage = errorData.error;
-      } catch {}
-      toast({ title: t('pollView.toasts.error'), description: errorMessage, variant: "destructive" });
+      toast({ 
+        title: t('pollView.toasts.error'), 
+        description: t('pollView.toasts.remindersNotSent'), 
+        variant: "destructive" 
+      });
     } finally {
       setReminderSending(false);
     }

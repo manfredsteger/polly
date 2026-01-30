@@ -600,6 +600,7 @@ router.post('/:id/send-reminder', async (req, res) => {
     if (participantEmails.length === 0) {
       return res.status(400).json({ 
         error: 'Keine Teilnehmer mit E-Mail-Adressen gefunden',
+        errorCode: 'NO_PARTICIPANTS',
         sent: 0
       });
     }

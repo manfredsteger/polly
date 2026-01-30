@@ -244,9 +244,31 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
       const sortedWeekdays = [...selectedWeekdays].sort(
         (a, b) => weekdayOrder.indexOf(a) - weekdayOrder.indexOf(b)
       );
+      
+      // Check for duplicates against existing options
+      const existingTexts = new Set(existingOptions.map(opt => opt.text.toLowerCase()));
+      let duplicatesSkipped = 0;
+      let optionsAdded = 0;
+      
       sortedWeekdays.forEach((weekday) => {
-        onAddTextOption(weekday);
+        if (existingTexts.has(weekday.toLowerCase())) {
+          duplicatesSkipped++;
+        } else {
+          onAddTextOption(weekday);
+          existingTexts.add(weekday.toLowerCase()); // Prevent adding same weekday twice in one batch
+          optionsAdded++;
+        }
       });
+      
+      // Show toast if duplicates were skipped
+      if (duplicatesSkipped > 0) {
+        toast({
+          title: t('calendarPicker.duplicateWarning.title'),
+          description: t('calendarPicker.duplicateWarning.weekdaysSkipped', { count: duplicatesSkipped }),
+          variant: "default",
+        });
+      }
+      
       setWeekdayDialogOpen(false);
       setSelectedTemplate(null);
       setSelectedWeekdays([]);
@@ -876,25 +898,35 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
               <div className="grid gap-2">
                 {weekdays.map((weekday) => {
                   const isSelected = selectedWeekdays.includes(weekday.name);
+                  const alreadyExists = existingOptions.some(opt => opt.text.toLowerCase() === weekday.name.toLowerCase());
                   return (
                     <div 
                       key={weekday.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        isSelected 
-                          ? 'bg-primary/10 border-primary' 
-                          : 'bg-background hover:bg-muted'
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                        alreadyExists
+                          ? 'bg-muted/50 border-muted cursor-not-allowed opacity-60'
+                          : isSelected 
+                            ? 'bg-primary/10 border-primary cursor-pointer' 
+                            : 'bg-background hover:bg-muted cursor-pointer'
                       }`}
-                      onClick={() => toggleWeekday(weekday.name)}
+                      onClick={() => !alreadyExists && toggleWeekday(weekday.name)}
                       data-testid={`weekday-${weekday.id}`}
                     >
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
-                        isSelected 
-                          ? 'bg-primary border-primary text-white' 
-                          : 'border-gray-400 bg-white dark:border-gray-500 dark:bg-gray-700'
+                        alreadyExists
+                          ? 'bg-muted border-muted-foreground/30'
+                          : isSelected 
+                            ? 'bg-primary border-primary text-white' 
+                            : 'border-gray-400 bg-white dark:border-gray-500 dark:bg-gray-700'
                       }`}>
-                        {isSelected && <Check className="w-3 h-3" />}
+                        {(isSelected || alreadyExists) && <Check className="w-3 h-3" />}
                       </div>
-                      <span className="font-medium">{weekday.name}</span>
+                      <span className={`font-medium flex-1 ${alreadyExists ? 'text-muted-foreground' : ''}`}>{weekday.name}</span>
+                      {alreadyExists && (
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                          {t('calendarPicker.alreadyExists')}
+                        </span>
+                      )}
                     </div>
                   );
                 })}

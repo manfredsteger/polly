@@ -2494,7 +2494,12 @@
     "duplicatesSkipped": {
       "title": "Duplicates skipped",
       "description": "{{count}} duplicate time slot(s) were skipped."
-    }
+    },
+    "duplicateWarning": {
+      "title": "Duplicates skipped",
+      "weekdaysSkipped": "{{count}} weekday(s) already exist and were not added."
+    },
+    "alreadyExists": "Already added"
   },
   "votingInterface": {
     "voteCouldNotBeSaved": "Your vote could not be saved.",

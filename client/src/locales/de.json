@@ -2494,7 +2494,12 @@
     "duplicatesSkipped": {
       "title": "Duplikate übersprungen",
       "description": "{{count}} doppelte Zeitslot(s) wurden übersprungen."
-    }
+    },
+    "duplicateWarning": {
+      "title": "Duplikate übersprungen",
+      "weekdaysSkipped": "{{count}} Wochentag(e) existieren bereits und wurden nicht hinzugefügt."
+    },
+    "alreadyExists": "Bereits vorhanden"
   },
   "votingInterface": {
     "voteCouldNotBeSaved": "Ihre Stimme konnte nicht gespeichert werden.",

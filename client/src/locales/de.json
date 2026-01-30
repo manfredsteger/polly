@@ -2486,6 +2486,14 @@
       "calculation_plural": "({{days}} Tage × {{slots}} Slots)",
       "weekdaysSelected_one": "<strong>{{count}}</strong> Wochentag ausgewählt",
       "weekdaysSelected_other": "<strong>{{count}}</strong> Wochentage ausgewählt"
+    },
+    "duplicateSlot": {
+      "title": "Doppelter Zeitslot",
+      "description": "Dieser Zeitslot existiert bereits und wurde nicht hinzugefügt."
+    },
+    "duplicatesSkipped": {
+      "title": "Duplikate übersprungen",
+      "description": "{{count}} doppelte Zeitslot(s) wurden übersprungen."
     }
   },
   "votingInterface": {

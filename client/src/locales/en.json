@@ -2486,6 +2486,14 @@
       "calculation_plural": "({{days}} days × {{slots}} slots)",
       "weekdaysSelected_one": "<strong>{{count}}</strong> weekday selected",
       "weekdaysSelected_other": "<strong>{{count}}</strong> weekdays selected"
+    },
+    "duplicateSlot": {
+      "title": "Duplicate time slot",
+      "description": "This time slot already exists and was not added."
+    },
+    "duplicatesSkipped": {
+      "title": "Duplicates skipped",
+      "description": "{{count}} duplicate time slot(s) were skipped."
     }
   },
   "votingInterface": {

@@ -16,6 +16,7 @@ import { Plus, X, Calendar as CalendarIcon, Clock, CalendarDays, Repeat, Sparkle
 import { Checkbox } from "@/components/ui/checkbox";
 import { de, enUS } from "date-fns/locale";
 import { TimePickerDropdown } from "@/components/TimePickerDropdown";
+import { useToast } from "@/hooks/use-toast";
 
 interface PollOption {
   text: string;
@@ -93,6 +94,7 @@ const defaultTemplates: Template[] = [
 
 export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions = [] }: CalendarPickerProps) {
   const { t, i18n } = useTranslation();
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startTime, setStartTime] = useState("09:00");
@@ -105,8 +107,36 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [individualSlotsMode, setIndividualSlotsMode] = useState(false);
   const [perDaySlots, setPerDaySlots] = useState<Record<string, TimeSlotPreset[]>>({});
+  const [addedSlots, setAddedSlots] = useState<Set<string>>(new Set());
 
   const dateLocale = i18n.language === 'de' ? de : enUS;
+
+  const isDuplicateSlot = (date: Date, start: string, end: string): boolean => {
+    const dateStr = date.toDateString();
+    const slotKey = `${dateStr}-${start}-${end}`;
+    
+    if (addedSlots.has(slotKey)) {
+      return true;
+    }
+    
+    return existingOptions.some(opt => {
+      if (!opt.startTime || !opt.endTime) return false;
+      const optDate = new Date(opt.startTime);
+      const optStart = optDate.toTimeString().slice(0, 5);
+      const optEnd = new Date(opt.endTime).toTimeString().slice(0, 5);
+      return optDate.toDateString() === dateStr && optStart === start && optEnd === end;
+    });
+  };
+
+  const tryAddTimeSlot = (date: Date, start: string, end: string): boolean => {
+    if (isDuplicateSlot(date, start, end)) {
+      return false;
+    }
+    const slotKey = `${date.toDateString()}-${start}-${end}`;
+    setAddedSlots(prev => new Set(prev).add(slotKey));
+    onAddTimeSlot(date, start, end);
+    return true;
+  };
 
   const weekdays = WEEKDAY_IDS.map(id => ({
     id,
@@ -141,7 +171,14 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
   const handleAddTimeSlot = () => {
     if (selectedDate && startTime && endTime) {
-      onAddTimeSlot(selectedDate, startTime, endTime);
+      if (!tryAddTimeSlot(selectedDate, startTime, endTime)) {
+        toast({
+          title: t('calendarPicker.duplicateSlot.title'),
+          description: t('calendarPicker.duplicateSlot.description'),
+          variant: "destructive",
+        });
+        return;
+      }
       setDialogOpen(false);
       setSelectedDate(undefined);
     }
@@ -204,25 +241,43 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
   const handleTemplateAddSlots = () => {
     if (templateSelectedDates.length > 0) {
+      let duplicatesSkipped = 0;
+      let slotsAdded = 0;
+      
       if (individualSlotsMode) {
-        // Add individual slots per day
         templateSelectedDates.forEach((date) => {
           const dateKey = date.toDateString();
           const slots = perDaySlots[dateKey] || [];
           slots.forEach((slot) => {
-            onAddTimeSlot(date, slot.startTime, slot.endTime);
+            if (tryAddTimeSlot(date, slot.startTime, slot.endTime)) {
+              slotsAdded++;
+            } else {
+              duplicatesSkipped++;
+            }
           });
         });
       } else {
-        // Add same slots for each selected date
         if (editableSlots.length > 0) {
           templateSelectedDates.forEach((date) => {
             editableSlots.forEach((slot) => {
-              onAddTimeSlot(date, slot.startTime, slot.endTime);
+              if (tryAddTimeSlot(date, slot.startTime, slot.endTime)) {
+                slotsAdded++;
+              } else {
+                duplicatesSkipped++;
+              }
             });
           });
         }
       }
+      
+      if (duplicatesSkipped > 0) {
+        toast({
+          title: t('calendarPicker.duplicatesSkipped.title'),
+          description: t('calendarPicker.duplicatesSkipped.description', { count: duplicatesSkipped }),
+          variant: "default",
+        });
+      }
+      
       setTemplateDialogOpen(false);
       setSelectedTemplate(null);
       setEditableSlots([]);

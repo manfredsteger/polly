@@ -534,16 +534,15 @@ router.post('/admin/:token/remind', async (req, res) => {
       }
     }
     
-    const expiresAt = poll.expiresAt 
-      ? `Die Umfrage endet am ${new Date(poll.expiresAt).toLocaleDateString('de-DE')} um ${new Date(poll.expiresAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`
-      : undefined;
+    // Pass the raw date string (ISO format) - emailService will format it
+    const expiresAtISO = poll.expiresAt ? new Date(poll.expiresAt).toISOString() : undefined;
     
     const results = await emailService.sendBulkReminders(
       emails,
       poll.title,
       senderName,
       pollLink,
-      expiresAt,
+      expiresAtISO,
       customMessage
     );
     
@@ -650,16 +649,15 @@ router.post('/:id/send-reminder', async (req, res) => {
       }
     }
     
-    const expiresAt = poll.expiresAt 
-      ? `Die Umfrage endet am ${new Date(poll.expiresAt).toLocaleDateString('de-DE')} um ${new Date(poll.expiresAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`
-      : undefined;
+    // Pass the raw date string (ISO format) - emailService will format it
+    const expiresAtISO = poll.expiresAt ? new Date(poll.expiresAt).toISOString() : undefined;
     
     const results = await emailService.sendBulkReminders(
       participantEmails,
       poll.title,
       senderName,
       pollLink,
-      expiresAt
+      expiresAtISO
     );
     
     // Log each reminder (only successful ones)

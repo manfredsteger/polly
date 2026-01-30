@@ -55,7 +55,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { DateTimePicker } from "@/components/ui/datetime-picker";
 import type { PollWithOptions, PollResults } from "@shared/schema";
 
 const formatLocalDateTime = (dateStr: string | Date | null | undefined): string | undefined => {
@@ -198,8 +197,8 @@ export default function Poll() {
       setEditingOptions(poll.options?.map(opt => ({
         id: opt.id,
         text: opt.text,
-        startTime: opt.startTime ? new Date(opt.startTime).toISOString() : undefined,
-        endTime: opt.endTime ? new Date(opt.endTime).toISOString() : undefined,
+        startTime: formatLocalDateTime(opt.startTime),
+        endTime: formatLocalDateTime(opt.endTime),
         maxCapacity: opt.maxCapacity ?? undefined,
       })) || []);
     }
@@ -259,8 +258,8 @@ export default function Poll() {
         if (option.isNew && !option.isDeleted) {
           await addOptionMutation.mutateAsync({
             text: option.text,
-            startTime: option.startTime || undefined, // Already ISO string from DateTimePicker
-            endTime: option.endTime || undefined, // Already ISO string from DateTimePicker
+            startTime: localToISOString(option.startTime),
+            endTime: localToISOString(option.endTime),
             maxCapacity: option.maxCapacity,
           });
         } else if (option.isDeleted && option.id) {
@@ -270,13 +269,13 @@ export default function Poll() {
           if (originalOption) {
             const updates: Record<string, any> = {};
             if (option.text !== originalOption.text) updates.text = option.text;
-            const origStartTime = originalOption.startTime ? new Date(originalOption.startTime).toISOString() : undefined;
-            const origEndTime = originalOption.endTime ? new Date(originalOption.endTime).toISOString() : undefined;
+            const origStartTime = formatLocalDateTime(originalOption.startTime);
+            const origEndTime = formatLocalDateTime(originalOption.endTime);
             if (option.startTime !== origStartTime) {
-              updates.startTime = option.startTime; // Already ISO string from DateTimePicker
+              updates.startTime = localToISOString(option.startTime);
             }
             if (option.endTime !== origEndTime) {
-              updates.endTime = option.endTime; // Already ISO string from DateTimePicker
+              updates.endTime = localToISOString(option.endTime);
             }
             if (option.maxCapacity !== (originalOption.maxCapacity ?? undefined)) {
               updates.maxCapacity = option.maxCapacity;
@@ -1072,27 +1071,29 @@ export default function Poll() {
                                     <div className="grid grid-cols-2 gap-2">
                                       <div>
                                         <Label className="text-xs text-muted-foreground">{t('pollView.start')}</Label>
-                                        <DateTimePicker
-                                          value={option.startTime || undefined}
-                                          onChange={(value) => {
+                                        <Input
+                                          type="datetime-local"
+                                          value={option.startTime || ''}
+                                          onChange={(e) => {
                                             const updated = [...editingOptions];
-                                            updated[index] = { ...updated[index], startTime: value || '' };
+                                            updated[index] = { ...updated[index], startTime: e.target.value };
                                             setEditingOptions(updated);
                                           }}
-                                          showClearButton={false}
+                                          className="text-sm"
                                           data-testid={`input-option-start-${index}`}
                                         />
                                       </div>
                                       <div>
                                         <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
-                                        <DateTimePicker
-                                          value={option.endTime || undefined}
-                                          onChange={(value) => {
+                                        <Input
+                                          type="datetime-local"
+                                          value={option.endTime || ''}
+                                          onChange={(e) => {
                                             const updated = [...editingOptions];
-                                            updated[index] = { ...updated[index], endTime: value || '' };
+                                            updated[index] = { ...updated[index], endTime: e.target.value };
                                             setEditingOptions(updated);
                                           }}
-                                          showClearButton={false}
+                                          className="text-sm"
                                           data-testid={`input-option-end-${index}`}
                                         />
                                       </div>

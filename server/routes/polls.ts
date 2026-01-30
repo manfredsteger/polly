@@ -567,6 +567,125 @@ router.post('/admin/:token/remind', async (req, res) => {
   }
 });
 
+// Send reminder to all participants (auto-extracts emails from votes)
+router.post('/:id/send-reminder', async (req, res) => {
+  try {
+    const pollId = req.params.id;
+    if (!pollId) {
+      return res.status(400).json({ error: 'Invalid poll ID' });
+    }
+    
+    const poll = await storage.getPoll(pollId);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+    
+    // Check authorization - must be poll creator or have admin token
+    if (poll.userId) {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
+      }
+      if (req.session.userId !== poll.userId) {
+        return res.status(403).json({ error: 'Keine Berechtigung' });
+      }
+    }
+    
+    // Extract unique emails from votes
+    const votes = poll.votes || [];
+    const participantEmails = [...new Set(
+      votes
+        .filter((v: any) => v.voterEmail && typeof v.voterEmail === 'string')
+        .map((v: any) => v.voterEmail.toLowerCase())
+    )];
+    
+    if (participantEmails.length === 0) {
+      return res.status(400).json({ 
+        error: 'Keine Teilnehmer mit E-Mail-Adressen gefunden',
+        sent: 0
+      });
+    }
+    
+    // Check reminder limits
+    const notificationSettings = await storage.getNotificationSettings();
+    const reminderCount = await storage.getManualReminderCount(poll.id);
+    const lastReminder = await storage.getLastManualReminderTime(poll.id);
+    const now = new Date();
+    
+    const isGuest = !req.session.userId || !poll.userId;
+    const maxReminders = isGuest 
+      ? notificationSettings.guestReminderLimitPerPoll 
+      : notificationSettings.userReminderLimitPerPoll;
+    
+    if (reminderCount >= maxReminders) {
+      return res.status(429).json({ 
+        error: `Maximale Anzahl an Erinnerungen (${maxReminders}) erreicht`,
+        errorCode: 'REMINDER_LIMIT_REACHED'
+      });
+    }
+    
+    // Check cooldown
+    if (lastReminder) {
+      const cooldownMs = notificationSettings.reminderCooldownMinutes * 60 * 1000;
+      const timeSinceLastReminder = now.getTime() - lastReminder.getTime();
+      if (timeSinceLastReminder < cooldownMs) {
+        const remainingMinutes = Math.ceil((cooldownMs - timeSinceLastReminder) / 60000);
+        return res.status(429).json({ 
+          error: `Bitte warten Sie noch ${remainingMinutes} Minuten`,
+          errorCode: 'REMINDER_TOO_SOON',
+          waitMinutes: remainingMinutes
+        });
+      }
+    }
+    
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
+    
+    // Get sender name
+    let senderName = 'Jemand';
+    if (poll.userId) {
+      const user = await storage.getUser(poll.userId);
+      if (user) {
+        senderName = user.name || user.username || 'Jemand';
+      }
+    }
+    
+    const expiresAt = poll.expiresAt 
+      ? `Die Umfrage endet am ${new Date(poll.expiresAt).toLocaleDateString('de-DE')} um ${new Date(poll.expiresAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`
+      : undefined;
+    
+    const results = await emailService.sendBulkReminders(
+      participantEmails,
+      poll.title,
+      senderName,
+      pollLink,
+      expiresAt
+    );
+    
+    // Log each reminder (only successful ones)
+    const successfulEmails = participantEmails.filter(
+      (email: string) => !results.failed.includes(email)
+    );
+    for (const email of successfulEmails) {
+      await storage.logNotification({
+        pollId: poll.id,
+        type: 'manual_reminder',
+        recipientEmail: email,
+      });
+    }
+    
+    res.json({ 
+      success: results.sent > 0, 
+      sent: results.sent,
+      total: participantEmails.length,
+      remainingReminders: maxReminders - reminderCount - 1
+    });
+  } catch (error) {
+    console.error('Error sending reminders:', error);
+    res.status(500).json({ error: 'Erinnerungen konnten nicht gesendet werden' });
+  }
+});
+
 // Get poll results
 router.get('/:token/results', async (req, res) => {
   try {

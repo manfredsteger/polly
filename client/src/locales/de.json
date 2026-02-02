@@ -1555,9 +1555,6 @@
         "title": "WCAG Barrierefreiheit",
         "description": "Farbkontrast und Barrierefreiheitseinstellungen"
       },
-      "integrations": {
-        "title": "Integrationen"
-      },
       "status": {
         "available": "Verfügbar",
         "connected": "Verbunden",

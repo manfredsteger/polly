@@ -1555,9 +1555,6 @@
         "title": "WCAG Accessibility",
         "description": "Color contrast and accessibility settings"
       },
-      "integrations": {
-        "title": "Integrations"
-      },
       "status": {
         "available": "Available",
         "connected": "Connected",

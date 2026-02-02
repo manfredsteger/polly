@@ -1,13 +1,12 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { closeTestApp } from './testApp';
 
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
 });
 
 afterAll(async () => {
-  // Ensure test app and server are properly closed
-  await closeTestApp();
+  // Don't close the pool here - it's shared across all test files
+  // The pool is closed in globalTeardown.ts which runs once after ALL tests
 });
 
 beforeEach(async () => {

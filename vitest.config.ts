@@ -8,6 +8,7 @@ export default defineConfig({
     include: ['server/tests/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
     setupFiles: ['server/tests/setup.ts'],
+    globalSetup: ['server/tests/globalTeardown.ts'],
     testTimeout: 30000,
     hookTimeout: 30000,
     teardownTimeout: 10000,

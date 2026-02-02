@@ -174,13 +174,15 @@ router.post('/polls/:token/vote', async (req, res) => {
       voterEditToken: poll.allowVoteEdit ? voterEditToken : null
     });
   } catch (error) {
-    console.error('Error bulk voting:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        error: 'Invalid vote data', 
-        details: error.errors 
+      // Validation errors are expected for invalid client input and
+      // should not be logged as server errors – just return 400.
+      return res.status(400).json({
+        error: 'Invalid vote data',
+        details: error.errors,
       });
     }
+    console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
       return res.status(400).json({ 
         error: 'Diese E-Mail-Adresse hat bereits bei dieser Umfrage abgestimmt.',
@@ -353,13 +355,15 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
       voterEditToken: poll.allowVoteEdit ? voterEditToken : null
     });
   } catch (error) {
-    console.error('Error bulk voting:', error);
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        error: 'Invalid vote data', 
-        details: error.errors 
+      // Validation errors are expected for invalid client input and
+      // should not be logged as server errors – just return 400.
+      return res.status(400).json({
+        error: 'Invalid vote data',
+        details: error.errors,
       });
     }
+    console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
       return res.status(400).json({ 
         error: 'Diese E-Mail-Adresse hat bereits bei dieser Umfrage abgestimmt.',

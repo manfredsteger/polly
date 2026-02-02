@@ -261,12 +261,16 @@ router.post('/login', async (req, res) => {
       res.json({ user: authService.sanitizeUser(user) });
     });
   } catch (error) {
-    console.error('Login error:', error);
+    // Validation errors are expected for missing/invalid fields,
+    // return 400 without treating them as server errors.
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Ungültige Eingabe', details: error.errors });
-    } else {
-      res.status(500).json({ error: 'Interner Fehler' });
+      return res
+        .status(400)
+        .json({ error: 'Ungültige Eingabe', details: error.errors });
     }
+
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
   }
 });
 
@@ -317,12 +321,16 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
       res.json({ user: authService.sanitizeUser(user) });
     });
   } catch (error) {
-    console.error('Register error:', error);
+    // Validation errors should not be logged as server errors;
+    // they are expected when input is invalid.
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Ungültige Eingabe', details: error.errors });
-    } else {
-      res.status(500).json({ error: 'Interner Fehler' });
+      return res
+        .status(400)
+        .json({ error: 'Ungültige Eingabe', details: error.errors });
     }
+
+    console.error('Register error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
   }
 });
 

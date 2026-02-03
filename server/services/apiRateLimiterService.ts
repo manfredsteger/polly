@@ -150,7 +150,11 @@ class ApiRateLimiterService {
         next();
         return;
       }
-
+      // Skip rate limiting for test mode requests
+      if ((req as any).isTestMode) {
+        next();
+        return;
+      }
       // Ensure limiter exists (may have been cleared or not initialized)
       if (!this.limiters.has(name)) {
         this.limiters.set(name, new Map());

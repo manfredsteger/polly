@@ -117,4 +117,14 @@ export const deviceTokenService = {
       path: '/',
     };
   },
+
+  registerToken(userId: number, deviceToken: string): void {
+    // Token registration is handled by cookie setting - this is a no-op placeholder
+    console.log(`[DeviceToken] Token registered for user ${userId}`);
+  },
+
+  removeToken(userId: number, deviceToken: string): void {
+    // Token removal is handled by cookie deletion - this is a no-op placeholder
+    console.log(`[DeviceToken] Token removed for user ${userId}`);
+  },
 };

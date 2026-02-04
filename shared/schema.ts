@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, uuid, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -16,10 +16,19 @@ export const users = pgTable("users", {
   themePreference: text("theme_preference").default("system"), // 'light', 'dark', or 'system'
   languagePreference: text("language_preference").default("de"), // 'de' or 'en'
   calendarToken: text("calendar_token").unique(), // Secret token for calendar subscription feed
+  emailVerified: boolean("email_verified").default(false).notNull(), // Email address verified
   isTestData: boolean("is_test_data").default(false).notNull(), // Test accounts cannot log in
   isInitialAdmin: boolean("is_initial_admin").default(false).notNull(), // Initial admin created on first start - shows warning banner
   deletionRequestedAt: timestamp("deletion_requested_at"), // GDPR: User requested account deletion
   lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -44,13 +53,17 @@ export const polls = pgTable("polls", {
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at"),
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports
-  // Notification settings per poll
   enableExpiryReminder: boolean("enable_expiry_reminder").default(false).notNull(),
   expiryReminderHours: integer("expiry_reminder_hours").default(24), // hours before expiry to send reminder
   expiryReminderSent: boolean("expiry_reminder_sent").default(false).notNull(), // has the expiry reminder been sent?
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("polls_user_id_idx").on(table.userId),
+  index("polls_type_idx").on(table.type),
+  index("polls_is_active_idx").on(table.isActive),
+  index("polls_expires_at_idx").on(table.expiresAt),
+]);
 
 export const pollOptions = pgTable("poll_options", {
   id: serial("id").primaryKey(),
@@ -63,7 +76,9 @@ export const pollOptions = pgTable("poll_options", {
   maxCapacity: integer("max_capacity"), // for organization polls: max signups per slot (null = unlimited)
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("poll_options_poll_id_idx").on(table.pollId),
+]);
 
 export const votes = pgTable("votes", {
   id: serial("id").primaryKey(),
@@ -77,9 +92,15 @@ export const votes = pgTable("votes", {
   response: text("response").notNull(), // "yes", "maybe", "no", or "signup" for organization polls
   comment: text("comment"), // optional comment (e.g., contact info, which cake they bring)
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes
+  isTestData: boolean("is_test_data").default(false).notNull(), // Test votes excluded from stats
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("votes_poll_id_idx").on(table.pollId),
+  index("votes_option_id_idx").on(table.optionId),
+  index("votes_voter_email_idx").on(table.voterEmail),
+  index("votes_voter_key_idx").on(table.voterKey),
+]);
 
 export const systemSettings = pgTable("system_settings", {
   id: serial("id").primaryKey(),
@@ -370,6 +391,7 @@ export const EMAIL_TEMPLATE_TYPES = [
   'email_change',
   'password_changed',
   'test_report',
+  'welcome',
 ] as const;
 
 export type EmailTemplateType = typeof EMAIL_TEMPLATE_TYPES[number];
@@ -409,6 +431,7 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   password_reset: [
+    { key: 'userName', description: 'Name des Benutzers' },
     { key: 'resetLink', description: 'Link zum Passwort zurücksetzen' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
@@ -419,6 +442,7 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   password_changed: [
+    { key: 'userName', description: 'Name des Benutzers' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   test_report: [
@@ -430,6 +454,12 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'skipped', description: 'Anzahl übersprungener Tests' },
     { key: 'duration', description: 'Testdauer' },
     { key: 'startedAt', description: 'Startzeit' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  welcome: [
+    { key: 'userName', description: 'Name des Benutzers' },
+    { key: 'userEmail', description: 'E-Mail-Adresse des Benutzers' },
+    { key: 'verificationLink', description: 'Link zur E-Mail-Verifizierung' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
 };
@@ -462,10 +492,14 @@ export const themeSettingsSchema = z.object({
   
   // Mode setting
   defaultThemeMode: themePreferenceSchema.default('system'), // System default theme mode
+  
+  // UI dimensions
+  borderRadius: z.number().default(8), // Default border radius in pixels
 });
 
 export const brandingSettingsSchema = z.object({
   logoUrl: z.string().nullable().default(null),
+  faviconUrl: z.string().nullable().default(null),
   siteName: z.string().default('Poll'),
   siteNameAccent: z.string().default('y'), // The accented part of the name (Poll + y = Polly)
 });
@@ -502,11 +536,30 @@ export const loginRateLimitSettingsSchema = z.object({
   cooldownSeconds: z.number().min(60).max(86400).default(900), // 15 minutes default
 });
 
+// API Rate Limit Settings - individual limits for different endpoints
+export const apiRateLimitItemSchema = z.object({
+  enabled: z.boolean().default(true),
+  maxRequests: z.number().min(1).max(1000).default(10),
+  windowSeconds: z.number().min(1).max(86400).default(60),
+});
+
+export const apiRateLimitsSettingsSchema = z.object({
+  registration: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 5, windowSeconds: 3600 }),
+  passwordReset: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 3, windowSeconds: 900 }),
+  pollCreation: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 10, windowSeconds: 60 }),
+  voting: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 30, windowSeconds: 10 }),
+  email: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 5, windowSeconds: 60 }),
+  apiGeneral: apiRateLimitItemSchema.default({ enabled: true, maxRequests: 100, windowSeconds: 60 }),
+});
+
 export const securitySettingsSchema = z.object({
   loginRateLimit: loginRateLimitSettingsSchema.default({}),
+  apiRateLimits: apiRateLimitsSettingsSchema.default({}),
 });
 
 export type LoginRateLimitSettings = z.infer<typeof loginRateLimitSettingsSchema>;
+export type ApiRateLimitItem = z.infer<typeof apiRateLimitItemSchema>;
+export type ApiRateLimitsSettings = z.infer<typeof apiRateLimitsSettingsSchema>;
 export type SecuritySettings = z.infer<typeof securitySettingsSchema>;
 
 // Notification Settings Schema (Admin global settings)

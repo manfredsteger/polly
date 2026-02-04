@@ -1,0 +1,7 @@
+node_modules
+dist
+server/public
+attached_assets
+migrations
+*.md
+package-lock.json

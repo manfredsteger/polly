@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus, X, Calendar as CalendarIcon, Clock, CalendarDays, Repeat, Sparkles, Users } from "lucide-react";
+import { Plus, X, Calendar as CalendarIcon, Clock, CalendarDays, Repeat, Sparkles, Users, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { de, enUS } from "date-fns/locale";
+import { TimePickerDropdown } from "@/components/TimePickerDropdown";
+import { useToast } from "@/hooks/use-toast";
 
 interface PollOption {
   text: string;
@@ -92,6 +94,7 @@ const defaultTemplates: Template[] = [
 
 export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions = [] }: CalendarPickerProps) {
   const { t, i18n } = useTranslation();
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startTime, setStartTime] = useState("09:00");
@@ -104,8 +107,59 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [individualSlotsMode, setIndividualSlotsMode] = useState(false);
   const [perDaySlots, setPerDaySlots] = useState<Record<string, TimeSlotPreset[]>>({});
+  // Session-added slots (not yet synced to existingOptions) - prevents double-adds
+  const [pendingSlots, setPendingSlots] = useState<Set<string>>(new Set());
 
   const dateLocale = i18n.language === 'de' ? de : enUS;
+
+  // Build a set of existing slot keys for fast lookup
+  const existingSlotKeys = new Set(
+    existingOptions
+      .filter(opt => opt.startTime && opt.endTime)
+      .map(opt => {
+        const optDate = new Date(opt.startTime!);
+        const optStart = optDate.toTimeString().slice(0, 5);
+        const optEnd = new Date(opt.endTime!).toTimeString().slice(0, 5);
+        return `${optDate.toDateString()}-${optStart}-${optEnd}`;
+      })
+  );
+
+  // Clear pendingSlots entries that have been synced to existingOptions
+  useEffect(() => {
+    setPendingSlots(prev => {
+      const newSet = new Set<string>();
+      prev.forEach(key => {
+        // Keep only pending slots that haven't been synced yet
+        if (!existingSlotKeys.has(key)) {
+          newSet.add(key);
+        }
+      });
+      return newSet.size === prev.size ? prev : newSet;
+    });
+  }, [existingOptions]);
+
+  const isDuplicateSlot = (date: Date, start: string, end: string): boolean => {
+    const dateStr = date.toDateString();
+    const slotKey = `${dateStr}-${start}-${end}`;
+    
+    // Check pending slots (added this session, not yet synced)
+    if (pendingSlots.has(slotKey)) {
+      return true;
+    }
+    
+    // Check existing options (already persisted)
+    return existingSlotKeys.has(slotKey);
+  };
+
+  const tryAddTimeSlot = (date: Date, start: string, end: string): boolean => {
+    if (isDuplicateSlot(date, start, end)) {
+      return false;
+    }
+    const slotKey = `${date.toDateString()}-${start}-${end}`;
+    setPendingSlots(prev => new Set(prev).add(slotKey));
+    onAddTimeSlot(date, start, end);
+    return true;
+  };
 
   const weekdays = WEEKDAY_IDS.map(id => ({
     id,
@@ -140,7 +194,14 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
   const handleAddTimeSlot = () => {
     if (selectedDate && startTime && endTime) {
-      onAddTimeSlot(selectedDate, startTime, endTime);
+      if (!tryAddTimeSlot(selectedDate, startTime, endTime)) {
+        toast({
+          title: t('calendarPicker.duplicateSlot.title'),
+          description: t('calendarPicker.duplicateSlot.description'),
+          variant: "destructive",
+        });
+        return;
+      }
       setDialogOpen(false);
       setSelectedDate(undefined);
     }
@@ -183,9 +244,31 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
       const sortedWeekdays = [...selectedWeekdays].sort(
         (a, b) => weekdayOrder.indexOf(a) - weekdayOrder.indexOf(b)
       );
+      
+      // Check for duplicates against existing options
+      const existingTexts = new Set(existingOptions.map(opt => opt.text.toLowerCase()));
+      let duplicatesSkipped = 0;
+      let optionsAdded = 0;
+      
       sortedWeekdays.forEach((weekday) => {
-        onAddTextOption(weekday);
+        if (existingTexts.has(weekday.toLowerCase())) {
+          duplicatesSkipped++;
+        } else {
+          onAddTextOption(weekday);
+          existingTexts.add(weekday.toLowerCase()); // Prevent adding same weekday twice in one batch
+          optionsAdded++;
+        }
       });
+      
+      // Show toast if duplicates were skipped
+      if (duplicatesSkipped > 0) {
+        toast({
+          title: t('calendarPicker.duplicateWarning.title'),
+          description: t('calendarPicker.duplicateWarning.weekdaysSkipped', { count: duplicatesSkipped }),
+          variant: "default",
+        });
+      }
+      
       setWeekdayDialogOpen(false);
       setSelectedTemplate(null);
       setSelectedWeekdays([]);
@@ -203,25 +286,43 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
   const handleTemplateAddSlots = () => {
     if (templateSelectedDates.length > 0) {
+      let duplicatesSkipped = 0;
+      let slotsAdded = 0;
+      
       if (individualSlotsMode) {
-        // Add individual slots per day
         templateSelectedDates.forEach((date) => {
           const dateKey = date.toDateString();
           const slots = perDaySlots[dateKey] || [];
           slots.forEach((slot) => {
-            onAddTimeSlot(date, slot.startTime, slot.endTime);
+            if (tryAddTimeSlot(date, slot.startTime, slot.endTime)) {
+              slotsAdded++;
+            } else {
+              duplicatesSkipped++;
+            }
           });
         });
       } else {
-        // Add same slots for each selected date
         if (editableSlots.length > 0) {
           templateSelectedDates.forEach((date) => {
             editableSlots.forEach((slot) => {
-              onAddTimeSlot(date, slot.startTime, slot.endTime);
+              if (tryAddTimeSlot(date, slot.startTime, slot.endTime)) {
+                slotsAdded++;
+              } else {
+                duplicatesSkipped++;
+              }
             });
           });
         }
       }
+      
+      if (duplicatesSkipped > 0) {
+        toast({
+          title: t('calendarPicker.duplicatesSkipped.title'),
+          description: t('calendarPicker.duplicatesSkipped.description', { count: duplicatesSkipped }),
+          variant: "default",
+        });
+      }
+      
       setTemplateDialogOpen(false);
       setSelectedTemplate(null);
       setEditableSlots([]);
@@ -465,22 +566,20 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="dialog-startTime" className="text-sm font-medium">{t('calendarPicker.labels.from')}</Label>
-                <Input
-                  id="dialog-startTime"
-                  type="time"
+                <TimePickerDropdown
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={setStartTime}
+                  label={t('calendarPicker.labels.from')}
                   className="mt-1"
                   data-testid="input-start-time"
                 />
               </div>
               <div>
                 <Label htmlFor="dialog-endTime" className="text-sm font-medium">{t('calendarPicker.labels.to')}</Label>
-                <Input
-                  id="dialog-endTime"
-                  type="time"
+                <TimePickerDropdown
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={setEndTime}
+                  label={t('calendarPicker.labels.to')}
                   className="mt-1"
                   data-testid="input-end-time"
                 />
@@ -639,19 +738,19 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {editableSlots.map((slot, index) => (
                     <div key={index} className="flex items-center gap-2 bg-background p-2 rounded border">
-                      <Input
-                        type="time"
+                      <TimePickerDropdown
                         value={slot.startTime}
-                        onChange={(e) => updateSlot(index, 'startTime', e.target.value)}
-                        className="h-8 w-24 text-sm [color-scheme:light] dark:[color-scheme:dark]"
+                        onChange={(value) => updateSlot(index, 'startTime', value)}
+                        label={t('calendarPicker.labels.from')}
+                        className="flex-1"
                         data-testid={`input-template-start-${index}`}
                       />
                       <span className="text-muted-foreground">-</span>
-                      <Input
-                        type="time"
+                      <TimePickerDropdown
                         value={slot.endTime}
-                        onChange={(e) => updateSlot(index, 'endTime', e.target.value)}
-                        className="h-8 w-24 text-sm [color-scheme:light] dark:[color-scheme:dark]"
+                        onChange={(value) => updateSlot(index, 'endTime', value)}
+                        label={t('calendarPicker.labels.to')}
+                        className="flex-1"
                         data-testid={`input-template-end-${index}`}
                       />
                       <Button
@@ -699,19 +798,19 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                       <div className="space-y-1">
                         {slots.map((slot, index) => (
                           <div key={index} className="flex items-center gap-2 bg-background p-1.5 rounded border">
-                            <Input
-                              type="time"
+                            <TimePickerDropdown
                               value={slot.startTime}
-                              onChange={(e) => updatePerDaySlot(dateKey, index, 'startTime', e.target.value)}
-                              className="h-7 w-20 text-xs [color-scheme:light] dark:[color-scheme:dark]"
+                              onChange={(value) => updatePerDaySlot(dateKey, index, 'startTime', value)}
+                              label={t('calendarPicker.labels.from')}
+                              className="flex-1"
                               data-testid={`input-day-${dateKey}-start-${index}`}
                             />
                             <span className="text-muted-foreground text-xs">-</span>
-                            <Input
-                              type="time"
+                            <TimePickerDropdown
                               value={slot.endTime}
-                              onChange={(e) => updatePerDaySlot(dateKey, index, 'endTime', e.target.value)}
-                              className="h-7 w-20 text-xs [color-scheme:light] dark:[color-scheme:dark]"
+                              onChange={(value) => updatePerDaySlot(dateKey, index, 'endTime', value)}
+                              label={t('calendarPicker.labels.to')}
+                              className="flex-1"
                               data-testid={`input-day-${dateKey}-end-${index}`}
                             />
                             <Button
@@ -736,12 +835,21 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
 
             {/* Summary - how many slots will be created */}
             {templateSelectedDates.length > 0 && getTotalSlotsCount() > 0 && (
-              <p className="text-sm text-muted-foreground text-center" dangerouslySetInnerHTML={{
-                __html: t('calendarPicker.summary.willCreate', { count: getTotalSlotsCount() }) +
-                  (!individualSlotsMode ? ` ${templateSelectedDates.length > 1 || editableSlots.length > 1 
-                    ? t('calendarPicker.summary.calculation_plural', { days: templateSelectedDates.length, slots: editableSlots.length })
-                    : t('calendarPicker.summary.calculation', { days: templateSelectedDates.length, slots: editableSlots.length })}` : '')
-              }} />
+              <p className="text-sm text-muted-foreground text-center">
+                <Trans 
+                  i18nKey="calendarPicker.summary.willCreate" 
+                  values={{ count: getTotalSlotsCount() }}
+                  components={{ strong: <strong /> }}
+                />
+                {!individualSlotsMode && (
+                  <>
+                    {' '}
+                    {templateSelectedDates.length > 1 || editableSlots.length > 1 
+                      ? t('calendarPicker.summary.calculation_plural', { days: templateSelectedDates.length, slots: editableSlots.length })
+                      : t('calendarPicker.summary.calculation', { days: templateSelectedDates.length, slots: editableSlots.length })}
+                  </>
+                )}
+              </p>
             )}
             
             {/* Action buttons */}
@@ -788,32 +896,52 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             <div className="space-y-3">
               <Label className="text-sm font-medium">{t('calendarPicker.labels.selectWeekdays')}</Label>
               <div className="grid gap-2">
-                {weekdays.map((weekday) => (
-                  <div 
-                    key={weekday.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedWeekdays.includes(weekday.name) 
-                        ? 'bg-primary/10 border-primary' 
-                        : 'bg-background hover:bg-muted'
-                    }`}
-                    onClick={() => toggleWeekday(weekday.name)}
-                    data-testid={`weekday-${weekday.id}`}
-                  >
-                    <Checkbox 
-                      checked={selectedWeekdays.includes(weekday.name)}
-                      onCheckedChange={() => toggleWeekday(weekday.name)}
-                    />
-                    <span className="font-medium">{weekday.name}</span>
-                  </div>
-                ))}
+                {weekdays.map((weekday) => {
+                  const isSelected = selectedWeekdays.includes(weekday.name);
+                  const alreadyExists = existingOptions.some(opt => opt.text.toLowerCase() === weekday.name.toLowerCase());
+                  return (
+                    <div 
+                      key={weekday.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                        alreadyExists
+                          ? 'bg-muted/50 border-muted cursor-not-allowed opacity-60'
+                          : isSelected 
+                            ? 'bg-primary/10 border-primary cursor-pointer' 
+                            : 'bg-background hover:bg-muted cursor-pointer'
+                      }`}
+                      onClick={() => !alreadyExists && toggleWeekday(weekday.name)}
+                      data-testid={`weekday-${weekday.id}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                        alreadyExists
+                          ? 'bg-muted border-muted-foreground/30'
+                          : isSelected 
+                            ? 'bg-primary border-primary text-white' 
+                            : 'border-gray-400 bg-white dark:border-gray-500 dark:bg-gray-700'
+                      }`}>
+                        {(isSelected || alreadyExists) && <Check className="w-3 h-3" />}
+                      </div>
+                      <span className={`font-medium flex-1 ${alreadyExists ? 'text-muted-foreground' : ''}`}>{weekday.name}</span>
+                      {alreadyExists && (
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                          {t('calendarPicker.alreadyExists')}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             {/* Selected count */}
             {selectedWeekdays.length > 0 && (
-              <p className="text-sm text-muted-foreground text-center" dangerouslySetInnerHTML={{
-                __html: t('calendarPicker.summary.weekdaysSelected', { count: selectedWeekdays.length })
-              }} />
+              <p className="text-sm text-muted-foreground text-center">
+                <Trans 
+                  i18nKey="calendarPicker.summary.weekdaysSelected" 
+                  values={{ count: selectedWeekdays.length }}
+                  components={{ strong: <strong /> }}
+                />
+              </p>
             )}
             
             {/* Action buttons */}

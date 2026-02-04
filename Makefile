@@ -12,7 +12,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m # No Color
 
-.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge complete clamav clamav-down clamav-logs clamav-status clamav-update
+.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge complete clamav clamav-down clamav-logs clamav-status clamav-update lint validate-translations validate-translations-docker
 
 # Default target
 help:
@@ -53,6 +53,10 @@ help:
 	@echo "  make test-e2e-ui  - Run E2E tests with Playwright UI"
 	@echo "  make test-all     - Run all tests (unit + E2E)"
 	@echo "  make ci           - Run local CI pipeline (lint + tests + build)"
+	@echo ""
+	@echo "$(YELLOW)Code Quality:$(NC)"
+	@echo "  make lint         - Run all linting (TypeScript + translations)"
+	@echo "  make validate-translations - Validate translation files (en/de)"
 	@echo ""
 	@echo "$(YELLOW)Docker Fresh Build:$(NC)"
 	@echo "  make rebuild      - Rebuild image without cache"
@@ -221,7 +225,7 @@ prune:
 
 test:
 	@echo "$(GREEN)Running unit & integration tests...$(NC)"
-	npm test
+	npx vitest run --pool=forks --poolOptions.forks.singleFork
 
 test-e2e:
 	@echo "$(GREEN)Running E2E tests with Playwright...$(NC)"
@@ -244,7 +248,7 @@ test-pdf:
 
 test-docker:
 	@echo "$(GREEN)Running tests in Docker...$(NC)"
-	docker compose exec app npm test
+	docker compose exec app npx vitest run --pool=forks --poolOptions.forks.singleFork
 
 test-pdf-docker:
 	@echo "$(GREEN)Running PDF export tests in Docker...$(NC)"
@@ -305,19 +309,21 @@ complete:
 
 ci:
 	@echo "$(GREEN)Running local CI pipeline...$(NC)"
-	@echo "$(YELLOW)Step 1/4: Type checking...$(NC)"
+	@echo "$(YELLOW)Step 1/5: Type checking...$(NC)"
 	npx tsc --noEmit
-	@echo "$(YELLOW)Step 2/4: Unit tests...$(NC)"
-	npm test || true
-	@echo "$(YELLOW)Step 3/4: Build...$(NC)"
+	@echo "$(YELLOW)Step 2/5: Validate translations...$(NC)"
+	node scripts/validate-translations.cjs
+	@echo "$(YELLOW)Step 3/5: Unit tests...$(NC)"
+	npx vitest run --pool=forks --poolOptions.forks.singleFork || true
+	@echo "$(YELLOW)Step 4/5: Build...$(NC)"
 	npm run build
-	@echo "$(YELLOW)Step 4/4: E2E tests...$(NC)"
+	@echo "$(YELLOW)Step 5/5: E2E tests...$(NC)"
 	npx playwright test || true
 	@echo "$(GREEN)Local CI complete!$(NC)"
 
 ci-docker:
 	@echo "$(GREEN)Running CI in Docker environment...$(NC)"
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm app sh -c "npx tsc --noEmit && npm test && npm run build"
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm app sh -c "npx tsc --noEmit && npx vitest run --pool=forks --poolOptions.forks.singleFork && npm run build"
 
 # ============================================
 # Version Management
@@ -360,3 +366,23 @@ clamav-update:
 	@echo "$(GREEN)Updating ClamAV virus definitions...$(NC)"
 	docker compose exec clamav freshclam
 	@echo "$(GREEN)Virus definitions updated$(NC)"
+
+# ============================================
+# Code Quality
+# ============================================
+
+lint:
+	@echo "$(GREEN)Running all linting checks...$(NC)"
+	@echo "$(YELLOW)Step 1/2: TypeScript check...$(NC)"
+	npx tsc --noEmit
+	@echo "$(YELLOW)Step 2/2: Translation validation...$(NC)"
+	node scripts/validate-translations.cjs
+	@echo "$(GREEN)All linting checks passed!$(NC)"
+
+validate-translations:
+	@echo "$(GREEN)Validating translation files...$(NC)"
+	node scripts/validate-translations.cjs
+
+validate-translations-docker:
+	@echo "$(GREEN)Validating translations in Docker...$(NC)"
+	docker compose exec app node scripts/validate-translations.cjs

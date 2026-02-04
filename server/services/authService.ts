@@ -130,7 +130,7 @@ export const authService = {
     return oidcConfig !== null;
   },
 
-  getKeycloakAuthUrl(state: string): string | null {
+  getKeycloakAuthUrl(state: string): { url: string; codeVerifier: string } | null {
     if (!oidcConfig) return null;
 
     const config = getKeycloakConfig();
@@ -149,10 +149,23 @@ export const authService = {
 
     const redirectTo = client.buildAuthorizationUrl(oidcConfig, parameters);
     
-    return { url: redirectTo.href, codeVerifier } as any;
+    return { url: redirectTo.href, codeVerifier };
   },
 
-  async handleKeycloakCallback(code: string, codeVerifier: string): Promise<User | null> {
+  async initiateKeycloakLogin(req: any): Promise<{ authUrl: string; codeVerifier: string; state: string }> {
+    const state = Math.random().toString(36).substring(7);
+    const result = this.getKeycloakAuthUrl(state);
+    if (!result) {
+      throw new Error('Keycloak not configured');
+    }
+    return {
+      authUrl: result.url,
+      codeVerifier: result.codeVerifier,
+      state,
+    };
+  },
+
+  async handleKeycloakCallback(code: string, codeVerifier: string, req?: any): Promise<User | null> {
     if (!oidcConfig) return null;
 
     const config = getKeycloakConfig();
@@ -253,7 +266,7 @@ export const authService = {
     return user;
   },
 
-  async localRegister(username: string, email: string, name: string, password: string): Promise<User | null> {
+  async localRegister(username: string, email: string, name: string, password: string, isTestMode: boolean = false): Promise<User | null> {
     const existingUser = await storage.getUserByEmail(email);
     if (existingUser) {
       return null;
@@ -273,6 +286,7 @@ export const authService = {
       role: 'user',
       passwordHash,
       provider: 'local',
+      isTestData: isTestMode,
     });
 
     return user;

@@ -155,6 +155,9 @@ export async function runAllTests(triggeredBy: 'manual' | 'scheduled' = 'manual'
 async function runTestsInBackground(runId: number): Promise<void> {
   const startTime = Date.now();
   
+  // Track this test run for progress monitoring
+  currentTestRunId = runId;
+  
   try {
     // Get test mode and filter tests if in manual mode
     const modeConfig = await getTestModeConfig();
@@ -213,6 +216,7 @@ async function runTestsInBackground(runId: number): Promise<void> {
             completedAt: new Date(),
           })
           .where(eq(testRuns.id, runId));
+        currentTestRunId = null;
         return;
       }
     } else {
@@ -329,6 +333,10 @@ async function runTestsInBackground(runId: number): Promise<void> {
       duration,
       completedAt,
     }, []);
+  } finally {
+    // Always clear the current test run ID when done
+    currentTestRunId = null;
+    currentTestProcess = null;
   }
 }
 
@@ -413,9 +421,28 @@ async function sendTestReportNotification(
   }
 }
 
+const TEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes max for all tests
+
+// Track live progress for current test run
+interface LiveProgress {
+  passed: number;
+  failed: number;
+  skipped: number;
+  currentTest: string;
+  currentFile: string;
+}
+
+let liveProgress: LiveProgress | null = null;
+
+export function getLiveProgress(): LiveProgress | null {
+  return liveProgress;
+}
+
 function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const args = ['vitest', 'run', '--reporter=json'];
+    // Use verbose reporter for live output, JSON output saved to file
+    const jsonOutputPath = path.join(process.cwd(), 'test-results.json');
+    const args = ['vitest', 'run', '--reporter=verbose', '--reporter=json', '--outputFile=' + jsonOutputPath];
     
     // Add test name pattern filter if provided (for manual mode individual test filtering)
     // Using array args without shell=true to avoid shell interpretation of regex patterns
@@ -429,16 +456,76 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     }
     
     // Use shell: false (default) to avoid shell interpretation of special characters in patterns
+    // Disable ANSI colors for reliable parsing
     const child = spawn('npx', args, {
       cwd: process.cwd(),
-      env: { ...process.env, CI: 'true' },
+      env: { ...process.env, CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0' },
     });
+
+    // Store reference for stop functionality
+    currentTestProcess = child;
 
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+    
+    // Initialize live progress
+    liveProgress = {
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      currentTest: '',
+      currentFile: '',
+    };
+
+    // Timeout after 5 minutes to prevent hanging tests
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+      console.error('[TestRunner] Test execution timed out after 5 minutes');
+    }, TEST_TIMEOUT_MS);
 
     child.stdout.on('data', (data) => {
-      stdout += data.toString();
+      const chunk = data.toString();
+      stdout += chunk;
+      
+      // Parse live progress from verbose reporter output
+      // Format: " ✓ server/tests/file.test.ts > Suite > test name 3ms"
+      if (liveProgress) {
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          // Match passed test: " ✓ server/tests/... > ... > test name Xms"
+          const passedMatch = line.match(/^\s*✓\s+(server\/tests\/[^\s>]+\.test\.ts)\s+>\s+(.+?)\s+\d+m?s$/);
+          if (passedMatch) {
+            liveProgress.passed++;
+            liveProgress.currentFile = passedMatch[1];
+            // Extract last test name after " > "
+            const parts = passedMatch[2].split(' > ');
+            liveProgress.currentTest = parts[parts.length - 1].trim();
+            continue;
+          }
+          
+          // Match failed test: " × server/tests/... > ... > test name Xms"
+          const failedMatch = line.match(/^\s*[×✗]\s+(server\/tests\/[^\s>]+\.test\.ts)\s+>\s+(.+?)\s+\d+m?s$/);
+          if (failedMatch) {
+            liveProgress.failed++;
+            liveProgress.currentFile = failedMatch[1];
+            const parts = failedMatch[2].split(' > ');
+            liveProgress.currentTest = parts[parts.length - 1].trim();
+            continue;
+          }
+          
+          // Match skipped test: " ↓ server/tests/... > ... > test name"
+          const skippedMatch = line.match(/^\s*[↓○]\s+(server\/tests\/[^\s>]+\.test\.ts)\s+>\s+(.+)/);
+          if (skippedMatch) {
+            liveProgress.skipped++;
+            liveProgress.currentFile = skippedMatch[1];
+            const parts = skippedMatch[2].split(' > ');
+            liveProgress.currentTest = parts[parts.length - 1].trim();
+            continue;
+          }
+        }
+      }
     });
 
     child.stderr.on('data', (data) => {
@@ -446,17 +533,42 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     });
 
     child.on('close', (code) => {
-      const jsonMatch = stdout.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
-      if (jsonMatch) {
-        resolve(jsonMatch[0]);
-      } else if (code === 0) {
-        resolve(stdout);
-      } else {
-        reject(new Error(`Vitest exited with code ${code}: ${stderr || stdout}`));
+      clearTimeout(timeout);
+      currentTestProcess = null;
+      liveProgress = null;
+      
+      if (timedOut) {
+        reject(new Error('Test execution timed out after 5 minutes'));
+        return;
+      }
+      
+      // Read JSON results from file instead of parsing stdout (which contains verbose output)
+      try {
+        if (fs.existsSync(jsonOutputPath)) {
+          const jsonContent = fs.readFileSync(jsonOutputPath, 'utf-8');
+          // Clean up the temp file
+          fs.unlinkSync(jsonOutputPath);
+          resolve(jsonContent);
+        } else if (code === 0) {
+          // Fallback to stdout parsing if file doesn't exist
+          const jsonMatch = stdout.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
+          if (jsonMatch) {
+            resolve(jsonMatch[0]);
+          } else {
+            resolve(stdout);
+          }
+        } else {
+          reject(new Error(`Vitest exited with code ${code}: ${stderr || stdout}`));
+        }
+      } catch (err) {
+        reject(new Error(`Failed to read test results: ${err}`));
       }
     });
 
     child.on('error', (err) => {
+      clearTimeout(timeout);
+      currentTestProcess = null;
+      liveProgress = null;
       reject(err);
     });
   });
@@ -501,6 +613,13 @@ export async function getTestRunHistory(limit = 20) {
     .from(testRuns)
     .orderBy(desc(testRuns.startedAt))
     .limit(limit);
+}
+
+export async function getTestResultsForRun(runId: number) {
+  return await db.select()
+    .from(testResults)
+    .where(eq(testResults.runId, runId))
+    .orderBy(testResults.id);
 }
 
 export async function getScheduleConfig(): Promise<TestScheduleConfig> {
@@ -965,4 +1084,53 @@ export async function getEnabledTestsConfig(): Promise<EnabledTestsConfig> {
 export async function getEnabledTestFiles(): Promise<string[]> {
   const config = await getEnabledTestsConfig();
   return config.files;
+}
+
+// Track currently running test
+let currentTestRunId: number | null = null;
+let currentTestProcess: ReturnType<typeof spawn> | null = null;
+
+// Get the currently running test (if any)
+export async function getCurrentTestRun() {
+  if (!currentTestRunId) {
+    return null;
+  }
+  
+  try {
+    const [run] = await db
+      .select()
+      .from(testRuns)
+      .where(eq(testRuns.id, currentTestRunId))
+      .limit(1);
+    
+    if (run && run.status === 'running') {
+      return run;
+    }
+    
+    currentTestRunId = null;
+    return null;
+  } catch (error) {
+    console.error('Error getting current test run:', error);
+    return null;
+  }
+}
+
+// Stop the currently running test
+export async function stopCurrentTest(): Promise<void> {
+  if (currentTestProcess) {
+    currentTestProcess.kill('SIGTERM');
+    currentTestProcess = null;
+  }
+  
+  if (currentTestRunId) {
+    await db
+      .update(testRuns)
+      .set({ 
+        status: 'cancelled',
+        completedAt: new Date()
+      })
+      .where(eq(testRuns.id, currentTestRunId));
+    
+    currentTestRunId = null;
+  }
 }

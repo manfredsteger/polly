@@ -405,3 +405,10 @@ export function generateSingleEventIcs(
 
   return generateCalendar([event], poll.title);
 }
+
+export const icsService = {
+  getDefaultCalendarSettings,
+  generatePollIcs,
+  generateUserCalendarFeed,
+  generateSingleEventIcs,
+};

@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogIn, LogOut, User, ClipboardList, Shield, Moon, Sun } from "lucide-react";
+import { LogIn, LogOut, User, ClipboardList, Shield, Moon, Sun, Mail, RefreshCw, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomization } from "@/contexts/CustomizationContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTranslation } from 'react-i18next';
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +21,28 @@ export default function Layout({ children }: LayoutProps) {
   const { settings } = useCustomization();
   const { theme, setTheme, effectiveTheme } = useTheme();
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+
+  const handleResendVerification = async () => {
+    if (isResendingVerification) return;
+    setIsResendingVerification(true);
+    try {
+      await apiRequest('POST', '/api/v1/auth/resend-verification');
+      toast({
+        title: t('emailVerification.resendSuccess'),
+        description: t('emailVerification.resendSuccessDescription'),
+      });
+    } catch (error) {
+      toast({
+        title: t('emailVerification.resendError'),
+        description: t('emailVerification.resendErrorDescription'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResendingVerification(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -138,6 +163,35 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </nav>
+
+      {isAuthenticated && user && !user.emailVerified && (
+        <div className="bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  {t('emailVerification.bannerMessage')}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResendVerification}
+                disabled={isResendingVerification}
+                className="border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-200"
+              >
+                {isResendingVerification ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4 mr-2" />
+                )}
+                {t('emailVerification.resendButton')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1">
         {children}

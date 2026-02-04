@@ -4,10 +4,11 @@ import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import pg from "pg";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
 import { bootstrapBranding } from "./scripts/applyBranding";
+import { errorHandler } from "./lib/errorHandler";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -38,6 +39,10 @@ app.use((req, res, next) => {
   // Development: Allows unsafe-eval for Vite HMR
   const isDev = process.env.NODE_ENV !== 'production';
   
+  // Check if app is actually running over HTTPS
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || 
+    (process.env.BASE_URL && process.env.BASE_URL.startsWith('https://'));
+  
   const cspDirectives = [
     "default-src 'self'",
     // In production: no unsafe-eval (Vite bundles everything)
@@ -53,8 +58,13 @@ app.use((req, res, next) => {
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    "upgrade-insecure-requests", // Force HTTPS for all resources
   ];
+  
+  // Only add upgrade-insecure-requests when actually behind HTTPS
+  // This prevents Safari from trying to upgrade HTTP to HTTPS on local dev
+  if (isHttps) {
+    cspDirectives.push("upgrade-insecure-requests");
+  }
   
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
   
@@ -76,10 +86,9 @@ app.use((req, res, next) => {
   ].join(', '));
   
   // Strict-Transport-Security (HSTS) - Forces HTTPS
-  // Enable for all HTTPS connections (Replit uses HTTPS even in development)
+  // Only enable when actually behind HTTPS to avoid issues with local HTTP development
   // max-age=31536000 (1 year) meets the 7776000 (90 days) minimum requirement
-  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
-  if (isHttps || process.env.NODE_ENV === 'production') {
+  if (isHttps) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
   
@@ -178,14 +187,21 @@ app.use((req, res, next) => {
   } catch (error) {
     console.error('[ClamAV] Failed to initialize from environment:', error);
   }
+  
+  // Initialize API rate limiter from database settings
+  try {
+    const { storage } = await import('./storage');
+    const { apiRateLimiter } = await import('./services/apiRateLimiterService');
+    const securitySettings = await storage.getSecuritySettings();
+    if (securitySettings.apiRateLimits) {
+      apiRateLimiter.updateConfig(securitySettings.apiRateLimits);
+      console.log('[API Rate Limits] Loaded configuration from database');
+    }
+  } catch (error) {
+    console.error('[API Rate Limits] Failed to load from database:', error);
+  }
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
+  app.use(errorHandler);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
@@ -212,5 +228,26 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Warm up slow caches in background after server starts
+    setTimeout(async () => {
+      try {
+        const { getSystemPackages } = await import("./services/systemPackageService");
+        const { runNpmAudit } = await import("./services/npmAuditService");
+        const { adminCacheService } = await import("./services/adminCacheService");
+        
+        // Run in parallel for faster warmup
+        await Promise.all([
+          adminCacheService.getExtendedStats().then(() => console.log('[Cache] Admin stats warmed up')),
+          getSystemPackages().then(() => console.log('[Cache] System packages warmed up')),
+          runNpmAudit().then(() => console.log('[Cache] npm audit warmed up'))
+        ]);
+        
+        // Start daily warmup scheduler for admin cache
+        adminCacheService.startDailyWarmup();
+      } catch (e) {
+        console.log('[Cache] Warmup completed with some errors (non-critical)');
+      }
+    }, 1000); // Delay 1s to not slow down initial page loads
   });
 })();

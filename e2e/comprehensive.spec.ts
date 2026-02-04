@@ -60,6 +60,7 @@ async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organ
 
   const response = await page.request.post(`${BASE_URL}/api/v1/polls`, {
     data: basePayload,
+    headers: { 'X-Test-Mode': 'polly-e2e-test-mode' },
   });
   
   expect(response.status()).toBe(200);
@@ -71,7 +72,10 @@ async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organ
 // Returns an object with status(), json (pre-parsed data), and ok() methods
 async function voteViaAPI(page: Page, publicToken: string, voterName: string, optionId: number, voteResponse: 'yes' | 'no' | 'maybe' = 'yes') {
   // Create an isolated API context for this voter (no shared cookies)
-  const api = await request.newContext({ baseURL: BASE_URL });
+  const api = await request.newContext({ 
+    baseURL: BASE_URL,
+    extraHTTPHeaders: { 'X-Test-Mode': 'polly-e2e-test-mode' },
+  });
   
   try {
     // First get poll data to know all options - with retry for server startup timing

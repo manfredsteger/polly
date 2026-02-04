@@ -14,6 +14,15 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 -   **Frontend**: React 18 with TypeScript, Vite, Shadcn/ui (Radix UI) + Tailwind CSS, TanStack Query v5, Wouter
 -   **Backend**: Express.js server with TypeScript
 -   **Database**: PostgreSQL with Drizzle ORM
+-   **API Routing**: Modular structure in `server/routes/` with 156 endpoints:
+    -   `admin.ts` (89): Admin dashboard, tests, security, Pentest-Tools
+    -   `auth.ts` (15): Login, registration, Keycloak, password reset
+    -   `polls.ts` (17): Poll CRUD, options, invitations, reminders
+    -   `votes.ts` (7): Voting, bulk votes, edit tokens
+    -   `users.ts` (9): Profile, language, device tokens, user polls
+    -   `system.ts` (11): Health, theme, Matrix, upload, customization
+    -   `export.ts` (8): PDF, CSV, ICS, QR code, calendar feed
+    -   `common.ts`: Shared middleware, schemas, auth helpers
 
 ### Key Features
 - **Poll Types**: Terminumfrage (Schedule), Umfrage (Survey), Orga-Liste (Organization/Booking).
@@ -29,6 +38,10 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Admin Tools**: User management, email template customization, security scanning integration (ClamAV, npm audit, Pentest-Tools.com), and system package monitoring (Nix).
 - **Calendar Integration**: ICS export and webcal:// subscription for schedule polls with dynamic status prefixes (Tentative/Confirmed) and automatic cleanup when creator sets final date.
 - **Test Data Isolation**: `isTestData` flags in database for development and purging.
+    -   **Test Mode Header**: API requests with `X-Test-Mode: polly-e2e-test-mode` header automatically set `isTestData: true` on created polls, votes, and users
+    -   **Middleware**: `testModeMiddleware` in `server/routes/common.ts` sets `req.isTestMode = true`
+    -   **Secret Override**: Set `TEST_MODE_SECRET` env var to customize the header value
+    -   **Admin Purge**: Admin dashboard "Tests" panel has "Testdaten löschen" to remove all test data
 
 ### Technical Implementations
 - **Timezone Handling**: Schedule poll times stored in UTC, frontend displays and converts to local time.
@@ -80,6 +93,32 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 -   **OpenAPI Spec**: `docs/openapi.yaml` - Vollständige API-Spezifikation im OpenAPI 3.0 Format
 -   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` - Detaillierte Dokumentation für Mobile App Integration
 -   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` - Anleitung für Docker/Production Deployment
+
+## Docker Migration Path
+
+When schema changes are made (new columns in `shared/schema.ts`), existing Docker databases need to be updated:
+
+### For Developers Adding New Schema Columns
+1. Add the column to `shared/schema.ts` (Drizzle schema)
+2. Add matching entry to `server/scripts/ensureSchema.ts` in `COLUMN_UPDATES` array
+3. Update `migrations/0000_old_vance_astro.sql` for fresh installs
+4. Update `createCoreTables()` fallback function in `ensureSchema.ts`
+
+### For Users Updating Existing Docker Installations
+After pulling new code with schema changes:
+```bash
+docker compose down
+docker compose build --no-cache app
+make complete
+```
+
+The `ensureSchema.ts` script automatically adds missing columns via `ALTER TABLE ADD COLUMN IF NOT EXISTS`.
+
+### Fresh Install (No Existing Data)
+```bash
+docker compose down -v  # Removes database volumes
+make complete
+```
 
 ## External Dependencies
 

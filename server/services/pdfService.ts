@@ -69,6 +69,8 @@ interface PDFOptions {
   logoUrl?: string;
   siteName?: string;
   siteNameAccent?: string;
+  qrCodeDataUrl?: string;
+  pollUrl?: string;
 }
 
 function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): string {
@@ -421,6 +423,14 @@ function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): s
       <span class="meta-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Rücklaufquote: <strong>${Math.round(results.responseRate)}%</strong>
     </div>
   </div>
+  
+  ${options.qrCodeDataUrl ? `
+  <div class="qr-section" style="text-align: center; margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+    <div style="font-size: 14px; color: #666; margin-bottom: 12px;">QR-Code zum Teilen der Umfrage</div>
+    <img src="${options.qrCodeDataUrl}" alt="QR Code" style="width: 150px; height: 150px; display: block; margin: 0 auto;" />
+    ${options.pollUrl ? `<div style="font-size: 11px; color: #999; margin-top: 8px; word-break: break-all;">${options.pollUrl}</div>` : ''}
+  </div>
+  ` : ''}
   
   <h2 class="section-title">Ergebnisse</h2>
   

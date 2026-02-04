@@ -10,7 +10,8 @@ import * as path from 'path';
 
 const REQUIRED_TABLES = ['users', 'polls', 'poll_options', 'votes', 'system_settings', 
   'password_reset_tokens', 'email_change_tokens', 'notification_logs',
-  'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs'];
+  'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs', 'email_templates',
+  'email_verification_tokens'];
 
 const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = [
   { table: 'users', column: 'calendar_token', definition: 'TEXT UNIQUE' },
@@ -28,6 +29,13 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'polls', column: 'enable_expiry_reminder', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'polls', column: 'expiry_reminder_hours', definition: 'INTEGER DEFAULT 24' },
   { table: 'polls', column: 'expiry_reminder_sent', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'polls', column: 'final_option_id', definition: 'INTEGER' },
+  { table: 'votes', column: 'is_test_data', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'votes', column: 'voter_edit_token', definition: 'TEXT' },
+  { table: 'votes', column: 'voter_key', definition: 'TEXT' },
+  { table: 'votes', column: 'voter_source', definition: 'TEXT' },
+  { table: 'votes', column: 'comment', definition: 'TEXT' },
+  { table: 'users', column: 'email_verified', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
 ];
 
 async function ensureSchema(): Promise<void> {
@@ -183,6 +191,7 @@ async function createCoreTables(client: any): Promise<void> {
       allow_maybe BOOLEAN NOT NULL DEFAULT TRUE,
       is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
       expires_at TIMESTAMP,
+      final_option_id INTEGER,
       enable_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
       expiry_reminder_hours INTEGER DEFAULT 24,
       expiry_reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,
@@ -221,6 +230,7 @@ async function createCoreTables(client: any): Promise<void> {
       response TEXT NOT NULL,
       comment TEXT,
       voter_edit_token TEXT,
+      is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
@@ -253,6 +263,35 @@ async function createCoreTables(client: any): Promise<void> {
       request_ip TEXT,
       scan_duration_ms INTEGER,
       admin_notified_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Create email_templates table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id SERIAL PRIMARY KEY,
+      type TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      json_content JSONB NOT NULL,
+      html_content TEXT,
+      text_content TEXT,
+      variables JSONB NOT NULL DEFAULT '[]',
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Create email_verification_tokens table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMP NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);

@@ -58,7 +58,7 @@ describe('Polls - Voting', () => {
       .post(`/api/v1/polls/${publicToken}/vote`)
       .send({
         voterEmail: 'test@example.com',
-        responses: { [optionIds[0]]: 'yes' },
+        votes: [{ optionId: optionIds[0], response: 'yes' }],
       });
 
     expect(response.status).toBeGreaterThanOrEqual(400);
@@ -70,7 +70,7 @@ describe('Polls - Voting', () => {
       .send({
         voterName: 'Test Voter',
         voterEmail: 'test@example.com',
-        responses: { [optionIds[0]]: 'invalid-response' },
+        votes: [{ optionId: optionIds[0], response: 'invalid-response' }],
       });
 
     expect(response.status).toBeGreaterThanOrEqual(400);
@@ -82,7 +82,7 @@ describe('Polls - Voting', () => {
       .send({
         voterName: 'Test Voter',
         voterEmail: 'test@example.com',
-        responses: { 1: 'yes' },
+        votes: [{ optionId: 1, response: 'yes' }],
       });
 
     // API may return 400 (validation) or 404 (not found)

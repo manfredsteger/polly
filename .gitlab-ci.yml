@@ -131,6 +131,19 @@ typescript-check:
     - npx tsc --noEmit
   allow_failure: false
 
+validate-translations:
+  stage: test
+  image: node:${NODE_VERSION}
+  retry:
+    max: 2
+    when: unknown_failure
+  before_script:
+    - apt-get update && apt-get install -y git
+    - *github_clone
+  script:
+    - node scripts/validate-translations.cjs
+  allow_failure: false
+
 unit-tests:
   stage: test
   image: node:${NODE_VERSION}

@@ -1,7 +1,8 @@
 import express, { type Express, type Request, Response, NextFunction } from 'express';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
-import { registerRoutes } from '../routes';
+import { registerRoutes } from '../routes/index';
+import { apiRateLimiter } from '../services/apiRateLimiterService';
 import { type Server } from 'http';
 
 const MemoryStore = createMemoryStore(session);
@@ -22,7 +23,7 @@ export async function createTestApp(): Promise<Express> {
   if (testApp) {
     return testApp;
   }
-
+  
   const app = express();
 
   app.disable('x-powered-by');
@@ -55,6 +56,16 @@ export async function createTestApp(): Promise<Express> {
 
   testServer = await registerRoutes(app);
 
+  // Disable rate limiting for tests
+  apiRateLimiter.updateConfig({
+    registration: { windowSeconds: 3600, maxRequests: 10000, enabled: false },
+    passwordReset: { windowSeconds: 900, maxRequests: 10000, enabled: false },
+    pollCreation: { windowSeconds: 60, maxRequests: 10000, enabled: false },
+    voting: { windowSeconds: 10, maxRequests: 10000, enabled: false },
+    email: { windowSeconds: 60, maxRequests: 10000, enabled: false },
+    apiGeneral: { windowSeconds: 60, maxRequests: 10000, enabled: false },
+  });
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || 'Internal Server Error';
@@ -73,6 +84,14 @@ export async function closeTestApp(): Promise<void> {
     testServer = null;
   }
   testApp = null;
+  
+  // Close database pool to prevent hanging
+  try {
+    const { pool } = await import('../db');
+    await pool.end();
+  } catch {
+    // Ignore errors if pool doesn't exist
+  }
 }
 
 export function getTestApp(): Express | null {

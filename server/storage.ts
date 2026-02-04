@@ -1,6 +1,7 @@
 import { 
   users, polls, pollOptions, votes, systemSettings, notificationLogs,
   passwordResetTokens, emailChangeTokens, emailTemplates, clamavScanLogs,
+  emailVerificationTokens,
   type User, type InsertUser,
   type Poll, type InsertPoll, type PollWithOptions,
   type PollOption, type InsertPollOption,
@@ -61,6 +62,7 @@ export interface IStorage {
 
   // Voting
   vote(vote: InsertVote): Promise<Vote>;
+  createVote(vote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }>;
   voteBulk(pollId: string, voterName: string, voterEmail: string, userId: number | null, voterEditToken: string | null, voteItems: Array<{ optionId: number; response: string }>): Promise<{ votes: Vote[]; alreadyVoted: boolean }>;
   updateVote(id: number, response: string): Promise<Vote>;
   deleteVote(id: number): Promise<void>;
@@ -137,6 +139,12 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(token: string): Promise<void>;
   deleteExpiredPasswordResetTokens(): Promise<void>;
+
+  // Email verification tokens
+  createEmailVerificationToken(userId: number): Promise<{ token: string; expiresAt: Date }>;
+  getEmailVerificationToken(token: string): Promise<{ userId: number; token: string; expiresAt: Date } | undefined>;
+  verifyEmail(userId: number): Promise<void>;
+  deleteEmailVerificationToken(token: string): Promise<void>;
 
   // Email change tokens
   createEmailChangeToken(userId: number, newEmail: string): Promise<EmailChangeToken>;
@@ -535,7 +543,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // For surveys with edit permission: Allow updating existing votes
+    // For surveys with edit permission: Allow updating existing votes or adding new ones for different options
     if (poll.type === 'survey' && insertVote.voterEmail && allowEditExisting) {
       const existingEmailVotesOnSurvey = await db.select().from(votes)
         .where(and(
@@ -551,10 +559,8 @@ export class DatabaseStorage implements IStorage {
         return this.updateVote(existingVoteOnSameOption.id, insertVote.response);
       }
       
-      // If trying to vote on a different option when already participated, block it
-      if (existingEmailVotesOnSurvey.length > 0) {
-        throw new Error('DUPLICATE_EMAIL_VOTE');
-      }
+      // Allow voting on different options when allowEditExisting is true (bulk voting scenario)
+      // No blocking here - user can vote on multiple options in a single session
     }
 
     // For schedule polls: Check if vote exists for this voter on this specific option (for updating)
@@ -647,6 +653,16 @@ export class DatabaseStorage implements IStorage {
       
       return { votes: createdVotes, alreadyVoted: false };
     });
+  }
+
+  async createVote(insertVote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }> {
+    const editToken = existingEditToken || randomBytes(32).toString('hex');
+    const voteWithToken = { ...insertVote, voterEditToken: editToken };
+    // If an existing token is provided, this is a continuation of the same voting session
+    // Allow inserting additional votes for different options without duplicate check
+    const allowEditExisting = !!existingEditToken;
+    const createdVote = await this.vote(voteWithToken, allowEditExisting);
+    return { vote: createdVote, editToken };
   }
 
   async updateVote(id: number, response: string): Promise<Vote> {
@@ -772,10 +788,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomizationSettings(): Promise<CustomizationSettings> {
-    const themeSetting = await this.getSetting('customization_theme');
-    const brandingSetting = await this.getSetting('customization_branding');
-    const footerSetting = await this.getSetting('customization_footer');
-    const wcagSetting = await this.getSetting('customization_wcag');
+    // Parallelize all 4 database queries for better performance
+    const [themeSetting, brandingSetting, footerSetting, wcagSetting] = await Promise.all([
+      this.getSetting('customization_theme'),
+      this.getSetting('customization_branding'),
+      this.getSetting('customization_footer'),
+      this.getSetting('customization_wcag'),
+    ]);
 
     const settings = {
       theme: themeSetting?.value || {},
@@ -909,21 +928,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllPolls(): Promise<PollWithOptions[]> {
-    const allPolls = await db.select().from(polls).orderBy(desc(polls.createdAt));
+    // Fetch all data in parallel to avoid N+1 queries
+    const [allPolls, allOptions, allVotes, allUsers] = await Promise.all([
+      db.select().from(polls).orderBy(desc(polls.createdAt)),
+      db.select().from(pollOptions).orderBy(pollOptions.id),
+      db.select().from(votes),
+      db.select().from(users)
+    ]);
     
-    const pollsWithDetails = await Promise.all(
-      allPolls.map(async (poll) => {
-        const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id)).orderBy(pollOptions.id);
-        const allVotes = await db.select().from(votes).where(eq(votes.pollId, poll.id));
-        let user: User | undefined;
-        if (poll.userId) {
-          [user] = await db.select().from(users).where(eq(users.id, poll.userId));
-        }
-        return { ...poll, options, votes: allVotes, user };
-      })
-    );
-
-    return pollsWithDetails;
+    // Create lookup maps for O(1) access
+    const optionsByPollId = new Map<string, typeof allOptions>();
+    for (const option of allOptions) {
+      const existing = optionsByPollId.get(option.pollId) || [];
+      existing.push(option);
+      optionsByPollId.set(option.pollId, existing);
+    }
+    
+    const votesByPollId = new Map<string, typeof allVotes>();
+    for (const vote of allVotes) {
+      const existing = votesByPollId.get(vote.pollId) || [];
+      existing.push(vote);
+      votesByPollId.set(vote.pollId, existing);
+    }
+    
+    const usersById = new Map<number, typeof allUsers[0]>();
+    for (const user of allUsers) {
+      usersById.set(user.id, user);
+    }
+    
+    // Map polls with their related data
+    return allPolls.map(poll => ({
+      ...poll,
+      options: optionsByPollId.get(poll.id) || [],
+      votes: votesByPollId.get(poll.id) || [],
+      user: poll.userId ? usersById.get(poll.userId) : undefined
+    }));
   }
 
   async getExtendedStats(): Promise<{
@@ -946,68 +985,72 @@ export class DatabaseStorage implements IStorage {
       pollToken?: string;
     }>;
   }> {
-    // Exclude test data from all statistics
-    const [totalUsersResult] = await db.select({ count: count() }).from(users)
-      .where(eq(users.isTestData, false));
-    const [totalPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(eq(polls.isTestData, false));
-    const [activePollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(
+    // Run all count queries in parallel for better performance
+    const [
+      [totalUsersResult],
+      [totalPollsResult],
+      [activePollsResult],
+      [inactivePollsResult],
+      [totalVotesResult],
+      [monthlyPollsResult],
+      [weeklyPollsResult],
+      [todayPollsResult],
+      [schedulePollsResult],
+      [surveyPollsResult],
+      [organizationPollsResult],
+      recentPollsWithUsers,
+      recentVotesWithPolls,
+      recentUsers,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(users).where(eq(users.isTestData, false)),
+      db.select({ count: count() }).from(polls).where(eq(polls.isTestData, false)),
+      db.select({ count: count() }).from(polls).where(and(
         eq(polls.isActive, true),
         eq(polls.isTestData, false),
         sql`${polls.expiresAt} > NOW() OR ${polls.expiresAt} IS NULL`
-      ));
-    const [inactivePollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isActive, false), eq(polls.isTestData, false)));
-    const [totalVotesResult] = await db.select({ count: count() }).from(votes)
-      .innerJoin(polls, eq(votes.pollId, polls.id))
-      .where(eq(polls.isTestData, false));
-    const [monthlyPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '30 days'`));
-    const [weeklyPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '7 days'`));
-    const [todayPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '1 day'`));
-    const [schedulePollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.type, 'schedule'), eq(polls.isTestData, false)));
-    const [surveyPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.type, 'survey'), eq(polls.isTestData, false)));
-    const [organizationPollsResult] = await db.select({ count: count() }).from(polls)
-      .where(and(eq(polls.type, 'organization'), eq(polls.isTestData, false)));
+      )),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isActive, false), eq(polls.isTestData, false))),
+      db.select({ count: count() }).from(votes).innerJoin(polls, eq(votes.pollId, polls.id)).where(eq(polls.isTestData, false)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '30 days'`)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '7 days'`)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '1 day'`)),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.type, 'schedule'), eq(polls.isTestData, false))),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.type, 'survey'), eq(polls.isTestData, false))),
+      db.select({ count: count() }).from(polls).where(and(eq(polls.type, 'organization'), eq(polls.isTestData, false))),
+      db.select({
+        poll: polls,
+        userName: users.name,
+      }).from(polls)
+        .leftJoin(users, eq(polls.userId, users.id))
+        .where(eq(polls.isTestData, false))
+        .orderBy(desc(polls.createdAt))
+        .limit(5),
+      db.select({
+        vote: votes,
+        poll: polls,
+      }).from(votes)
+        .innerJoin(polls, eq(votes.pollId, polls.id))
+        .where(eq(polls.isTestData, false))
+        .orderBy(desc(votes.createdAt))
+        .limit(5),
+      db.select({
+        id: users.id,
+        name: users.name,
+        createdAt: users.createdAt,
+      }).from(users).where(eq(users.isTestData, false)).orderBy(desc(users.createdAt)).limit(3),
+    ]);
 
-    // Get recent activity (recent polls and votes) - excluding test data
-    const recentPolls = await db.select().from(polls).where(eq(polls.isTestData, false)).orderBy(desc(polls.createdAt)).limit(5);
-
-    const recentVotesWithPolls = await db.select({
-      vote: votes,
-      poll: polls,
-    }).from(votes)
-      .innerJoin(polls, eq(votes.pollId, polls.id))
-      .where(eq(polls.isTestData, false))
-      .orderBy(desc(votes.createdAt)).limit(5);
-
-    const recentUsers = await db.select({
-      id: users.id,
-      name: users.name,
-      createdAt: users.createdAt,
-    }).from(users).where(eq(users.isTestData, false)).orderBy(desc(users.createdAt)).limit(3);
-
-    // Build activity list
+    // Build activity list - no more N+1 queries
     const activity: Array<{ type: string; message: string; timestamp: Date; actor?: string; pollToken?: string }> = [];
 
-    for (const poll of recentPolls) {
-      let actor: string | undefined;
-      if (poll.userId) {
-        const [user] = await db.select().from(users).where(eq(users.id, poll.userId));
-        actor = user?.name;
-      }
+    for (const { poll, userName } of recentPollsWithUsers) {
       const typeLabel = poll.type === 'schedule' ? 'Terminumfrage' : 
                         poll.type === 'organization' ? 'Orga' : 'Umfrage';
       activity.push({
         type: 'poll_created',
         message: `Neue ${typeLabel} erstellt: "${poll.title}"`,
         timestamp: poll.createdAt,
-        actor,
+        actor: userName || undefined,
         pollToken: poll.publicToken,
       });
     }
@@ -1187,6 +1230,42 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(passwordResetTokens)
       .where(sql`${passwordResetTokens.expiresAt} < NOW()`);
+  }
+
+  // Email verification tokens
+  async createEmailVerificationToken(userId: number): Promise<{ token: string; expiresAt: Date }> {
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hour expiry
+    
+    await db
+      .insert(emailVerificationTokens)
+      .values({ userId, token, expiresAt });
+    
+    return { token, expiresAt };
+  }
+
+  async getEmailVerificationToken(token: string): Promise<{ userId: number; token: string; expiresAt: Date } | undefined> {
+    const [verificationToken] = await db
+      .select()
+      .from(emailVerificationTokens)
+      .where(and(
+        eq(emailVerificationTokens.token, token),
+        sql`${emailVerificationTokens.expiresAt} > NOW()`
+      ));
+    return verificationToken || undefined;
+  }
+
+  async verifyEmail(userId: number): Promise<void> {
+    await db
+      .update(users)
+      .set({ emailVerified: true })
+      .where(eq(users.id, userId));
+  }
+
+  async deleteEmailVerificationToken(token: string): Promise<void> {
+    await db
+      .delete(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.token, token));
   }
 
   // Email change tokens

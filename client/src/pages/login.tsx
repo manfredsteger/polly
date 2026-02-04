@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Check, X } from 'lucide-react';
+import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface PasswordRequirement {
@@ -162,6 +162,9 @@ export default function Login() {
 
   const [loginForm, setLoginForm] = useState({ usernameOrEmail: getEmailFromUrl(), password: '' });
   const [registerForm, setRegisterForm] = useState({ username: '', email: getEmailFromUrl(), name: '', password: '', confirmPassword: '' });
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
   const getRedirectUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -213,14 +216,21 @@ export default function Login() {
 
   const isPasswordValid = validatePassword(registerForm.password);
   const passwordsMatch = registerForm.password === registerForm.confirmPassword;
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailValid = isValidEmail(registerForm.email);
   const canRegister = isPasswordValid && passwordsMatch && 
     registerForm.username.length >= 3 && 
-    registerForm.email.length > 0 && 
+    emailValid && 
     registerForm.name.length > 0;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!emailValid) {
+      setError(t('auth.errors.pleaseEnterValidEmail'));
+      return;
+    }
 
     if (!isPasswordValid) {
       setError(t('auth.errors.passwordRequirements'));
@@ -295,15 +305,27 @@ export default function Login() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">{t('auth.password')}</Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      value={loginForm.password}
-                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                      placeholder="••••••••"
-                      required
-                      data-testid="input-login-password"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showLoginPassword ? "text" : "password"}
+                        value={loginForm.password}
+                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                        placeholder="••••••••"
+                        required
+                        className="pr-10"
+                        data-testid="input-login-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
+                        aria-label={showLoginPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                      >
+                        {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login-submit">
                     {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}
@@ -358,31 +380,61 @@ export default function Login() {
                       placeholder="max@example.de"
                       required
                       data-testid="input-register-email"
+                      className={registerForm.email.length > 0 && !emailValid ? "border-red-500" : ""}
                     />
+                    {registerForm.email.length > 0 && !emailValid && (
+                      <p className="text-sm text-red-500" data-testid="email-validation-error">
+                        {t('auth.errors.pleaseEnterValidEmail')}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-password">{t('auth.password')}</Label>
-                    <Input
-                      id="register-password"
-                      type="password"
-                      value={registerForm.password}
-                      onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                      placeholder={t('auth.enterSecurePassword')}
-                      required
-                      data-testid="input-register-password"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="register-password"
+                        type={showRegisterPassword ? "text" : "password"}
+                        value={registerForm.password}
+                        onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                        placeholder={t('auth.enterSecurePassword')}
+                        required
+                        className="pr-10"
+                        data-testid="input-register-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
+                        aria-label={showRegisterPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                      >
+                        {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-confirm">{t('auth.confirmPassword')}</Label>
-                    <Input
-                      id="register-confirm"
-                      type="password"
-                      value={registerForm.confirmPassword}
-                      onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                      placeholder={t('auth.repeatPassword')}
-                      required
-                      data-testid="input-register-confirm"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="register-confirm"
+                        type={showRegisterConfirmPassword ? "text" : "password"}
+                        value={registerForm.confirmPassword}
+                        onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                        placeholder={t('auth.repeatPassword')}
+                        required
+                        className="pr-10"
+                        data-testid="input-register-confirm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegisterConfirmPassword(!showRegisterConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
+                        aria-label={showRegisterConfirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                      >
+                        {showRegisterConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   
                   <PasswordStrengthIndicator 
@@ -418,15 +470,27 @@ export default function Login() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="login-password">{t('auth.password')}</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                  placeholder="••••••••"
-                  required
-                  data-testid="input-login-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showLoginPassword ? "text" : "password"}
+                    value={loginForm.password}
+                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    placeholder="••••••••"
+                    required
+                    className="pr-10"
+                    data-testid="input-login-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                    aria-label={showLoginPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                  >
+                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login-submit">
                 {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}

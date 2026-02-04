@@ -343,17 +343,17 @@
     border: 1px solid var(--color-organization) !important;
   }
 
-  /* Status badges - darker backgrounds for WCAG AA */
+  /* Status badges - darker backgrounds for WCAG AA (use !important to override shadcn Badge defaults) */
   .polly-badge-active {
-    @apply bg-purple-700 text-white border-transparent;
+    @apply !bg-purple-700 !text-white !border-transparent;
   }
   
   .polly-badge-inactive {
-    @apply bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600;
+    @apply !bg-gray-100 !text-gray-700 !border-gray-300 dark:!bg-gray-800 dark:!text-gray-300 dark:!border-gray-600;
   }
   
   .polly-badge-expired {
-    @apply bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800;
+    @apply !bg-red-100 !text-red-700 !border-red-300 dark:!bg-red-900/30 dark:!text-red-400 dark:!border-red-800;
   }
 
   /* Severity badges - darker backgrounds for WCAG AA with white text */

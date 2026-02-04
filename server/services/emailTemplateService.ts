@@ -308,7 +308,7 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, ReturnType<typeof createDefau
     '[{{siteName}}] Passwort zurücksetzen',
     'Passwort zurücksetzen',
     [
-      'Hallo,',
+      'Hallo {{userName}},',
       'Sie haben angefordert, Ihr Passwort für Ihren {{siteName}} Account zurückzusetzen.',
       'Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben:',
       'Dieser Link ist 1 Stunde gültig.',
@@ -344,7 +344,7 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, ReturnType<typeof createDefau
     '[{{siteName}}] Ihr Passwort wurde geändert',
     'Passwort erfolgreich geändert',
     [
-      'Hallo,',
+      'Hallo {{userName}},',
       'Ihr Passwort für Ihren {{siteName}} Account wurde erfolgreich geändert.',
       'Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.',
     ],
@@ -370,6 +370,23 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, ReturnType<typeof createDefau
     undefined,
     undefined,
     'Diese E-Mail wurde automatisch vom {{siteName}} Testsystem erstellt.'
+  ),
+  
+  welcome: createDefaultTemplate(
+    'welcome',
+    'Willkommen',
+    '[{{siteName}}] Willkommen bei {{siteName}}!',
+    'Willkommen bei {{siteName}}!',
+    [
+      'Hallo {{userName}},',
+      'vielen Dank für Ihre Registrierung bei {{siteName}}!',
+      'Ihr Account wurde erfolgreich erstellt.',
+      'Bitte bestätigen Sie Ihre E-Mail-Adresse, indem Sie auf den folgenden Button klicken:',
+      'Nach der Bestätigung können Sie alle Funktionen von {{siteName}} nutzen.',
+    ],
+    'E-Mail bestätigen',
+    'verificationLink',
+    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
   ),
 };
 
@@ -555,6 +572,7 @@ const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
     siteName: 'Polly',
   },
   password_reset: {
+    userName: 'Max Mustermann',
     resetLink: 'https://polly.example.com/auth/reset-password?token=xyz789',
     siteName: 'Polly',
   },
@@ -565,6 +583,7 @@ const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
     siteName: 'Polly',
   },
   password_changed: {
+    userName: 'Max Mustermann',
     siteName: 'Polly',
   },
   test_report: {
@@ -576,6 +595,12 @@ const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
     skipped: '1',
     duration: '12.5 Sekunden',
     startedAt: new Date().toLocaleString('de-DE'),
+    siteName: 'Polly',
+  },
+  welcome: {
+    userName: 'Max Mustermann',
+    userEmail: 'max.mustermann@example.com',
+    verificationLink: 'https://polly.example.com/email-bestaetigen/abc123xyz789',
     siteName: 'Polly',
   },
 };

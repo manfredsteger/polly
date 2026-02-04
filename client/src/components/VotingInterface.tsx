@@ -172,9 +172,20 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         if (Object.keys(existingVotes).length > 0) {
           setVotes(existingVotes);
         }
+      } else {
+        // Pre-fill slot bookings for organization polls
+        const existingBookings: SlotBookingInfo[] = myVotesData.votes
+          .filter(v => v.response === 'yes')
+          .map(v => ({
+            optionId: v.optionId,
+            comment: v.comment || undefined
+          }));
+        if (existingBookings.length > 0 && orgaBookings.length === 0) {
+          setOrgaBookings(existingBookings);
+        }
       }
     }
-  }, [myVotesData, canEdit, poll.type, voterName, voterEmail]);
+  }, [myVotesData, canEdit, poll.type, voterName, voterEmail, orgaBookings.length]);
 
   // Check if email belongs to a registered user
   const checkEmailRegistration = async (email: string) => {
@@ -455,22 +466,19 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
     try {
       if (poll.type === 'organization') {
-        // For organization polls: Submit slot bookings
-        let lastVoterEditToken: string | undefined;
-        for (const booking of orgaBookings) {
-          const result = await voteMutation.mutateAsync({
-            pollId: poll.id,
+        // For organization polls: Use bulk vote endpoint to submit all bookings at once
+        const bulkVoteData = {
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          votes: orgaBookings.map(booking => ({
             optionId: booking.optionId,
-            voterName: voterName.trim(),
-            voterEmail: voterEmail.trim(),
-            response: 'yes',
-            comment: booking.comment?.trim() || undefined,
-          });
-          // Capture the edit token from the response
-          if (result && typeof result === 'object' && 'voterEditToken' in result) {
-            lastVoterEditToken = result.voterEditToken;
-          }
-        }
+            response: 'yes' as const,
+            comment: booking.comment?.trim() || undefined
+          }))
+        };
+        
+        const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote`, bulkVoteData);
+        const result = await response.json();
         
         // Reset unsaved changes state
         setHasOrgaChanges(false);
@@ -484,7 +492,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: lastVoterEditToken,
+          voterEditToken: result.voterEditToken,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
@@ -518,19 +526,21 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else {
-        // For schedule polls: Submit votes one by one (allows multiple votes per email on different options)
+        // For schedule polls: Use bulk vote endpoint to submit all votes at once
         const votesToSubmit = Object.entries(votes);
-        for (const [optionId, response] of votesToSubmit) {
-          await voteMutation.mutateAsync({
-            pollId: poll.id,
+        const bulkVoteData = {
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          votes: votesToSubmit.map(([optionId, response]) => ({
             optionId: parseInt(optionId),
-            voterName: voterName.trim(),
-            voterEmail: voterEmail.trim(),
-            response,
-          });
-        }
+            response
+          }))
+        };
         
-        // For schedule polls: Store success data without edit token (they can vote multiple times)
+        const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote`, bulkVoteData);
+        const result = await response.json();
+        
+        // For schedule polls: Store success data with edit token if available
         const successData = {
           poll: {
             title: poll.title,
@@ -540,6 +550,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: result.voterEditToken,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
@@ -938,7 +949,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       className={`px-8 ${
                         orgaBookings.length === 0 
                           ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
-                          : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                          : 'polly-button-organization'
                       }`}
                       disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
                       data-testid="button-submit-vote"

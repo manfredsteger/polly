@@ -82,8 +82,8 @@ describe('Docker Build Configuration Tests', () => {
       expect(entrypoint).toContain('pg_isready');
     });
 
-    it('should run database migrations', () => {
-      expect(entrypoint).toContain('drizzle-kit push');
+    it('should run database schema setup', () => {
+      expect(entrypoint).toContain('ensureSchema');
     });
 
     it('should run database health check', () => {

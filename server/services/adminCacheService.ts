@@ -1,7 +1,7 @@
 /**
  * Admin Cache Service
- * Caches all admin dashboard data with 24-hour expiry
- * Automatic daily warmup + manual refresh buttons
+ * Caches all admin dashboard data with 5-minute expiry
+ * Automatic periodic warmup + manual refresh buttons
  */
 
 import { storage } from "../storage";
@@ -77,7 +77,7 @@ class AdminCacheService {
     console.log('[AdminCache] Periodic warmup scheduler started (5 min interval)');
   }
 
-  stopDailyWarmup(): void {
+  stopPeriodicWarmup(): void {
     if (this.warmupInterval) {
       clearInterval(this.warmupInterval);
       this.warmupInterval = null;

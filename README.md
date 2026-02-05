@@ -47,6 +47,69 @@ make complete
 
 ![Polly](hero.png)
 
+## 📸 Screenshots
+
+### Poll Types
+
+<table>
+<tr>
+<td align="center" width="33%">
+<img src="docs/screenshots/polly-poll-create-001-en.png" alt="Schedule Poll Creation" width="280"/>
+<br/><strong>📅 Schedule Poll</strong>
+<br/><sub>Find the best meeting time</sub>
+</td>
+<td align="center" width="33%">
+<img src="docs/screenshots/polly-survey-001-en.png" alt="Survey Poll" width="280"/>
+<br/><strong>📊 Survey</strong>
+<br/><sub>Collect opinions & feedback</sub>
+</td>
+<td align="center" width="33%">
+<img src="docs/screenshots/polly-orga-001-en.png" alt="Organization List" width="280"/>
+<br/><strong>📋 Organization List</strong>
+<br/><sub>Slot booking with capacity</sub>
+</td>
+</tr>
+</table>
+
+<details>
+<summary><strong>🖥️ Admin Dashboard Screenshots</strong> (click to expand)</summary>
+
+<br/>
+
+| Overview | User Management |
+|----------|-----------------|
+| ![Admin Overview](docs/screenshots/polly-admin-overview-en.png) | ![User Management](docs/screenshots/polly-admin-users-en.png) |
+| System stats, recent activity, quick actions | Manage users, roles, and permissions |
+
+| Branding & Theming | Settings |
+|--------------------|----------|
+| ![Branding](docs/screenshots/polly-admin-branding-en.png) | ![Settings](docs/screenshots/polly-admin-settings-en.png) |
+| Customize logo, colors, and site name | Email, security, and system configuration |
+
+| Monitoring | Test Suite |
+|------------|------------|
+| ![Monitoring](docs/screenshots/polly-admin-monitoring-en.png) | ![Tests](docs/screenshots/polly-admin-tests-en.png) |
+| System health and performance | Built-in security and integration tests |
+
+</details>
+
+<details>
+<summary><strong>🇩🇪 Deutsche Screenshots</strong> (click to expand)</summary>
+
+<br/>
+
+| Dashboard | Benutzer |
+|-----------|----------|
+| ![Admin Übersicht](docs/screenshots/polly-admin-overview-de.png) | ![Benutzerverwaltung](docs/screenshots/polly-admin-users-de.png) |
+
+| Branding | Einstellungen |
+|----------|---------------|
+| ![Branding](docs/screenshots/polly-admin-branding-de.png) | ![Einstellungen](docs/screenshots/polly-admin-settings-de.png) |
+
+</details>
+
+---
+
 ## ✨ Features
 
 ### Three Poll Types

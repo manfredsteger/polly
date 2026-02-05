@@ -47,12 +47,24 @@ make complete
 
 ## 🎬 See It In Action
 
+### For Users: Create Polls Instantly
+
 <p align="center">
   <img src="docs/screenshots/hero-create-poll.gif" alt="Polly - Create a Poll in Seconds" width="100%"/>
 </p>
 
 <p align="center">
   <em>Create your first poll in under 30 seconds – no login required</em>
+</p>
+
+### For Admins: Full Control Dashboard
+
+<p align="center">
+  <img src="docs/screenshots/hero-admin-overview.gif" alt="Polly - Admin Dashboard Overview" width="100%"/>
+</p>
+
+<p align="center">
+  <em>Manage users, polls, and system settings from one central dashboard</em>
 </p>
 
 ---

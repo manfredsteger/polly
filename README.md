@@ -45,7 +45,17 @@ make complete
 
 ---
 
-![Polly](hero.png)
+## 🎬 See It In Action
+
+<p align="center">
+  <img src="docs/screenshots/hero-create-poll.gif" alt="Polly - Create a Poll in Seconds" width="100%"/>
+</p>
+
+<p align="center">
+  <em>Create your first poll in under 30 seconds – no login required</em>
+</p>
+
+---
 
 ## 📸 Screenshots
 

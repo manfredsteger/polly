@@ -335,6 +335,7 @@ Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
 |----------|-------------|
 | [ROADMAP.md](ROADMAP.md) | Development roadmap and future plans |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [SECURITY.md](SECURITY.md) | Security policy and vulnerability reporting |
 | [docs/openapi.yaml](docs/openapi.yaml) | OpenAPI 3.0 API specification |
 | [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) | Production deployment guide |
 | [docs/FLUTTER_INTEGRATION.md](docs/FLUTTER_INTEGRATION.md) | Mobile app integration guide |

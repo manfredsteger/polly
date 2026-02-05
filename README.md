@@ -21,8 +21,8 @@ git clone https://github.com/manfredsteger/polly.git
 cd polly
 docker compose up -d
 
-# With demo polls for instant testing:
-SEED_DEMO_DATA=true docker compose up -d
+# OR: All-in-one with Makefile (includes seed data)
+make complete
 ```
 
 **That's it!** Open http://localhost:3080 and start exploring.

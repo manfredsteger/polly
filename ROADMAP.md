@@ -37,8 +37,8 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [ ] Session synchronization with identity provider
 - [ ] Documentation for enterprise SSO setup
 
-#### 2. AI-Powered Voice Control (GWDG Kiski Integration)
-- [ ] Integration with [GWDG Kiski](https://gwdg.de) AI services
+#### 2. AI-Powered Voice Control (GWDG KISSKI Integration)
+- [ ] Integration with [GWDG KISSKI](https://kisski.gwdg.de) AI services
 - [ ] **Free Tier included** for all Polly installations
 - [ ] Voice-controlled poll creation with speech-to-text
 - [ ] AI agent-guided form completion (no manual input required)

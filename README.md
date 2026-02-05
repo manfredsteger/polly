@@ -321,7 +321,7 @@ Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
 | Priority | Feature | Status |
 |----------|---------|--------|
 | 🔐 | **Keycloak SSO (OIDC)** - Enterprise single sign-on integration | In Progress |
-| 🤖 | **AI Voice Control** - Create polls via speech with GWDG Kiski Free Tier | Planned |
+| 🤖 | **AI Voice Control** - Create polls via speech with GWDG KISSKI Free Tier | Planned |
 | 🔌 | **OpenAI-Compatible API** - Support for custom AI providers | Planned |
 | 🇪🇺 | **European DC Focus** - Simplified deployment for EU data centers | Version 1.0 |
 

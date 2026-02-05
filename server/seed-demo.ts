@@ -5,16 +5,29 @@
 
 import { db } from "./db";
 import { polls, pollOptions, votes } from "@shared/schema";
-import { sql } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
+
+// Demo poll titles for detection
+const DEMO_POLL_TITLES = [
+  "Team-Meeting - Terminabstimmung",
+  "Lieblings-Programmiersprache 2025",
+  "Mitbringliste Team-Event",
+  "Arbeitsklima-Feedback (Anonym)",
+];
 
 async function seedDemoData() {
   console.log("🌱 Seeding demo data...");
 
-  // Check if demo data already exists (look for isTestData polls)
-  const existingDemoPolls = await db.select().from(polls).where(sql`${polls.isTestData} = true`).limit(1);
+  // Check if specific demo polls already exist (by title, not just isTestData flag)
+  // This avoids skipping when only E2E test data exists
+  const existingDemoPolls = await db.select()
+    .from(polls)
+    .where(inArray(polls.title, DEMO_POLL_TITLES))
+    .limit(1);
+  
   if (existingDemoPolls.length > 0) {
-    console.log("📦 Demo data already exists, skipping...");
+    console.log("📦 Demo polls already exist, skipping...");
     return;
   }
   

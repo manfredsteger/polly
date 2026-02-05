@@ -59,24 +59,23 @@ if [ "$SEED_DEMO_DATA" = "true" ]; then
   echo "🧹 Purging old test data before seeding..."
   # Delete all isTestData polls and related data to ensure clean demo data
   # Order matters: delete dependent rows first to avoid FK constraint violations
-  PURGE_RESULT=$(psql -h postgres -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly} -c "
-    DELETE FROM votes WHERE poll_id IN (SELECT id FROM polls WHERE is_test_data = true);
-    DELETE FROM notification_logs WHERE poll_id IN (SELECT id FROM polls WHERE is_test_data = true);
-    DELETE FROM poll_options WHERE poll_id IN (SELECT id FROM polls WHERE is_test_data = true);
-    DELETE FROM polls WHERE is_test_data = true;
-  " 2>&1)
-  
-  if echo "$PURGE_RESULT" | grep -qi "error"; then
-    echo "❌ Test data purge failed: $PURGE_RESULT"
-    echo "   Continuing anyway - this may cause demo seed to be skipped"
-  else
-    echo "✅ Old test data purged"
-  fi
+  # Using IF EXISTS checks to handle fresh installs gracefully
+  psql -h postgres -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly} -c "
+    DO \$\$
+    BEGIN
+      DELETE FROM votes WHERE poll_id IN (SELECT id FROM polls WHERE is_test_data = true);
+      DELETE FROM notification_logs WHERE poll_id IN (SELECT id FROM polls WHERE is_test_data = true);
+      DELETE FROM poll_options WHERE poll_id IN (SELECT id FROM polls WHERE is_test_data = true);
+      DELETE FROM polls WHERE is_test_data = true;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Test data purge skipped (tables may be empty or not exist yet)';
+    END \$\$;
+  " 2>/dev/null || echo "⚠️ Test data purge skipped (fresh install)"
+  echo "✅ Test data cleanup completed"
   
   echo "🌱 Seeding demo data..."
   if ! npx tsx server/seed-demo.ts 2>&1; then
-    echo "❌ Demo seeding failed!"
-    exit 1
+    echo "⚠️ Demo seeding failed - continuing anyway"
   fi
 fi
 

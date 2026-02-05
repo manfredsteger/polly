@@ -358,6 +358,19 @@ We welcome contributions! Please follow these steps:
 - Test changes before submitting PR
 - Update documentation as needed
 
+## 🏷️ GitHub Topics
+
+Add these topics to your GitHub repository for better discoverability:
+
+```
+polling, scheduling, surveys, doodle-alternative, calendly-alternative,
+self-hosted, docker, react, typescript, postgresql, expressjs,
+meeting-scheduler, event-planning, gdpr-compliant, open-source,
+team-collaboration, vote, appointment-scheduling, nodejs, tailwindcss
+```
+
+**How to add:** Repository → Settings → General → Topics
+
 ## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).

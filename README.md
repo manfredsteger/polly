@@ -5,6 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/)
 [![Changelog](https://img.shields.io/badge/Changelog-Keep%20a%20Changelog-E05735.svg)](CHANGELOG.md)
+[![Roadmap](https://img.shields.io/badge/Roadmap-2025-00B4D8.svg)](ROADMAP.md)
 
 **Open-source alternative to Doodle, Calendly, and LettuceMeet**
 
@@ -313,10 +314,26 @@ All API endpoints use the `/api/v1/` prefix. Full OpenAPI specification availabl
 
 Connect to `/ws` for live vote updates during presentations. Events: `vote_update`, `slot_update`.
 
+## 🗺️ Roadmap
+
+Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
+
+| Priority | Feature | Status |
+|----------|---------|--------|
+| 🔐 | **Keycloak SSO (OIDC)** - Enterprise single sign-on integration | In Progress |
+| 🤖 | **AI Voice Control** - Create polls via speech with GWDG Kiski Free Tier | Planned |
+| 🔌 | **OpenAI-Compatible API** - Support for custom AI providers | Planned |
+| 🇪🇺 | **European DC Focus** - Simplified deployment for EU data centers | Version 1.0 |
+
+> **AI Partner:** [GWDG](https://gwdg.de) provides free AI capabilities to all Polly installations.
+
+👉 **[View Full Roadmap →](ROADMAP.md)**
+
 ## 📋 Documentation
 
 | Document | Description |
 |----------|-------------|
+| [ROADMAP.md](ROADMAP.md) | Development roadmap and future plans |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
 | [docs/openapi.yaml](docs/openapi.yaml) | OpenAPI 3.0 API specification |
 | [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) | Production deployment guide |

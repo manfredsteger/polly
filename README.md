@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/)
+[![Changelog](https://img.shields.io/badge/Changelog-Keep%20a%20Changelog-E05735.svg)](CHANGELOG.md)
 
 **Open-source alternative to Doodle, Calendly, and LettuceMeet**
 
@@ -311,6 +312,15 @@ All API endpoints use the `/api/v1/` prefix. Full OpenAPI specification availabl
 ### WebSocket (Real-Time Voting)
 
 Connect to `/ws` for live vote updates during presentations. Events: `vote_update`, `slot_update`.
+
+## 📋 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [docs/openapi.yaml](docs/openapi.yaml) | OpenAPI 3.0 API specification |
+| [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) | Production deployment guide |
+| [docs/FLUTTER_INTEGRATION.md](docs/FLUTTER_INTEGRATION.md) | Mobile app integration guide |
 
 ## 🤝 Contributing
 

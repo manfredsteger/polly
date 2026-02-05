@@ -243,8 +243,8 @@ app.use((req, res, next) => {
           runNpmAudit().then(() => console.log('[Cache] npm audit warmed up'))
         ]);
         
-        // Start daily warmup scheduler for admin cache
-        adminCacheService.startDailyWarmup();
+        // Start periodic warmup scheduler for admin cache
+        adminCacheService.startPeriodicWarmup();
       } catch (e) {
         console.log('[Cache] Warmup completed with some errors (non-critical)');
       }

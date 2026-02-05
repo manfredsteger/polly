@@ -33,7 +33,7 @@ interface CacheEntry<T> {
   cacheExpiresAt: Date;
 }
 
-const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes (short for recent activity accuracy)
 
 class AdminCacheService {
   private statsCache: CacheEntry<ExtendedStats> | null = null;
@@ -68,13 +68,13 @@ class AdminCacheService {
     }
   }
 
-  startDailyWarmup(): void {
+  startPeriodicWarmup(): void {
     this.warmupInterval = setInterval(() => {
       this.warmupCache();
     }, CACHE_DURATION_MS);
 
     this.warmupCache();
-    console.log('[AdminCache] Daily warmup scheduler started (24h interval)');
+    console.log('[AdminCache] Periodic warmup scheduler started (5 min interval)');
   }
 
   stopDailyWarmup(): void {

@@ -408,6 +408,7 @@ Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
 | 🔐 | **Keycloak SSO (OIDC)** - Enterprise single sign-on integration | In Progress |
 | 🤖 | **AI Voice Control** - Create polls via speech with GWDG KISSKI Free Tier | Planned |
 | 🔌 | **OpenAI-Compatible API** - Support for custom AI providers | Planned |
+| 💬 | **Matrix / Element Chatbot** - Create and manage polls directly from Matrix chat | Version 1.0 |
 | 🇪🇺 | **European DC Focus** - Simplified deployment for EU data centers | Version 1.0 |
 
 👉 **[View Full Roadmap →](ROADMAP.md)**
@@ -434,7 +435,7 @@ The GWDG is the joint computing and IT competence center for the Georg-August-Un
 </td>
 <td>
 <strong><a href="https://kisski.gwdg.de/">KISSKI – KI-Servicezentrum für sensible und kritische Infrastrukturen</a></strong><br/>
-KISSKI is a BMBF-funded AI service center operated by the GWDG, providing free AI inference capabilities for research and public infrastructure. Polly uses KISSKI's OpenAI-compatible API to offer AI-powered voice control for poll creation – hosted in Germany, GDPR-compliant, and free of charge.
+KISSKI is a BMBF-funded AI service center operated by the GWDG, providing free AI inference capabilities for research and public infrastructure. Polly uses KISSKI's OpenAI-compatible API to offer AI-powered agentic control for poll creation – hosted in Germany, GDPR-compliant, and offers a free AI tier for every Polly user (please get in touch with GWDG/KISSKI for an AI production licence).
 </td>
 </tr>
 </table>

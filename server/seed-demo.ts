@@ -4,11 +4,10 @@
  */
 
 import { db } from "./db";
-import { polls, pollOptions, votes } from "@shared/schema";
-import { inArray } from "drizzle-orm";
+import { polls, pollOptions, votes, notificationLogs } from "@shared/schema";
+import { eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-// Demo poll titles for detection
 const DEMO_POLL_TITLES = [
   "Team-Meeting - Terminabstimmung",
   "Lieblings-Programmiersprache 2025",
@@ -16,21 +15,43 @@ const DEMO_POLL_TITLES = [
   "Arbeitsklima-Feedback (Anonym)",
 ];
 
+async function purgeOldDemoData() {
+  try {
+    const existingDemoPolls = await db.select({ id: polls.id })
+      .from(polls)
+      .where(inArray(polls.title, DEMO_POLL_TITLES));
+
+    if (existingDemoPolls.length === 0) return;
+
+    const pollIds = existingDemoPolls.map(p => p.id);
+    console.log(`🧹 Purging ${pollIds.length} old demo polls...`);
+
+    await db.delete(votes).where(inArray(votes.pollId, pollIds));
+    await db.delete(notificationLogs).where(inArray(notificationLogs.pollId, pollIds));
+    await db.delete(pollOptions).where(inArray(pollOptions.pollId, pollIds));
+    await db.delete(polls).where(inArray(polls.id, pollIds));
+
+    console.log("✅ Old demo data purged");
+  } catch (err) {
+    console.log("⚠️ Demo data purge skipped:", (err as Error).message);
+  }
+}
+
 async function seedDemoData() {
   console.log("🌱 Seeding demo data...");
 
-  // Check if specific demo polls already exist (by title, not just isTestData flag)
-  // This avoids skipping when only E2E test data exists
+  await purgeOldDemoData();
+
   const existingDemoPolls = await db.select()
     .from(polls)
     .where(inArray(polls.title, DEMO_POLL_TITLES))
     .limit(1);
-  
+
   if (existingDemoPolls.length > 0) {
     console.log("📦 Demo polls already exist, skipping...");
     return;
   }
-  
+
   console.log("📊 Creating demo polls (existing user polls will be preserved)...");
 
   const now = new Date();

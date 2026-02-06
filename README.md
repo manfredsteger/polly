@@ -410,9 +410,34 @@ Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
 | 🔌 | **OpenAI-Compatible API** - Support for custom AI providers | Planned |
 | 🇪🇺 | **European DC Focus** - Simplified deployment for EU data centers | Version 1.0 |
 
-> **AI Partner:** [GWDG](https://gwdg.de) provides free AI capabilities to all Polly installations.
-
 👉 **[View Full Roadmap →](ROADMAP.md)**
+
+## 🤝 Service Partners
+
+<table>
+<tr>
+<td align="center" width="120">
+<a href="https://gwdg.de/">
+<img src="docs/gwdg-logo.svg" alt="GWDG Logo" height="60"/>
+</a>
+</td>
+<td>
+<strong><a href="https://gwdg.de/">GWDG – Gesellschaft für wissenschaftliche Datenverarbeitung mbH Göttingen</a></strong><br/>
+The GWDG is the joint computing and IT competence center for the Georg-August-Universität Göttingen and the Max Planck Society. As infrastructure partner, they provide the hosting and computing resources that power Polly's self-hosted deployment capabilities.
+</td>
+</tr>
+<tr>
+<td align="center" width="120">
+<a href="https://kisski.gwdg.de/">
+<img src="docs/kisski-logo.svg" alt="KISSKI Logo" height="60"/>
+</a>
+</td>
+<td>
+<strong><a href="https://kisski.gwdg.de/">KISSKI – KI-Servicezentrum für sensible und kritische Infrastrukturen</a></strong><br/>
+KISSKI is a BMBF-funded AI service center operated by the GWDG, providing free AI inference capabilities for research and public infrastructure. Polly uses KISSKI's OpenAI-compatible API to offer AI-powered voice control for poll creation – hosted in Germany, GDPR-compliant, and free of charge.
+</td>
+</tr>
+</table>
 
 ## 📋 Documentation
 
@@ -425,7 +450,7 @@ Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
 | [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) | Production deployment guide |
 | [docs/FLUTTER_INTEGRATION.md](docs/FLUTTER_INTEGRATION.md) | Mobile app integration guide |
 
-## 🤝 Contributing
+## 👥 Contributing
 
 We welcome contributions! Please follow these steps:
 

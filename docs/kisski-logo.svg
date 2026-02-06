@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400">
+  <defs>
+    <style>
+      .chevron-pink { fill: #D946A6; }
+      .chevron-purple { fill: #9D7AB8; }
+      .chevron-cyan { fill: #3BBFD9; }
+      .text-main { fill: #2C5875; font-family: Arial, sans-serif; font-weight: bold; }
+      .text-sub { fill: #4A7B9D; font-family: Arial, sans-serif; font-weight: normal; }
+    </style>
+  </defs>
+  
+  <!-- Background (transparent) -->
+  <rect width="1280" height="400" fill="none"/>
+  
+  <!-- Chevron 1 (Cyan) -->
+  <path class="chevron-cyan" d="M 20 10 L 80 10 L 140 200 L 80 390 L 20 390 L 80 200 Z"/>
+  
+  <!-- Chevron 2 (Purple) -->
+  <path class="chevron-purple" d="M 140 10 L 200 10 L 260 200 L 200 390 L 140 390 L 200 200 Z"/>
+  
+  <!-- Chevron 3 (Pink) -->
+  <path class="chevron-pink" d="M 260 10 L 320 10 L 380 200 L 320 390 L 260 390 L 320 200 Z"/>
+  
+  <!-- Main Text "KISSKI" -->
+  <text class="text-main" x="440" y="220" font-size="180">KISSKI</text>
+  
+  <!-- Subtitle Line 1 -->
+  <text class="text-sub" x="440" y="290" font-size="42">KI-Servicezentrum für sensible</text>
+  
+  <!-- Subtitle Line 2 -->
+  <text class="text-sub" x="440" y="340" font-size="42">und kritische Infrastrukturen</text>
+</svg>

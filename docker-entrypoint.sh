@@ -54,10 +54,11 @@ if ! npx tsx server/seed-admin.ts 2>&1; then
   echo "⚠️ Admin seeding failed - continuing anyway"
 fi
 
-# Seed demo data if requested
+# Demo data seeding is now handled inside the app startup (server/index.ts)
+# when SEED_DEMO_DATA=true is set. This is more reliable because it uses
+# the same database connection and module resolution as the running app.
 if [ "$SEED_DEMO_DATA" = "true" ]; then
-  echo "🌱 Seeding demo data..."
-  npx tsx server/seed-demo.ts || echo "⚠️ Demo seeding failed - continuing anyway"
+  echo "🌱 Demo data will be seeded during app startup..."
 fi
 
 echo "🚀 Starting application..."

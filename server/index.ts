@@ -180,6 +180,17 @@ app.use((req, res, next) => {
     console.error('[Branding] Failed to bootstrap branding on startup:', error);
   }
 
+  // Seed demo data if SEED_DEMO_DATA=true (Docker deployments)
+  // Runs inside the app process where DB connection is already established
+  if (process.env.SEED_DEMO_DATA === 'true') {
+    try {
+      const { seedDemoData } = await import('./seed-demo');
+      await seedDemoData();
+    } catch (error) {
+      console.error('[Demo Seed] Failed:', error);
+    }
+  }
+
   // Initialize ClamAV from environment variables (for Docker deployments)
   try {
     const { clamavService } = await import('./services/clamavService');

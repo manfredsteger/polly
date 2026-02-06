@@ -1,6 +1,7 @@
 /**
  * Polly - Demo Data Seeder
- * Creates sample polls for quick evaluation and testing
+ * Creates sample polls for quick evaluation and testing.
+ * Can be used standalone (npx tsx server/seed-demo.ts) or imported.
  */
 
 import { db } from "./db";
@@ -24,21 +25,21 @@ async function purgeOldDemoData() {
     if (existingDemoPolls.length === 0) return;
 
     const pollIds = existingDemoPolls.map(p => p.id);
-    console.log(`🧹 Purging ${pollIds.length} old demo polls...`);
+    console.log(`[Demo Seed] Purging ${pollIds.length} old demo polls...`);
 
     await db.delete(votes).where(inArray(votes.pollId, pollIds));
     await db.delete(notificationLogs).where(inArray(notificationLogs.pollId, pollIds));
     await db.delete(pollOptions).where(inArray(pollOptions.pollId, pollIds));
     await db.delete(polls).where(inArray(polls.id, pollIds));
 
-    console.log("✅ Old demo data purged");
+    console.log("[Demo Seed] Old demo data purged");
   } catch (err) {
-    console.log("⚠️ Demo data purge skipped:", (err as Error).message);
+    console.log("[Demo Seed] Purge skipped:", (err as Error).message);
   }
 }
 
-async function seedDemoData() {
-  console.log("🌱 Seeding demo data...");
+export async function seedDemoData() {
+  console.log("[Demo Seed] Starting demo data seeding...");
 
   await purgeOldDemoData();
 
@@ -48,11 +49,11 @@ async function seedDemoData() {
     .limit(1);
 
   if (existingDemoPolls.length > 0) {
-    console.log("📦 Demo polls already exist, skipping...");
+    console.log("[Demo Seed] Demo polls already exist, skipping.");
     return;
   }
 
-  console.log("📊 Creating demo polls (existing user polls will be preserved)...");
+  console.log("[Demo Seed] Creating demo polls...");
 
   const now = new Date();
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -293,24 +294,24 @@ async function seedDemoData() {
     });
   }
 
-  console.log("✅ Demo data created successfully!");
-  console.log("");
-  console.log("📋 Demo Polls (Public Links):");
-  console.log(`   Terminumfrage:     /poll/${schedulePublicToken}`);
-  console.log(`   Umfrage:           /poll/${surveyPublicToken}`);
-  console.log(`   Orga-Liste:        /poll/${orgaPublicToken}`);
-  console.log(`   Anonyme Umfrage:   /poll/${anonPublicToken}`);
-  console.log("");
-  console.log("🔑 Admin Links:");
-  console.log(`   Terminumfrage:     /admin/${scheduleAdminToken}`);
-  console.log(`   Umfrage:           /admin/${surveyAdminToken}`);
-  console.log(`   Orga-Liste:        /admin/${orgaAdminToken}`);
-  console.log(`   Anonyme Umfrage:   /admin/${anonAdminToken}`);
+  console.log("[Demo Seed] Demo data created successfully!");
+  console.log("[Demo Seed] Public Links:");
+  console.log(`  Terminumfrage:     /poll/${schedulePublicToken}`);
+  console.log(`  Umfrage:           /poll/${surveyPublicToken}`);
+  console.log(`  Orga-Liste:        /poll/${orgaPublicToken}`);
+  console.log(`  Anonyme Umfrage:   /poll/${anonPublicToken}`);
+  console.log("[Demo Seed] Admin Links:");
+  console.log(`  Terminumfrage:     /admin/${scheduleAdminToken}`);
+  console.log(`  Umfrage:           /admin/${surveyAdminToken}`);
+  console.log(`  Orga-Liste:        /admin/${orgaAdminToken}`);
+  console.log(`  Anonyme Umfrage:   /admin/${anonAdminToken}`);
 }
 
-seedDemoData()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("❌ Seeding failed:", err);
-    process.exit(1);
-  });
+if (require.main === module || process.argv[1]?.endsWith('seed-demo.ts')) {
+  seedDemoData()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("[Demo Seed] FAILED:", err);
+      process.exit(1);
+    });
+}

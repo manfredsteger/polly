@@ -12,7 +12,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m # No Color
 
-.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge complete complete-clamav clamav clamav-down clamav-logs clamav-status clamav-update lint validate-translations validate-translations-docker
+.PHONY: help build run stop logs shell db-push db-studio clean dev prod publish setup setup-demo setup-mobile setup-mobile-demo test test-e2e test-e2e-ui test-e2e-headed test-all test-pdf test-docker test-pdf-docker rebuild fresh fresh-demo ci ci-docker purge complete clamav clamav-down clamav-logs clamav-status clamav-update lint validate-translations validate-translations-docker
 
 # Default target
 help:
@@ -23,8 +23,7 @@ help:
         @echo "  make setup-demo   - Start with demo polls"
         @echo "  make setup-mobile - Start with auto-detected IP (for QR/smartphone)"
         @echo "  make setup-mobile-demo - Mobile + demo data"
-        @echo "  make complete     - Full reset + demo data (works offline)"
-        @echo "  make complete-clamav - Full reset + demo data + ClamAV antivirus"
+        @echo "  make complete     - Full reset + demo data + ClamAV (all features)"
         @echo ""
         @echo "$(YELLOW)Development:$(NC)"
         @echo "  make dev          - Start development environment with hot-reload"
@@ -290,8 +289,8 @@ complete:
         @echo "$(YELLOW)Step 2/6: Clearing Docker build cache...$(NC)"
         docker builder prune -af 2>/dev/null || true
         @echo ""
-        @echo "$(YELLOW)Step 3/6: Rebuilding image from scratch (no cache)...$(NC)"
-        docker compose build --no-cache
+        @echo "$(YELLOW)Step 3/6: Rebuilding image from scratch (no cache, pull latest)...$(NC)"
+        docker compose build --no-cache --pull
         @echo ""
         @echo "$(YELLOW)Step 4/6: Starting PostgreSQL...$(NC)"
         docker compose up -d postgres
@@ -310,8 +309,8 @@ complete:
                 echo "$(YELLOW)WARNING: PostgreSQL readiness check timed out, starting app anyway...$(NC)"; \
         fi
         @echo ""
-        @echo "$(YELLOW)Step 6/6: Starting application with demo data...$(NC)"
-        SEED_DEMO_DATA=true docker compose up -d app
+        @echo "$(YELLOW)Step 6/6: Starting application with demo data + ClamAV...$(NC)"
+        SEED_DEMO_DATA=true CLAMAV_HOST=clamav CLAMAV_PORT=3310 CLAMAV_ENABLED=true docker compose --profile clamav up -d
         @echo ""
         @echo "$(YELLOW)Waiting for app health check...$(NC)"
         @TRIES=0; \
@@ -332,20 +331,9 @@ complete:
         @echo "$(GREEN)=========================================$(NC)"
         @echo "$(GREEN)  URL:   http://localhost:3080$(NC)"
         @echo "$(GREEN)  Admin: admin / Admin123!$(NC)"
-        @echo "$(GREEN)  Demo polls are created$(NC)"
-        @echo "$(GREEN)  Works fully offline$(NC)"
+        @echo "$(GREEN)  Demo polls created$(NC)"
+        @echo "$(GREEN)  ClamAV: active (virus DB download ~2-5 min)$(NC)"
         @echo "$(GREEN)=========================================$(NC)"
-        @echo ""
-        @echo "$(YELLOW)Optional: Add ClamAV antivirus (requires internet for virus DB):$(NC)"
-        @echo "  make clamav$(NC)"
-
-complete-clamav:
-        @echo "$(YELLOW)Complete reset WITH ClamAV antivirus...$(NC)"
-        $(MAKE) complete
-        @echo ""
-        @echo "$(YELLOW)Starting ClamAV antivirus service...$(NC)"
-        CLAMAV_HOST=clamav CLAMAV_PORT=3310 CLAMAV_ENABLED=true docker compose --profile clamav up -d clamav
-        @echo "$(GREEN)ClamAV starting (virus DB download takes 2-5 min)$(NC)"
 
 # ============================================
 # CI Simulation (Local)

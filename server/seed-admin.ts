@@ -1,3 +1,9 @@
+/**
+ * Polly - Initial Admin Seeder
+ * Creates the default admin account on first start.
+ * Can be used standalone (npx tsx server/seed-admin.ts) or imported.
+ */
+
 import { db } from "./db";
 import { users } from "@shared/schema";
 import bcrypt from "bcryptjs";
@@ -10,12 +16,12 @@ const INITIAL_ADMIN = {
   name: "Initial Administrator",
 };
 
-async function seedInitialAdmin() {
+export async function seedInitialAdmin() {
   try {
     const existingAdmin = await db.select().from(users).where(eq(users.username, INITIAL_ADMIN.username)).limit(1);
     
     if (existingAdmin.length > 0) {
-      console.log("✓ Initial admin already exists, skipping...");
+      console.log("[Admin Seed] Admin already exists, skipping.");
       return;
     }
 
@@ -31,17 +37,19 @@ async function seedInitialAdmin() {
       isInitialAdmin: true,
     });
 
-    console.log("✓ Initial admin created successfully");
-    console.log("  Username: " + INITIAL_ADMIN.username);
-    console.log("  Password: " + INITIAL_ADMIN.password);
-    console.log("  ⚠️  Please change these credentials after first login!");
+    console.log("[Admin Seed] Initial admin created successfully");
+    console.log("[Admin Seed] Username: " + INITIAL_ADMIN.username);
+    console.log("[Admin Seed] Password: " + INITIAL_ADMIN.password);
+    console.log("[Admin Seed] Please change these credentials after first login!");
     
   } catch (error) {
-    console.error("Error creating initial admin:", error);
+    console.error("[Admin Seed] Error:", error);
     throw error;
   }
 }
 
-seedInitialAdmin()
-  .then(() => process.exit(0))
-  .catch(() => process.exit(1));
+if (require.main === module || process.argv[1]?.endsWith('seed-admin.ts')) {
+  seedInitialAdmin()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}

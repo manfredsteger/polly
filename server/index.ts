@@ -180,8 +180,18 @@ app.use((req, res, next) => {
     console.error('[Branding] Failed to bootstrap branding on startup:', error);
   }
 
-  // Seed demo data if SEED_DEMO_DATA=true (Docker deployments)
-  // Runs inside the app process where DB connection is already established
+  // Docker deployment: seed admin and demo data in-process
+  // This is more reliable than running separate npx tsx processes
+  // because it reuses the established DB connection and module resolution
+  if (process.env.DOCKER_ENV === 'true') {
+    try {
+      const { seedInitialAdmin } = await import('./seed-admin');
+      await seedInitialAdmin();
+    } catch (error) {
+      console.error('[Admin Seed] Failed:', error);
+    }
+  }
+
   if (process.env.SEED_DEMO_DATA === 'true') {
     try {
       const { seedDemoData } = await import('./seed-demo');

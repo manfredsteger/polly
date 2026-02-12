@@ -1,65 +1,57 @@
 #!/bin/sh
 set -e
 
-echo "🏫 Polly - Starting..."
+echo "========================================="
+echo " Polly - Docker Startup"
+echo "========================================="
 
 # Show current BASE_URL configuration
 if [ -n "$BASE_URL" ]; then
-  echo "📱 BASE_URL: $BASE_URL"
+  echo "[Config] BASE_URL: $BASE_URL"
   if echo "$BASE_URL" | grep -qE "(localhost|127\.0\.0\.1)"; then
-    echo "   ⚠️ localhost detected - QR codes won't work from mobile devices"
-    echo "   💡 For mobile testing, use: ./start-mobile.sh"
-    echo "      Or set: BASE_URL=http://YOUR_IP:3080 docker compose up -d"
+    echo "[Config] Note: localhost detected - QR codes won't work from mobile devices"
   fi
 fi
 
-# Wait for PostgreSQL to be ready
-echo "⏳ Waiting for database..."
-MAX_RETRIES=30
+# =========================================
+# Step 1: Wait for PostgreSQL
+# =========================================
+echo "[DB] Waiting for PostgreSQL..."
+MAX_RETRIES=60
 RETRY_COUNT=0
 until pg_isready -h postgres -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly} 2>/dev/null; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-    echo "❌ Database connection timeout after ${MAX_RETRIES} attempts"
+    echo "[DB] ERROR: Connection timeout after ${MAX_RETRIES} seconds"
     exit 1
   fi
   sleep 1
 done
-echo "✅ Database is ready"
+echo "[DB] PostgreSQL is ready"
 
-# Apply database schema using SQL migration (more reliable than interactive drizzle-kit)
-echo "📦 Applying database schema..."
-
-# Use ensureSchema.ts as primary migration method for Docker
-# This directly applies SQL changes without interactive prompts
-echo "🔧 Ensuring schema completeness..."
+# =========================================
+# Step 2: Apply database schema (raw SQL, no Drizzle ORM)
+# Uses direct pg Pool connection - reliable in Docker
+# =========================================
+echo "[Schema] Ensuring database schema..."
 if ! npx tsx server/scripts/ensureSchema.ts 2>&1; then
-  echo "❌ Schema update failed!"
+  echo "[Schema] ERROR: Schema setup failed!"
   exit 1
 fi
 
-# Verify database schema integrity
-echo "🔍 Verifying database schema..."
+echo "[Schema] Verifying schema integrity..."
 if ! npx tsx server/scripts/dbHealthCheck.ts 2>&1; then
-  echo "❌ Database schema verification failed!"
-  echo "   Required tables or columns are missing."
-  echo "   Try running: npx drizzle-kit push --force"
+  echo "[Schema] ERROR: Schema verification failed!"
   exit 1
 fi
-echo "✅ Database schema verified"
+echo "[Schema] Database schema OK"
 
-# Create initial admin if not exists
-echo "👤 Checking initial admin..."
-if ! npx tsx server/seed-admin.ts 2>&1; then
-  echo "⚠️ Admin seeding failed - continuing anyway"
-fi
-
-# Demo data seeding is now handled inside the app startup (server/index.ts)
-# when SEED_DEMO_DATA=true is set. This is more reliable because it uses
-# the same database connection and module resolution as the running app.
-if [ "$SEED_DEMO_DATA" = "true" ]; then
-  echo "🌱 Demo data will be seeded during app startup..."
-fi
-
-echo "🚀 Starting application..."
+# =========================================
+# Step 3: Start application
+# Admin seeding, demo data seeding, branding, and ClamAV
+# are ALL handled inside the app process (server/index.ts).
+# This is more reliable because it uses the established
+# Drizzle ORM connection and module resolution.
+# =========================================
+echo "[App] Starting Polly..."
 exec npx tsx server/index.ts

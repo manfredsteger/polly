@@ -4,8 +4,9 @@ stages:
   - test
   - security
 
-# Sync job: Pulls code from GitHub and pushes to GitLab to keep repos in sync
-# Uses GITLAB_TOKEN secret for authenticated push
+# One-way mirror: GitHub (source of truth) → GitLab (read-only mirror)
+# Replit pushes to GitHub, GitLab pulls from GitHub. No other direction!
+# Uses GITLAB_TOKEN secret for authenticated push to GitLab only
 sync-from-github:
   stage: sync
   image: alpine:latest
@@ -20,23 +21,25 @@ sync-from-github:
     - echo "GitHub sync trigger received"
     - git config --global user.email "ci@gitlab.com"
     - git config --global user.name "GitLab CI"
-    # Fetch latest from GitHub (uses GITHUB_REPO_URL variable)
+    # Fetch full history from GitHub (no --depth, avoids "shallow update not allowed")
+    # Flow: GitHub (source of truth) → GitLab (read-only mirror)
+    # GitLab NEVER pushes to GitHub!
     - git remote add github "${GITHUB_REPO_URL}" || true
-    - git fetch github main --depth=50
+    - git fetch github main
     - echo "Latest GitHub commit:"
     - git log github/main -1 --oneline
     - echo "Current GitLab checkout commit:"
     - git log HEAD -1 --oneline
-    # Push GitHub code to GitLab (requires GITLAB_TOKEN with write access)
+    # Mirror GitHub code to GitLab (requires GITLAB_TOKEN with write access)
     - |
       if [ -n "$GITLAB_TOKEN" ]; then
-        echo "Pushing GitHub code to GitLab..."
+        echo "Mirroring GitHub code to GitLab..."
         git remote set-url origin "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
         git checkout -B main github/main
         git push origin main --force
-        echo "Sync completed - GitLab now matches GitHub"
+        echo "Sync completed - GitLab now mirrors GitHub"
       else
-        echo "WARNING: GITLAB_TOKEN not set - skipping push to GitLab"
+        echo "WARNING: GITLAB_TOKEN not set - skipping mirror to GitLab"
         echo "To enable sync, add GITLAB_TOKEN as CI/CD variable with write_repository scope"
       fi
 

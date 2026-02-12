@@ -7,6 +7,9 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Communication**: Simple, everyday language (German).
 - **Git Commits**: Aussagekräftige, beschreibende Commit-Nachrichten auf Englisch (kein "saved progress"). Format: Kurzer Titel + optionale Details zu den Änderungen.
 
+## CRITICAL Rules (MUST check every time)
+- **Makefile MUST use TAB indentation** — NEVER spaces. GNU Make requires TABs for recipe lines. Every time the Makefile is edited, verify with `python3 -c "..." ` that indentation bytes are `\t` (0x09), not spaces (0x20). The `write`/`edit` tools may silently convert tabs to spaces — always verify and fix after editing.
+
 ## System Architecture
 
 ### Full-Stack Architecture

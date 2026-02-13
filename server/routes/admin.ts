@@ -969,7 +969,14 @@ router.post('/tests/sync', requireAdmin, async (req, res) => {
 router.get('/tests/data-stats', requireAdmin, async (req, res) => {
   try {
     const stats = await storage.getTestDataStats();
-    res.json(stats);
+    res.json({
+      ...stats,
+      polls: stats.testPolls,
+      users: stats.testUsers,
+      votes: stats.testVotes,
+      options: stats.testOptions,
+      total: stats.testPolls + stats.testUsers + stats.testVotes + stats.testOptions,
+    });
   } catch (error) {
     console.error('Error fetching test data stats:', error);
     res.status(500).json({ error: 'Interner Fehler' });

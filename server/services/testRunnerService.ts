@@ -10,6 +10,37 @@ import { generateTestReportPDF } from './pdfService';
 // Test type classification
 export type TestType = 'unit' | 'integration' | 'e2e' | 'data' | 'accessibility';
 
+/**
+ * Clean up stuck test runs on startup.
+ * Any test run with status 'running' is stale (server was restarted while tests were running).
+ * Mark them as 'failed' with an explanation.
+ */
+export async function cleanupStuckTestRuns(): Promise<number> {
+  try {
+    const stuckRuns = await db.select({ id: testRuns.id })
+      .from(testRuns)
+      .where(eq(testRuns.status, 'running'));
+
+    if (stuckRuns.length === 0) return 0;
+
+    for (const run of stuckRuns) {
+      await db.update(testRuns)
+        .set({
+          status: 'failed',
+          completedAt: new Date(),
+          duration: 0,
+        })
+        .where(eq(testRuns.id, run.id));
+    }
+
+    console.log(`[TestRunner] Cleaned up ${stuckRuns.length} stuck test run(s) from previous server session`);
+    return stuckRuns.length;
+  } catch (error) {
+    console.error('[TestRunner] Error cleaning up stuck test runs:', error);
+    return 0;
+  }
+}
+
 // Individual test info extracted from test files
 export interface IndividualTest {
   testId: string;        // unique: file:testName

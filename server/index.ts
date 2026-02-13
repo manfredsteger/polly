@@ -256,6 +256,10 @@ app.use((req, res, next) => {
         const { getSystemPackages } = await import("./services/systemPackageService");
         const { runNpmAudit } = await import("./services/npmAuditService");
         const { adminCacheService } = await import("./services/adminCacheService");
+        const { cleanupStuckTestRuns } = await import("./services/testRunnerService");
+        
+        // Clean up any test runs that were stuck as "running" from a previous server session
+        await cleanupStuckTestRuns();
         
         // Run in parallel for faster warmup
         await Promise.all([

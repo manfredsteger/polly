@@ -102,7 +102,6 @@ export function UsersPanel({
     name: '',
     email: '',
   });
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUserForm) => {
@@ -154,9 +153,7 @@ export function UsersPanel({
       toast({ title: t('admin.toast.userDeleted'), description: t('admin.toast.userDeletedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
-      if (selectedUser) {
-        onBackToUsers();
-      }
+      onBackToUsers();
     },
     onError: (error: Error) => {
       toast({ title: t('admin.toast.error'), description: error.message || t('admin.toast.userDeleteError'), variant: "destructive" });
@@ -280,15 +277,6 @@ export function UsersPanel({
                               <Edit2 className="w-4 h-4 mr-2" />
                               {t('admin.users.edit')}
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={(e) => { e.stopPropagation(); setUserToDelete(user); }}
-                              disabled={isDeprovisionEnabled}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              {t('common.delete')}
-                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -383,26 +371,6 @@ export function UsersPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete User Confirmation Dialog */}
-      <AlertDialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('admin.users.confirmDelete')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('admin.users.confirmDeleteDescription')} ({userToDelete?.username})
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => { if (userToDelete) { deleteUserMutation.mutate(userToDelete.id); setUserToDelete(null); } }}
-            >
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Edit User Dialog */}
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>

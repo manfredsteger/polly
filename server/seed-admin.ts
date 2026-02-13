@@ -99,7 +99,8 @@ export async function seedInitialAdmin() {
   }
 }
 
-if (require.main === module || process.argv[1]?.endsWith('seed-admin.ts')) {
+const isDirectRun = process.argv[1]?.endsWith('seed-admin.ts');
+if (isDirectRun) {
   seedInitialAdmin()
     .then(() => process.exit(0))
     .catch(() => process.exit(1));

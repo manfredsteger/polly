@@ -307,7 +307,8 @@ export async function seedDemoData() {
   console.log(`  Anonyme Umfrage:   /admin/${anonAdminToken}`);
 }
 
-if (require.main === module || process.argv[1]?.endsWith('seed-demo.ts')) {
+const isDirectRun = process.argv[1]?.endsWith('seed-demo.ts');
+if (isDirectRun) {
   seedDemoData()
     .then(() => process.exit(0))
     .catch((err) => {

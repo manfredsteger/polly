@@ -16,18 +16,21 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 function getAdminConfig() {
-  return {
+  const config = {
     username: process.env.ADMIN_USERNAME || "admin",
     email: process.env.ADMIN_EMAIL || "admin@polly.local",
     password: process.env.ADMIN_PASSWORD || "Admin123!",
     name: "Initial Administrator",
   };
+  console.log(`[Admin Seed] Config: username=${config.username}, email=${config.email}`);
+  return config;
 }
 
 export async function seedInitialAdmin() {
   const config = getAdminConfig();
 
   try {
+    console.log("[Admin Seed] Checking for existing admin...");
     const existingAdmin = await db
       .select()
       .from(users)
@@ -36,35 +39,44 @@ export async function seedInitialAdmin() {
 
     if (existingAdmin.length > 0) {
       const admin = existingAdmin[0];
-      const passwordHash = await bcrypt.hash(config.password, 10);
-      const passwordChanged = !(await bcrypt.compare(config.password, admin.passwordHash || ""));
+      console.log(`[Admin Seed] Found existing admin (id=${admin.id}, role=${admin.role})`);
 
-      if (passwordChanged || admin.email !== config.email) {
+      const currentHash = admin.passwordHash || "";
+      let passwordMatches = false;
+      try {
+        passwordMatches = currentHash.length > 0 && await bcrypt.compare(config.password, currentHash);
+      } catch (e) {
+        console.log("[Admin Seed] Password comparison failed, will reset password");
+      }
+
+      const needsUpdate = !passwordMatches || admin.email !== config.email || admin.role !== "admin";
+
+      if (needsUpdate) {
+        const newHash = await bcrypt.hash(config.password, 10);
         await db
           .update(users)
           .set({
-            passwordHash,
+            passwordHash: newHash,
             email: config.email,
             role: "admin",
           })
           .where(eq(users.username, config.username));
-        console.log("[Admin Seed] Admin credentials updated from environment variables");
-      } else {
-        console.log("[Admin Seed] Admin already exists with matching credentials, skipping.");
-      }
+        console.log("[Admin Seed] Admin credentials updated successfully");
 
-      if (admin.role !== "admin") {
-        await db
-          .update(users)
-          .set({ role: "admin" })
-          .where(eq(users.username, config.username));
-        console.log("[Admin Seed] Admin role restored");
+        const verify = await bcrypt.compare(config.password, newHash);
+        console.log(`[Admin Seed] Password verification: ${verify ? 'OK' : 'FAILED'}`);
+      } else {
+        console.log("[Admin Seed] Admin exists with correct credentials, no changes needed.");
       }
 
       return;
     }
 
+    console.log("[Admin Seed] No admin found, creating new admin...");
     const passwordHash = await bcrypt.hash(config.password, 10);
+
+    const verify = await bcrypt.compare(config.password, passwordHash);
+    console.log(`[Admin Seed] Password hash verification before insert: ${verify ? 'OK' : 'FAILED'}`);
 
     await db.insert(users).values({
       username: config.username,
@@ -79,8 +91,11 @@ export async function seedInitialAdmin() {
     console.log("[Admin Seed] Initial admin created successfully");
     console.log(`[Admin Seed] Username: ${config.username}`);
     console.log("[Admin Seed] Please change these credentials after first login!");
-  } catch (error) {
-    console.error("[Admin Seed] Error creating/updating admin:", error);
+  } catch (error: any) {
+    console.error("[Admin Seed] FAILED:", error?.message || error);
+    if (error?.stack) {
+      console.error("[Admin Seed] Stack:", error.stack);
+    }
   }
 }
 

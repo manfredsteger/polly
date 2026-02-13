@@ -83,7 +83,7 @@ setup:
 	@echo "$(GREEN)Starting Polly...$(NC)"
 	docker compose up -d
 	@echo "$(GREEN)App running at http://localhost:3080$(NC)"
-	@echo "$(GREEN)Default admin: admin / Admin123!$(NC)"
+	@echo "$(GREEN)Default admin: $${ADMIN_USERNAME:-admin} / $${ADMIN_PASSWORD:-Admin123!}$(NC)"
 
 setup-demo:
 	@echo "$(GREEN)Starting Polly with demo data...$(NC)"
@@ -330,7 +330,7 @@ complete:
 	@echo "$(GREEN) POLLY IS READY!$(NC)"
 	@echo "$(GREEN)=========================================$(NC)"
 	@echo "$(GREEN)  URL:   http://localhost:3080$(NC)"
-	@echo "$(GREEN)  Admin: admin / Admin123!$(NC)"
+	@echo "$(GREEN)  Admin: $${ADMIN_USERNAME:-admin} / $${ADMIN_PASSWORD:-Admin123!}$(NC)"
 	@echo "$(GREEN)  Demo polls created$(NC)"
 	@echo "$(GREEN)  ClamAV: active (virus DB download ~2-5 min)$(NC)"
 	@echo "$(GREEN)=========================================$(NC)"

@@ -9,6 +9,10 @@
 # With Demo Data:
 #   SEED_DEMO_DATA=true docker compose up -d
 #
+# Custom Admin Credentials:
+#   ADMIN_USERNAME=myadmin ADMIN_PASSWORD=MySecurePass123! docker compose up -d
+#   (Default: admin / Admin123!)
+#
 # Mobile Testing (QR-Code/Smartphone):
 #   Use start-mobile.sh to auto-detect host IP:
 #   ./start-mobile.sh        # Start with detected IP
@@ -76,6 +80,10 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DOCKER_ENV: "true"
+      # Initial Admin (created on first start, updated if changed)
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@polly.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
       # ClamAV Antivirus Configuration
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-false}
       CLAMAV_HOST: ${CLAMAV_HOST:-localhost}

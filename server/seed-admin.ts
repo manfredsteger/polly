@@ -1,6 +1,12 @@
 /**
  * Polly - Initial Admin Seeder
- * Creates the default admin account on first start.
+ * Creates or updates the default admin account on startup.
+ * 
+ * Configurable via environment variables:
+ *   ADMIN_USERNAME  (default: admin)
+ *   ADMIN_EMAIL     (default: admin@polly.local)
+ *   ADMIN_PASSWORD  (default: Admin123!)
+ * 
  * Can be used standalone (npx tsx server/seed-admin.ts) or imported.
  */
 
@@ -9,28 +15,61 @@ import { users } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
-const INITIAL_ADMIN = {
-  username: "admin",
-  email: "admin@polly.local",
-  password: "Admin123!",
-  name: "Initial Administrator",
-};
+function getAdminConfig() {
+  return {
+    username: process.env.ADMIN_USERNAME || "admin",
+    email: process.env.ADMIN_EMAIL || "admin@polly.local",
+    password: process.env.ADMIN_PASSWORD || "Admin123!",
+    name: "Initial Administrator",
+  };
+}
 
 export async function seedInitialAdmin() {
+  const config = getAdminConfig();
+
   try {
-    const existingAdmin = await db.select().from(users).where(eq(users.username, INITIAL_ADMIN.username)).limit(1);
-    
+    const existingAdmin = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, config.username))
+      .limit(1);
+
     if (existingAdmin.length > 0) {
-      console.log("[Admin Seed] Admin already exists, skipping.");
+      const admin = existingAdmin[0];
+      const passwordHash = await bcrypt.hash(config.password, 10);
+      const passwordChanged = !(await bcrypt.compare(config.password, admin.passwordHash || ""));
+
+      if (passwordChanged || admin.email !== config.email) {
+        await db
+          .update(users)
+          .set({
+            passwordHash,
+            email: config.email,
+            role: "admin",
+          })
+          .where(eq(users.username, config.username));
+        console.log("[Admin Seed] Admin credentials updated from environment variables");
+      } else {
+        console.log("[Admin Seed] Admin already exists with matching credentials, skipping.");
+      }
+
+      if (admin.role !== "admin") {
+        await db
+          .update(users)
+          .set({ role: "admin" })
+          .where(eq(users.username, config.username));
+        console.log("[Admin Seed] Admin role restored");
+      }
+
       return;
     }
 
-    const passwordHash = await bcrypt.hash(INITIAL_ADMIN.password, 10);
-    
+    const passwordHash = await bcrypt.hash(config.password, 10);
+
     await db.insert(users).values({
-      username: INITIAL_ADMIN.username,
-      email: INITIAL_ADMIN.email,
-      name: INITIAL_ADMIN.name,
+      username: config.username,
+      email: config.email,
+      name: config.name,
       passwordHash,
       role: "admin",
       provider: "local",
@@ -38,13 +77,10 @@ export async function seedInitialAdmin() {
     });
 
     console.log("[Admin Seed] Initial admin created successfully");
-    console.log("[Admin Seed] Username: " + INITIAL_ADMIN.username);
-    console.log("[Admin Seed] Password: " + INITIAL_ADMIN.password);
+    console.log(`[Admin Seed] Username: ${config.username}`);
     console.log("[Admin Seed] Please change these credentials after first login!");
-    
   } catch (error) {
-    console.error("[Admin Seed] Error:", error);
-    throw error;
+    console.error("[Admin Seed] Error creating/updating admin:", error);
   }
 }
 

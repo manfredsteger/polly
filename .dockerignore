@@ -38,6 +38,7 @@ Thumbs.db
 **/__tests__
 **/tests
 !server/tests
+!server/tests/**
 coverage
 .nyc_output
 playwright-report

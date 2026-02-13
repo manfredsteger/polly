@@ -114,6 +114,7 @@ COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/vite.config.ts ./
+COPY vitest.config.ts ./
 
 # Copy migrations for schema setup
 COPY migrations ./migrations

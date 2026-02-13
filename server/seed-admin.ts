@@ -49,7 +49,7 @@ export async function seedInitialAdmin() {
         console.log("[Admin Seed] Password comparison failed, will reset password");
       }
 
-      const needsUpdate = !passwordMatches || admin.email !== config.email || admin.role !== "admin";
+      const needsUpdate = !passwordMatches || admin.email !== config.email || admin.role !== "admin" || !admin.emailVerified;
 
       if (needsUpdate) {
         const newHash = await bcrypt.hash(config.password, 10);
@@ -59,6 +59,7 @@ export async function seedInitialAdmin() {
             passwordHash: newHash,
             email: config.email,
             role: "admin",
+            emailVerified: true,
           })
           .where(eq(users.username, config.username));
         console.log("[Admin Seed] Admin credentials updated successfully");
@@ -86,6 +87,7 @@ export async function seedInitialAdmin() {
       role: "admin",
       provider: "local",
       isInitialAdmin: true,
+      emailVerified: true,
     });
 
     console.log("[Admin Seed] Initial admin created successfully");

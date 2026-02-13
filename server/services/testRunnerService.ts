@@ -440,9 +440,19 @@ export function getLiveProgress(): LiveProgress | null {
 
 function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<string> {
   return new Promise((resolve, reject) => {
+    // Resolve vitest binary directly (not via npx) to avoid interactive download prompts in Docker
+    const localVitest = path.join(process.cwd(), 'node_modules', '.bin', 'vitest');
+    const vitestAvailable = fs.existsSync(localVitest);
+
+    if (!vitestAvailable) {
+      console.error('[TestRunner] vitest not found at', localVitest);
+      reject(new Error('vitest ist nicht installiert. Tests können in diesem Image nicht ausgeführt werden. Stellen Sie sicher, dass devDependencies installiert sind (npm ci statt npm ci --omit=dev).'));
+      return;
+    }
+
     // Use verbose reporter for live output, JSON output saved to file
     const jsonOutputPath = path.join(process.cwd(), 'test-results.json');
-    const args = ['vitest', 'run', '--reporter=verbose', '--reporter=json', '--outputFile=' + jsonOutputPath];
+    const args = ['run', '--reporter=verbose', '--reporter=json', '--outputFile=' + jsonOutputPath];
     
     // Add test name pattern filter if provided (for manual mode individual test filtering)
     // Using array args without shell=true to avoid shell interpretation of regex patterns
@@ -455,11 +465,14 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
       args.push(...testFiles);
     }
     
-    // Use shell: false (default) to avoid shell interpretation of special characters in patterns
+    console.log(`[TestRunner] Executing: ${localVitest} ${args.join(' ')}`);
+
+    // Spawn vitest directly (not via npx) to avoid interactive prompts in Docker
     // Disable ANSI colors for reliable parsing
-    const child = spawn('npx', args, {
+    const child = spawn(localVitest, args, {
       cwd: process.cwd(),
       env: { ...process.env, CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0' },
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     // Store reference for stop functionality
@@ -481,8 +494,15 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     // Timeout after 5 minutes to prevent hanging tests
     const timeout = setTimeout(() => {
       timedOut = true;
+      console.error('[TestRunner] Test execution timed out after 5 minutes, sending SIGTERM...');
       child.kill('SIGTERM');
-      console.error('[TestRunner] Test execution timed out after 5 minutes');
+      // Force kill after 10 seconds if SIGTERM doesn't work
+      setTimeout(() => {
+        if (currentTestProcess === child) {
+          console.error('[TestRunner] SIGTERM did not stop process, sending SIGKILL...');
+          child.kill('SIGKILL');
+        }
+      }, 10000);
     }, TEST_TIMEOUT_MS);
 
     child.stdout.on('data', (data) => {
@@ -529,7 +549,12 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     });
 
     child.stderr.on('data', (data) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+      // Log stderr in real-time for Docker debugging
+      if (chunk.trim()) {
+        console.error('[TestRunner] stderr:', chunk.trim());
+      }
     });
 
     child.on('close', (code) => {

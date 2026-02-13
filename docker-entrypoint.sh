@@ -48,8 +48,11 @@ echo "[Schema] Database schema OK"
 
 # =========================================
 # Step 3: Start application
-# Admin seeding, demo data seeding, branding, and ClamAV
-# are ALL handled inside the app process (server/index.ts).
+# The following are handled inside the app process (server/index.ts):
+#   - seed-admin: Creates/updates initial admin user (configurable via ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD)
+#   - seed-demo: Creates demo polls (only on first run / empty database)
+#   - Branding/customization bootstrap
+#   - ClamAV initialization
 # This is more reliable because it uses the established
 # Drizzle ORM connection and module resolution.
 # =========================================

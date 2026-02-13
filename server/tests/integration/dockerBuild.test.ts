@@ -96,6 +96,10 @@ describe('Docker Build Configuration Tests', () => {
 
     it('should seed admin user', () => {
       expect(entrypoint).toContain('seed-admin');
+      expect(entrypoint).toContain('ADMIN_USERNAME');
+
+      const indexTs = readFileSync(path.join(PROJECT_ROOT, 'server', 'index.ts'), 'utf-8');
+      expect(indexTs).toContain('seed-admin');
     });
   });
 

@@ -65,7 +65,7 @@ export function formatScheduleOptionWithWeekday(
     const date = new Date(year, month - 1, day);
     const weekday = getLocalizedWeekday(date, locale);
     
-    const formattedDate = `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}. ${weekday}`;
+    const formattedDate = `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}.${year} ${weekday}`;
     
     return {
       isSchedule: true,
@@ -80,7 +80,8 @@ export function formatScheduleOptionWithWeekday(
       const weekday = getLocalizedWeekday(date, locale);
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const formattedDate = `${day}.${month}. ${weekday}`;
+      const year = date.getFullYear();
+      const formattedDate = `${day}.${month}.${year} ${weekday}`;
       
       const timeMatch = text.match(/(\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})/);
       const timePart = timeMatch ? timeMatch[1] : '';

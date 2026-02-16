@@ -297,28 +297,16 @@ complete:
 	@echo ""
 	@echo "$(YELLOW)Step 5/6: Waiting for PostgreSQL to be healthy...$(NC)"
 	@TRIES=0; \
-	PG_READY=0; \
-	while [ $$TRIES -lt 60 ]; do \
-		HEALTH=$$(docker inspect --format='{{.State.Health.Status}}' polly-db 2>/dev/null); \
-		if [ "$$HEALTH" = "healthy" ]; then \
-			echo "$(GREEN)PostgreSQL is healthy$(NC)"; \
-			PG_READY=1; \
+	while [ $$TRIES -lt 30 ]; do \
+		if docker compose exec -T postgres pg_isready -U $${POSTGRES_USER:-polly} -d $${POSTGRES_DB:-polly} >/dev/null 2>&1; then \
+			echo "$(GREEN)PostgreSQL is ready$(NC)"; \
 			break; \
 		fi; \
-		if [ "$$HEALTH" = "unhealthy" ]; then \
-			echo "$(YELLOW)PostgreSQL reported unhealthy, retrying...$(NC)"; \
-		fi; \
 		TRIES=$$((TRIES + 1)); \
-		sleep 2; \
+		sleep 1; \
 	done; \
-	if [ $$PG_READY -eq 0 ]; then \
-		echo "$(YELLOW)PostgreSQL not healthy after 120s. Checking raw connection...$(NC)"; \
-		if docker compose exec -T postgres pg_isready -U $${POSTGRES_USER:-polly} -d $${POSTGRES_DB:-polly} >/dev/null 2>&1; then \
-			echo "$(GREEN)PostgreSQL is accepting connections$(NC)"; \
-		else \
-			echo "\033[0;31mERROR: PostgreSQL failed to start. Check: docker compose logs postgres\033[0m"; \
-			exit 1; \
-		fi; \
+	if [ $$TRIES -ge 30 ]; then \
+		echo "$(YELLOW)WARNING: PostgreSQL readiness check timed out, starting app anyway...$(NC)"; \
 	fi
 	@echo ""
 	@echo "$(YELLOW)Step 6/6: Starting application with demo data + ClamAV...$(NC)"

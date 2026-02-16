@@ -224,7 +224,7 @@ export default function Poll() {
   const isResultsPrivate = resultsError && (resultsError?.message || '').startsWith('403:');
   
   useEffect(() => {
-    if (poll) {
+    if (poll && !editDialogOpen) {
       setEditForm({
         title: poll.title,
         description: poll.description || "",
@@ -243,7 +243,7 @@ export default function Poll() {
         maxCapacity: opt.maxCapacity ?? undefined,
       })) || []);
     }
-  }, [poll]);
+  }, [poll, editDialogOpen]);
   
   const updatePollMutation = useMutation({
     mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean }) => {
@@ -1099,8 +1099,10 @@ export default function Poll() {
                   </div>
                   
                   <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                    {editingOptions.filter(o => !o.isDeleted).map((option, index) => {
+                    {editingOptions.map((option, realIndex) => {
+                      if (option.isDeleted) return null;
                       const optionVotes = option.id ? poll?.votes?.filter(v => v.optionId === option.id).length || 0 : 0;
+                      const index = realIndex;
                       
                       return (
                         <div key={option.id || `new-${index}`} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/30">
@@ -1277,7 +1279,7 @@ export default function Poll() {
                       );
                     })}
                     
-                    {editingOptions.filter(o => !o.isDeleted).length === 0 && (
+                    {editingOptions.every(o => o.isDeleted) && (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         {t('pollView.noOptionsAvailable')}
                       </p>

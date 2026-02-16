@@ -189,7 +189,20 @@ describe('Database Migration Tests', () => {
   });
 
   describe('Migration Idempotency', () => {
-    async function ensureSessionTable() {
+    async function backupSessions(): Promise<Array<{ sid: string; sess: any; expire: Date }>> {
+      if (!pool) return [];
+      const client = await pool.connect();
+      try {
+        const result = await client.query('SELECT sid, sess, expire FROM "session" WHERE expire > NOW()');
+        return result.rows;
+      } catch {
+        return [];
+      } finally {
+        client.release();
+      }
+    }
+
+    async function ensureSessionTable(savedSessions?: Array<{ sid: string; sess: any; expire: Date }>) {
       if (!pool) return;
       const client = await pool.connect();
       try {
@@ -204,12 +217,22 @@ describe('Database Migration Tests', () => {
         await client.query(`
           CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
         `);
+        if (savedSessions && savedSessions.length > 0) {
+          for (const s of savedSessions) {
+            const sessValue = typeof s.sess === 'string' ? s.sess : JSON.stringify(s.sess);
+            await client.query(
+              `INSERT INTO "session" (sid, sess, expire) VALUES ($1, $2::json, $3) ON CONFLICT (sid) DO NOTHING`,
+              [s.sid, sessValue, s.expire]
+            );
+          }
+        }
       } finally {
         client.release();
       }
     }
 
     it('should be able to run drizzle-kit push without fatal errors', async () => {
+      const savedSessions = await backupSessions();
       let migrationSucceeded = false;
       let output = '';
       
@@ -227,7 +250,7 @@ describe('Database Migration Tests', () => {
         }
       }
       
-      await ensureSessionTable();
+      await ensureSessionTable(savedSessions);
       
       expect(output).not.toContain('FATAL');
       expect(output).not.toMatch(/migration.*failed/i);
@@ -240,9 +263,9 @@ describe('Database Migration Tests', () => {
         return;
       }
 
+      const savedSessions = await backupSessions();
       const client = await pool.connect();
       try {
-        // Get user count before migration (with small delay to ensure consistency)
         const beforeCount = await client.query('SELECT COUNT(*) as count FROM users');
         const userCountBefore = parseInt(beforeCount.rows[0].count);
 
@@ -252,20 +275,17 @@ describe('Database Migration Tests', () => {
           env: { ...process.env },
         });
 
-        // Wait a moment for any pending transactions
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const afterCount = await client.query('SELECT COUNT(*) as count FROM users');
         const userCountAfter = parseInt(afterCount.rows[0].count);
 
-        // Allow for small variance due to concurrent test execution (other tests may be creating users)
-        // The key is that migration itself doesn't delete users
         expect(userCountAfter).toBeGreaterThanOrEqual(userCountBefore);
       } finally {
         client.release();
       }
       
-      await ensureSessionTable();
+      await ensureSessionTable(savedSessions);
     });
   });
 

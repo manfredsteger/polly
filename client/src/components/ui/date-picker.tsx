@@ -21,6 +21,7 @@ interface DatePickerProps {
   className?: string
   disabled?: boolean
   showClearButton?: boolean
+  inline?: boolean
   "data-testid"?: string
 }
 
@@ -32,6 +33,7 @@ export function DatePicker({
   className,
   disabled = false,
   showClearButton = true,
+  inline = false,
   "data-testid": testId,
 }: DatePickerProps) {
   const { t, i18n } = useTranslation()
@@ -54,6 +56,55 @@ export function DatePicker({
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation()
     onDateChange(null)
+    setOpen(false)
+  }
+
+  if (inline) {
+    return (
+      <div className={cn("flex flex-col gap-2", className)}>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(
+              "w-[240px] justify-start text-left font-normal",
+              !date && "text-muted-foreground"
+            )}
+            disabled={disabled}
+            onClick={() => setOpen(!open)}
+            data-testid={testId}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date ? format(date, "dd.MM.yyyy", { locale }) : displayPlaceholder}
+          </Button>
+          {showClearButton && date && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleClear}
+              className="text-muted-foreground h-8 w-8 p-0"
+              data-testid={testId ? `${testId}-clear` : undefined}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        {open && (
+          <div className="rounded-md border bg-popover p-0 shadow-md">
+            <Calendar
+              mode="single"
+              selected={date || undefined}
+              onSelect={handleSelect}
+              disabled={minDate ? (d) => d < minDate : undefined}
+              initialFocus
+              locale={locale}
+              weekStartsOn={1}
+            />
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -75,7 +126,7 @@ export function DatePicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent 
-          className="w-auto p-0 z-[100]" 
+          className="w-auto p-0" 
           align="start"
         >
           <Calendar

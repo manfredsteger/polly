@@ -1129,6 +1129,7 @@ export default function Poll() {
                                 setNewOptionForm({ ...newOptionForm, startTime: newStartTime || '', endTime: newEndTime || '', text: newText });
                               }}
                               showClearButton={false}
+                              inline
                               data-testid="new-option-date"
                             />
                           </div>
@@ -1271,6 +1272,7 @@ export default function Poll() {
                                             setEditingOptions(updated);
                                           }}
                                           showClearButton={false}
+                                          inline
                                           data-testid={`input-option-date-${index}`}
                                         />
                                       </div>

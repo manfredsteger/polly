@@ -189,6 +189,26 @@ describe('Database Migration Tests', () => {
   });
 
   describe('Migration Idempotency', () => {
+    async function ensureSessionTable() {
+      if (!pool) return;
+      const client = await pool.connect();
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS "session" (
+            "sid" varchar NOT NULL COLLATE "default",
+            "sess" json NOT NULL,
+            "expire" timestamp(6) NOT NULL,
+            CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+          )
+        `);
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
+        `);
+      } finally {
+        client.release();
+      }
+    }
+
     it('should be able to run drizzle-kit push without fatal errors', async () => {
       let migrationSucceeded = false;
       let output = '';
@@ -206,6 +226,8 @@ describe('Database Migration Tests', () => {
           migrationSucceeded = true;
         }
       }
+      
+      await ensureSessionTable();
       
       expect(output).not.toContain('FATAL');
       expect(output).not.toMatch(/migration.*failed/i);
@@ -242,6 +264,8 @@ describe('Database Migration Tests', () => {
       } finally {
         client.release();
       }
+      
+      await ensureSessionTable();
     });
   });
 

@@ -88,10 +88,28 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     queryKey: ['/api/v1/admin/test-runs'],
   });
 
-  const { data: currentRun } = useQuery<TestRun | null>({
+  const { data: currentRun, isError: currentRunError } = useQuery<TestRun | null>({
     queryKey: ['/api/v1/admin/test-runs/current'],
-    refetchInterval: isRunning ? 1000 : false,
+    refetchInterval: (query) => {
+      if (!isRunning) return false;
+      if (query.state.fetchFailureCount >= 3) {
+        return false;
+      }
+      return 1000;
+    },
+    retry: 2,
   });
+
+  useEffect(() => {
+    if (currentRunError && isRunning) {
+      setIsRunning(false);
+      toast({
+        title: t('admin.tests.error', 'Verbindungsfehler'),
+        description: t('admin.tests.pollingStoppedError', 'Statusabfrage wurde gestoppt. Bitte Seite neu laden.'),
+        variant: 'destructive',
+      });
+    }
+  }, [currentRunError, isRunning]);
 
   const { data: pentestStatus } = useQuery<PentestStatus>({
     queryKey: ['/api/v1/admin/pentest-tools/status'],

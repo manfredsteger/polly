@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useId } from "react";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Clock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,9 +21,12 @@ const TIME_OPTIONS = [
   "21:00", "21:30", "22:00", "22:30", "23:00", "23:30",
 ];
 
-function formatTimeDisplay(time: string): string {
+function formatTimeDisplay(time: string, use24h: boolean): string {
   if (!time) return "";
   const [hours, minutes] = time.split(":");
+  if (use24h) {
+    return `${hours}:${minutes}`;
+  }
   const hour = parseInt(hours, 10);
   const ampm = hour >= 12 ? "PM" : "AM";
   const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
@@ -36,6 +40,8 @@ export function TimePickerDropdown({
   className,
   "data-testid": testId 
 }: TimePickerDropdownProps) {
+  const { i18n } = useTranslation();
+  const use24h = !/^en(-|$)/.test(i18n.resolvedLanguage || i18n.language);
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -211,7 +217,7 @@ export function TimePickerDropdown({
                 highlightedIndex === index && value !== time && "bg-accent text-accent-foreground"
               )}
             >
-              {formatTimeDisplay(time)}
+              {formatTimeDisplay(time, use24h)}
             </div>
           ))}
         </div>

@@ -78,8 +78,7 @@ router.post('/polls/:token/vote', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    // For organization polls: Delete bookings that are no longer in the new list
-    if (poll.type === 'organization' && poll.allowVoteEdit && existingVotes.length > 0) {
+    if (poll.allowVoteEdit && existingVotes.length > 0) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {
@@ -259,8 +258,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    // For organization polls: Delete bookings that are no longer in the new list
-    if (poll.type === 'organization' && poll.allowVoteEdit && existingVotes.length > 0) {
+    if (poll.allowVoteEdit && existingVotes.length > 0) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {

@@ -716,13 +716,28 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(votes).where(eq(votes.voterEditToken, editToken));
   }
 
+  private deduplicateVotes(allVotes: Vote[]): Vote[] {
+    const voteMap = new Map<string, Vote>();
+    for (const vote of allVotes) {
+      const voterKey = vote.userId ? `user_${vote.userId}` : `email_${vote.voterEmail || vote.voterName}`;
+      const key = `${voterKey}__${vote.optionId}`;
+      const existing = voteMap.get(key);
+      if (!existing || (vote.updatedAt && existing.updatedAt && vote.updatedAt > existing.updatedAt) || (vote.id > existing.id)) {
+        voteMap.set(key, vote);
+      }
+    }
+    return Array.from(voteMap.values());
+  }
+
   async getPollResults(pollId: string): Promise<PollResults> {
     const poll = await this.getPoll(pollId);
     if (!poll) throw new Error('Poll not found');
 
+    const deduplicatedVotes = this.deduplicateVotes(poll.votes);
+
     const stats: VoteStats[] = await Promise.all(
       poll.options.map(async (option) => {
-        const optionVotes = poll.votes.filter(v => v.optionId === option.id);
+        const optionVotes = deduplicatedVotes.filter(v => v.optionId === option.id);
         const yesCount = optionVotes.filter(v => v.response === 'yes').length;
         const maybeCount = optionVotes.filter(v => v.response === 'maybe').length;
         const noCount = optionVotes.filter(v => v.response === 'no').length;
@@ -739,7 +754,7 @@ export class DatabaseStorage implements IStorage {
     );
 
     const uniqueVoters = new Set(
-      poll.votes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)
+      deduplicatedVotes.map(v => v.userId ? `user_${v.userId}` : `anon_${v.voterName}`)
     );
     const participantCount = uniqueVoters.size;
     

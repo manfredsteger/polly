@@ -203,21 +203,27 @@ pull:
 
 clean:
 	@echo "$(YELLOW)Removing containers (keeping data volumes)...$(NC)"
-	docker compose down --remove-orphans
+	docker compose --profile clamav down --remove-orphans 2>/dev/null || docker compose down --remove-orphans
+	docker rmi polly-app 2>/dev/null || true
 	docker rmi $(IMAGE_NAME):$(IMAGE_TAG) 2>/dev/null || true
+	docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
 
 purge:
 	@echo "$(YELLOW)WARNING: This will DELETE ALL DATA including database and uploads!$(NC)"
 	@read -p "Type 'DELETE' to confirm: " confirm && [ "$$confirm" = "DELETE" ] || (echo "Aborted." && exit 1)
 	@echo "$(YELLOW)Removing containers and all data volumes...$(NC)"
-	docker compose down -v --remove-orphans
+	docker compose --profile clamav down -v --remove-orphans 2>/dev/null || docker compose down -v --remove-orphans
+	docker rmi polly-app 2>/dev/null || true
 	docker rmi $(IMAGE_NAME):$(IMAGE_TAG) 2>/dev/null || true
+	docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
+	docker volume prune -f 2>/dev/null || true
 	@echo "$(GREEN)All data purged. Use 'make setup' to start fresh.$(NC)"
 
 prune:
 	@echo "$(YELLOW)Removing unused Docker resources...$(NC)"
 	docker system prune -f
 	docker volume prune -f
+	docker builder prune -f 2>/dev/null || true
 
 # ============================================
 # Testing
@@ -282,48 +288,55 @@ complete:
 	@echo "$(YELLOW) Deletes ALL data, rebuilds from scratch$(NC)"
 	@echo "$(YELLOW)=========================================$(NC)"
 	@echo ""
-	@echo "$(YELLOW)Step 1/6: Stopping all containers and removing volumes...$(NC)"
+	@echo "$(YELLOW)Step 1/7: Stopping all containers and removing volumes...$(NC)"
 	docker compose --profile clamav down -v --remove-orphans 2>/dev/null || docker compose down -v --remove-orphans
+	@echo ""
+	@echo "$(YELLOW)Step 2/7: Removing old Polly images...$(NC)"
+	docker rmi polly-app 2>/dev/null || true
 	docker rmi $(IMAGE_NAME):$(IMAGE_TAG) 2>/dev/null || true
+	docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
 	@echo ""
-	@echo "$(YELLOW)Step 2/6: Clearing Docker build cache...$(NC)"
+	@echo "$(YELLOW)Step 3/7: Cleaning up Docker system (build cache, unused data)...$(NC)"
 	docker builder prune -af 2>/dev/null || true
+	docker system prune -f --volumes 2>/dev/null || true
+	@FREED=$$(docker system df 2>/dev/null | tail -1 | awk '{print $$4}' 2>/dev/null); \
+	echo "$(GREEN)Cleanup complete. Reclaimable: $${FREED:-unknown}$(NC)"
 	@echo ""
-	@echo "$(YELLOW)Step 3/6: Rebuilding image from scratch (no cache, pull latest)...$(NC)"
+	@echo "$(YELLOW)Step 4/7: Rebuilding image from scratch (no cache, pull latest)...$(NC)"
 	docker compose build --no-cache --pull
 	@echo ""
-	@echo "$(YELLOW)Step 4/6: Starting PostgreSQL...$(NC)"
+	@echo "$(YELLOW)Step 5/7: Starting PostgreSQL...$(NC)"
 	docker compose up -d postgres
 	@echo ""
-	@echo "$(YELLOW)Step 5/6: Waiting for PostgreSQL to be healthy...$(NC)"
+	@echo "$(YELLOW)Step 6/7: Waiting for PostgreSQL to be healthy...$(NC)"
 	@TRIES=0; \
-	while [ $$TRIES -lt 30 ]; do \
-		if docker compose exec -T postgres pg_isready -U $${POSTGRES_USER:-polly} -d $${POSTGRES_DB:-polly} >/dev/null 2>&1; then \
-			echo "$(GREEN)PostgreSQL is ready$(NC)"; \
-			break; \
-		fi; \
-		TRIES=$$((TRIES + 1)); \
-		sleep 1; \
+	while [ $$TRIES -lt 60 ]; do \
+	if docker compose exec -T postgres pg_isready -U $${POSTGRES_USER:-polly} -d $${POSTGRES_DB:-polly} >/dev/null 2>&1; then \
+	echo "$(GREEN)PostgreSQL is ready$(NC)"; \
+	break; \
+	fi; \
+	TRIES=$$((TRIES + 1)); \
+	sleep 2; \
 	done; \
-	if [ $$TRIES -ge 30 ]; then \
-		echo "$(YELLOW)WARNING: PostgreSQL readiness check timed out, starting app anyway...$(NC)"; \
+	if [ $$TRIES -ge 60 ]; then \
+	echo "$(YELLOW)WARNING: PostgreSQL readiness check timed out, starting app anyway...$(NC)"; \
 	fi
 	@echo ""
-	@echo "$(YELLOW)Step 6/6: Starting application with demo data + ClamAV...$(NC)"
+	@echo "$(YELLOW)Step 7/7: Starting application with demo data + ClamAV...$(NC)"
 	SEED_DEMO_DATA=true CLAMAV_HOST=clamav CLAMAV_PORT=3310 CLAMAV_ENABLED=true docker compose --profile clamav up -d
 	@echo ""
 	@echo "$(YELLOW)Waiting for app health check...$(NC)"
 	@TRIES=0; \
 	while [ $$TRIES -lt 60 ]; do \
-		if docker compose exec -T app wget -q --spider http://localhost:5000/api/v1/health 2>/dev/null; then \
-			echo "$(GREEN)Application is healthy!$(NC)"; \
-			break; \
-		fi; \
-		TRIES=$$((TRIES + 1)); \
-		sleep 2; \
+	if docker compose exec -T app wget -q --spider http://localhost:5000/api/v1/health 2>/dev/null; then \
+	echo "$(GREEN)Application is healthy!$(NC)"; \
+	break; \
+	fi; \
+	TRIES=$$((TRIES + 1)); \
+	sleep 2; \
 	done; \
 	if [ $$TRIES -ge 60 ]; then \
-		echo "$(YELLOW)Health check timed out - check logs with: make logs$(NC)"; \
+	echo "$(YELLOW)Health check timed out - check logs with: make logs$(NC)"; \
 	fi
 	@echo ""
 	@echo "$(GREEN)=========================================$(NC)"

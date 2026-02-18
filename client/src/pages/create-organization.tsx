@@ -48,6 +48,7 @@ interface OrgaFormData {
   expiresAt: string | null;
   isDayMode?: boolean;
   dayModeDate?: string;
+  dayModeDates?: string[];
 }
 
 export default function CreateOrganization() {
@@ -68,6 +69,7 @@ export default function CreateOrganization() {
   const [resultsPublic, setResultsPublic] = useState(true);
   const [isDayMode, setIsDayMode] = useState(false);
   const [dayModeDate, setDayModeDate] = useState<string>("");
+  const [dayModeDates, setDayModeDates] = useState<string[]>([]);
   const [slotDuration, setSlotDuration] = useState(30);
   const [slots, setSlots] = useState<OrgaSlot[]>([
     { text: "", maxCapacity: undefined, order: 0 }
@@ -92,6 +94,7 @@ export default function CreateOrganization() {
       setResultsPublic(stored.data.resultsPublic ?? true);
       setIsDayMode(stored.data.isDayMode ?? false);
       setDayModeDate(stored.data.dayModeDate ?? "");
+      setDayModeDates(stored.data.dayModeDates ?? (stored.data.dayModeDate ? [stored.data.dayModeDate] : []));
       if (stored.data.slots && stored.data.slots.length >= 1) {
         setSlots(stored.data.slots);
       }
@@ -120,8 +123,33 @@ export default function CreateOrganization() {
     }
   };
 
-  const buildOptionsPayload = (slotsData: OrgaSlot[], useDayMode: boolean, dayDate: string) => {
-    return slotsData.filter(s => s.text.trim()).map((slot, idx) => {
+  const buildOptionsPayload = (slotsData: OrgaSlot[], useDayMode: boolean, dayDate: string, dates?: string[]) => {
+    const filteredSlots = slotsData.filter(s => s.text.trim());
+    
+    if (useDayMode && dates && dates.length > 1) {
+      const allOptions: any[] = [];
+      const sortedDates = [...dates].sort();
+      let globalOrder = 0;
+      for (const date of sortedDates) {
+        const dateLabel = (() => {
+          const [y, m, d] = date.split('-').map(Number);
+          const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+          return dateObj.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit' });
+        })();
+        for (const slot of filteredSlots) {
+          allOptions.push({
+            text: `${dateLabel} – ${slot.text.trim()}`,
+            startTime: combineDateTime(date, slot.startTime || ""),
+            endTime: combineDateTime(date, slot.endTime || ""),
+            maxCapacity: slot.maxCapacity,
+            order: globalOrder++,
+          });
+        }
+      }
+      return allOptions;
+    }
+    
+    return filteredSlots.map((slot, idx) => {
       let startTimeISO: string | undefined;
       let endTimeISO: string | undefined;
       
@@ -170,6 +198,7 @@ export default function CreateOrganization() {
       const storedExpiresAt = stored.data.expiresAt;
       const storedIsDayMode = stored.data.isDayMode ?? false;
       const storedDayModeDate = stored.data.dayModeDate ?? "";
+      const storedDayModeDates = stored.data.dayModeDates ?? (storedDayModeDate ? [storedDayModeDate] : []);
       formPersistence.clearStoredData();
       
       toast({
@@ -187,7 +216,7 @@ export default function CreateOrganization() {
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
-          options: buildOptionsPayload(validSlots, storedIsDayMode, storedDayModeDate),
+          options: buildOptionsPayload(validSlots, storedIsDayMode, storedDayModeDate, storedDayModeDates),
         };
         createPollMutation.mutate(orgaData);
       }, 500);
@@ -235,7 +264,7 @@ export default function CreateOrganization() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, allowMultipleSlots, allowVoteEdit, allowVoteWithdrawal, resultsPublic, slots, expiresAt: expiresAt ? expiresAt.toISOString() : null, isDayMode, dayModeDate },
+          { title, description, creatorEmail, allowMultipleSlots, allowVoteEdit, allowVoteWithdrawal, resultsPublic, slots, expiresAt: expiresAt ? expiresAt.toISOString() : null, isDayMode, dayModeDate, dayModeDates },
           '/create-organization'
         );
         
@@ -358,7 +387,7 @@ export default function CreateOrganization() {
       return;
     }
 
-    if (isDayMode && !dayModeDate) {
+    if (isDayMode && dayModeDates.length === 0) {
       toast({
         title: t('pollCreation.error'),
         description: t('createOrganization.dayModeDateError'),
@@ -399,7 +428,7 @@ export default function CreateOrganization() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
-      options: buildOptionsPayload(validSlots, isDayMode, dayModeDate),
+      options: buildOptionsPayload(validSlots, isDayMode, dayModeDates[0] || dayModeDate, dayModeDates),
     };
 
     createPollMutation.mutate(pollData);
@@ -704,6 +733,7 @@ export default function CreateOrganization() {
                     })));
                   } else {
                     setDayModeDate("");
+                    setDayModeDates([]);
                     setSlots(slots.map(s => ({ ...s, startTime: undefined, endTime: undefined })));
                   }
                 }}
@@ -757,23 +787,67 @@ export default function CreateOrganization() {
                     <CalendarDays className="w-4 h-4" />
                     {t('createOrganization.dateForAllSlots')}
                   </Label>
-                  <DatePicker
-                    date={dayModeDate ? (() => { const [y, m, d] = dayModeDate.split('-').map(Number); return new Date(y, m - 1, d, 12, 0, 0); })() : null}
-                    onDateChange={(date) => {
-                      if (date) {
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        setDayModeDate(`${year}-${month}-${day}`);
-                      } else {
-                        setDayModeDate("");
-                      }
-                    }}
-                    minDate={new Date()}
-                    placeholder={t('createOrganization.selectDate')}
-                    showClearButton={true}
-                    data-testid="input-day-mode-date"
-                  />
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {t('createOrganization.multiDateHint')}
+                  </p>
+                  <div className="flex gap-2 items-start">
+                    <DatePicker
+                      date={null}
+                      onDateChange={(date) => {
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const dateStr = `${year}-${month}-${day}`;
+                          if (!dayModeDates.includes(dateStr)) {
+                            const updated = [...dayModeDates, dateStr].sort();
+                            setDayModeDates(updated);
+                            setDayModeDate(updated[0]);
+                          }
+                        }
+                      }}
+                      minDate={new Date()}
+                      placeholder={t('createOrganization.addDate')}
+                      showClearButton={false}
+                      data-testid="input-day-mode-date"
+                    />
+                  </div>
+                  {dayModeDates.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {[...dayModeDates].sort().map((dateStr) => {
+                        const [y, m, d] = dateStr.split('-').map(Number);
+                        const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+                        const label = dateObj.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+                        return (
+                          <span
+                            key={dateStr}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20"
+                            data-testid={`date-chip-${dateStr}`}
+                          >
+                            <CalendarDays className="w-3 h-3" />
+                            {label}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = dayModeDates.filter(dd => dd !== dateStr);
+                                setDayModeDates(updated);
+                                setDayModeDate(updated[0] || "");
+                              }}
+                              className="ml-1 hover:text-destructive transition-colors"
+                              aria-label={t('createOrganization.removeDate')}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {dayModeDates.length > 1 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                      {t('createOrganization.multiDateInfo', { count: dayModeDates.length })}
+                    </p>
+                  )}
                 </div>
 
                 <div className="p-4 border rounded-lg bg-muted/30">

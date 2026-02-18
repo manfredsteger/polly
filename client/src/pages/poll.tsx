@@ -215,7 +215,7 @@ export default function Poll() {
   }, [error, isAdminAccess, t]);
 
   const { data: emailStatus } = useQuery<{ smtpConfigured: boolean }>({
-    queryKey: ['/api/v1/system/email-status'],
+    queryKey: ['/api/v1/email-status'],
     staleTime: 60000,
   });
   const smtpConfigured = emailStatus?.smtpConfigured ?? true;

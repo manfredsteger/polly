@@ -431,7 +431,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <span className="font-medium">{t('admin.security.transportEncryption')}</span>
               </div>
               <p className="text-sm text-muted-foreground">{t('admin.security.tlsDescription')}</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
+              <Badge className="mt-2 bg-green-100 text-green-900">{t('admin.security.active')}</Badge>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
@@ -439,7 +439,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <span className="font-medium">{t('admin.security.databaseEncryption')}</span>
               </div>
               <p className="text-sm text-muted-foreground">{t('admin.security.aesDescription')}</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
+              <Badge className="mt-2 bg-green-100 text-green-900">{t('admin.security.active')}</Badge>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
@@ -447,7 +447,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <span className="font-medium">{t('admin.security.passwordHashing')}</span>
               </div>
               <p className="text-sm text-muted-foreground">{t('admin.security.bcryptDescription')}</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
+              <Badge className="mt-2 bg-green-100 text-green-900">{t('admin.security.active')}</Badge>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
@@ -455,7 +455,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                 <span className="font-medium">{t('admin.security.sessionSecurity')}</span>
               </div>
               <p className="text-sm text-muted-foreground">{t('admin.security.sessionDescription')}</p>
-              <Badge className="mt-2 bg-green-100 text-green-700">{t('admin.security.active')}</Badge>
+              <Badge className="mt-2 bg-green-100 text-green-900">{t('admin.security.active')}</Badge>
             </div>
           </div>
         </CardContent>
@@ -835,7 +835,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
               {t('admin.deprovision.title')}
             </div>
             {deprovisionEnabled ? (
-              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              <Badge className="bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-400">
                 <Wifi className="w-3 h-3 mr-1" />
                 {t('admin.deprovision.active')}
               </Badge>

@@ -145,7 +145,7 @@ export function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-red-100 text-red-800">Admin</Badge>
+                  <Badge className="polly-badge-admin">Admin</Badge>
                   <span className="text-sm text-muted-foreground">{t('admin.sessionTimeout.longestSessionForAdmins')}</span>
                 </div>
                 <span className="text-sm font-medium">{formatDuration(settings.adminTimeoutMinutes)}</span>
@@ -170,7 +170,7 @@ export function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-blue-100 text-blue-800">Manager</Badge>
+                  <Badge className="polly-badge-manager">Manager</Badge>
                   <span className="text-sm text-muted-foreground">{t('admin.sessionTimeout.mediumSessionForManagers')}</span>
                 </div>
                 <span className="text-sm font-medium">{formatDuration(settings.managerTimeoutMinutes)}</span>
@@ -195,7 +195,7 @@ export function SessionTimeoutPanel({ onBack }: { onBack: () => void }) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-gray-100 text-gray-800">User</Badge>
+                  <Badge className="polly-badge-user">User</Badge>
                   <span className="text-sm text-muted-foreground">{t('admin.sessionTimeout.shortestSessionForUsers')}</span>
                 </div>
                 <span className="text-sm font-medium">{formatDuration(settings.userTimeoutMinutes)}</span>

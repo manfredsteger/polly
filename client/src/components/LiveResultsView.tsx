@@ -235,7 +235,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
               {viewerCount} {t('liveResults.viewers')}
             </Badge>
             {activeVoters.length > 0 && (
-              <Badge variant="secondary" className="flex items-center gap-1 bg-amber-500/20 text-amber-600">
+              <Badge variant="secondary" className="flex items-center gap-1 bg-amber-100 text-amber-900">
                 <Clock className="w-3 h-3" />
                 {t('liveResults.votingNow', { count: activeVoters.length })}
               </Badge>
@@ -345,7 +345,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-blue-400" />
                         <span className="text-muted-foreground italic">{voter.name}</span>
-                        <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
+                        <Badge variant="outline" className="text-xs bg-blue-100 text-blue-900 border-blue-500/20">
                           {t('liveResults.viewing')}
                         </Badge>
                       </div>
@@ -378,7 +378,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-amber-500 animate-pulse" />
                         <span className="text-muted-foreground italic">{voter.name}</span>
-                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                        <Badge variant="outline" className="text-xs bg-amber-100 text-amber-900 border-amber-500/30">
                           {t('liveResults.isVoting')}
                         </Badge>
                       </div>

@@ -620,7 +620,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                           </div>
                         ) : (
                           <>
-                            <Badge className={isFull ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}>
+                            <Badge className={isFull ? "bg-red-100 text-red-900" : "bg-green-100 text-green-900"}>
                               {signupCount} / {capacity || '∞'}
                               {isFull && <span className="ml-1">voll</span>}
                             </Badge>

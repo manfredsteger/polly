@@ -356,72 +356,73 @@
     @apply !bg-red-100 !text-red-700 !border-red-300 dark:!bg-red-900/30 dark:!text-red-400 dark:!border-red-800;
   }
 
-  /* Severity badges - darker backgrounds for WCAG AA with white text */
+  /* Severity badges - WCAG AA 4.5:1 contrast with white text, !important to override shadcn */
   .polly-badge-critical {
-    @apply bg-red-800 text-white border-transparent;
+    @apply !bg-red-800 !text-white !border-transparent;
   }
   
   .polly-badge-high {
-    @apply bg-orange-700 text-white border-transparent;
+    @apply !bg-orange-900 !text-white !border-transparent;
   }
   
   .polly-badge-moderate {
-    @apply bg-amber-700 text-white border-transparent;
+    @apply !bg-amber-800 !text-white !border-transparent;
   }
   
   .polly-badge-low {
-    @apply bg-yellow-400 text-yellow-900 border-transparent;
+    @apply !bg-yellow-300 !text-yellow-900 !border-transparent;
   }
   
   .polly-badge-info {
-    @apply bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800;
+    @apply !bg-blue-100 !text-blue-900 !border-blue-300 dark:!bg-blue-900/30 dark:!text-blue-300 dark:!border-blue-800;
   }
 
-  /* Role badges */
+  /* Role badges - WCAG AA 4.5:1 contrast, darker text on light bg */
   .polly-badge-admin {
-    @apply bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800;
+    @apply !bg-orange-100 !text-orange-900 !border-orange-400 dark:!bg-orange-900/30 dark:!text-orange-300 dark:!border-orange-700;
   }
   
   .polly-badge-user {
-    @apply bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800;
+    @apply !bg-green-100 !text-green-900 !border-green-400 dark:!bg-green-900/30 dark:!text-green-300 dark:!border-green-700;
   }
   
   .polly-badge-manager {
-    @apply bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800;
+    @apply !bg-blue-100 !text-blue-900 !border-blue-400 dark:!bg-blue-900/30 dark:!text-blue-300 dark:!border-blue-700;
   }
 
-  /* Common state badges */
+  /* Common state badges - WCAG AA 4.5:1 contrast */
   .polly-badge-success {
-    @apply bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800;
+    @apply !bg-green-100 !text-green-900 !border-green-400 dark:!bg-green-900/30 dark:!text-green-300 dark:!border-green-700;
   }
   
   .polly-badge-warning {
-    @apply bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800;
+    @apply !bg-amber-100 !text-amber-900 !border-amber-400 dark:!bg-amber-900/30 dark:!text-amber-300 dark:!border-amber-700;
   }
   
   .polly-badge-error {
-    @apply bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800;
+    @apply !bg-red-100 !text-red-900 !border-red-400 dark:!bg-red-900/30 dark:!text-red-300 dark:!border-red-700;
   }
 
-  /* Impact badges - solid backgrounds (use !important to override Badge defaults) */
+  /* Impact badges - solid backgrounds, WCAG AA 4.5:1 contrast with white text */
   .polly-badge-dev-only {
-    @apply !bg-gray-700 text-white border-transparent;
+    @apply !bg-gray-800 !text-white !border-transparent;
   }
   
   .polly-badge-backend {
-    @apply !bg-orange-700 text-white border-transparent;
+    @apply !bg-orange-900 !text-white !border-transparent;
   }
   
   .polly-badge-frontend {
-    @apply !bg-red-700 text-white border-transparent;
+    @apply !bg-red-800 !text-white !border-transparent;
   }
   
   .polly-badge-fullstack {
-    @apply !bg-indigo-700 text-white border-transparent;
+    @apply !bg-indigo-800 !text-white !border-transparent;
   }
 
   .polly-card {
-    @apply bg-white border border-[hsl(220,14%,96%)] rounded-xl shadow-sm hover:shadow-md transition-shadow;
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow;
+    @apply dark:bg-gray-900 dark:border-gray-700;
   }
 
   .polly-gradient-orange {

@@ -261,7 +261,7 @@ function PollCard({ poll, isOwner }: PollCardProps) {
     if (isPollExpired) {
       return <Badge variant="secondary">{t('polls.expired')}</Badge>;
     }
-    return <Badge className="bg-green-100 text-green-800">{t('polls.active')}</Badge>;
+    return <Badge className="bg-green-100 text-green-900">{t('polls.active')}</Badge>;
   };
 
   const getPollTypeInfo = () => {

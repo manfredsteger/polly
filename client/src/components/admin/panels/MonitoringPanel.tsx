@@ -126,12 +126,12 @@ export function MonitoringPanel({
                   </Badge>
                 )}
                 {vulnerabilities.summary.high > 0 && (
-                  <Badge className="bg-orange-500 hover:bg-orange-600 text-white">
+                  <Badge className="bg-orange-800 hover:bg-orange-900 text-white">
                     {vulnerabilities.summary.high} High
                   </Badge>
                 )}
                 {vulnerabilities.summary.moderate > 0 && (
-                  <Badge className="bg-amber-500 hover:bg-amber-600 text-white">
+                  <Badge className="bg-amber-800 hover:bg-amber-900 text-white">
                     {vulnerabilities.summary.moderate} Moderate
                   </Badge>
                 )}

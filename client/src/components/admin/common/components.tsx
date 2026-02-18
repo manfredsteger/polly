@@ -110,9 +110,9 @@ export function StatCard({
 export function RoleBadge({ role }: { role: string }) {
   const { t } = useTranslation();
   switch (role) {
-    case 'admin': return <Badge className="bg-red-500 text-white">{t('admin.roleAdmin')}</Badge>;
-    case 'manager': return <Badge className="bg-blue-500 text-white">{t('admin.roleManager')}</Badge>;
-    default: return <Badge variant="secondary">{t('admin.roleUser')}</Badge>;
+    case 'admin': return <Badge className="polly-badge-admin">{t('admin.roleAdmin')}</Badge>;
+    case 'manager': return <Badge className="polly-badge-manager">{t('admin.roleManager')}</Badge>;
+    default: return <Badge className="polly-badge-user">{t('admin.roleUser')}</Badge>;
   }
 }
 

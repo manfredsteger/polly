@@ -712,6 +712,44 @@ export default function CreateOrganization() {
               />
             </div>
             
+            <div className="p-4 border rounded-lg bg-muted/30">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                {t('createOrganization.templates.subtitle')}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {orgaTemplateDefinitions.map((template) => {
+                  const Icon = template.icon;
+                  return (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => {
+                        if (!isDayMode) {
+                          setIsDayMode(true);
+                        }
+                        applyTemplate(template.id);
+                      }}
+                      className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
+                      data-testid={`template-${template.id}`}
+                    >
+                      <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
+                      <div>
+                        <p className="font-medium text-sm">{t(template.nameKey)}</p>
+                        <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
+                💡 {t('createOrganization.templates.tip')}
+              </div>
+            </div>
+
             {isDayMode && (
               <>
                 <div className="p-4 border rounded-lg bg-muted/30">
@@ -768,39 +806,6 @@ export default function CreateOrganization() {
                         {d}m
                       </button>
                     ))}
-                  </div>
-                </div>
-
-                <div className="p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {t('createOrganization.templates.subtitle')}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {orgaTemplateDefinitions.map((template) => {
-                      const Icon = template.icon;
-                      return (
-                        <button
-                          key={template.id}
-                          type="button"
-                          onClick={() => applyTemplate(template.id)}
-                          className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
-                          data-testid={`template-${template.id}`}
-                        >
-                          <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
-                          <div>
-                            <p className="font-medium text-sm">{t(template.nameKey)}</p>
-                            <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
-                    💡 {t('createOrganization.templates.tip')}
                   </div>
                 </div>
               </>

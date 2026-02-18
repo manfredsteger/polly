@@ -3,12 +3,17 @@ import { storage } from "../storage";
 import { requireAuth, requireAdmin } from "./common";
 import { matrixService } from "../services/matrixService";
 import { imageService } from "../services/imageService";
+import { emailService } from "../services/emailService";
 
 const router = Router();
 
 // Health check endpoint
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+router.get('/email-status', (req, res) => {
+  res.json({ smtpConfigured: emailService.smtpConfigured });
 });
 
 // Public endpoint for theme/branding (for frontend to apply without auth)

@@ -49,7 +49,8 @@ import {
   EyeOff,
   BellRing,
   Radio,
-  Lock
+  Lock,
+  AlertTriangle
 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { apiRequest } from "@/lib/queryClient";
@@ -212,6 +213,12 @@ export default function Poll() {
       checkAuthError();
     }
   }, [error, isAdminAccess, t]);
+
+  const { data: emailStatus } = useQuery<{ smtpConfigured: boolean }>({
+    queryKey: ['/api/v1/system/email-status'],
+    staleTime: 60000,
+  });
+  const smtpConfigured = emailStatus?.smtpConfigured ?? true;
 
   const { data: results, error: resultsError } = useQuery<PollResults>({
     queryKey: [`/api/v1/polls/${token}/results`],
@@ -873,6 +880,12 @@ export default function Poll() {
                       <Settings className="w-4 h-4 mr-2" />
                       {t('pollView.editPoll')}
                     </Button>
+                    {!smtpConfigured && (
+                      <div className="p-3 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-sm text-yellow-600 dark:text-yellow-400">
+                        <AlertTriangle className="w-4 h-4 inline mr-2" />
+                        {t('pollView.smtpNotConfiguredShort')}
+                      </div>
+                    )}
                     <Button 
                       variant="outline" 
                       className="w-full justify-start"
@@ -1477,6 +1490,13 @@ export default function Poll() {
               {t('pollView.inviteDialogDescription')}
             </DialogDescription>
           </DialogHeader>
+
+          {!smtpConfigured && (
+            <div className="p-3 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-sm text-yellow-600 dark:text-yellow-400">
+              <AlertTriangle className="w-4 h-4 inline mr-2" />
+              {t('pollView.smtpNotConfigured')}
+            </div>
+          )}
           
           {matrixStatus?.enabled ? (
             <Tabs value={inviteTab} onValueChange={(v) => setInviteTab(v as "email" | "matrix")}>

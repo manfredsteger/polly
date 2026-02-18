@@ -15,6 +15,10 @@ export class EmailService {
   private transporter: nodemailer.Transporter | null = null;
   private isConfigured: boolean = false;
 
+  get smtpConfigured(): boolean {
+    return this.isConfigured;
+  }
+
   constructor() {
     // Check if SMTP is properly configured
     // Support both SMTP_PASSWORD (docker-compose.yml) and SMTP_PASS (legacy) for compatibility

@@ -138,20 +138,24 @@
 }
 
 @layer components {
+  button.polly-button-primary,
   .polly-button-primary {
-    background-color: var(--polly-orange);
-    color: var(--primary-foreground);
+    background-color: var(--polly-orange) !important;
+    color: white !important;
     @apply focus:ring-2 focus:ring-offset-2;
   }
+  button.polly-button-primary:hover,
   .polly-button-primary:hover {
     filter: brightness(0.9);
   }
 
+  button.polly-button-secondary,
   .polly-button-secondary {
-    background-color: var(--polly-blue);
-    color: var(--primary-foreground);
+    background-color: var(--polly-blue) !important;
+    color: white !important;
     @apply focus:ring-2 focus:ring-offset-2;
   }
+  button.polly-button-secondary:hover,
   .polly-button-secondary:hover {
     filter: brightness(0.9);
   }

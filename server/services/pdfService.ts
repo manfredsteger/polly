@@ -473,7 +473,6 @@ export class PDFService {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
-          '--single-process',
           '--font-render-hinting=none',
         ],
       };
@@ -514,7 +513,7 @@ export class PDFService {
     try {
       page = await browser.newPage();
       const html = generateHTMLTemplate(results, options);
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
@@ -529,7 +528,6 @@ export class PDFService {
 
       return Buffer.from(pdfBuffer);
     } catch (error) {
-      // Reset browser on any error so next request can recover
       await this.resetBrowser();
       throw error;
     } finally {
@@ -564,7 +562,7 @@ export class PDFService {
     try {
       page = await browser.newPage();
       const html = generateTestReportHTMLTemplate(testRun, results);
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
       const pdfBuffer = await page.pdf({
         format: 'A4',

@@ -10,6 +10,7 @@ import { matrixService } from "../services/matrixService";
 import { pentestToolsService, TOOL_IDS, SCAN_TYPES } from "../services/pentestToolsService";
 import { apiRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
+import { imageService } from "../services/imageService";
 import type { User } from "@shared/schema";
 import { apiRateLimitsSettingsSchema } from "@shared/schema";
 import { db } from "../db";
@@ -1846,6 +1847,41 @@ router.post('/test-runs/stop', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error stopping test run:', error);
     res.status(500).json({ error: 'Test-Lauf konnte nicht gestoppt werden' });
+  }
+});
+
+// ============== LOGO UPLOAD (admin) ==============
+
+router.post('/customization/logo', requireAdmin, imageService.getUploadMiddleware().single('logo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No logo file provided' });
+    }
+
+    const result = await imageService.processUpload(req.file, {
+      userId: (req as any).user?.id,
+      email: (req as any).user?.email,
+    });
+
+    if (!result.success) {
+      const statusCode = result.virusName ? 422 : 500;
+      return res.status(statusCode).json({
+        error: result.error,
+        virusName: result.virusName,
+      });
+    }
+
+    const settings = await storage.getCustomizationSettings();
+    const updatedBranding = {
+      ...settings.branding,
+      logoUrl: result.imageUrl || null,
+    };
+    await storage.setCustomizationSettings({ branding: updatedBranding });
+
+    res.json({ logoUrl: result.imageUrl });
+  } catch (error) {
+    console.error('Error uploading logo:', error);
+    res.status(500).json({ error: 'Logo upload failed' });
   }
 });
 

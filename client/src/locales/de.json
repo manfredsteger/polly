@@ -3097,5 +3097,27 @@
     "noChanges": "Keine Änderungen vorgenommen",
     "changesSaved": "Ihre Änderungen wurden gespeichert",
     "errorSaving": "Fehler beim Speichern der Änderungen"
+  },
+  "liveResults": {
+    "title": "Live-Ergebnisse",
+    "connected": "Verbunden",
+    "disconnected": "Getrennt",
+    "viewers": "Zuschauer",
+    "votingNow": "{{count}} stimmt gerade ab",
+    "votingNow_plural": "{{count}} stimmen gerade ab",
+    "reconnect": "Neu verbinden",
+    "enterFullscreen": "Vollbild",
+    "exitFullscreen": "Vollbild beenden",
+    "participants": "Teilnehmer",
+    "viewing": "schaut zu",
+    "isVoting": "stimmt ab",
+    "noVotesYet": "Noch keine Stimmen",
+    "total": "Gesamt ({{count}})",
+    "pressEscToExit": "ESC drücken zum Beenden",
+    "live": "Live",
+    "offline": "Offline",
+    "scheduleType": "Terminumfrage",
+    "surveyType": "Umfrage",
+    "organizationType": "Orga-Liste"
   }
 }

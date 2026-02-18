@@ -3097,5 +3097,27 @@
     "noChanges": "No changes made",
     "changesSaved": "Your changes have been saved",
     "errorSaving": "Error saving changes"
+  },
+  "liveResults": {
+    "title": "Live Results",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "viewers": "Viewers",
+    "votingNow": "{{count}} voting now",
+    "votingNow_plural": "{{count}} voting now",
+    "reconnect": "Reconnect",
+    "enterFullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
+    "participants": "Participants",
+    "viewing": "viewing",
+    "isVoting": "voting",
+    "noVotesYet": "No votes yet",
+    "total": "Total ({{count}})",
+    "pressEscToExit": "Press ESC to exit",
+    "live": "Live",
+    "offline": "Offline",
+    "scheduleType": "Schedule Poll",
+    "surveyType": "Survey",
+    "organizationType": "Organization List"
   }
 }

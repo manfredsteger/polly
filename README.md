@@ -333,6 +333,9 @@ make db-push
 # Open database shell
 make shell-db
 
+# All-in-one: Build, start, migrate & seed (first time or after updates)
+make complete
+
 # Build and publish to Docker Hub
 make publish IMAGE_NAME=yourusername/polly
 ```

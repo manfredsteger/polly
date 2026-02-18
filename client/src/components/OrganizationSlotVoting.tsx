@@ -8,14 +8,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Users, Clock, Check, MessageCircle } from 'lucide-react';
 import { type PollOption } from '@shared/schema';
-import { formatScheduleOptionWithWeekday } from '@/lib/utils';
 
-function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
-  const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
-  const formatted = formatScheduleOptionWithWeekday(text, startTimeStr, locale);
-  if (formatted.isSchedule) {
-    return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
-  }
+function FormattedOptionText({ text }: { text: string; startTime?: Date | string | null; locale?: string }) {
   return <>{text}</>;
 }
 
@@ -117,7 +111,7 @@ export function OrganizationSlotVoting({
     if (!dateVal) return null;
     try {
       const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
-      return date.toLocaleString('de-DE', {
+      return date.toLocaleString(i18n.language === 'de' ? 'de-DE' : 'en-US', {
         weekday: 'short',
         day: '2-digit',
         month: '2-digit',

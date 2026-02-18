@@ -2745,7 +2745,34 @@
     "unlimitedPlaceholder": "∞ unlimited",
     "timesMustDiffer": "Start time and end time must be different",
     "creatingButton": "Creating...",
-    "submitButton": "Create Organization List"
+    "submitButton": "Create Organization List",
+    "slotDuration": "Slot Duration",
+    "minutes": "min",
+    "templateApplied": "Template applied",
+    "templateAppliedDescription": "{{count}} slots were created.",
+    "templates": {
+      "title": "Quick Templates",
+      "subtitle": "Choose a template to quickly create time slots. The duration is taken from the slider above.",
+      "tip": "Tip: First adjust the slot duration, then select a template. You can customize descriptions and capacities afterwards.",
+      "slotLabel": "Slot",
+      "consultSlot": "Meeting {{num}}",
+      "morningSlots": {
+        "name": "Morning",
+        "description": "Slots from 08:00 to 12:00"
+      },
+      "afternoonSlots": {
+        "name": "Afternoon",
+        "description": "Slots from 13:00 to 17:00"
+      },
+      "fullDay": {
+        "name": "Full Day",
+        "description": "Slots from 08:00 to 17:00"
+      },
+      "consultation": {
+        "name": "Consultations",
+        "description": "20-min meetings (ideal for parent-teacher conferences)"
+      }
+    }
   },
   "pollView": {
     "loginRequired": "Login Required",

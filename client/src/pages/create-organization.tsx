@@ -11,7 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell } from "lucide-react";
+import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -24,6 +25,16 @@ interface OrgaSlot {
   maxCapacity?: number;
   order: number;
 }
+
+interface OrgaTemplate {
+  id: string;
+  nameKey: string;
+  descriptionKey: string;
+  icon: typeof Clock;
+  slots: { description: string; startTime: string; endTime: string; capacity?: number }[];
+}
+
+const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
 
 interface OrgaFormData {
   title: string;
@@ -57,6 +68,7 @@ export default function CreateOrganization() {
   const [resultsPublic, setResultsPublic] = useState(true);
   const [isDayMode, setIsDayMode] = useState(false);
   const [dayModeDate, setDayModeDate] = useState<string>("");
+  const [slotDuration, setSlotDuration] = useState(30);
   const [slots, setSlots] = useState<OrgaSlot[]>([
     { text: "", maxCapacity: undefined, order: 0 }
   ]);
@@ -238,6 +250,79 @@ export default function CreateOrganization() {
   const addSlot = () => {
     setSlots([...slots, { text: "", maxCapacity: undefined, order: slots.length }]);
   };
+
+  const applyTemplate = (templateId: string) => {
+    const templateSlots = getTemplateSlots(templateId);
+    const newSlots: OrgaSlot[] = templateSlots.map((s, idx) => ({
+      text: s.description,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      maxCapacity: s.capacity,
+      order: idx,
+    }));
+    setSlots(newSlots);
+    toast({
+      title: t('createOrganization.templateApplied'),
+      description: t('createOrganization.templateAppliedDescription', { count: newSlots.length }),
+    });
+  };
+
+  const generateSlotsFromDuration = (startHour: number, endHour: number, durationMinutes: number, description: string, capacity?: number) => {
+    const newSlots: OrgaSlot[] = [];
+    let current = startHour * 60;
+    const end = endHour * 60;
+    let idx = 0;
+    while (current + durationMinutes <= end) {
+      const startH = Math.floor(current / 60).toString().padStart(2, '0');
+      const startM = (current % 60).toString().padStart(2, '0');
+      const endMin = current + durationMinutes;
+      const endH = Math.floor(endMin / 60).toString().padStart(2, '0');
+      const endM = (endMin % 60).toString().padStart(2, '0');
+      newSlots.push({
+        text: `${description} ${idx + 1}`,
+        startTime: `${startH}:${startM}`,
+        endTime: `${endH}:${endM}`,
+        maxCapacity: capacity,
+        order: idx,
+      });
+      current = endMin;
+      idx++;
+    }
+    return newSlots;
+  };
+
+  const getTemplateSlots = (templateId: string): OrgaTemplate['slots'] => {
+    const label = t('createOrganization.templates.slotLabel');
+    switch (templateId) {
+      case 'morning-slots':
+        return generateSlotsFromDuration(8, 12, slotDuration, label, 5).map(s => ({
+          description: s.text, startTime: s.startTime!, endTime: s.endTime!, capacity: s.maxCapacity,
+        }));
+      case 'afternoon-slots':
+        return generateSlotsFromDuration(13, 17, slotDuration, label, 5).map(s => ({
+          description: s.text, startTime: s.startTime!, endTime: s.endTime!, capacity: s.maxCapacity,
+        }));
+      case 'full-day':
+        return generateSlotsFromDuration(8, 17, slotDuration, label, 5).map(s => ({
+          description: s.text, startTime: s.startTime!, endTime: s.endTime!, capacity: s.maxCapacity,
+        }));
+      case 'consultation':
+        return generateSlotsFromDuration(9, 11, 20, t('createOrganization.templates.consultSlot', { num: '' }), 1)
+          .map((s, i) => ({
+            description: t('createOrganization.templates.consultSlot', { num: i + 1 }),
+            startTime: s.startTime!, endTime: s.endTime!, capacity: 1,
+          }));
+      default:
+        return [];
+    }
+  };
+
+  const orgaTemplateDefinitions = [
+    { id: "morning-slots", nameKey: "createOrganization.templates.morningSlots.name", descriptionKey: "createOrganization.templates.morningSlots.description", icon: Coffee },
+    { id: "afternoon-slots", nameKey: "createOrganization.templates.afternoonSlots.name", descriptionKey: "createOrganization.templates.afternoonSlots.description", icon: Clock },
+    { id: "full-day", nameKey: "createOrganization.templates.fullDay.name", descriptionKey: "createOrganization.templates.fullDay.description", icon: Repeat },
+    { id: "consultation", nameKey: "createOrganization.templates.consultation.name", descriptionKey: "createOrganization.templates.consultation.description", icon: Sparkles },
+  ];
 
   const removeSlot = (index: number) => {
     if (slots.length > 1) {
@@ -628,29 +713,97 @@ export default function CreateOrganization() {
             </div>
             
             {isDayMode && (
-              <div className="p-4 border rounded-lg bg-muted/30">
-                <Label className="flex items-center gap-2 mb-2">
-                  <CalendarDays className="w-4 h-4" />
-                  {t('createOrganization.dateForAllSlots')}
-                </Label>
-                <DatePicker
-                  date={dayModeDate ? (() => { const [y, m, d] = dayModeDate.split('-').map(Number); return new Date(y, m - 1, d, 12, 0, 0); })() : null}
-                  onDateChange={(date) => {
-                    if (date) {
-                      const year = date.getFullYear();
-                      const month = String(date.getMonth() + 1).padStart(2, '0');
-                      const day = String(date.getDate()).padStart(2, '0');
-                      setDayModeDate(`${year}-${month}-${day}`);
-                    } else {
-                      setDayModeDate("");
-                    }
-                  }}
-                  minDate={new Date()}
-                  placeholder={t('createOrganization.selectDate')}
-                  showClearButton={true}
-                  data-testid="input-day-mode-date"
-                />
-              </div>
+              <>
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <Label className="flex items-center gap-2 mb-2">
+                    <CalendarDays className="w-4 h-4" />
+                    {t('createOrganization.dateForAllSlots')}
+                  </Label>
+                  <DatePicker
+                    date={dayModeDate ? (() => { const [y, m, d] = dayModeDate.split('-').map(Number); return new Date(y, m - 1, d, 12, 0, 0); })() : null}
+                    onDateChange={(date) => {
+                      if (date) {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        setDayModeDate(`${year}-${month}-${day}`);
+                      } else {
+                        setDayModeDate("");
+                      }
+                    }}
+                    minDate={new Date()}
+                    placeholder={t('createOrganization.selectDate')}
+                    showClearButton={true}
+                    data-testid="input-day-mode-date"
+                  />
+                </div>
+
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <Label className="flex items-center gap-2 mb-2">
+                    <Timer className="w-4 h-4" />
+                    {t('createOrganization.slotDuration')}
+                  </Label>
+                  <div className="flex items-center gap-4">
+                    <Slider
+                      value={[slotDuration]}
+                      onValueChange={(val) => setSlotDuration(val[0])}
+                      min={15}
+                      max={120}
+                      step={15}
+                      className="flex-1"
+                      data-testid="slider-duration"
+                    />
+                    <span className="text-sm font-medium whitespace-nowrap min-w-[60px] text-right" data-testid="duration-value">
+                      {slotDuration} {t('createOrganization.minutes')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1 px-1">
+                    {DURATION_OPTIONS.map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setSlotDuration(d)}
+                        className={`px-1 rounded transition-colors ${slotDuration === d ? 'text-primary font-medium' : 'hover:text-foreground'}`}
+                      >
+                        {d}m
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {t('createOrganization.templates.subtitle')}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {orgaTemplateDefinitions.map((template) => {
+                      const Icon = template.icon;
+                      return (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => applyTemplate(template.id)}
+                          className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
+                          data-testid={`template-${template.id}`}
+                        >
+                          <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
+                          <div>
+                            <p className="font-medium text-sm">{t(template.nameKey)}</p>
+                            <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
+                    💡 {t('createOrganization.templates.tip')}
+                  </div>
+                </div>
+              </>
             )}
             
             {slots.map((slot, index) => (

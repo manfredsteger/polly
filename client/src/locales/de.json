@@ -2745,7 +2745,34 @@
     "unlimitedPlaceholder": "∞ unbegrenzt",
     "timesMustDiffer": "Startzeit und Endzeit müssen unterschiedlich sein",
     "creatingButton": "Wird erstellt...",
-    "submitButton": "Orga erstellen"
+    "submitButton": "Orga erstellen",
+    "slotDuration": "Slot-Dauer",
+    "minutes": "Min.",
+    "templateApplied": "Vorlage angewendet",
+    "templateAppliedDescription": "{{count}} Slots wurden erstellt.",
+    "templates": {
+      "title": "Schnellvorlagen",
+      "subtitle": "Wählen Sie eine Vorlage, um schnell Zeitslots zu erstellen. Die Dauer wird vom Slider oben übernommen.",
+      "tip": "Tipp: Passen Sie zuerst die Slot-Dauer an, dann wählen Sie eine Vorlage. Die Beschreibungen und Kapazitäten können Sie danach individuell anpassen.",
+      "slotLabel": "Slot",
+      "consultSlot": "Gespräch {{num}}",
+      "morningSlots": {
+        "name": "Vormittag",
+        "description": "Slots von 08:00 bis 12:00 Uhr"
+      },
+      "afternoonSlots": {
+        "name": "Nachmittag",
+        "description": "Slots von 13:00 bis 17:00 Uhr"
+      },
+      "fullDay": {
+        "name": "Ganzer Tag",
+        "description": "Slots von 08:00 bis 17:00 Uhr"
+      },
+      "consultation": {
+        "name": "Elterngespräche",
+        "description": "20-Min-Gespräche (ideal für Elternsprechtag)"
+      }
+    }
   },
   "pollView": {
     "loginRequired": "Anmeldung erforderlich",

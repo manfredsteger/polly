@@ -276,8 +276,35 @@ export default function CreateOrganization() {
     },
   });
 
+  const recalcSlotTimes = (newDuration: number) => {
+    if (!isDayMode) return;
+    const firstSlot = slots[0];
+    if (!firstSlot?.startTime || !firstSlot.startTime.match(/^\d{2}:\d{2}$/)) return;
+    const [startH, startM] = firstSlot.startTime.split(':').map(Number);
+    let currentMin = startH * 60 + startM;
+    setSlots(slots.map((slot, idx) => {
+      const sH = Math.floor(currentMin / 60).toString().padStart(2, '0');
+      const sM = (currentMin % 60).toString().padStart(2, '0');
+      const endMin = currentMin + newDuration;
+      const eH = Math.floor(endMin / 60).toString().padStart(2, '0');
+      const eM = (endMin % 60).toString().padStart(2, '0');
+      currentMin = endMin;
+      return { ...slot, startTime: `${sH}:${sM}`, endTime: `${eH}:${eM}`, order: idx };
+    }));
+  };
+
   const addSlot = () => {
-    setSlots([...slots, { text: "", maxCapacity: undefined, order: slots.length }]);
+    const lastSlot = slots[slots.length - 1];
+    if (isDayMode && lastSlot?.endTime) {
+      const [h, m] = lastSlot.endTime.split(':').map(Number);
+      const startMin = h * 60 + m;
+      const endMin = startMin + slotDuration;
+      const newStart = `${Math.floor(startMin / 60).toString().padStart(2, '0')}:${(startMin % 60).toString().padStart(2, '0')}`;
+      const newEnd = `${Math.floor(endMin / 60).toString().padStart(2, '0')}:${(endMin % 60).toString().padStart(2, '0')}`;
+      setSlots([...slots, { text: "", startTime: newStart, endTime: newEnd, maxCapacity: undefined, order: slots.length }]);
+    } else {
+      setSlots([...slots, { text: "", maxCapacity: undefined, order: slots.length }]);
+    }
   };
 
   const applyTemplate = (templateId: string) => {
@@ -858,7 +885,11 @@ export default function CreateOrganization() {
                   <div className="flex items-center gap-4">
                     <Slider
                       value={[slotDuration]}
-                      onValueChange={(val) => setSlotDuration(val[0])}
+                      onValueChange={(val) => {
+                        const newDuration = val[0];
+                        setSlotDuration(newDuration);
+                        recalcSlotTimes(newDuration);
+                      }}
                       min={15}
                       max={120}
                       step={15}
@@ -869,19 +900,27 @@ export default function CreateOrganization() {
                       {slotDuration} {t('createOrganization.minutes')}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1 px-1">
+                  <div className="grid grid-cols-6 text-xs text-muted-foreground mt-1 px-1">
                     {DURATION_OPTIONS.map(d => (
                       <button
                         key={d}
                         type="button"
-                        onClick={() => setSlotDuration(d)}
-                        className={`px-1 rounded transition-colors ${slotDuration === d ? 'text-primary font-medium' : 'hover:text-foreground'}`}
+                        onClick={() => {
+                          setSlotDuration(d);
+                          recalcSlotTimes(d);
+                        }}
+                        className={`text-center px-1 rounded transition-colors ${slotDuration === d ? 'text-primary font-medium' : 'hover:text-foreground'}`}
                       >
                         {d}m
                       </button>
                     ))}
                   </div>
                 </div>
+
+                <Button type="button" onClick={addSlot} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-day">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('createOrganization.addSlot')}
+                </Button>
               </>
             )}
             
@@ -1007,6 +1046,11 @@ export default function CreateOrganization() {
                 </div>
               </div>
             ))}
+
+            <Button type="button" onClick={addSlot} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-bottom">
+              <Plus className="w-4 h-4 mr-2" />
+              {t('createOrganization.addSlot')}
+            </Button>
           </CardContent>
         </Card>
 

@@ -2731,6 +2731,7 @@
     "dayOrganization": "Day Organization",
     "dayOrganizationDescription": "Select the date once, then only enter times - ideal for many time slots on one day.",
     "dateForAllSlots": "Date for all slots *",
+    "selectDate": "Select date",
     "slotDescription": "Description *",
     "slotDescriptionPlaceholder": "e.g., 2:00-2:30 PM Cake or Helper Setup",
     "fromTime": "From (Time)",

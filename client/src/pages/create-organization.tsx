@@ -629,16 +629,25 @@ export default function CreateOrganization() {
             
             {isDayMode && (
               <div className="p-4 border rounded-lg bg-muted/30">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 mb-2">
                   <CalendarDays className="w-4 h-4" />
                   {t('createOrganization.dateForAllSlots')}
                 </Label>
-                <Input
-                  type="date"
-                  value={dayModeDate}
-                  onChange={(e) => setDayModeDate(e.target.value)}
-                  className="mt-2 max-w-xs"
-                  min={new Date().toISOString().split('T')[0]}
+                <DatePicker
+                  date={dayModeDate ? (() => { const [y, m, d] = dayModeDate.split('-').map(Number); return new Date(y, m - 1, d, 12, 0, 0); })() : null}
+                  onDateChange={(date) => {
+                    if (date) {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      setDayModeDate(`${year}-${month}-${day}`);
+                    } else {
+                      setDayModeDate("");
+                    }
+                  }}
+                  minDate={new Date()}
+                  placeholder={t('createOrganization.selectDate')}
+                  showClearButton={true}
                   data-testid="input-day-mode-date"
                 />
               </div>

@@ -2731,6 +2731,7 @@
     "dayOrganization": "Tagesorganisation",
     "dayOrganizationDescription": "Einmal Datum wählen, dann nur noch Uhrzeiten eingeben - ideal für viele Zeitslots an einem Tag.",
     "dateForAllSlots": "Datum für alle Slots *",
+    "selectDate": "Datum wählen",
     "slotDescription": "Beschreibung *",
     "slotDescriptionPlaceholder": "z.B. 14:00-14:30 Kuchen oder Helfer Aufbau",
     "fromTime": "Von (Uhrzeit)",

@@ -110,7 +110,7 @@ export function DateTimePicker({
   }
 
   const displayValue = selectedDate
-    ? `${format(selectedDate, "dd.MM.yyyy", { locale })}, ${selectedTime}`
+    ? `${format(selectedDate, "P", { locale })}, ${selectedTime}`
     : null
 
   return (

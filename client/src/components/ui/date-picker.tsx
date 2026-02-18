@@ -75,7 +75,7 @@ export function DatePicker({
             data-testid={testId}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {date ? format(date, "dd.MM.yyyy", { locale }) : displayPlaceholder}
+            {date ? format(date, "P", { locale }) : displayPlaceholder}
           </Button>
           {showClearButton && date && (
             <Button
@@ -122,7 +122,7 @@ export function DatePicker({
             data-testid={testId}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {date ? format(date, "dd.MM.yyyy", { locale }) : displayPlaceholder}
+            {date ? format(date, "P", { locale }) : displayPlaceholder}
           </Button>
         </PopoverTrigger>
         <PopoverContent 

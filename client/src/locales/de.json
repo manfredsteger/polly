@@ -3107,7 +3107,8 @@
     "editTitle": "Ihre Abstimmung bearbeiten",
     "noChanges": "Keine Änderungen vorgenommen",
     "changesSaved": "Ihre Änderungen wurden gespeichert",
-    "errorSaving": "Fehler beim Speichern der Änderungen"
+    "errorSaving": "Fehler beim Speichern der Änderungen",
+    "unsavedChanges": "Sie haben ungespeicherte Änderungen"
   },
   "liveResults": {
     "title": "Live-Ergebnisse",

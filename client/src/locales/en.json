@@ -3107,7 +3107,8 @@
     "editTitle": "Edit Your Vote",
     "noChanges": "No changes made",
     "changesSaved": "Your changes have been saved",
-    "errorSaving": "Error saving changes"
+    "errorSaving": "Error saving changes",
+    "unsavedChanges": "You have unsaved changes"
   },
   "liveResults": {
     "title": "Live Results",

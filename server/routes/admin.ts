@@ -1885,6 +1885,23 @@ router.post('/customization/logo', requireAdmin, imageService.getUploadMiddlewar
   }
 });
 
+// ============== LOGO DELETE (admin) ==============
+
+router.delete('/customization/logo', requireAdmin, async (req, res) => {
+  try {
+    const settings = await storage.getCustomizationSettings();
+    const updatedBranding = {
+      ...settings.branding,
+      logoUrl: null,
+    };
+    await storage.setCustomizationSettings({ branding: updatedBranding });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting logo:', error);
+    res.status(500).json({ error: 'Logo deletion failed' });
+  }
+});
+
 // ============== BRANDING RESET (admin) ==============
 
 router.post('/branding/reset', requireAdmin, async (req, res) => {

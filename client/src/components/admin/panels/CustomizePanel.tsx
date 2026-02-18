@@ -166,6 +166,20 @@ export function CustomizePanel() {
     }
   };
 
+  const handleLogoDelete = async () => {
+    try {
+      const response = await fetch('/api/v1/admin/customization/logo', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Delete failed');
+      setBrandingSettings({ ...brandingSettings, logoUrl: null });
+      toast({ title: t('admin.toasts.logoDeleted'), description: t('admin.toasts.logoDeletedDescription') });
+    } catch (error) {
+      toast({ title: t('errors.generic'), description: t('admin.toasts.logoDeleteError'), variant: "destructive" });
+    }
+  };
+
   const addFooterLink = () => {
     setFooterSettings({
       ...footerSettings,
@@ -218,7 +232,19 @@ export function CustomizePanel() {
             <Label>{t('admin.customize.logo')}</Label>
             <div className="flex items-center gap-4 mt-2">
               {brandingSettings.logoUrl ? (
-                <img src={brandingSettings.logoUrl} alt="Logo" className="h-12 w-auto" />
+                <div className="relative group">
+                  <img src={brandingSettings.logoUrl} alt="Logo" className="h-12 w-auto rounded" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={handleLogoDelete}
+                    data-testid="button-logo-delete"
+                    aria-label={t('admin.customize.deleteLogo')}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
                 <div className="h-12 w-12 bg-muted rounded flex items-center justify-center">
                   <Image className="w-6 h-6 text-muted-foreground" />

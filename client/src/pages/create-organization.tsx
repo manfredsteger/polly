@@ -12,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -878,29 +877,11 @@ export default function CreateOrganization() {
                 </div>
 
                 <div className="p-4 border rounded-lg bg-muted/30">
-                  <Label className="flex items-center gap-2 mb-2">
+                  <Label className="flex items-center gap-2 mb-3">
                     <Timer className="w-4 h-4" />
                     {t('createOrganization.slotDuration')}
                   </Label>
-                  <div className="flex items-center gap-4">
-                    <Slider
-                      value={[slotDuration]}
-                      onValueChange={(val) => {
-                        const newDuration = val[0];
-                        setSlotDuration(newDuration);
-                        recalcSlotTimes(newDuration);
-                      }}
-                      min={15}
-                      max={120}
-                      step={15}
-                      className="flex-1"
-                      data-testid="slider-duration"
-                    />
-                    <span className="text-sm font-medium whitespace-nowrap min-w-[60px] text-right" data-testid="duration-value">
-                      {slotDuration} {t('createOrganization.minutes')}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-6 text-xs text-muted-foreground mt-1 px-1">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="slider-duration">
                     {DURATION_OPTIONS.map(d => (
                       <button
                         key={d}
@@ -909,9 +890,16 @@ export default function CreateOrganization() {
                           setSlotDuration(d);
                           recalcSlotTimes(d);
                         }}
-                        className={`text-center px-1 rounded transition-colors ${slotDuration === d ? 'text-primary font-medium' : 'hover:text-foreground'}`}
+                        className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
+                          slotDuration === d 
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
+                            : 'bg-background border-border hover:border-primary/50 hover:bg-accent/50 text-foreground'
+                        }`}
+                        data-testid={`duration-btn-${d}`}
                       >
-                        {d}m
+                        <span data-testid={d === slotDuration ? "duration-value" : undefined}>
+                          {d} {t('createOrganization.minutes')}
+                        </span>
                       </button>
                     ))}
                   </div>

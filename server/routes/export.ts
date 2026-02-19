@@ -8,6 +8,12 @@ import { icsService } from "../services/icsService";
 
 const router = Router();
 
+function safeContentDisposition(filename: string): string {
+  const ascii = filename.replace(/[^\x20-\x7E]/g, '_');
+  const encoded = encodeURIComponent(filename);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
 // Generate QR code for poll (returns base64 data URL)
 router.get('/polls/:token/qr', async (req, res) => {
   try {
@@ -50,7 +56,7 @@ router.get('/polls/:token/qr/download', async (req, res) => {
     const filename = `QR_${sanitizedTitle}.${format}`;
     
     res.setHeader('Content-Type', format === 'svg' ? 'image/svg+xml' : 'image/png');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', safeContentDisposition(filename));
     res.send(buffer);
   } catch (error) {
     console.error('Error downloading QR code:', error);
@@ -108,7 +114,7 @@ router.get('/polls/:token/export/pdf', async (req, res) => {
     const pdfBuffer = await pdfService.generatePollResultsPDF(results, pdfOptions);
     
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${poll.title}_results.pdf"`);
+    res.setHeader('Content-Disposition', safeContentDisposition(`${poll.title}_results.pdf`));
     res.send(pdfBuffer);
   } catch (error) {
     console.error('Error generating PDF:', error);
@@ -159,7 +165,7 @@ router.get('/polls/:token/export/csv', async (req, res) => {
     });
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${poll.title}_results.csv"`);
+    res.setHeader('Content-Disposition', safeContentDisposition(`${poll.title}_results.csv`));
     res.send(csv);
   } catch (error) {
     console.error('Error generating CSV:', error);
@@ -205,7 +211,7 @@ router.get('/polls/:token/export/ics', async (req, res) => {
     const sanitizedTitle = poll.title.replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g, '_').substring(0, 50);
     
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${sanitizedTitle}.ics"`);
+    res.setHeader('Content-Disposition', safeContentDisposition(`${sanitizedTitle}.ics`));
     res.send(icsContent);
   } catch (error) {
     console.error('Error generating ICS:', error);

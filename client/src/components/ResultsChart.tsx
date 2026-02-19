@@ -161,7 +161,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
 
   const handleExportCSV = () => {
     if (publicToken) {
-      window.open(`/api/v1/polls/${publicToken}/export/csv`, '_blank');
+      window.open(`/api/v1/polls/${publicToken}/export/csv?lang=${i18n.language}`, '_blank');
     }
   };
 

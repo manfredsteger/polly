@@ -122,7 +122,7 @@ router.get('/polls/:token/export/pdf', async (req, res) => {
   }
 });
 
-// Export poll results as CSV
+// Export poll results as CSV (participant × option matrix)
 router.get('/polls/:token/export/csv', async (req, res) => {
   try {
     let poll;
@@ -151,20 +151,66 @@ router.get('/polls/:token/export/csv', async (req, res) => {
       }
     }
 
-    const results = await storage.getPollResults(poll.id);
-    
-    let csv = 'Option,Text,Start Time,End Time,Yes Votes,Maybe Votes,No Votes,Score\n';
-    
-    results.stats.forEach(stat => {
-      const option = results.options.find(opt => opt.id === stat.optionId);
-      if (option) {
-        const startTime = option.startTime ? new Date(option.startTime).toLocaleString('de-DE') : '';
-        const endTime = option.endTime ? new Date(option.endTime).toLocaleString('de-DE') : '';
-        csv += `"${option.text}","${option.text}","${startTime}","${endTime}",${stat.yesCount},${stat.maybeCount},${stat.noCount},${stat.score}\n`;
-      }
-    });
+    const lang = (req.query.lang as string) || 'de';
+    const labels = lang === 'en'
+      ? { yes: 'Yes', maybe: 'Maybe', no: 'No', unknown: 'Unknown' }
+      : { yes: 'Ja', maybe: 'Vielleicht', no: 'Nein', unknown: 'Unbekannt' };
 
-    res.setHeader('Content-Type', 'text/csv');
+    const results = await storage.getPollResults(poll.id);
+    const options = results.options;
+
+    const deduped = new Map<string, typeof results.votes[0]>();
+    for (const vote of results.votes) {
+      const voterKey = vote.userId ? `user_${vote.userId}` : `email_${vote.voterEmail || vote.voterName}`;
+      const key = `${voterKey}__${vote.optionId}`;
+      const existing = deduped.get(key);
+      if (!existing || (vote.updatedAt && existing.updatedAt && vote.updatedAt > existing.updatedAt) || (!existing.updatedAt && vote.id > existing.id)) {
+        deduped.set(key, vote);
+      }
+    }
+
+    const participantMap = new Map<string, { name: string; responses: Map<number, string> }>();
+    for (const vote of deduped.values()) {
+      const voterKey = vote.userId ? `user_${vote.userId}` : `email_${vote.voterEmail || vote.voterName}`;
+      if (!participantMap.has(voterKey)) {
+        participantMap.set(voterKey, { name: vote.voterName || vote.voterEmail || '', responses: new Map() });
+      }
+      participantMap.get(voterKey)!.responses.set(vote.optionId, vote.response);
+    }
+
+    const csvEscape = (val: string) => `"${val.replace(/"/g, '""')}"`;
+    const rows: string[] = [];
+
+    const hasScheduleDates = options.some(o => o.startTime);
+    if (hasScheduleDates) {
+      const dateLocale = lang === 'en' ? 'en-GB' : 'de-DE';
+      const dateRow = [''].concat(options.map(o => {
+        if (o.startTime) {
+          return csvEscape(new Date(o.startTime).toLocaleDateString(dateLocale));
+        }
+        return '""';
+      }));
+      rows.push(dateRow.join(','));
+    }
+
+    const headerRow = [''].concat(options.map(o => csvEscape(o.text)));
+    rows.push(headerRow.join(','));
+
+    for (const [, participant] of participantMap) {
+      const row = [csvEscape(participant.name)];
+      for (const option of options) {
+        const response = participant.responses.get(option.id);
+        if (response === 'yes') row.push(csvEscape(labels.yes));
+        else if (response === 'maybe') row.push(csvEscape(labels.maybe));
+        else if (response === 'no') row.push(csvEscape(labels.no));
+        else row.push(csvEscape(labels.unknown));
+      }
+      rows.push(row.join(','));
+    }
+
+    const csv = '\uFEFF' + rows.join('\n') + '\n';
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', safeContentDisposition(`${poll.title}_results.csv`));
     res.send(csv);
   } catch (error) {

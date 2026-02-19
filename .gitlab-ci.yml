@@ -62,12 +62,13 @@ variables:
   - cp -r /tmp/polly-src/. .
   - rm -rf /tmp/polly-src
 
-# Reusable script for npm install with cleanup (fixes error -116)
+# Reusable script for npm install with cleanup (fixes error -116 and TAR_ENTRY_ERROR)
 .npm_install: &npm_install
   - rm -rf node_modules 2>/dev/null || true
+  - npm cache clean --force 2>/dev/null || true
   - rm -rf /tmp/.npm 2>/dev/null || true
   - mkdir -p /tmp/.npm
-  - npm ci --prefer-offline --no-audit
+  - npm ci --no-audit --no-fund
 
 # Reusable script for waiting until PostgreSQL is ready (fixes flaky tests)
 .wait_for_postgres: &wait_for_postgres
@@ -123,6 +124,7 @@ build:
 typescript-check:
   stage: test
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -137,6 +139,7 @@ typescript-check:
 validate-translations:
   stage: test
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -150,6 +153,7 @@ validate-translations:
 unit-tests:
   stage: test
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -179,6 +183,7 @@ unit-tests:
 integration-tests:
   stage: test
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -204,6 +209,7 @@ integration-tests:
 api-tests:
   stage: test
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -229,6 +235,7 @@ api-tests:
 auth-tests:
   stage: test
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -254,6 +261,7 @@ auth-tests:
 poll-tests:
   stage: test
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -279,6 +287,7 @@ poll-tests:
 e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure
@@ -303,9 +312,10 @@ e2e-tests:
     npm_config_cache: "/tmp/.npm"
   script:
     - rm -rf node_modules 2>/dev/null || true
+    - npm cache clean --force 2>/dev/null || true
     - rm -rf /tmp/.npm 2>/dev/null || true
     - mkdir -p /tmp/.npm
-    - npm ci --prefer-offline --no-audit
+    - npm ci --no-audit --no-fund
     # Wait for PostgreSQL to be ready before db:push
     - *wait_for_postgres
     - npm run db:push
@@ -324,6 +334,7 @@ e2e-tests:
 security-audit:
   stage: security
   image: node:${NODE_VERSION}
+  dependencies: []
   retry:
     max: 2
     when: unknown_failure

@@ -179,7 +179,10 @@ router.get('/polls/:token/export/csv', async (req, res) => {
     }
 
     const csvEscape = (val: string) => `"${val.replace(/"/g, '""')}"`;
+    const sep = ';';
     const rows: string[] = [];
+
+    rows.push(`sep=${sep}`);
 
     const hasScheduleDates = options.some(o => o.startTime);
     if (hasScheduleDates) {
@@ -190,11 +193,11 @@ router.get('/polls/:token/export/csv', async (req, res) => {
         }
         return '""';
       }));
-      rows.push(dateRow.join(','));
+      rows.push(dateRow.join(sep));
     }
 
     const headerRow = [''].concat(options.map(o => csvEscape(o.text)));
-    rows.push(headerRow.join(','));
+    rows.push(headerRow.join(sep));
 
     for (const [, participant] of participantMap) {
       const row = [csvEscape(participant.name)];
@@ -205,7 +208,7 @@ router.get('/polls/:token/export/csv', async (req, res) => {
         else if (response === 'no') row.push(csvEscape(labels.no));
         else row.push(csvEscape(labels.unknown));
       }
-      rows.push(row.join(','));
+      rows.push(row.join(sep));
     }
 
     const csv = '\uFEFF' + rows.join('\n') + '\n';

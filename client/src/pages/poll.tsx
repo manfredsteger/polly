@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
+import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -636,7 +638,7 @@ export default function Poll() {
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">{poll.title}</h1>
             {poll.description && (
-              <p className="text-muted-foreground text-lg">{poll.description}</p>
+              <MarkdownRenderer content={poll.description} className="text-lg" />
             )}
           </div>
           
@@ -1007,12 +1009,11 @@ export default function Poll() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-description">{t('pollView.description')}</Label>
-                  <Textarea
+                  <MarkdownEditor
                     id="edit-description"
                     value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    rows={3}
-                    data-testid="input-edit-description"
+                    onChange={(val) => setEditForm({ ...editForm, description: val })}
+                    rows={4}
                   />
                 </div>
                 <div className="flex items-center justify-between">

@@ -58,6 +58,15 @@
     "details": "Details",
     "stop": "Stop",
     "showAll": "Show all",
+    "markdownEditor": {
+      "heading": "Heading",
+      "bold": "Bold",
+      "boldText": "Text",
+      "italic": "Italic",
+      "italicText": "Text",
+      "bulletList": "Bullet list",
+      "numberedList": "Numbered list"
+    },
     "liveResults": {
       "title": "Live Voting",
       "scheduleType": "Schedule Poll",

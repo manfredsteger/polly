@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -502,14 +502,13 @@ export default function CreateOrganization() {
             
             <div>
               <Label htmlFor="description">{t('pollCreation.descriptionOptional')}</Label>
-              <Textarea
+              <MarkdownEditor
                 id="description"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
                 placeholder={t('createOrganization.descriptionPlaceholder')}
                 className="mt-1"
-                rows={3}
-                data-testid="input-description"
+                rows={4}
               />
             </div>
 

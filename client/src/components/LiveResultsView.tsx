@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -280,9 +281,9 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
             </h2>
             <Badge variant="secondary">{getTypeLabel()}</Badge>
             {poll.description && (
-              <p className={cn('text-muted-foreground mt-2', isFullscreen && 'text-lg')}>
-                {poll.description}
-              </p>
+              <div className={cn('mt-2', isFullscreen && 'text-lg')}>
+                <MarkdownRenderer content={poll.description} />
+              </div>
             )}
           </div>
 

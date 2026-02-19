@@ -58,6 +58,15 @@
     "details": "Details",
     "stop": "Stoppen",
     "showAll": "Alle anzeigen",
+    "markdownEditor": {
+      "heading": "Überschrift",
+      "bold": "Fett",
+      "boldText": "Text",
+      "italic": "Kursiv",
+      "italicText": "Text",
+      "bulletList": "Aufzählung",
+      "numberedList": "Nummerierung"
+    },
     "liveResults": {
       "title": "Live-Abstimmung",
       "scheduleType": "Terminumfrage",

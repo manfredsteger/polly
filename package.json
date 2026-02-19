@@ -99,6 +99,7 @@
     "react-i18next": "^16.5.0",
     "react-icons": "^5.4.0",
     "react-image-gallery": "^1.4.0",
+    "react-markdown": "^10.1.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
     "supertest": "^7.1.4",

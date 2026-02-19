@@ -182,8 +182,6 @@ router.get('/polls/:token/export/csv', async (req, res) => {
     const sep = ';';
     const rows: string[] = [];
 
-    rows.push(`sep=${sep}`);
-
     const hasScheduleDates = options.some(o => o.startTime);
     if (hasScheduleDates) {
       const dateLocale = lang === 'en' ? 'en-GB' : 'de-DE';
@@ -206,7 +204,7 @@ router.get('/polls/:token/export/csv', async (req, res) => {
         if (response === 'yes') row.push(csvEscape(labels.yes));
         else if (response === 'maybe') row.push(csvEscape(labels.maybe));
         else if (response === 'no') row.push(csvEscape(labels.no));
-        else row.push(csvEscape(labels.unknown));
+        else row.push('');
       }
       rows.push(row.join(sep));
     }

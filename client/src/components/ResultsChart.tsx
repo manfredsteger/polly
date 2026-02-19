@@ -569,26 +569,26 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                   <div key={option.id} className="border border-border rounded-xl p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                           <span className="inline-flex items-center gap-1.5 font-semibold text-foreground text-base">
                             <ClipboardList className="w-4 h-4 text-primary shrink-0" />
                             {slotTitle}
                           </span>
                           {slotDate && (
-                            <span className="inline-flex items-center gap-1 text-muted-foreground">
-                              <Calendar className="w-3.5 h-3.5 shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 font-semibold text-foreground text-base">
+                              <Calendar className="w-4 h-4 text-primary shrink-0" />
                               {slotDate}
                             </span>
                           )}
                           {slotWeekday && (
-                            <span className="inline-flex items-center gap-1 text-muted-foreground">
-                              <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 font-semibold text-foreground text-base">
+                              <CalendarDays className="w-4 h-4 text-primary shrink-0" />
                               {slotWeekday}
                             </span>
                           )}
                           {slotTimeStart && (
-                            <span className="inline-flex items-center gap-1 text-muted-foreground">
-                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 font-semibold text-foreground text-base">
+                              <Clock className="w-4 h-4 text-primary shrink-0" />
                               {slotTimeStart}{slotTimeEnd ? ` – ${slotTimeEnd}` : ''}
                             </span>
                           )}

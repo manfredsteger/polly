@@ -1441,7 +1441,12 @@
       "resultsPublicDescription": "The results of this poll are publicly visible.",
       "confirmDelete": "Confirm Delete",
       "confirmDeleteDescription": "Are you sure you want to delete this poll? This action cannot be undone.",
-      "totalCount": "{{count}} Polls"
+      "totalCount": "{{count}} Polls",
+      "createdBy": "by {{name}}",
+      "anonymousCreator": "Anonymous",
+      "publicToken": "Public Token",
+      "adminToken": "Admin Token",
+      "tokenCopied": "Token copied"
     },
     "settings": {
       "title": "Settings",

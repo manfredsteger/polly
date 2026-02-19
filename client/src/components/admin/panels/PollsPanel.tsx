@@ -46,7 +46,9 @@ import {
   Search,
   ExternalLink,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Copy,
+  User
 } from "lucide-react";
 import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { formatDistanceToNow, format } from "date-fns";
@@ -103,10 +105,14 @@ export function PollsPanel({
     },
   });
 
-  const filteredPolls = polls?.filter(poll => 
-    poll.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    poll.publicToken.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredPolls = polls?.filter(poll => {
+    const term = searchTerm.toLowerCase();
+    return poll.title.toLowerCase().includes(term) ||
+      poll.publicToken.toLowerCase().includes(term) ||
+      (poll.user?.username?.toLowerCase().includes(term)) ||
+      (poll.user?.email?.toLowerCase().includes(term)) ||
+      (poll.creatorEmail?.toLowerCase().includes(term));
+  }) || [];
 
   if (selectedPoll) {
     return (
@@ -174,7 +180,13 @@ export function PollsPanel({
                       <TableCell className="font-medium">
                         <div>
                           <p className="font-medium">{poll.title}</p>
-                          <p className="text-xs text-muted-foreground">{poll.publicToken}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <User className="w-3 h-3" />
+                              {poll.user?.username || poll.user?.email || poll.creatorEmail || t('admin.polls.anonymousCreator')}
+                            </span>
+                            <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -262,7 +274,14 @@ function PollDetailView({
         </Button>
         <div>
           <h2 className="text-xl font-bold">{poll.title}</h2>
-          <p className="text-sm text-muted-foreground">{poll.publicToken}</p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+              <User className="w-3.5 h-3.5" />
+              {poll.user?.username || poll.user?.email || poll.creatorEmail || t('admin.polls.anonymousCreator')}
+            </span>
+            <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
+            <TokenPill token={poll.adminToken} label={t('admin.polls.adminToken')} />
+          </div>
         </div>
       </div>
 
@@ -374,5 +393,34 @@ function PollDetailView({
         </Card>
       </div>
     </div>
+  );
+}
+
+function TokenPill({ token, label }: { token: string; label: string }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const short = token.slice(0, 8) + "…";
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(token);
+    toast({ title: t('admin.polls.tokenCopied'), description: label });
+  };
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-mono text-muted-foreground select-none"
+      title={token}
+    >
+      {label}: {short}
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="ml-0.5 rounded p-0.5 hover:bg-accent hover:text-accent-foreground transition-colors"
+        aria-label={`${label} ${t('common.copy') || 'kopieren'}`}
+      >
+        <Copy className="w-3 h-3" />
+      </button>
+    </span>
   );
 }

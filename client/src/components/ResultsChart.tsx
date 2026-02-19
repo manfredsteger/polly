@@ -9,6 +9,7 @@ import {
   X, 
   HelpCircle, 
   Calendar, 
+  CalendarDays,
   Clock, 
   Users, 
   Crown,
@@ -16,7 +17,8 @@ import {
   FileText,
   Mail,
   Pencil,
-  Save
+  Save,
+  ClipboardList
 } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -550,27 +552,49 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 const fillPercent = capacity > 0 ? Math.min((signupCount / capacity) * 100, 100) : 0;
                 const isFull = capacity > 0 && signupCount >= capacity;
                 
+                const slotTitle = (() => {
+                  const sep = option.text.indexOf(' – ');
+                  if (sep !== -1) return option.text.slice(sep + 3).trim();
+                  const dash = option.text.indexOf(' - ');
+                  if (dash !== -1 && dash < option.text.length / 2) return option.text.slice(dash + 3).trim();
+                  return option.text;
+                })();
+                const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
+                const slotDate = option.startTime ? new Date(option.startTime).toLocaleDateString(localeCode, { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
+                const slotWeekday = option.startTime ? new Date(option.startTime).toLocaleDateString(localeCode, { weekday: 'long' }) : null;
+                const slotTimeStart = option.startTime ? new Date(option.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' }) : null;
+                const slotTimeEnd = option.endTime ? new Date(option.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' }) : null;
+
                 return (
-                  <div key={option.id} className="border border-border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="font-medium text-foreground"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></div>
-                        {option.startTime && option.endTime && (
-                          <div className="text-sm text-muted-foreground mt-1">
-                            <Calendar className="w-3 h-3 inline mr-1" />
-                            {new Date(option.startTime).toLocaleDateString('de-DE')}
-                            <Clock className="w-3 h-3 inline ml-2 mr-1" />
-                            {new Date(option.startTime).toLocaleTimeString('de-DE', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })} - {new Date(option.endTime).toLocaleTimeString('de-DE', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </div>
-                        )}
+                  <div key={option.id} className="border border-border rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                          <span className="inline-flex items-center gap-1.5 font-semibold text-foreground text-base">
+                            <ClipboardList className="w-4 h-4 text-primary shrink-0" />
+                            {slotTitle}
+                          </span>
+                          {slotDate && (
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <Calendar className="w-3.5 h-3.5 shrink-0" />
+                              {slotDate}
+                            </span>
+                          )}
+                          {slotWeekday && (
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                              {slotWeekday}
+                            </span>
+                          )}
+                          {slotTimeStart && (
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                              {slotTimeStart}{slotTimeEnd ? ` – ${slotTimeEnd}` : ''}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 shrink-0">
                         {editingCapacity === option.id ? (
                           <div className="flex flex-col items-end">
                             <div className="flex items-center space-x-1">
@@ -641,33 +665,30 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     </div>
                     
                     {capacity > 0 && (
-                      <Progress value={fillPercent} className="h-2 mb-3" />
+                      <Progress value={fillPercent} className="h-1.5 mb-3" />
                     )}
                     
                     {slotVotes.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
                         {slotVotes.map((vote, idx) => (
-                          <div key={idx} className="flex items-center space-x-3 p-2 bg-muted rounded-lg">
-                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                          <div key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm">
+                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px] font-medium shrink-0">
                               {vote.voterName?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?'}
                             </div>
-                            <div className="flex-1">
-                              <span className="text-sm font-medium text-foreground">{vote.voterName}</span>
-                              {vote.comment && (
-                                <span className="text-sm text-muted-foreground ml-2">- {vote.comment}</span>
-                              )}
-                            </div>
+                            <span className="font-medium text-foreground">{vote.voterName}</span>
+                            {vote.comment && (
+                              <span className="text-muted-foreground">– {vote.comment}</span>
+                            )}
                             {vote.voterEmail && (
-                              <div className="flex items-center text-xs text-muted-foreground">
-                                <Mail className="w-3 h-3 mr-1" />
-                                {vote.voterEmail}
-                              </div>
+                              <span className="text-muted-foreground text-xs hidden sm:inline">
+                                <Mail className="w-3 h-3 inline mr-0.5" />{vote.voterEmail}
+                              </span>
                             )}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic">Noch keine Eintragungen</p>
+                      <p className="text-sm text-muted-foreground italic">{t('organizationSlot.noEntries', 'Noch keine Eintragungen')}</p>
                     )}
                   </div>
                 );

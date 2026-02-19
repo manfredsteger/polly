@@ -194,7 +194,10 @@ router.get('/polls/:token/export/csv', async (req, res) => {
       rows.push(dateRow.join(sep));
     }
 
-    const headerRow = [''].concat(options.map(o => csvEscape(o.text)));
+    const participantLabel = lang === 'en' ? 'Participant' : 'Teilnehmer';
+    const totalLabel = lang === 'en' ? 'Total' : 'Gesamt';
+
+    const headerRow = [csvEscape(participantLabel)].concat(options.map(o => csvEscape(o.text)));
     rows.push(headerRow.join(sep));
 
     for (const [, participant] of participantMap) {
@@ -208,6 +211,13 @@ router.get('/polls/:token/export/csv', async (req, res) => {
       }
       rows.push(row.join(sep));
     }
+
+    const totalRow = [csvEscape(totalLabel)];
+    for (const option of options) {
+      const stat = results.stats.find(s => s.optionId === option.id);
+      totalRow.push(String(stat ? stat.yesCount + stat.maybeCount : 0));
+    }
+    rows.push(totalRow.join(sep));
 
     const csv = '\uFEFF' + rows.join('\n') + '\n';
 

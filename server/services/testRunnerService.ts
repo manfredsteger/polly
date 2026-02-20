@@ -251,10 +251,22 @@ async function runTestsInBackground(runId: number): Promise<void> {
         return;
       }
     } else {
-      // Auto mode: E2E tests are NOT included in Vitest runs at all
-      // They're shown separately in the UI via test_configurations
-      // No need to add them to results here - they're never "run"
-      console.log('[TestRunner] Running in auto mode (server tests only, E2E excluded)');
+      // Auto mode: also collect E2E tests to mark as skipped for consistent counting
+      const e2eDir = path.join(process.cwd(), 'e2e');
+      try {
+        const e2eFiles = fs.readdirSync(e2eDir)
+          .filter(f => f.endsWith('.spec.ts') || f.endsWith('.test.ts'))
+          .map(f => `e2e/${f}`);
+        for (const e2eFile of e2eFiles) {
+          const tests = await getTestNamesFromFile(e2eFile);
+          for (const testName of tests) {
+            e2eTestsToSkip.push({ testFile: e2eFile, testName, category: 'e2e' });
+          }
+        }
+      } catch (err) {
+        // e2e directory might not exist
+      }
+      console.log(`[TestRunner] Running in auto mode (server tests only, ${e2eTestsToSkip.length} E2E tests skipped)`);
     }
     
     const vitestOutput = await executeVitest(testFiles, testNamePattern);

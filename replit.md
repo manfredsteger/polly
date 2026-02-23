@@ -133,6 +133,28 @@ docker compose down -v  # Removes database volumes
 make complete
 ```
 
+## Release & CI/CD
+
+### GitHub Actions Workflows
+-   **CI** (`.github/workflows/ci.yml`): Runs on push/PR to main/develop — lint, type check, unit tests, build, E2E tests, security audit
+-   **Release** (`.github/workflows/release.yml`): Triggered by `v*` tags — validates, builds Docker image, pushes to Docker Hub (`manfredsteger/polly`), creates GitHub Release, mirrors tags to GitLab
+
+### Release Process
+1. Create annotated tag: `git tag -a v0.1.0-beta.1 -m "Beta Release"`
+2. Push tag: `git push origin v0.1.0-beta.1`
+3. Pipeline runs automatically: validate → Docker build+push → GitHub Release → GitLab mirror
+4. Required GitHub Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, optionally `GITLAB_TOKEN`
+
+### Docker Image: `manfredsteger/polly`
+- Beta tags: `manfredsteger/polly:0.1.0-beta.1` + `manfredsteger/polly:beta`
+- Stable tags: `manfredsteger/polly:1.0.0` + `manfredsteger/polly:latest`
+
+### Makefile
+- Default `IMAGE_NAME`: `manfredsteger/polly`
+- `make publish` — Build + push to Docker Hub
+- `make release` — Interactive version prompt, build + push versioned + latest tags
+- Full documentation: `docs/RELEASING.md`
+
 ## External Dependencies
 
 -   **PostgreSQL**: Main database for all application data.

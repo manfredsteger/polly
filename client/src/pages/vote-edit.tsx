@@ -236,20 +236,20 @@ export default function VoteEditPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 justify-center flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
           <Button
             onClick={handleSaveChanges}
             disabled={!hasChanges || updateVotesMutation.isPending}
-            className="polly-button-primary"
+            className="whitespace-nowrap polly-button-primary"
           >
             {updateVotesMutation.isPending ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2 shrink-0" />
                 {t('common.saving')}
               </>
             ) : (
               <>
-                <CheckCircle className="h-4 w-4 mr-2" />
+                <CheckCircle className="h-4 w-4 mr-2 shrink-0" />
                 {t('voteEdit.saveChanges')}
               </>
             )}
@@ -258,7 +258,7 @@ export default function VoteEditPage() {
           <Button
             variant="outline"
             onClick={handleGoBack}
-            className="polly-button-neutral"
+            className="whitespace-nowrap polly-button-neutral"
           >
             {t('voteEdit.toHomepage')}
           </Button>
@@ -268,7 +268,7 @@ export default function VoteEditPage() {
               variant="destructive"
               onClick={() => withdrawVoteMutation.mutate()}
               disabled={withdrawVoteMutation.isPending}
-              className="polly-button-danger"
+              className="whitespace-nowrap polly-button-danger"
               data-testid="button-withdraw-vote"
             >
               {withdrawVoteMutation.isPending ? (

@@ -178,9 +178,9 @@ export default function VoteSuccess() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
           <Button
             onClick={() => window.open(resultsLink, '_blank')}
-            className="flex items-center justify-center polly-button-primary"
+            className="flex items-center justify-center whitespace-nowrap polly-button-primary"
           >
-            <BarChart3 className="w-4 h-4 mr-2" />
+            <BarChart3 className="w-4 h-4 mr-2 shrink-0" />
             {t('voteSuccess.viewResults')}
           </Button>
           
@@ -188,9 +188,9 @@ export default function VoteSuccess() {
             <Button
               onClick={() => window.open(editLink, '_blank')}
               variant="outline"
-              className="flex items-center justify-center polly-button-neutral"
+              className="flex items-center justify-center whitespace-nowrap polly-button-neutral"
             >
-              <Edit className="w-4 h-4 mr-2" />
+              <Edit className="w-4 h-4 mr-2 shrink-0" />
               {t('voteSuccess.editVote')}
             </Button>
           )}
@@ -199,10 +199,10 @@ export default function VoteSuccess() {
             <Button
               onClick={() => withdrawVoteMutation.mutate()}
               disabled={withdrawVoteMutation.isPending}
-              className="flex items-center justify-center polly-button-danger"
+              className="flex items-center justify-center whitespace-nowrap polly-button-danger"
               data-testid="button-withdraw-vote"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <Trash2 className="w-4 h-4 mr-2 shrink-0" />
               {withdrawVoteMutation.isPending ? t('voteSuccess.withdrawing') : t('voteSuccess.withdrawVote')}
             </Button>
           )}

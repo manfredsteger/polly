@@ -1370,7 +1370,7 @@ export class DatabaseStorage implements IStorage {
       deletedPolls = testPollIds.length;
     }
     
-    // Delete test users (by flag or pattern)
+    // Delete test users (by flag or pattern) - with protection for users who have real data
     const testUserCondition = sql`
       is_test_data = true 
       OR email LIKE 'test-%@example.com' 
@@ -1384,11 +1384,59 @@ export class DatabaseStorage implements IStorage {
       OR email LIKE 'login-test%@example.com'
       OR email LIKE '%@test.example.com'
     `;
-    const testUsers = await db.select({ id: users.id }).from(users).where(testUserCondition);
-    const deletedUsers = testUsers.length;
+
+    // Use a transaction to ensure atomicity - no user can be deleted between checks
+    const userResult = await db.transaction(async (tx) => {
+      // Find protected user IDs: users who have votes in non-test polls or created non-test polls
+      const protectedUserIds = await tx.execute(sql`
+        SELECT DISTINCT u.id, u.email FROM users u
+        WHERE (${testUserCondition})
+        AND (
+          EXISTS (
+            SELECT 1 FROM votes v 
+            WHERE v.voter_email = u.email 
+            AND v.poll_id NOT IN (SELECT p.id FROM polls p WHERE ${testPatternCondition})
+          )
+          OR EXISTS (
+            SELECT 1 FROM polls p 
+            WHERE p.creator_email = u.email 
+            AND NOT (${testPatternCondition})
+          )
+        )
+      `);
+
+      const protectedIds = protectedUserIds.rows.map((r: any) => r.id as number);
+      
+      // Log protected users
+      for (const row of protectedUserIds.rows) {
+        console.log(`[TestData] Protected user ${(row as any).email} (has real votes/polls) - clearing isTestData flag`);
+      }
+
+      // Clear isTestData flag on protected users (instead of deleting them)
+      if (protectedIds.length > 0) {
+        await tx.update(users).set({ isTestData: false }).where(
+          sql`${users.id} IN (${sql.join(protectedIds.map(id => sql`${id}`), sql`, `)})`
+        );
+      }
+
+      // Delete only unprotected test users
+      const allTestUsers = await tx.select({ id: users.id }).from(users).where(testUserCondition);
+      const deletableUsers = allTestUsers.filter(u => !protectedIds.includes(u.id));
+      
+      if (deletableUsers.length > 0) {
+        const deletableIds = deletableUsers.map(u => u.id);
+        await tx.delete(users).where(
+          sql`${users.id} IN (${sql.join(deletableIds.map(id => sql`${id}`), sql`, `)})`
+        );
+      }
+
+      return { deleted: deletableUsers.length, protected: protectedIds.length };
+    });
+
+    const deletedUsers = userResult.deleted;
     
-    if (testUsers.length > 0) {
-      await db.delete(users).where(testUserCondition);
+    if (userResult.protected > 0) {
+      console.log(`[TestData] ${userResult.protected} user(s) protected from deletion (have real data)`);
     }
     
     return { deletedPolls, deletedUsers, deletedVotes, deletedOptions };

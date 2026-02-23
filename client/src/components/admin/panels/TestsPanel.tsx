@@ -136,6 +136,9 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       });
       refetchTestDataStats();
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/test-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/polls'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
     },
     onError: () => {
       toast({ 

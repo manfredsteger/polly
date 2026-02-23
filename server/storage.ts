@@ -1381,6 +1381,8 @@ export class DatabaseStorage implements IStorage {
       OR email LIKE 'e2e\_%@test.com'
       OR email LIKE 'e2e\_%@example.com'
       OR email LIKE 'e2etest\_%@example.com'
+      OR email LIKE 'login-test%@example.com'
+      OR email LIKE '%@test.example.com'
     `;
     const testUsers = await db.select({ id: users.id }).from(users).where(testUserCondition);
     const deletedUsers = testUsers.length;
@@ -1418,6 +1420,8 @@ export class DatabaseStorage implements IStorage {
       OR email LIKE 'e2e\_%@test.com'
       OR email LIKE 'e2e\_%@example.com'
       OR email LIKE 'e2etest\_%@example.com'
+      OR email LIKE 'login-test%@example.com'
+      OR email LIKE '%@test.example.com'
     `;
     const [testUsersResult] = await db.select({ count: count() }).from(users).where(testUserCondition);
     

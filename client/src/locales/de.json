@@ -2532,6 +2532,8 @@
     "alreadyVoted": "Bereits abgestimmt",
     "emailSent": "E-Mail versendet",
     "emailSentDescription": "Eine neue E-Mail mit dem Link zum Ändern Ihrer Stimme wurde versendet.",
+    "existingBookingsFound": "Bestehende Eintragungen gefunden",
+    "existingBookingsDescription": "Ihre bisherigen Buchungen wurden geladen. Neue Eintragungen werden hinzugefügt, bestehende bleiben erhalten.",
     "emailBlocked": "E-Mail blockiert",
     "emailBlockedDescription": "E-Mail wurde vom Spam-Filter blockiert. Bitte kontaktieren Sie den Administrator oder versuchen Sie es später erneut.",
     "emailCouldNotBeSent": "Die E-Mail konnte nicht versendet werden.",

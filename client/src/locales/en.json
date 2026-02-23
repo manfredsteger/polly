@@ -2532,6 +2532,8 @@
     "alreadyVoted": "Already voted",
     "emailSent": "Email sent",
     "emailSentDescription": "A new email with a link to change your vote has been sent.",
+    "existingBookingsFound": "Existing bookings found",
+    "existingBookingsDescription": "Your previous bookings have been loaded. New entries will be added, existing ones are preserved.",
     "emailBlocked": "Email blocked",
     "emailBlockedDescription": "Email was blocked by spam filter. Please contact the administrator or try again later.",
     "emailCouldNotBeSent": "The email could not be sent.",

@@ -207,12 +207,47 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       
       if (result.requiresLogin) {
         setEmailRequiresLogin(true);
-        // Scroll to top to show the alert
         if (containerRef.current) {
           containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       } else {
         setEmailRequiresLogin(false);
+        
+        if (poll.type === 'organization') {
+          try {
+            const voteResponse = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/votes-by-email`, { email: email.trim() });
+            const voteResult = await voteResponse.json();
+            
+            if (voteResult.hasVoted && voteResult.votes.length > 0) {
+              const existingBookings: SlotBookingInfo[] = voteResult.votes
+                .filter((v: any) => v.response === 'yes')
+                .map((v: any) => ({
+                  optionId: v.optionId,
+                  comment: v.comment || undefined
+                }));
+              if (existingBookings.length > 0) {
+                setOrgaBookings(prev => {
+                  const merged = [...existingBookings];
+                  for (const booking of prev) {
+                    if (!merged.some(b => b.optionId === booking.optionId)) {
+                      merged.push(booking);
+                    }
+                  }
+                  return merged;
+                });
+                if (voteResult.votes[0].voterName && !voterName) {
+                  setVoterName(voteResult.votes[0].voterName);
+                }
+                toast({
+                  title: t('votingInterface.existingBookingsFound'),
+                  description: t('votingInterface.existingBookingsDescription'),
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching existing org votes:', error);
+          }
+        }
       }
     } catch (error) {
       console.error('Error checking email:', error);

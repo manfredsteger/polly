@@ -68,7 +68,7 @@ router.post('/polls/:token/vote', async (req, res) => {
     const isTestMode = req.isTestMode === true;
 
     const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
-    if (existingVotes.length > 0 && !poll.allowVoteEdit) {
+    if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
         errorCode: 'ALREADY_VOTED'
@@ -78,7 +78,9 @@ router.post('/polls/:token/vote', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    if (poll.allowVoteEdit && existingVotes.length > 0) {
+    const isOrgEditMode = poll.type === 'organization' && existingVotes.length > 0 && 
+      data.votes.some(v => existingVotes.some(ev => ev.optionId === v.optionId));
+    if (poll.allowVoteEdit && existingVotes.length > 0 && (poll.type !== 'organization' || isOrgEditMode)) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {
@@ -91,7 +93,7 @@ router.post('/polls/:token/vote', async (req, res) => {
       const existingVote = existingVotes.find(v => v.optionId === voteData.optionId);
 
       if (existingVote) {
-        if (poll.allowVoteEdit) {
+        if (poll.allowVoteEdit || poll.type === 'organization') {
           const updated = await storage.updateVote(existingVote.id, voteData.response);
           createdVotes.push(updated);
         }
@@ -248,7 +250,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     const isTestMode = req.isTestMode === true;
 
     const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
-    if (existingVotes.length > 0 && !poll.allowVoteEdit) {
+    if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
         errorCode: 'ALREADY_VOTED'
@@ -258,7 +260,9 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    if (poll.allowVoteEdit && existingVotes.length > 0) {
+    const isOrgEditMode = poll.type === 'organization' && existingVotes.length > 0 && 
+      data.votes.some(v => existingVotes.some(ev => ev.optionId === v.optionId));
+    if (poll.allowVoteEdit && existingVotes.length > 0 && (poll.type !== 'organization' || isOrgEditMode)) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {
@@ -271,7 +275,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
       const existingVote = existingVotes.find(v => v.optionId === voteData.optionId);
 
       if (existingVote) {
-        if (poll.allowVoteEdit) {
+        if (poll.allowVoteEdit || poll.type === 'organization') {
           const updated = await storage.updateVote(existingVote.id, voteData.response);
           createdVotes.push(updated);
         }
@@ -660,6 +664,41 @@ router.post('/polls/:token/resend-email', async (req, res) => {
   } catch (error) {
     console.error('Error resending email:', error);
     res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+// Look up existing votes by email for a poll (used by org polls to merge bookings)
+router.post('/polls/:token/votes-by-email', async (req, res) => {
+  try {
+    const poll = await storage.getPollByPublicToken(req.params.token);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+
+    if (poll.type !== 'organization') {
+      return res.status(400).json({ error: 'This endpoint is only available for organization polls' });
+    }
+
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const existingVotes = await storage.getVotesByEmail(poll.id, email.toLowerCase().trim());
+
+    res.json({
+      hasVoted: existingVotes.length > 0,
+      votes: existingVotes.map(v => ({
+        optionId: v.optionId,
+        response: v.response,
+        voterName: v.voterName,
+        voterEmail: v.voterEmail,
+        comment: v.comment,
+      })),
+    });
+  } catch (error) {
+    console.error('Error looking up votes by email:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

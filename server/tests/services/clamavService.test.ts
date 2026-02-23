@@ -207,6 +207,67 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
     });
   });
 
+  describe('EICAR Test Virus Detection', () => {
+    it('should block EICAR test file when scanner is enabled (fail-secure)', async () => {
+      await storage.setSetting({
+        key: 'clamav_config',
+        value: {
+          enabled: true,
+          host: '127.0.0.1',
+          port: 19999,
+          timeout: 2000,
+          maxFileSize: 25 * 1024 * 1024,
+        },
+      });
+
+      const { clamavService } = await import('../../services/clamavService');
+      clamavService.clearConfigCache();
+
+      const eicarSignature = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+      const eicarBuffer = Buffer.from(eicarSignature);
+      const result = await clamavService.scanBuffer(eicarBuffer, 'eicar.com.jpg');
+
+      expect(result.isClean).toBe(false);
+      expect(result.scannerUnavailable).toBe(true);
+    });
+
+    it('should allow EICAR test file when scanner is disabled', async () => {
+      await storage.setSetting({
+        key: 'clamav_config',
+        value: {
+          enabled: false,
+          host: 'localhost',
+          port: 3310,
+          timeout: 5000,
+          maxFileSize: 25 * 1024 * 1024,
+        },
+      });
+
+      const { ClamAVService } = await import('../../services/clamavService');
+      const testService = new ClamAVService();
+      (testService as any).configCache = null;
+      (testService as any).configCacheTime = 0;
+
+      const eicarSignature = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+      const eicarBuffer = Buffer.from(eicarSignature);
+      const result = await testService.scanBuffer(eicarBuffer, 'eicar.com.jpg');
+
+      expect(result.isClean).toBe(true);
+    });
+  });
+
+  describe('testConnectionWithConfig', () => {
+    it('should test connection with provided config (unreachable host)', async () => {
+      const { ClamAVService } = await import('../../services/clamavService');
+      const testService = new ClamAVService();
+
+      const result = await testService.testConnectionWithConfig('127.0.0.1', 19999, 2000);
+
+      expect(result.success).toBe(false);
+      expect(result.unavailable).toBe(true);
+    });
+  });
+
   describe('Admin API Endpoints', () => {
     it('should reject ClamAV scan-logs without auth', async () => {
       const response = await request(app).get('/api/v1/admin/clamav/scan-logs');
@@ -215,6 +276,11 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
 
     it('should reject ClamAV connection test without auth', async () => {
       const response = await request(app).post('/api/v1/admin/clamav/test');
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject ClamAV test-config without auth', async () => {
+      const response = await request(app).post('/api/v1/admin/clamav/test-config');
       expect(response.status).toBe(401);
     });
   });

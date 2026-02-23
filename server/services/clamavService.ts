@@ -98,6 +98,10 @@ export class ClamAVService {
       return { success: false, message: 'ClamAV is disabled' };
     }
 
+    return this.testConnectionWithConfig(config.host, config.port, config.timeout);
+  }
+
+  async testConnectionWithConfig(host: string, port: number, timeout: number): Promise<{ success: boolean; message: string; responseTime?: number; unavailable?: boolean }> {
     const startTime = Date.now();
 
     return new Promise((resolve) => {
@@ -111,14 +115,13 @@ export class ClamAVService {
         }
       };
 
-      client.setTimeout(config.timeout);
+      client.setTimeout(timeout);
 
       client.on('connect', () => {
         client.write('zPING\0');
       });
 
       client.on('data', (data) => {
-        // Remove null bytes and whitespace - ClamAV sends PONG\0
         const response = data.toString().replace(/\0/g, '').trim();
         cleanup();
         if (response === 'PONG') {
@@ -154,7 +157,7 @@ export class ClamAVService {
         });
       });
 
-      client.connect(config.port, config.host);
+      client.connect(port, host);
     });
   }
 

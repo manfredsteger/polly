@@ -282,6 +282,9 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
   const [clamavTimeout, setClamavTimeout] = useState(30);
   const [clamavMaxFileSize, setClamavMaxFileSize] = useState(25);
   const [clamavTestResult, setClamavTestResult] = useState<ClamAVTestResult | null>(null);
+  const [showClamavWarning, setShowClamavWarning] = useState(false);
+  const [pendingClamavSave, setPendingClamavSave] = useState<Partial<ClamAVConfig> | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
   
   const [showScanLogs, setShowScanLogs] = useState(false);
   const [scanLogFilter, setScanLogFilter] = useState<string>('all');
@@ -344,14 +347,53 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
     }
   });
 
-  const handleSaveClamav = () => {
-    saveClamavMutation.mutate({
+  const handleSaveClamav = async () => {
+    const configData = {
       enabled: clamavEnabled,
       host: clamavHost,
       port: clamavPort,
       timeout: clamavTimeout * 1000,
       maxFileSize: clamavMaxFileSize * 1024 * 1024,
-    });
+    };
+
+    if (clamavEnabled) {
+      setIsTesting(true);
+      try {
+        const response = await apiRequest('POST', '/api/v1/admin/clamav/test-config', {
+          host: clamavHost,
+          port: clamavPort,
+          timeout: clamavTimeout * 1000,
+        });
+        const result = await response.json() as ClamAVTestResult;
+        if (!result.success) {
+          setPendingClamavSave(configData);
+          setShowClamavWarning(true);
+          setIsTesting(false);
+          return;
+        }
+      } catch {
+        setPendingClamavSave(configData);
+        setShowClamavWarning(true);
+        setIsTesting(false);
+        return;
+      }
+      setIsTesting(false);
+    }
+
+    saveClamavMutation.mutate(configData);
+  };
+
+  const handleForceSaveClamav = () => {
+    if (pendingClamavSave) {
+      saveClamavMutation.mutate(pendingClamavSave);
+    }
+    setShowClamavWarning(false);
+    setPendingClamavSave(null);
+  };
+
+  const handleCancelClamavSave = () => {
+    setShowClamavWarning(false);
+    setPendingClamavSave(null);
   };
   
   const [deprovisionEnabled, setDeprovisionEnabled] = useState(false);
@@ -716,8 +758,8 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
                   {testClamavMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('admin.security.testing')}</> : <><RefreshCw className="w-4 h-4 mr-2" />{t('admin.security.testConnection')}</>}
                 </Button>
 
-                <Button onClick={handleSaveClamav} disabled={saveClamavMutation.isPending} className="polly-button-primary" data-testid="button-save-clamav">
-                  {saveClamavMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.saving')}</> : t('admin.security.saveClamav')}
+                <Button onClick={handleSaveClamav} disabled={saveClamavMutation.isPending || isTesting} className="polly-button-primary" data-testid="button-save-clamav">
+                  {(saveClamavMutation.isPending || isTesting) ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{isTesting ? t('admin.security.testingBeforeSave') : t('common.saving')}</> : t('admin.security.saveClamav')}
                 </Button>
               </div>
 
@@ -889,6 +931,29 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={showClamavWarning} onOpenChange={setShowClamavWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              {t('admin.security.clamavWarningTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>{t('admin.security.clamavWarningDescription')}</p>
+              <p className="font-medium text-destructive">{t('admin.security.clamavWarningConsequence')}</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelClamavSave}>
+              {t('admin.security.clamavWarningCancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleForceSaveClamav} className="bg-amber-600 hover:bg-amber-700">
+              {t('admin.security.clamavWarningProceed')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

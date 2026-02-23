@@ -501,6 +501,24 @@ router.post('/clamav/test', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/clamav/test-config', requireAdmin, async (req, res) => {
+  try {
+    const { host, port, timeout } = req.body;
+    if (!host || !port) {
+      return res.status(400).json({ success: false, message: 'Host and port are required' });
+    }
+    const result = await clamavService.testConnectionWithConfig(
+      host,
+      parseInt(port, 10) || 3310,
+      parseInt(timeout, 10) || 30000
+    );
+    res.json(result);
+  } catch (error) {
+    console.error('Error testing ClamAV config:', error);
+    res.status(500).json({ success: false, message: 'Internal error' });
+  }
+});
+
 router.get('/clamav/scan-logs', requireAdmin, async (req, res) => {
   try {
     const { limit, offset, status, startDate, endDate } = req.query;

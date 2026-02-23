@@ -542,6 +542,72 @@ router.put('/votes/edit/:editToken', async (req, res) => {
   }
 });
 
+// Withdraw votes via edit token
+router.delete('/votes/edit/:editToken', async (req, res) => {
+  try {
+    const editToken = req.params.editToken;
+    const votes = await storage.getVotesByEditToken(editToken);
+
+    if (votes.length === 0) {
+      return res.status(404).json({ error: 'No votes found for this edit token' });
+    }
+
+    const pollId = votes[0].pollId;
+    const poll = await storage.getPoll(pollId);
+
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+
+    if (!poll.allowVoteWithdrawal) {
+      return res.status(403).json({
+        error: 'Das Zurückziehen von Stimmen ist bei dieser Umfrage nicht erlaubt.',
+        errorCode: 'WITHDRAWAL_NOT_ALLOWED'
+      });
+    }
+
+    if (!poll.isActive) {
+      return res.status(400).json({
+        error: 'Diese Umfrage ist bereits beendet.',
+        errorCode: 'POLL_INACTIVE'
+      });
+    }
+
+    for (const vote of votes) {
+      await storage.deleteVote(vote.id);
+    }
+
+    console.log(`[Vote] Withdrew ${votes.length} votes via edit token from poll ${poll.id}`);
+
+    if (poll.type === 'organization') {
+      const freshPoll = await storage.getPollByPublicToken(poll.publicToken);
+      if (freshPoll) {
+        const slotUpdates: Record<number, { currentCount: number; maxCapacity: number | null }> = {};
+        for (const option of freshPoll.options) {
+          const signupCount = freshPoll.votes.filter(v => v.optionId === option.id && v.response === 'yes').length;
+          slotUpdates[option.id] = {
+            currentCount: signupCount,
+            maxCapacity: option.maxCapacity
+          };
+        }
+        liveVotingService.broadcastSlotUpdate(poll.publicToken, slotUpdates);
+        if (poll.adminToken) {
+          liveVotingService.broadcastSlotUpdate(poll.adminToken, slotUpdates);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `${votes.length} Stimme(n) erfolgreich zurückgezogen.`,
+      withdrawnCount: votes.length
+    });
+  } catch (error) {
+    console.error('Error withdrawing votes via edit token:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Resend voting confirmation email for vote editing
 router.post('/polls/:token/resend-email', async (req, res) => {
   try {

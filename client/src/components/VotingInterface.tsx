@@ -373,9 +373,18 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   });
 
   const handleVote = (optionId: number, response: VoteResponse) => {
-    setVotes(prev => ({ ...prev, [optionId]: response }));
+    const isDeselect = votes[optionId] === response;
+    const nextResponse = isDeselect ? null : response;
+    setVotes(prev => {
+      if (isDeselect) {
+        const next = { ...prev };
+        delete next[optionId];
+        return next;
+      }
+      return { ...prev, [optionId]: response };
+    });
     if (voterName && isConnected) {
-      sendVoteInProgress(String(optionId), response);
+      sendVoteInProgress(String(optionId), nextResponse);
     }
   };
 

@@ -105,7 +105,12 @@ export default function VoteEditPage() {
   }, [voterData]);
 
   const handleVoteChange = (optionId: number, response: string) => {
-    const newVotes = { ...currentVotes, [optionId]: response };
+    const newVotes = { ...currentVotes };
+    if (newVotes[optionId] === response) {
+      delete newVotes[optionId];
+    } else {
+      newVotes[optionId] = response;
+    }
     setCurrentVotes(newVotes);
     
     // Check if there are changes from original votes
@@ -118,10 +123,12 @@ export default function VoteEditPage() {
   const handleSaveChanges = () => {
     if (!voterData || !hasChanges) return;
 
-    const updatedVotes = voterData.votes.map(vote => ({
-      optionId: vote.optionId,
-      response: currentVotes[vote.optionId]
-    }));
+    const updatedVotes = voterData.votes
+      .filter(vote => currentVotes[vote.optionId] !== undefined)
+      .map(vote => ({
+        optionId: vote.optionId,
+        response: currentVotes[vote.optionId]
+      }));
 
     updateVotesMutation.mutate(updatedVotes);
   };

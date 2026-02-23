@@ -1371,7 +1371,17 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Delete test users (by flag or pattern)
-    const testUserCondition = sql`is_test_data = true OR email LIKE 'test-%@example.com' OR email LIKE 'creator-%@example.com' OR email LIKE 'voter-%@example.com'`;
+    const testUserCondition = sql`
+      is_test_data = true 
+      OR email LIKE 'test-%@example.com' 
+      OR email LIKE 'test\_%@example.com'
+      OR email LIKE 'creator-%@example.com' 
+      OR email LIKE 'voter-%@example.com'
+      OR email LIKE 'fixtest-%@example.com'
+      OR email LIKE 'e2e\_%@test.com'
+      OR email LIKE 'e2e\_%@example.com'
+      OR email LIKE 'e2etest\_%@example.com'
+    `;
     const testUsers = await db.select({ id: users.id }).from(users).where(testUserCondition);
     const deletedUsers = testUsers.length;
     
@@ -1397,8 +1407,18 @@ export class DatabaseStorage implements IStorage {
     
     const [testPollsResult] = await db.select({ count: count() }).from(polls).where(testPatternCondition);
     
-    // Count users matching test patterns
-    const testUserCondition = sql`is_test_data = true OR email LIKE 'test-%@example.com' OR email LIKE 'creator-%@example.com' OR email LIKE 'voter-%@example.com'`;
+    // Count users matching test patterns (same as purgeTestData)
+    const testUserCondition = sql`
+      is_test_data = true 
+      OR email LIKE 'test-%@example.com' 
+      OR email LIKE 'test\_%@example.com'
+      OR email LIKE 'creator-%@example.com' 
+      OR email LIKE 'voter-%@example.com'
+      OR email LIKE 'fixtest-%@example.com'
+      OR email LIKE 'e2e\_%@test.com'
+      OR email LIKE 'e2e\_%@example.com'
+      OR email LIKE 'e2etest\_%@example.com'
+    `;
     const [testUsersResult] = await db.select({ count: count() }).from(users).where(testUserCondition);
     
     const [testVotesResult] = await db.select({ count: count() }).from(votes)

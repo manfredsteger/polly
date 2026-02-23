@@ -1291,31 +1291,6 @@ function findAccessibleColor(hexColor: string, bgColor: string, targetRatio: num
   return isDarkBg ? '#ffffff' : '#000000';
 }
 
-function findDualModeAccessibleColor(hexColor: string, lightBg: string, darkBg: string, targetRatio: number = 4.5): string | null {
-  const [r, g, b] = hexToRgb(hexColor);
-  const [h, s, l] = rgbToHsl(r, g, b);
-
-  let bestCandidate: string | null = null;
-  let bestDiff = Infinity;
-
-  for (let testL = 0; testL <= 100; testL++) {
-    const [nr, ng, nb] = hslToRgb(h, s, testL);
-    const candidate = rgbToHex(nr, ng, nb);
-    const lightRatio = contrastRatio(candidate, lightBg);
-    const darkRatio = contrastRatio(candidate, darkBg);
-
-    if (lightRatio >= targetRatio && darkRatio >= targetRatio) {
-      const diff = Math.abs(testL - l);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        bestCandidate = candidate;
-      }
-    }
-  }
-
-  return bestCandidate;
-}
-
 const LIGHT_BG = '#ffffff';
 const DARK_BG = '#0f172a';
 
@@ -1327,55 +1302,46 @@ router.post('/wcag/audit', requireAdmin, async (req, res) => {
     const issues: Array<{
       token: string;
       originalValue: string;
+      mode: 'light' | 'dark';
+      bgColor: string;
       contrastRatio: number;
       requiredRatio: number;
       suggestedValue: string;
-      mode: 'light' | 'dark' | 'both';
-      lightContrast: number;
-      darkContrast: number;
     }> = [];
 
     const colorsToCheck = [
-      { token: '--primary', value: theme.primaryColor || '#4f46e5' },
-      { token: '--color-schedule', value: theme.scheduleColor || '#10b981' },
-      { token: '--color-survey', value: theme.surveyColor || '#6366f1' },
-      { token: '--color-organization', value: theme.organizationColor || '#f59e0b' },
+      { token: '--primary', base: 'primaryColor', lightOverride: 'primaryColorLight', darkOverride: 'primaryColorDark', fallback: '#4f46e5' },
+      { token: '--color-schedule', base: 'scheduleColor', lightOverride: 'scheduleColorLight', darkOverride: 'scheduleColorDark', fallback: '#10b981' },
+      { token: '--color-survey', base: 'surveyColor', lightOverride: 'surveyColorLight', darkOverride: 'surveyColorDark', fallback: '#6366f1' },
+      { token: '--color-organization', base: 'organizationColor', lightOverride: 'organizationColorLight', darkOverride: 'organizationColorDark', fallback: '#f59e0b' },
     ];
 
     for (const color of colorsToCheck) {
-      const lightContrast = contrastRatio(color.value, LIGHT_BG);
-      const darkContrast = contrastRatio(color.value, DARK_BG);
-      const lightFail = lightContrast < 4.5;
-      const darkFail = darkContrast < 4.5;
+      const baseColor = (theme as any)[color.base] || color.fallback;
+      const backgrounds: Array<{ mode: 'light' | 'dark'; bg: string; overrideKey: string }> = [
+        { mode: 'light', bg: LIGHT_BG, overrideKey: color.lightOverride },
+        { mode: 'dark', bg: DARK_BG, overrideKey: color.darkOverride },
+      ];
 
-      if (lightFail || darkFail) {
-        const dualModeFix = findDualModeAccessibleColor(color.value, LIGHT_BG, DARK_BG);
-        let suggestedValue: string;
-        let mode: 'light' | 'dark' | 'both';
-
-        if (lightFail && darkFail) {
-          mode = 'both';
-          suggestedValue = dualModeFix || findAccessibleColor(color.value, DARK_BG);
-        } else if (darkFail) {
-          mode = 'dark';
-          suggestedValue = dualModeFix || findAccessibleColor(color.value, DARK_BG);
-        } else {
-          mode = 'light';
-          suggestedValue = dualModeFix || findAccessibleColor(color.value, LIGHT_BG);
+      for (const { mode, bg, overrideKey } of backgrounds) {
+        const effectiveColor = (theme as any)[overrideKey] || baseColor;
+        const ratio = contrastRatio(effectiveColor, bg);
+        if (ratio < 4.5) {
+          let suggested = findAccessibleColor(baseColor, bg);
+          const suggestedRatio = contrastRatio(suggested, bg);
+          if (suggestedRatio < 4.5) {
+            suggested = mode === 'dark' ? '#ffffff' : '#000000';
+          }
+          issues.push({
+            token: color.token,
+            originalValue: effectiveColor,
+            mode,
+            bgColor: bg,
+            contrastRatio: Math.round(ratio * 100) / 100,
+            requiredRatio: 4.5,
+            suggestedValue: suggested,
+          });
         }
-
-        const worstContrast = Math.min(lightContrast, darkContrast);
-
-        issues.push({
-          token: color.token,
-          originalValue: color.value,
-          contrastRatio: Math.round(worstContrast * 100) / 100,
-          requiredRatio: 4.5,
-          suggestedValue,
-          mode,
-          lightContrast: Math.round(lightContrast * 100) / 100,
-          darkContrast: Math.round(darkContrast * 100) / 100,
-        });
       }
     }
 
@@ -1410,17 +1376,19 @@ router.post('/wcag/apply-corrections', requireAdmin, async (req, res) => {
     const theme = { ...(settings.theme || {}) };
     const appliedCorrections: Record<string, string> = {};
 
+    const tokenMap: Record<string, { base: string; light: string; dark: string }> = {
+      '--primary': { base: 'primaryColor', light: 'primaryColorLight', dark: 'primaryColorDark' },
+      '--color-schedule': { base: 'scheduleColor', light: 'scheduleColorLight', dark: 'scheduleColorDark' },
+      '--color-survey': { base: 'surveyColor', light: 'surveyColorLight', dark: 'surveyColorDark' },
+      '--color-organization': { base: 'organizationColor', light: 'organizationColorLight', dark: 'organizationColorDark' },
+    };
+
     for (const issue of lastAudit.issues) {
-      const tokenMap: Record<string, string> = {
-        '--primary': 'primaryColor',
-        '--color-schedule': 'scheduleColor',
-        '--color-survey': 'surveyColor',
-        '--color-organization': 'organizationColor',
-      };
-      const themeKey = tokenMap[issue.token];
-      if (themeKey) {
-        (theme as any)[themeKey] = issue.suggestedValue;
-        appliedCorrections[issue.token] = issue.suggestedValue;
+      const mapping = tokenMap[issue.token];
+      if (mapping) {
+        const overrideKey = issue.mode === 'light' ? mapping.light : mapping.dark;
+        (theme as any)[overrideKey] = issue.suggestedValue;
+        appliedCorrections[`${issue.token}:${issue.mode}`] = issue.suggestedValue;
       }
     }
 
@@ -1429,7 +1397,7 @@ router.post('/wcag/apply-corrections', requireAdmin, async (req, res) => {
       theme,
       wcag: {
         ...settings.wcag,
-        lastAudit: { ...lastAudit, appliedCorrections },
+        lastAudit: undefined,
       },
     });
 

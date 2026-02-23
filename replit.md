@@ -66,8 +66,17 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
         -   All poll creation pages (create-poll, create-survey, create-organization)
         -   All poll viewing pages (poll, my-polls, poll-success, vote-success)
     -   **Translation Key Structure**: Organized by component/page (e.g., `pollCreation.*`, `admin.*`, `liveResults.*`)
+- **WCAG 2.1 AA Color Contrast**:
+    -   **Audit**: Admin panel checks all theme colors against BOTH Light (#ffffff) and Dark (#0f172a) backgrounds
+    -   **Per-Mode Issues**: Reports separate issues for Light Mode and Dark Mode (no combined "worst of both")
+    -   **Per-Mode Corrections**: Stores separate color overrides per mode (e.g., `primaryColorLight`, `primaryColorDark`)
+    -   **CustomizationContext**: Uses per-mode overrides based on current dark/light mode; MutationObserver re-applies on mode toggle
+    -   **No Infinite Loop**: After applying corrections and re-auditing, all colors pass (verified by automated test)
+    -   **Schema Fields**: `themeSettingsSchema` has 8 optional per-mode override fields; `wcagAuditIssueSchema` includes `mode` and `bgColor`
+    -   **Endpoints**: `POST /api/v1/admin/wcag/audit`, `POST /api/v1/admin/wcag/apply-corrections`, `PUT /api/v1/admin/wcag/settings`
 - **Security Scanning**:
-    -   **ClamAV**: On-the-fly virus scanning of file uploads using `multer.memoryStorage`.
+    -   **ClamAV**: On-the-fly virus scanning of file uploads using `multer.memoryStorage`. Fail-secure: blocks uploads when enabled but daemon unreachable.
+    -   **ClamAV Scan Logs**: Stored in `clamav_scan_logs` table with context (userId, email, IP) for forensic analysis
     -   **npm Audit**: Local scanning for dependency vulnerabilities with severity and impact labels.
     -   **Pentest-Tools.com**: Integration for automated vulnerability scanning with real-time results.
 - **System Package Monitoring**: Displays Nix package information and versions for core dependencies.

@@ -2171,7 +2171,12 @@
       "requiredRatio": "Required",
       "applyCorrections": "Apply Suggested Corrections",
       "correctionsApplied": "Corrections applied",
-      "colorsUpdated": "Color values have been updated and now meet WCAG AA requirements."
+      "colorsUpdated": "Color values have been updated and now meet WCAG AA requirements.",
+      "lightMode": "Light Mode",
+      "darkMode": "Dark Mode",
+      "failsInMode": "Fails in {{mode}}",
+      "passesInMode": "Passes in {{mode}}",
+      "perModeCorrections": "Corrections are applied per mode (Light/Dark)"
     },
     "matrix": {
       "saved": "Matrix settings have been saved.",

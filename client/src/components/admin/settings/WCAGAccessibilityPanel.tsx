@@ -18,7 +18,9 @@ import {
   XCircle,
   AlertTriangle,
   Play,
-  Check
+  Check,
+  Sun,
+  Moon
 } from "lucide-react";
 import { format } from "date-fns";
 import type { CustomizationSettings } from "@shared/schema";
@@ -93,6 +95,9 @@ export function WCAGAccessibilityPanel({ onBack }: { onBack: () => void }) {
     return labels[token] || token;
   };
   
+  const lightIssues = lastAudit?.issues?.filter((i: any) => i.mode === 'light') || [];
+  const darkIssues = lastAudit?.issues?.filter((i: any) => i.mode === 'dark') || [];
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -100,6 +105,71 @@ export function WCAGAccessibilityPanel({ onBack }: { onBack: () => void }) {
       </div>
     );
   }
+  
+  const renderIssueCard = (issue: any, idx: number) => (
+    <div key={idx} className="p-4 rounded-lg border bg-muted/30">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-medium">{getTokenLabel(issue.token)}</span>
+        <Badge variant="destructive">
+          {t('admin.wcag.contrast')}: {issue.contrastRatio}:1
+        </Badge>
+      </div>
+      <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <span>{t('admin.wcag.current')}:</span>
+          <div 
+            className="w-6 h-6 rounded border" 
+            style={{ backgroundColor: issue.originalValue }}
+          />
+          <code className="text-xs">{issue.originalValue}</code>
+        </div>
+        <ChevronRight className="w-4 h-4" />
+        <div className="flex items-center gap-2">
+          <span>{t('admin.wcag.suggested')}:</span>
+          <div 
+            className="w-6 h-6 rounded border" 
+            style={{ backgroundColor: issue.suggestedValue }}
+          />
+          <code className="text-xs">{issue.suggestedValue}</code>
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground mt-2">
+        {t('admin.wcag.requiredRatio')}: {issue.requiredRatio}:1
+      </div>
+    </div>
+  );
+
+  const renderModeSection = (
+    mode: 'light' | 'dark',
+    issues: any[],
+    Icon: typeof Sun,
+    label: string
+  ) => {
+    const hasIssues = issues.length > 0;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Icon className="w-5 h-5" />
+          <h4 className="font-semibold text-base">{label}</h4>
+          {hasIssues ? (
+            <Badge variant="destructive" className="ml-auto">
+              {issues.length} {issues.length === 1 ? 'Issue' : 'Issues'}
+            </Badge>
+          ) : (
+            <div className="flex items-center gap-1 ml-auto text-green-600">
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="text-sm">{t('admin.wcag.passesInMode', { mode: label })}</span>
+            </div>
+          )}
+        </div>
+        {hasIssues && (
+          <div className="space-y-2 pl-7">
+            {issues.map((issue: any, idx: number) => renderIssueCard(issue, idx))}
+          </div>
+        )}
+      </div>
+    );
+  };
   
   return (
     <div className="space-y-6">
@@ -206,51 +276,14 @@ export function WCAGAccessibilityPanel({ onBack }: { onBack: () => void }) {
                     <XCircle className="w-5 h-5" />
                     <span className="font-medium">{t('admin.wcag.issuesFound', { count: lastAudit.issues.length })}</span>
                   </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    {t('admin.wcag.perModeCorrections')}
+                  </p>
                   
-                  <div className="space-y-3">
-                    {lastAudit.issues.map((issue: any, idx: number) => (
-                      <div key={idx} className="p-4 rounded-lg border bg-muted/30">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium">{getTokenLabel(issue.token)}</span>
-                          <Badge variant="destructive">
-                            {t('admin.wcag.contrast')}: {issue.contrastRatio}:1
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span>{t('admin.wcag.current')}:</span>
-                            <div 
-                              className="w-6 h-6 rounded border" 
-                              style={{ backgroundColor: issue.originalValue }}
-                            />
-                            <code className="text-xs">{issue.originalValue}</code>
-                          </div>
-                          <ChevronRight className="w-4 h-4" />
-                          <div className="flex items-center gap-2">
-                            <span>{t('admin.wcag.suggested')}:</span>
-                            <div 
-                              className="w-6 h-6 rounded border" 
-                              style={{ backgroundColor: issue.suggestedValue }}
-                            />
-                            <code className="text-xs">{issue.suggestedValue}</code>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                          <span>{t('admin.wcag.requiredRatio')}: {issue.requiredRatio}:1</span>
-                          {issue.lightContrast !== undefined && (
-                            <>
-                              <span className="text-muted-foreground">|</span>
-                              <span className={issue.lightContrast < 4.5 ? 'text-destructive' : 'text-green-500'}>
-                                Light: {issue.lightContrast}:1
-                              </span>
-                              <span className={issue.darkContrast < 4.5 ? 'text-destructive' : 'text-green-500'}>
-                                Dark: {issue.darkContrast}:1
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-6">
+                    {renderModeSection('light', lightIssues, Sun, t('admin.wcag.lightMode'))}
+                    {renderModeSection('dark', darkIssues, Moon, t('admin.wcag.darkMode'))}
                   </div>
                   
                   <Button

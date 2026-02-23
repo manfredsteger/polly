@@ -45,8 +45,8 @@ describe('WCAG Color Contrast Audit', () => {
     }
   });
 
-  describe('findAccessibleColor logic (via audit endpoint)', () => {
-    it('should return suggestedValue DIFFERENT from originalValue for non-compliant colors', async () => {
+  describe('Per-mode audit (separate light/dark issues)', () => {
+    it('should return separate issues for light and dark modes', async () => {
       await storage.setCustomizationSettings({
         theme: {
           primaryColor: '#f97316',
@@ -61,10 +61,7 @@ describe('WCAG Color Contrast Audit', () => {
         .post('/api/v1/admin/wcag/audit')
         .send({});
 
-      if (response.status === 401) {
-        console.warn('Skipping test - admin auth required');
-        return;
-      }
+      if (response.status === 401) return;
 
       expect(response.status).toBe(200);
       const result = response.body;
@@ -72,101 +69,47 @@ describe('WCAG Color Contrast Audit', () => {
       expect(result.issues.length).toBeGreaterThan(0);
 
       for (const issue of result.issues) {
-        expect(issue.suggestedValue).not.toBe(issue.originalValue);
+        expect(['light', 'dark']).toContain(issue.mode);
+        expect(issue).toHaveProperty('bgColor');
+        expect(issue).toHaveProperty('contrastRatio');
+        expect(issue).toHaveProperty('suggestedValue');
+        expect(issue).toHaveProperty('requiredRatio');
+        expect(issue.requiredRatio).toBe(4.5);
         expect(issue.suggestedValue).toMatch(/^#[0-9a-f]{6}$/i);
-      }
-    });
+        expect(issue.suggestedValue).not.toBe(issue.originalValue);
 
-    it('should check contrast against BOTH light and dark backgrounds', async () => {
-      await storage.setCustomizationSettings({
-        theme: {
-          primaryColor: '#f97316',
-          scheduleColor: '#10b981',
-          surveyColor: '#72BEB7',
-          organizationColor: '#7DB942',
-        },
-        wcag: { enforcementEnabled: false },
-      });
-
-      const response = await adminAgent
-        .post('/api/v1/admin/wcag/audit')
-        .send({});
-
-      if (response.status === 401) return;
-
-      expect(response.status).toBe(200);
-      const result = response.body;
-
-      for (const issue of result.issues) {
-        expect(issue).toHaveProperty('lightContrast');
-        expect(issue).toHaveProperty('darkContrast');
-        expect(issue).toHaveProperty('mode');
-        expect(['light', 'dark', 'both']).toContain(issue.mode);
-        expect(typeof issue.lightContrast).toBe('number');
-        expect(typeof issue.darkContrast).toBe('number');
-      }
-    });
-
-    it('suggested colors should meet 4.5:1 contrast on at least one background', async () => {
-      await storage.setCustomizationSettings({
-        theme: {
-          primaryColor: '#f97316',
-          scheduleColor: '#f97316',
-          surveyColor: '#72BEB7',
-          organizationColor: '#7DB942',
-        },
-        wcag: { enforcementEnabled: false },
-      });
-
-      const response = await adminAgent
-        .post('/api/v1/admin/wcag/audit')
-        .send({});
-
-      if (response.status === 401) return;
-
-      expect(response.status).toBe(200);
-      const result = response.body;
-
-      for (const issue of result.issues) {
-        const lightContrast = calcContrastRatio(issue.suggestedValue, LIGHT_BG);
-        const darkContrast = calcContrastRatio(issue.suggestedValue, DARK_BG);
-
-        const meetsSomeContrast = lightContrast >= 4.5 || darkContrast >= 4.5;
-        expect(meetsSomeContrast).toBe(true);
-      }
-    });
-
-    it('should ideally find colors that work on BOTH backgrounds (dual-mode)', async () => {
-      await storage.setCustomizationSettings({
-        theme: {
-          primaryColor: '#f97316',
-          scheduleColor: '#f97316',
-          surveyColor: '#72BEB7',
-          organizationColor: '#7DB942',
-        },
-        wcag: { enforcementEnabled: false },
-      });
-
-      const response = await adminAgent
-        .post('/api/v1/admin/wcag/audit')
-        .send({});
-
-      if (response.status === 401) return;
-
-      expect(response.status).toBe(200);
-      const result = response.body;
-
-      let dualModeCount = 0;
-      for (const issue of result.issues) {
-        const lightContrast = calcContrastRatio(issue.suggestedValue, LIGHT_BG);
-        const darkContrast = calcContrastRatio(issue.suggestedValue, DARK_BG);
-
-        if (lightContrast >= 4.5 && darkContrast >= 4.5) {
-          dualModeCount++;
+        if (issue.mode === 'light') {
+          expect(issue.bgColor).toBe(LIGHT_BG);
+        } else {
+          expect(issue.bgColor).toBe(DARK_BG);
         }
       }
+    });
 
-      console.log(`[WCAG Test] ${dualModeCount}/${result.issues.length} Vorschläge funktionieren auf beiden Hintergründen`);
+    it('should guarantee each suggestedValue meets 4.5:1 for its specific mode background', async () => {
+      await storage.setCustomizationSettings({
+        theme: {
+          primaryColor: '#f97316',
+          scheduleColor: '#f97316',
+          surveyColor: '#72BEB7',
+          organizationColor: '#7DB942',
+        },
+        wcag: { enforcementEnabled: false },
+      });
+
+      const response = await adminAgent
+        .post('/api/v1/admin/wcag/audit')
+        .send({});
+
+      if (response.status === 401) return;
+
+      expect(response.status).toBe(200);
+      const result = response.body;
+
+      for (const issue of result.issues) {
+        const ratio = calcContrastRatio(issue.suggestedValue, issue.bgColor);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      }
     });
 
     it('should report no issues for already-compliant colors', async () => {
@@ -189,17 +132,45 @@ describe('WCAG Color Contrast Audit', () => {
       expect(response.status).toBe(200);
       const result = response.body;
 
-      const lightOk = result.issues.every(
-        (i: any) => i.lightContrast >= 4.5
-      );
-      if (!lightOk) {
-        console.log('[WCAG Test] Some strong colors still fail on one background - expected for dark-only issues');
+      expect(result.passed).toBe(true);
+      expect(result.issues.length).toBe(0);
+    });
+
+    it('should produce separate light and dark issues for a single color that fails both', async () => {
+      await storage.setCustomizationSettings({
+        theme: {
+          primaryColor: '#808080',
+          scheduleColor: '#166534',
+          surveyColor: '#7e22ce',
+          organizationColor: '#b45309',
+        },
+        wcag: { enforcementEnabled: false },
+      });
+
+      const response = await adminAgent
+        .post('/api/v1/admin/wcag/audit')
+        .send({});
+
+      if (response.status === 401) return;
+
+      expect(response.status).toBe(200);
+      const result = response.body;
+
+      const primaryIssues = result.issues.filter((i: any) => i.token === '--primary');
+
+      const lightRatio = calcContrastRatio('#808080', LIGHT_BG);
+      const darkRatio = calcContrastRatio('#808080', DARK_BG);
+
+      if (lightRatio < 4.5 && darkRatio < 4.5) {
+        expect(primaryIssues.length).toBe(2);
+        const modes = primaryIssues.map((i: any) => i.mode).sort();
+        expect(modes).toEqual(['dark', 'light']);
       }
     });
   });
 
-  describe('Apply Corrections', () => {
-    it('should apply suggested corrections and update theme colors', async () => {
+  describe('Apply Corrections (per-mode overrides)', () => {
+    it('should apply per-mode overrides without changing the base color', async () => {
       await storage.setCustomizationSettings({
         theme: {
           primaryColor: '#f97316',
@@ -228,11 +199,65 @@ describe('WCAG Color Contrast Audit', () => {
       expect(applyRes.body.appliedCorrections).toBeDefined();
       expect(Object.keys(applyRes.body.appliedCorrections).length).toBeGreaterThan(0);
 
-      for (const [token, value] of Object.entries(applyRes.body.appliedCorrections)) {
-        expect(value).not.toBe('#f97316');
+      for (const [key, value] of Object.entries(applyRes.body.appliedCorrections)) {
+        expect(key).toMatch(/:(light|dark)$/);
         expect(typeof value).toBe('string');
         expect(value).toMatch(/^#[0-9a-f]{6}$/i);
       }
+
+      const settings = await storage.getCustomizationSettings();
+      expect(settings.theme?.primaryColor).toBe('#f97316');
+    });
+
+    it('should clear lastAudit after applying corrections', async () => {
+      await storage.setCustomizationSettings({
+        theme: {
+          primaryColor: '#f97316',
+          scheduleColor: '#10b981',
+          surveyColor: '#72BEB7',
+          organizationColor: '#7DB942',
+        },
+        wcag: { enforcementEnabled: false },
+      });
+
+      await adminAgent.post('/api/v1/admin/wcag/audit').send({});
+
+      const applyRes = await adminAgent
+        .post('/api/v1/admin/wcag/apply-corrections')
+        .send({});
+
+      if (applyRes.status === 401) return;
+
+      expect(applyRes.status).toBe(200);
+
+      const secondApplyRes = await adminAgent
+        .post('/api/v1/admin/wcag/apply-corrections')
+        .send({});
+
+      expect(secondApplyRes.status).toBe(400);
+    });
+
+    it('should produce zero issues on re-audit after applying corrections (no infinite loop)', async () => {
+      await storage.setCustomizationSettings({
+        theme: {
+          primaryColor: '#f97316',
+          scheduleColor: '#f97316',
+          surveyColor: '#72BEB7',
+          organizationColor: '#7DB942',
+        },
+        wcag: { enforcementEnabled: false },
+      });
+
+      const auditRes = await adminAgent.post('/api/v1/admin/wcag/audit').send({});
+      if (auditRes.status === 401) return;
+      expect(auditRes.body.issues.length).toBeGreaterThan(0);
+
+      await adminAgent.post('/api/v1/admin/wcag/apply-corrections').send({});
+
+      const reAuditRes = await adminAgent.post('/api/v1/admin/wcag/audit').send({});
+      expect(reAuditRes.status).toBe(200);
+      expect(reAuditRes.body.passed).toBe(true);
+      expect(reAuditRes.body.issues.length).toBe(0);
     });
 
     it('should return error when no audit has been run', async () => {

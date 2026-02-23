@@ -490,6 +490,15 @@ export const themeSettingsSchema = z.object({
   mutedColor: z.string().default('#64748b'), // Slate - muted/secondary text
   neutralColor: z.string().default('#f1f5f9'), // Light gray - backgrounds, borders
   
+  primaryColorLight: z.string().optional(),
+  primaryColorDark: z.string().optional(),
+  scheduleColorLight: z.string().optional(),
+  scheduleColorDark: z.string().optional(),
+  surveyColorLight: z.string().optional(),
+  surveyColorDark: z.string().optional(),
+  organizationColorLight: z.string().optional(),
+  organizationColorDark: z.string().optional(),
+
   // Mode setting
   defaultThemeMode: themePreferenceSchema.default('system'), // System default theme mode
   
@@ -629,9 +638,11 @@ export type CalendarSettings = z.infer<typeof calendarSettingsSchema>;
 export const wcagAuditIssueSchema = z.object({
   token: z.string(), // CSS variable name, e.g. "--primary"
   originalValue: z.string(), // Original hex color
-  contrastRatio: z.number(), // Calculated contrast ratio
+  mode: z.enum(['light', 'dark']), // Which mode fails contrast
+  bgColor: z.string(), // Background color checked against
+  contrastRatio: z.number(), // Calculated contrast ratio against bgColor
   requiredRatio: z.number(), // Required ratio (4.5:1 for normal text)
-  suggestedValue: z.string(), // WCAG-compliant hex color
+  suggestedValue: z.string(), // WCAG-compliant hex color for this specific mode
 });
 
 export const wcagAuditResultSchema = z.object({

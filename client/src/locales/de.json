@@ -2152,7 +2152,12 @@
       "requiredRatio": "Erforderlich",
       "applyCorrections": "Vorgeschlagene Korrekturen anwenden",
       "correctionsApplied": "Korrekturen angewendet",
-      "colorsUpdated": "Die Farbwerte wurden aktualisiert und erfüllen nun die WCAG AA Anforderungen."
+      "colorsUpdated": "Die Farbwerte wurden aktualisiert und erfüllen nun die WCAG AA Anforderungen.",
+      "lightMode": "Light Mode",
+      "darkMode": "Dark Mode",
+      "failsInMode": "Nicht bestanden in {{mode}}",
+      "passesInMode": "Bestanden in {{mode}}",
+      "perModeCorrections": "Korrekturen werden pro Modus (Light/Dark) angewandt"
     },
     "matrix": {
       "saved": "Matrix-Einstellungen wurden gespeichert.",

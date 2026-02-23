@@ -266,10 +266,13 @@ router.post('/upload/image', imageService.getUploadMiddleware().single('image'),
   const result = await imageService.processUpload(req.file, scanContext);
   
   if (!result.success) {
-    const statusCode = result.virusName ? 422 : 500;
+    let statusCode = 500;
+    if (result.virusName) statusCode = 422;
+    else if (result.scannerUnavailable) statusCode = 503;
     return res.status(statusCode).json({ 
       error: result.error,
       virusName: result.virusName,
+      scannerUnavailable: result.scannerUnavailable,
     });
   }
   

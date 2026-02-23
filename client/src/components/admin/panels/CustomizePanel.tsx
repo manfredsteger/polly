@@ -154,7 +154,27 @@ export function CustomizePanel() {
         credentials: 'include',
       });
       
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.virusName) {
+          toast({
+            title: t('imageUpload.virusDetected'),
+            description: t('imageUpload.virusBlocked', { virusName: errorData.virusName }),
+            variant: "destructive",
+            duration: 8000,
+          });
+          return;
+        }
+        if (errorData.scannerUnavailable || response.status === 503) {
+          toast({
+            title: t('imageUpload.scannerUnavailable'),
+            description: t('imageUpload.scannerUnavailableDescription'),
+            variant: "destructive",
+          });
+          return;
+        }
+        throw new Error('Upload failed');
+      }
       
       const data = await response.json();
       setBrandingSettings({ ...brandingSettings, logoUrl: data.logoUrl });

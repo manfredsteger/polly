@@ -3148,7 +3148,13 @@
     "removeImage": "Remove Image",
     "changeImage": "Change Image",
     "maxFileSize": "Maximum file size: 5 MB",
-    "supportedFormats": "Supported formats: JPG, PNG, GIF, WebP"
+    "supportedFormats": "Supported formats: JPG, PNG, GIF, WebP",
+    "virusDetected": "⚠️ Virus Detected!",
+    "virusBlocked": "The file was blocked because a virus was detected: {{virusName}}. The file was not uploaded. Please use a safe file.",
+    "scannerUnavailable": "Virus Scanner Unavailable",
+    "scannerUnavailableDescription": "The virus scanner is currently unavailable. For security reasons, the upload has been blocked. Please try again later.",
+    "selectImageFile": "Please select an image file",
+    "fileTooLarge": "The file is too large. Maximum size: 5 MB"
   },
   "voteEdit": {
     "votedAs": "Voted as:",

@@ -11,6 +11,7 @@ export interface UploadResult {
   imageUrl?: string;
   error?: string;
   virusName?: string;
+  scannerUnavailable?: boolean;
 }
 
 export interface ScanContext {
@@ -120,6 +121,7 @@ export class ImageService {
           success: false,
           error: scanResult.error || 'Virus erkannt',
           virusName: scanResult.virusName,
+          scannerUnavailable: scanResult.scannerUnavailable,
         };
       }
       

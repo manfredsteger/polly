@@ -103,7 +103,7 @@ export class EmailService {
         
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
         <p style="color: #6c757d; font-size: 14px;">
-          Diese E-Mail wurde automatisch von Polly erstellt.<br>
+          Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
           Open-Source Abstimmungsplattform für Teams
         </p>
       </div>
@@ -181,7 +181,7 @@ export class EmailService {
         
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
         <p style="color: #6c757d; font-size: 14px;">
-          Diese E-Mail wurde automatisch von Polly erstellt.<br>
+          Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
           Open-Source Abstimmungsplattform für Teams
         </p>
       </div>
@@ -192,7 +192,7 @@ export class EmailService {
       to: inviteeEmail,
       subject,
       html,
-      text: `Sie wurden zur Abstimmung "${pollTitle}" eingeladen.\n\nLink: ${pollLink}\n\n${customMessage ? 'Nachricht: ' + customMessage + '\n\n' : ''}Diese E-Mail wurde automatisch von Polly erstellt.`,
+      text: `Sie wurden zur Abstimmung "${pollTitle}" eingeladen.\n\nLink: ${pollLink}\n\n${customMessage ? 'Nachricht: ' + customMessage + '\n\n' : ''}Diese E-Mail wurde automatisch von Polly (https://github.com/manfredsteger/polly) erstellt.`,
       headers: {
         'X-Mailer': 'Polly System',
         'X-Priority': '3',
@@ -247,7 +247,7 @@ export class EmailService {
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
             Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
@@ -269,7 +269,7 @@ ${publicLink}
 ERGEBNISSE ANSEHEN:
 ${resultsLink}
 
-Diese E-Mail wurde automatisch von Polly erstellt.
+Diese E-Mail wurde automatisch von Polly (https://github.com/manfredsteger/polly) erstellt.
 Open-Source Abstimmungsplattform für Teams`,
         headers: {
           'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
@@ -336,7 +336,7 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
             Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
@@ -347,7 +347,7 @@ Open-Source Abstimmungsplattform für Teams`,
         to: recipientEmail,
         subject,
         html,
-        text: `Erinnerung: Ihre Teilnahme wird benötigt\n\n${senderName} erinnert Sie an die Umfrage "${pollTitle}".\n\n${expiresAt ? 'Die Umfrage endet am ' + new Date(expiresAt).toLocaleDateString('de-DE') + '!\n\n' : ''}Link: ${pollLink}\n\nDiese E-Mail wurde automatisch von Polly erstellt.`,
+        text: `Erinnerung: Ihre Teilnahme wird benötigt\n\n${senderName} erinnert Sie an die Umfrage "${pollTitle}".\n\n${expiresAt ? 'Die Umfrage endet am ' + new Date(expiresAt).toLocaleDateString('de-DE') + '!\n\n' : ''}Link: ${pollLink}\n\nDiese E-Mail wurde automatisch von Polly (https://github.com/manfredsteger/polly) erstellt.`,
         headers: {
           'X-Mailer': 'Polly System',
           'X-Priority': '3',
@@ -393,7 +393,7 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <p>${greeting}</p>
           
-          <p>Sie haben angefordert, Ihr Passwort für Ihren Polly Account zurückzusetzen.</p>
+          <p>Sie haben angefordert, Ihr Passwort für Ihren <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> Account zurückzusetzen.</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p>Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben:</p>
@@ -406,7 +406,7 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
             Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
@@ -444,7 +444,7 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <p>Hallo,</p>
           
-          <p>Sie haben angefordert, Ihre E-Mail-Adresse für Ihren Polly Account zu ändern.</p>
+          <p>Sie haben angefordert, Ihre E-Mail-Adresse für Ihren <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> Account zu ändern.</p>
           
           <p><strong>Alte E-Mail:</strong> ${oldEmail}<br>
           <strong>Neue E-Mail:</strong> ${newEmail}</p>
@@ -460,7 +460,7 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
             Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
@@ -497,13 +497,13 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <p>Hallo,</p>
           
-          <p>Ihr Passwort für Ihren Polly Account wurde erfolgreich geändert.</p>
+          <p>Ihr Passwort für Ihren <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> Account wurde erfolgreich geändert.</p>
           
           <p style="color: #6c757d;">Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Support.</p>
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
             Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
@@ -514,7 +514,7 @@ Open-Source Abstimmungsplattform für Teams`,
         to: email,
         subject,
         html,
-        text: `Passwort wurde geändert\n\nIhr Passwort für Ihren Polly Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Support.`,
+        text: `Passwort wurde geändert\n\nIhr Passwort für Ihren Polly (https://github.com/manfredsteger/polly) Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Support.`,
         headers: {
           'X-Mailer': 'Polly System',
           'X-Priority': '3',
@@ -785,7 +785,7 @@ Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
         
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
         <p style="color: #6c757d; font-size: 12px; text-align: center;">
-          Automatische Sicherheitsbenachrichtigung von Polly<br>
+          Automatische Sicherheitsbenachrichtigung von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a><br>
           Open-Source Abstimmungsplattform für Teams
         </p>
       </div>
@@ -843,20 +843,20 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
         from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
         to: email,
         subject: '[Polly] Ihr Passwort wurde geändert',
-        text: `${greeting}\n\nIhr Passwort für Ihren Polly Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.`,
+        text: `${greeting}\n\nIhr Passwort für Ihren Polly (https://github.com/manfredsteger/polly) Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #FF6B35;">Passwort erfolgreich geändert</h2>
             
             <p>${greeting}</p>
             
-            <p>Ihr Passwort für Ihren Polly Account wurde erfolgreich geändert.</p>
+            <p>Ihr Passwort für Ihren <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> Account wurde erfolgreich geändert.</p>
             
             <p style="color: #dc3545; font-weight: bold;">Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.</p>
             
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
             <p style="color: #6c757d; font-size: 14px;">
-              Diese E-Mail wurde automatisch von Polly erstellt.<br>
+              Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
               Open-Source Abstimmungsplattform für Teams
             </p>
           </div>
@@ -880,11 +880,11 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
       const subject = '[Polly] Willkommen bei Polly!';
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #FF6B35;">Willkommen bei Polly!</h2>
+          <h2 style="color: #FF6B35;">Willkommen bei <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a>!</h2>
           
           <p>Hallo ${userName},</p>
           
-          <p>vielen Dank für Ihre Registrierung bei Polly!</p>
+          <p>vielen Dank für Ihre Registrierung bei <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a>!</p>
           
           <p>Ihr Account wurde erfolgreich erstellt. Bitte bestätigen Sie Ihre E-Mail-Adresse, indem Sie auf den folgenden Button klicken:</p>
           
@@ -894,11 +894,11 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
           
           <p><strong>Dieser Link ist 24 Stunden gültig.</strong></p>
           
-          <p>Nach der Bestätigung können Sie alle Funktionen von Polly nutzen.</p>
+          <p>Nach der Bestätigung können Sie alle Funktionen von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> nutzen.</p>
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
           <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von Polly erstellt.<br>
+            Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
             Open-Source Abstimmungsplattform für Teams
           </p>
         </div>
@@ -909,7 +909,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
         to: email,
         subject,
         html,
-        text: `Willkommen bei Polly!\n\nHallo ${userName},\n\nvielen Dank für Ihre Registrierung bei Polly!\n\nIhr Account wurde erfolgreich erstellt. Bitte bestätigen Sie Ihre E-Mail-Adresse:\n${verificationLink}\n\nDieser Link ist 24 Stunden gültig.\n\nNach der Bestätigung können Sie alle Funktionen von Polly nutzen.`,
+        text: `Willkommen bei Polly (https://github.com/manfredsteger/polly)!\n\nHallo ${userName},\n\nvielen Dank für Ihre Registrierung bei Polly!\n\nIhr Account wurde erfolgreich erstellt. Bitte bestätigen Sie Ihre E-Mail-Adresse:\n${verificationLink}\n\nDieser Link ist 24 Stunden gültig.\n\nNach der Bestätigung können Sie alle Funktionen von Polly nutzen.`,
         headers: {
           'X-Mailer': 'Polly System',
           'X-Priority': '3',

@@ -1207,49 +1207,174 @@ router.put('/customization', requireAdmin, async (req, res) => {
 
 // ============== WCAG ==============
 
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '');
+  return [
+    parseInt(clean.substring(0, 2), 16),
+    parseInt(clean.substring(2, 4), 16),
+    parseInt(clean.substring(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return '#' + [r, g, b].map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return [h * 360, s * 100, l * 100];
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  h /= 360; s /= 100; l /= 100;
+  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return [
+    Math.round(hue2rgb(p, q, h + 1/3) * 255),
+    Math.round(hue2rgb(p, q, h) * 255),
+    Math.round(hue2rgb(p, q, h - 1/3) * 255),
+  ];
+}
+
+function relativeLuminance(hex: string): number {
+  const rgb = hex.replace('#', '').match(/.{2}/g)?.map(x => {
+    const v = parseInt(x, 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }) || [0, 0, 0];
+  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+}
+
+function contrastRatio(fg: string, bg: string): number {
+  const l1 = relativeLuminance(fg);
+  const l2 = relativeLuminance(bg);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+function findAccessibleColor(hexColor: string, bgColor: string, targetRatio: number = 4.5): string {
+  const currentRatio = contrastRatio(hexColor, bgColor);
+  if (currentRatio >= targetRatio) return hexColor;
+
+  const [r, g, b] = hexToRgb(hexColor);
+  const [h, s, l] = rgbToHsl(r, g, b);
+  const bgLum = relativeLuminance(bgColor);
+  const isDarkBg = bgLum < 0.5;
+
+  for (let step = 1; step <= 100; step++) {
+    const newL = isDarkBg
+      ? Math.min(100, l + step)
+      : Math.max(0, l - step);
+    const [nr, ng, nb] = hslToRgb(h, s, newL);
+    const candidate = rgbToHex(nr, ng, nb);
+    if (contrastRatio(candidate, bgColor) >= targetRatio) {
+      return candidate;
+    }
+  }
+
+  return isDarkBg ? '#ffffff' : '#000000';
+}
+
+function findDualModeAccessibleColor(hexColor: string, lightBg: string, darkBg: string, targetRatio: number = 4.5): string | null {
+  const [r, g, b] = hexToRgb(hexColor);
+  const [h, s, l] = rgbToHsl(r, g, b);
+
+  let bestCandidate: string | null = null;
+  let bestDiff = Infinity;
+
+  for (let testL = 0; testL <= 100; testL++) {
+    const [nr, ng, nb] = hslToRgb(h, s, testL);
+    const candidate = rgbToHex(nr, ng, nb);
+    const lightRatio = contrastRatio(candidate, lightBg);
+    const darkRatio = contrastRatio(candidate, darkBg);
+
+    if (lightRatio >= targetRatio && darkRatio >= targetRatio) {
+      const diff = Math.abs(testL - l);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestCandidate = candidate;
+      }
+    }
+  }
+
+  return bestCandidate;
+}
+
+const LIGHT_BG = '#ffffff';
+const DARK_BG = '#0f172a';
+
 router.post('/wcag/audit', requireAdmin, async (req, res) => {
   try {
     const settings = await storage.getCustomizationSettings();
     const theme = settings.theme || {};
-    
+
     const issues: Array<{
       token: string;
       originalValue: string;
       contrastRatio: number;
       requiredRatio: number;
       suggestedValue: string;
+      mode: 'light' | 'dark' | 'both';
+      lightContrast: number;
+      darkContrast: number;
     }> = [];
-    
-    const checkContrast = (fg: string, bg: string): number => {
-      const luminance = (hex: string): number => {
-        const rgb = hex.replace('#', '').match(/.{2}/g)?.map(x => {
-          const v = parseInt(x, 16) / 255;
-          return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-        }) || [0, 0, 0];
-        return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
-      };
-      const l1 = luminance(fg);
-      const l2 = luminance(bg);
-      return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-    };
-    
-    const whiteBg = '#ffffff';
+
     const colorsToCheck = [
       { token: '--primary', value: theme.primaryColor || '#4f46e5' },
       { token: '--color-schedule', value: theme.scheduleColor || '#10b981' },
       { token: '--color-survey', value: theme.surveyColor || '#6366f1' },
       { token: '--color-organization', value: theme.organizationColor || '#f59e0b' },
     ];
-    
+
     for (const color of colorsToCheck) {
-      const contrast = checkContrast(color.value, whiteBg);
-      if (contrast < 4.5) {
+      const lightContrast = contrastRatio(color.value, LIGHT_BG);
+      const darkContrast = contrastRatio(color.value, DARK_BG);
+      const lightFail = lightContrast < 4.5;
+      const darkFail = darkContrast < 4.5;
+
+      if (lightFail || darkFail) {
+        const dualModeFix = findDualModeAccessibleColor(color.value, LIGHT_BG, DARK_BG);
+        let suggestedValue: string;
+        let mode: 'light' | 'dark' | 'both';
+
+        if (lightFail && darkFail) {
+          mode = 'both';
+          suggestedValue = dualModeFix || findAccessibleColor(color.value, DARK_BG);
+        } else if (darkFail) {
+          mode = 'dark';
+          suggestedValue = dualModeFix || findAccessibleColor(color.value, DARK_BG);
+        } else {
+          mode = 'light';
+          suggestedValue = dualModeFix || findAccessibleColor(color.value, LIGHT_BG);
+        }
+
+        const worstContrast = Math.min(lightContrast, darkContrast);
+
         issues.push({
           token: color.token,
           originalValue: color.value,
-          contrastRatio: Math.round(contrast * 100) / 100,
+          contrastRatio: Math.round(worstContrast * 100) / 100,
           requiredRatio: 4.5,
-          suggestedValue: color.value,
+          suggestedValue,
+          mode,
+          lightContrast: Math.round(lightContrast * 100) / 100,
+          darkContrast: Math.round(darkContrast * 100) / 100,
         });
       }
     }
@@ -1286,17 +1411,15 @@ router.post('/wcag/apply-corrections', requireAdmin, async (req, res) => {
     const appliedCorrections: Record<string, string> = {};
 
     for (const issue of lastAudit.issues) {
-      if (issue.token === '--primary') {
-        theme.primaryColor = issue.suggestedValue;
-        appliedCorrections[issue.token] = issue.suggestedValue;
-      } else if (issue.token === '--color-schedule') {
-        theme.scheduleColor = issue.suggestedValue;
-        appliedCorrections[issue.token] = issue.suggestedValue;
-      } else if (issue.token === '--color-survey') {
-        theme.surveyColor = issue.suggestedValue;
-        appliedCorrections[issue.token] = issue.suggestedValue;
-      } else if (issue.token === '--color-organization') {
-        theme.organizationColor = issue.suggestedValue;
+      const tokenMap: Record<string, string> = {
+        '--primary': 'primaryColor',
+        '--color-schedule': 'scheduleColor',
+        '--color-survey': 'surveyColor',
+        '--color-organization': 'organizationColor',
+      };
+      const themeKey = tokenMap[issue.token];
+      if (themeKey) {
+        (theme as any)[themeKey] = issue.suggestedValue;
         appliedCorrections[issue.token] = issue.suggestedValue;
       }
     }

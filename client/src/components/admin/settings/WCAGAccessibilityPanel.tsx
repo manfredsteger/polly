@@ -235,8 +235,19 @@ export function WCAGAccessibilityPanel({ onBack }: { onBack: () => void }) {
                             <code className="text-xs">{issue.suggestedValue}</code>
                           </div>
                         </div>
-                        <div className="text-xs text-muted-foreground mt-2">
-                          {t('admin.wcag.requiredRatio')}: {issue.requiredRatio}:1
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                          <span>{t('admin.wcag.requiredRatio')}: {issue.requiredRatio}:1</span>
+                          {issue.lightContrast !== undefined && (
+                            <>
+                              <span className="text-muted-foreground">|</span>
+                              <span className={issue.lightContrast < 4.5 ? 'text-destructive' : 'text-green-500'}>
+                                Light: {issue.lightContrast}:1
+                              </span>
+                              <span className={issue.darkContrast < 4.5 ? 'text-destructive' : 'text-green-500'}>
+                                Dark: {issue.darkContrast}:1
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}

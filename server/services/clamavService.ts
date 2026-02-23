@@ -241,13 +241,14 @@ export class ClamAVService {
       client.on('error', (error: NodeJS.ErrnoException) => {
         cleanup();
         if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'EHOSTUNREACH') {
-          console.warn(`ClamAV daemon not reachable at ${config.host}:${config.port} - allowing upload without scan`);
+          console.error(`[ClamAV] SECURITY: Scanner nicht erreichbar (${config.host}:${config.port}) - Upload BLOCKIERT (fail-secure)`);
           resolve({
-            isClean: true,
+            isClean: false,
             scannerUnavailable: true,
+            error: `Virenscanner nicht erreichbar (${config.host}:${config.port}). Upload aus Sicherheitsgründen blockiert. Bitte ClamAV-Daemon starten oder Scanner deaktivieren.`,
           });
         } else {
-          console.error(`ClamAV connection error: ${error.message}`);
+          console.error(`[ClamAV] Connection error: ${error.message}`);
           resolve({
             isClean: false,
             error: `Connection error: ${error.message}`,
@@ -257,10 +258,11 @@ export class ClamAVService {
 
       client.on('timeout', () => {
         cleanup();
-        console.warn(`ClamAV timeout at ${config.host}:${config.port} - allowing upload without scan`);
+        console.error(`[ClamAV] SECURITY: Scanner Timeout (${config.host}:${config.port}) - Upload BLOCKIERT (fail-secure)`);
         resolve({
-          isClean: true,
+          isClean: false,
           scannerUnavailable: true,
+          error: `Virenscanner-Timeout (${config.host}:${config.port}). Upload aus Sicherheitsgründen blockiert. Bitte ClamAV-Daemon prüfen oder Scanner deaktivieren.`,
         });
       });
 
@@ -280,11 +282,21 @@ export class ClamAVService {
     startDate?: Date;
     endDate?: Date;
   } = {}): Promise<{ logs: any[]; total: number }> {
-    return { logs: [], total: 0 };
+    try {
+      return await storage.getClamavScanLogs(options);
+    } catch (error) {
+      console.error('[ClamAV] Fehler beim Laden der Scan-Logs:', error);
+      return { logs: [], total: 0 };
+    }
   }
 
   async getScanLog(id: number): Promise<any | null> {
-    return null;
+    try {
+      return await storage.getClamavScanLog(id) || null;
+    } catch (error) {
+      console.error('[ClamAV] Fehler beim Laden des Scan-Logs:', error);
+      return null;
+    }
   }
 
   async getScanStats(): Promise<{
@@ -294,13 +306,18 @@ export class ClamAVService {
     errorScans: number;
     lastScanAt: Date | null;
   }> {
-    return {
-      totalScans: 0,
-      cleanScans: 0,
-      infectedScans: 0,
-      errorScans: 0,
-      lastScanAt: null,
-    };
+    try {
+      return await storage.getClamavScanStats();
+    } catch (error) {
+      console.error('[ClamAV] Fehler beim Laden der Scan-Statistiken:', error);
+      return {
+        totalScans: 0,
+        cleanScans: 0,
+        infectedScans: 0,
+        errorScans: 0,
+        lastScanAt: null,
+      };
+    }
   }
 }
 

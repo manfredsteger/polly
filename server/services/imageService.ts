@@ -69,10 +69,9 @@ export class ImageService {
       const scanResult = await clamavService.scanBuffer(file.buffer, file.originalname);
       const scanDuration = Date.now() - scanStartTime;
       
-      // Determine scan status - differentiate between actual scans and scanner unavailable
       let scanStatus: 'clean' | 'infected' | 'error' | 'skipped';
       if (scanResult.scannerUnavailable) {
-        scanStatus = 'skipped';
+        scanStatus = 'error';
       } else if (scanResult.isClean) {
         scanStatus = 'clean';
       } else if (scanResult.virusName) {
@@ -88,8 +87,8 @@ export class ImageService {
         mimeType: file.mimetype,
         scanStatus,
         virusName: scanResult.virusName || null,
-        errorMessage: scanResult.scannerUnavailable ? 'Scanner nicht erreichbar - Upload erlaubt' : (scanResult.error || null),
-        actionTaken: (scanResult.isClean || scanResult.scannerUnavailable) ? 'allowed' : 'blocked',
+        errorMessage: scanResult.scannerUnavailable ? 'Scanner nicht erreichbar - Upload blockiert (fail-secure)' : (scanResult.error || null),
+        actionTaken: scanResult.isClean ? 'allowed' : 'blocked',
         uploaderUserId: context?.userId || null,
         uploaderEmail: context?.email || null,
         requestIp: context?.requestIp || null,

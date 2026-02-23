@@ -257,7 +257,13 @@ router.post('/upload/image', imageService.getUploadMiddleware().single('image'),
     return res.status(400).json({ error: 'No image file provided' });
   }
   
-  const result = await imageService.processUpload(req.file);
+  const scanContext = {
+    userId: (req as any).session?.userId || undefined,
+    email: (req as any).session?.email || undefined,
+    requestIp: req.ip || req.socket.remoteAddress || undefined,
+  };
+  
+  const result = await imageService.processUpload(req.file, scanContext);
   
   if (!result.success) {
     const statusCode = result.virusName ? 422 : 500;

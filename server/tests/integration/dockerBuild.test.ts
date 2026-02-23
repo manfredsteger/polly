@@ -4,9 +4,9 @@ import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 
 const PROJECT_ROOT = path.join(__dirname, '../../..');
-const isRunningInDocker = existsSync('/.dockerenv') || existsSync('/app/docker-entrypoint.sh');
+const isRunningInPollyDocker = existsSync('/app/docker-entrypoint.sh');
 
-describe.skipIf(isRunningInDocker)('Docker Build Configuration Tests', () => {
+describe.skipIf(isRunningInPollyDocker)('Docker Build Configuration Tests', () => {
   describe('Required Files', () => {
     it('should have Dockerfile in project root', () => {
       const dockerfilePath = path.join(PROJECT_ROOT, 'Dockerfile');
@@ -182,7 +182,7 @@ describe.skipIf(isRunningInDocker)('Docker Build Configuration Tests', () => {
   });
 });
 
-describe.skipIf(isRunningInDocker)('Image Size Estimation', () => {
+describe.skipIf(isRunningInPollyDocker)('Image Size Estimation', () => {
   it('should have reasonable number of dependencies', () => {
     const packageJson = JSON.parse(
       readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf-8')

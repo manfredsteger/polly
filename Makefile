@@ -4,7 +4,6 @@
 # Configuration
 IMAGE_NAME ?= manfredsteger/polly
 IMAGE_TAG ?= latest
-DOCKER_REGISTRY ?= docker.io
 FULL_IMAGE_NAME = $(IMAGE_NAME):$(IMAGE_TAG)
 
 # Colors for output
@@ -178,12 +177,10 @@ db-reset:
 
 login:
         @echo "$(GREEN)Logging into Docker Hub...$(NC)"
-        docker login $(DOCKER_REGISTRY)
+        docker login
 
 tag:
-        @echo "$(GREEN)Tagging image for registry...$(NC)"
-        docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_NAME):$(IMAGE_TAG)
-        @echo "$(GREEN)Tagged: $(IMAGE_NAME):$(IMAGE_TAG)$(NC)"
+        @echo "$(GREEN)Image already tagged as $(IMAGE_NAME):$(IMAGE_TAG)$(NC)"
 
 push:
         @echo "$(GREEN)Pushing image to registry...$(NC)"

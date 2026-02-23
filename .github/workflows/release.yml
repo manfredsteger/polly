@@ -51,6 +51,18 @@ jobs:
       - name: Validate Translations
         run: node scripts/validate-translations.cjs
 
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U test; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
+        run: npm run db:push
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
@@ -196,4 +208,4 @@ jobs:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           git remote add gitlab https://oauth2:${GITLAB_TOKEN}@projekte.services.kita.bayern/entwicklung/termine/polly.git 2>/dev/null || true
-          git push gitlab --tags --force 2>/dev/null || echo "GitLab mirror push skipped (token not set or access denied)"
+          git push gitlab ${GITHUB_REF} 2>/dev/null || echo "GitLab mirror push skipped (token not set or access denied)"

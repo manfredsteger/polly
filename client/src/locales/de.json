@@ -527,6 +527,7 @@
       "buttons": {
         "cancel": "Abbrechen",
         "add": "Hinzufügen",
+        "finalize": "Fertigstellen",
         "sameSlotAllDays": "Gleiche Slots für alle Tage",
         "individualSlotsPerDay": "Individuelle Slots pro Tag",
         "sameForAllDays": "Gleiche Slots für alle Tage",
@@ -2503,6 +2504,7 @@
     "buttons": {
       "cancel": "Abbrechen",
       "add": "Hinzufügen",
+      "finalize": "Fertigstellen",
       "sameForAllDays": "Gleiche Slots für alle Tage",
       "individualPerDay": "Individuelle Slots pro Tag"
     },

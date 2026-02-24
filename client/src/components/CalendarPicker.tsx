@@ -603,8 +603,8 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 className="flex-1 polly-button-schedule"
                 data-testid="button-add-timeslot"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                {t('calendarPicker.buttons.add')}
+                <Check className="w-4 h-4 mr-2" />
+                {t('calendarPicker.buttons.finalize')}
               </Button>
             </div>
           </div>
@@ -870,8 +870,8 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 className="flex-1 polly-button-schedule"
                 data-testid="button-confirm-template"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                {t('calendarPicker.buttons.add')}
+                <Check className="w-4 h-4 mr-2" />
+                {t('calendarPicker.buttons.finalize')}
               </Button>
             </div>
           </div>
@@ -962,8 +962,8 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                 className="flex-1 polly-button-schedule"
                 data-testid="button-confirm-weekday"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                {t('calendarPicker.buttons.add')}
+                <Check className="w-4 h-4 mr-2" />
+                {t('calendarPicker.buttons.finalize')}
               </Button>
             </div>
           </div>

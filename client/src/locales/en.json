@@ -527,6 +527,7 @@
       "buttons": {
         "cancel": "Cancel",
         "add": "Add",
+        "finalize": "Finalize",
         "sameSlotAllDays": "Same slots for all days",
         "individualSlotsPerDay": "Individual slots per day",
         "sameForAllDays": "Same slots for all days",
@@ -2503,6 +2504,7 @@
     "buttons": {
       "cancel": "Cancel",
       "add": "Add",
+      "finalize": "Finalize",
       "sameForAllDays": "Same slots for all days",
       "individualPerDay": "Individual slots per day"
     },

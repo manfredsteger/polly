@@ -228,7 +228,7 @@ prune:
 
 test:
 	@echo "$(GREEN)Running unit & integration tests...$(NC)"
-	npx vitest run --pool=forks --poolOptions.forks.singleFork
+	npx vitest run --no-file-parallelism
 
 test-e2e:
 	@echo "$(GREEN)Running E2E tests with Playwright...$(NC)"
@@ -251,7 +251,7 @@ test-pdf:
 
 test-docker:
 	@echo "$(GREEN)Running tests in Docker...$(NC)"
-	docker compose exec app npx vitest run --pool=forks --poolOptions.forks.singleFork
+	docker compose exec app npx vitest run --no-file-parallelism
 
 test-pdf-docker:
 	@echo "$(GREEN)Running PDF export tests in Docker...$(NC)"
@@ -356,7 +356,7 @@ ci:
 	@echo "$(YELLOW)Step 2/5: Validate translations...$(NC)"
 	node scripts/validate-translations.cjs
 	@echo "$(YELLOW)Step 3/5: Unit tests...$(NC)"
-	npx vitest run --pool=forks --poolOptions.forks.singleFork || true
+	npx vitest run --no-file-parallelism || true
 	@echo "$(YELLOW)Step 4/5: Build...$(NC)"
 	npm run build
 	@echo "$(YELLOW)Step 5/5: E2E tests...$(NC)"
@@ -365,7 +365,7 @@ ci:
 
 ci-docker:
 	@echo "$(GREEN)Running CI in Docker environment...$(NC)"
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm app sh -c "npx tsc --noEmit && npx vitest run --pool=forks --poolOptions.forks.singleFork && npm run build"
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm app sh -c "npx tsc --noEmit && npx vitest run --no-file-parallelism && npm run build"
 
 # ============================================
 # Version Management

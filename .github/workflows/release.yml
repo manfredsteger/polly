@@ -67,7 +67,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
-        run: npx vitest run --pool=forks --poolOptions.forks.singleFork
+        run: npx vitest run --no-file-parallelism
 
       - name: Build
         run: npm run build

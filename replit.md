@@ -142,7 +142,7 @@ make complete
 ### Release Process
 1. Create annotated tag: `git tag -a v0.1.0-beta.1 -m "Beta Release"`
 2. Push tag: `git push origin v0.1.0-beta.1`
-3. Pipeline runs automatically: validate → Docker build+push → GitHub Release → GitLab mirror
+3. Pipeline runs automatically: validate → Docker build+push → Docker Hub README sync → GitHub Release → GitLab mirror
 4. Required GitHub Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, optionally `GITLAB_TOKEN`
 
 ### Docker Image: `manfredsteger/polly`

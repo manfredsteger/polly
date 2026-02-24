@@ -9,7 +9,7 @@ Im GitHub Repository unter **Settings → Secrets and variables → Actions** m�
 | Secret | Beschreibung |
 |--------|-------------|
 | `DOCKERHUB_USERNAME` | Docker Hub Benutzername (z.B. `manfredsteger`) |
-| `DOCKERHUB_TOKEN` | Docker Hub Access Token ([hier erstellen](https://hub.docker.com/settings/security)) |
+| `DOCKERHUB_TOKEN` | Docker Hub Access Token mit Read/Write-Berechtigung ([hier erstellen](https://hub.docker.com/settings/security)) |
 
 ### 2. GitLab Mirror (optional)
 
@@ -41,8 +41,9 @@ git push origin v0.1.0-beta.1
 
 1. **Validate**: TypeScript Check, Übersetzungen validieren, Unit-Tests ausführen, Build prüfen
 2. **Docker**: Image bauen und auf Docker Hub pushen
-3. **GitHub Release**: Release mit Changelog auf GitHub erstellen
-4. **GitLab Mirror**: Tags automatisch zu GitLab spiegeln
+3. **Docker Hub README**: `DOCKERHUB.md` automatisch als Docker Hub Repository-Beschreibung hochladen
+4. **GitHub Release**: Release mit Changelog auf GitHub erstellen
+5. **GitLab Mirror**: Tags automatisch zu GitLab spiegeln
 
 ### Docker Image Tags
 

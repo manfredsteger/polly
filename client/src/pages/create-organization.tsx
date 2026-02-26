@@ -110,6 +110,30 @@ export default function CreateOrganization() {
     }
   }, []);
 
+  // Read AI suggestion from sessionStorage if present
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ai-suggestion");
+    if (!raw) return;
+    try {
+      const suggestion = JSON.parse(raw);
+      if (suggestion.pollType !== "organization") return;
+      sessionStorage.removeItem("ai-suggestion");
+      if (suggestion.title) setTitle(suggestion.title);
+      if (suggestion.description) setDescription(suggestion.description);
+      if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
+        setSlots(suggestion.options.map((text: string, i: number) => {
+          const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+          return {
+            text,
+            startTime: timeMatch ? timeMatch[1] : undefined,
+            endTime: timeMatch ? timeMatch[2] : undefined,
+            order: i,
+          };
+        }));
+      }
+    } catch (_) {}
+  }, []);
+
   const combineDateTime = (date: string, time: string): string | undefined => {
     if (!date || !time) return undefined;
     if (time.includes('T')) return undefined;

@@ -33,22 +33,38 @@ export interface PollSuggestion {
   title: string;
   description: string;
   options: string[];
+  pollType: "schedule" | "survey" | "organization";
 }
 
-const SYSTEM_PROMPT = `You are a helpful assistant for creating polls and surveys. 
-The user will describe what kind of poll they want, and you must respond ONLY with a valid JSON object.
+const SYSTEM_PROMPT = `You are a helpful assistant for creating polls, surveys and organization lists.
+The user will describe what they need, and you must respond ONLY with a valid JSON object.
 Do NOT include any explanation or markdown — just the raw JSON.
+
+Decide which poll type fits best:
+- "schedule": finding a date/time (Terminumfrage) — when users want to coordinate meeting times, events, appointments
+- "survey": collecting opinions/votes on topics (Umfrage) — when users want to ask questions or gather feedback
+- "organization": sign-up sheets with time slots and capacity (Orga-Liste) — when users need helpers, volunteers, or slot booking
+
 The JSON must have this exact structure:
 {
-  "title": "Poll title here",
-  "description": "Brief description here",
-  "options": ["Option 1", "Option 2", "Option 3", "Option 4"]
+  "pollType": "schedule" | "survey" | "organization",
+  "title": "Title here",
+  "description": "Helpful description of the purpose, max 200 characters",
+  "options": ["Option 1", "Option 2", ...]
 }
-Rules:
-- title: short, clear, max 80 characters
-- description: optional context, max 200 characters, can be empty string
-- options: 2-8 options, concise and distinct
-- Respond in the same language as the user's request (German if German, English if English)`;
+
+Rules per type:
+- schedule: options must be date+time strings in EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
+  Example: ["15.07.2026 09:00 - 10:00", "16.07.2026 14:00 - 15:30", "17.07.2026 10:00 - 11:00"]
+  Use realistic future dates (within the next 2-4 weeks from today). Include 2-5 options.
+- survey: options are answer choices, 2-8 options, concise and distinct
+- organization: options are slot descriptions (e.g. "Aufbau 08:00 - 10:00", "Betreuung 10:00 - 14:00"), 2-8 slots
+
+General rules:
+- title: short and clear, max 80 characters
+- description: explain the purpose well so participants understand what they are voting on, max 200 characters
+- Respond in the same language as the user's request (German if German, English if English)
+- Today's date context: use plausible near-future dates for schedule options`;
 
 export async function createPollFromDescription(
   description: string,
@@ -107,10 +123,14 @@ export async function createPollFromDescription(
         throw new Error("AI_INVALID_STRUCTURE");
       }
 
+      const validTypes = ["schedule", "survey", "organization"];
+      const pollType = validTypes.includes(parsed.pollType) ? parsed.pollType : "survey";
+
       return {
+        pollType: pollType as PollSuggestion["pollType"],
         title: String(parsed.title).slice(0, 80),
         description: String(parsed.description || "").slice(0, 200),
-        options: parsed.options.map((o) => String(o).slice(0, 100)).slice(0, 8),
+        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 8),
       };
     } catch (err: any) {
       lastError = err;

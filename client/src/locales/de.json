@@ -2649,7 +2649,21 @@
     "ctaTitle": "Bereit für bessere Abstimmungen?",
     "ctaDescription": "Starte noch heute mit deiner ersten Umfrage und erlebe, wie einfach Teamkoordination sein kann.",
     "startSchedulePoll": "Terminumfrage starten",
-    "createOrgList": "Orga-Liste erstellen"
+    "createOrgList": "Orga-Liste erstellen",
+    "aiChatHint": "Oder beschreibe einfach, was du brauchst",
+    "aiMicTooltip": "Spracherfassung (kommt bald)",
+    "aiLoginRequired": "Anmeldung erforderlich",
+    "aiLimitReached": "Stundenlimit erreicht",
+    "aiRemaining": "übrig",
+    "aiStart": "Starten",
+    "aiGenerating": "Erstelle...",
+    "aiSuggestion": "Vorschlag",
+    "aiRegenerate": "Neu generieren",
+    "aiTitle": "Titel",
+    "aiDescription": "Beschreibung",
+    "aiOptions": "Optionen",
+    "aiApply": "Übernehmen",
+    "aiError": "KI-Anfrage fehlgeschlagen. Bitte versuche es erneut."
   },
   "pollCreation": {
     "welcomeBack": "Willkommen zurück!",

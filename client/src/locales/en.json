@@ -2649,7 +2649,21 @@
     "ctaTitle": "Ready for better voting?",
     "ctaDescription": "Start your first poll today and experience how easy team coordination can be.",
     "startSchedulePoll": "Start Schedule Poll",
-    "createOrgList": "Create Org List"
+    "createOrgList": "Create Org List",
+    "aiChatHint": "Or just describe what you need",
+    "aiMicTooltip": "Voice input (coming soon)",
+    "aiLoginRequired": "Sign in required",
+    "aiLimitReached": "Hourly limit reached",
+    "aiRemaining": "remaining",
+    "aiStart": "Start",
+    "aiGenerating": "Creating...",
+    "aiSuggestion": "Suggestion",
+    "aiRegenerate": "Regenerate",
+    "aiTitle": "Title",
+    "aiDescription": "Description",
+    "aiOptions": "Options",
+    "aiApply": "Apply",
+    "aiError": "AI request failed. Please try again."
   },
   "pollCreation": {
     "welcomeBack": "Welcome back!",

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, Vote, Clock, Share2, BarChart3, Shield, FileText, Users, CalendarCheck, Zap, ClipboardList } from "lucide-react";
 import { useTranslation } from 'react-i18next';
+import { AiChatWidget } from "@/components/ai/AiChatWidget";
 
 export default function Home() {
   const { t } = useTranslation();
@@ -22,7 +23,7 @@ export default function Home() {
           </p>
           
           {/* Main Action Buttons - Order matches title: abstimmen (Orange), planen (Green), organisieren (Teal) */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-10">
             <Button asChild variant="feature" className="polly-button-schedule wcag-themed-bg text-white text-lg px-8 py-4 h-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.2)]" data-testid="button-create-poll">
               <Link href="/create-poll">
                 <Calendar className="w-5 h-5 mr-3" />
@@ -41,6 +42,11 @@ export default function Home() {
                 {t('home.createOrg')}
               </Link>
             </Button>
+          </div>
+
+          {/* AI Chat Widget */}
+          <div className="mb-16 px-4">
+            <AiChatWidget />
           </div>
         </div>
       </section>

@@ -10,3 +10,4 @@ export { CalendarSettingsPanel } from './CalendarSettingsPanel';
 export { MatrixSettingsPanel } from './MatrixSettingsPanel';
 export { PentestToolsPanel } from './PentestToolsPanel';
 export { WCAGAccessibilityPanel } from './WCAGAccessibilityPanel';
+export { AiSettingsPanel } from './AiSettingsPanel';

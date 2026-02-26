@@ -14,7 +14,8 @@ import {
   Timer,
   Calendar,
   ShieldAlert,
-  Target
+  Target,
+  Bot
 } from "lucide-react";
 import { SettingCard } from "../common/components";
 import type { SettingsPanelId as SettingsPanelType } from "../common/types";
@@ -175,6 +176,26 @@ export function SettingsPanel({
             statusType="neutral"
             onClick={() => onSelectPanel('pentest')}
             testId="setting-pentest"
+          />
+        </div>
+      </div>
+
+      <div className="pt-6 border-t border-border">
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-lg font-semibold text-foreground">KI-Funktionen</h3>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-medium">
+            Beta
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <SettingCard
+            title="KI-Assistent"
+            description="GWDG SAIA API konfigurieren, Modell wählen und Kontingente pro Rolle festlegen"
+            icon={<Bot className="w-5 h-5" />}
+            status="Konfigurieren"
+            statusType="neutral"
+            onClick={() => onSelectPanel('ai')}
+            testId="setting-ai"
           />
         </div>
       </div>

@@ -101,7 +101,7 @@ export interface AdminDashboardProps {
   userRole: 'admin' | 'manager';
 }
 
-export type SettingsPanelId = 'oidc' | 'database' | 'email' | 'email-templates' | 'security' | 'matrix' | 'roles' | 'notifications' | 'session-timeout' | 'calendar' | 'pentest' | 'tests' | 'wcag' | null;
+export type SettingsPanelId = 'oidc' | 'database' | 'email' | 'email-templates' | 'security' | 'matrix' | 'roles' | 'notifications' | 'session-timeout' | 'calendar' | 'pentest' | 'tests' | 'wcag' | 'ai' | null;
 
 export type AdminTab = 'overview' | 'monitoring' | 'polls' | 'users' | 'customize' | 'settings' | 'tests' | 'deletion-requests';
 

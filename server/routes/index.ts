@@ -15,6 +15,7 @@ import adminRouter from "./admin";
 import usersRouter from "./users";
 import exportRouter from "./export";
 import systemRouter from "./system";
+import aiRouter from "./ai";
 
 export function registerRoutes(app: Express): Server {
   // Serve uploaded images (unversioned static files) - MUST be before API routes
@@ -50,6 +51,9 @@ export function registerRoutes(app: Express): Server {
   
   // System routes - mounted on v1Router root for health, customization, matrix, etc.
   v1Router.use('/', systemRouter);
+
+  // AI routes: /api/v1/ai/*
+  v1Router.use('/ai', aiRouter);
 
   // ============== DEPROVISION API (External Kafka/Keycloak Integration) ==============
   // Note: User dashboard routes (user/polls, user/participations) are now in users.ts

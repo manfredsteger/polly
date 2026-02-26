@@ -677,6 +677,46 @@ export type MatrixSettings = z.infer<typeof matrixSettingsSchema>;
 export type FooterSettings = z.infer<typeof footerSettingsSchema>;
 export type CustomizationSettings = z.infer<typeof customizationSettingsSchema>;
 
+// ============================================================
+// AI Feature Schema (feature/ai-agent)
+// ============================================================
+
+export const aiUsageLogs = pgTable("ai_usage_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"), // null for guests
+  sessionId: text("session_id"), // anonymous session tracking
+  endpoint: text("endpoint").notNull(), // e.g. 'create-poll'
+  model: text("model").notNull(),
+  promptTokens: integer("prompt_tokens"),
+  completionTokens: integer("completion_tokens"),
+  success: boolean("success").notNull().default(true),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogs).omit({ id: true, createdAt: true });
+export type AiUsageLog = typeof aiUsageLogs.$inferSelect;
+export type InsertAiUsageLog = z.infer<typeof insertAiUsageLogSchema>;
+
+// AI Settings Schema — stored in system_settings as key 'ai_settings'
+export const aiRoleLimitSchema = z.object({
+  enabled: z.boolean().default(false), // whether this role can use AI
+  requestsPerHour: z.number().nullable().default(5), // null = unlimited, 0 = disabled
+});
+
+export const aiSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  model: z.string().default("llama-3.3-70b-instruct"),
+  apiUrl: z.string().default("https://saia.gwdg.de/v1"),
+  guestLimits: aiRoleLimitSchema.default({ enabled: false, requestsPerHour: 0 }),
+  userLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: 5 }),
+  adminLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: null }),
+});
+
+export type AiSettings = z.infer<typeof aiSettingsSchema>;
+export type AiRoleLimit = z.infer<typeof aiRoleLimitSchema>;
+
+// ============================================================
 // Extended types for API responses
 export type PollWithOptions = Poll & {
   options: PollOption[];

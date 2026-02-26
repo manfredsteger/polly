@@ -28,6 +28,7 @@ import {
   CalendarSettingsPanel,
   PentestToolsPanel,
   WCAGAccessibilityPanel,
+  AiSettingsPanel,
 } from "./settings";
 
 interface AdminDashboardProps {
@@ -324,6 +325,9 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
           )}
           {activeTab === "settings" && selectedSettingsPanel === 'wcag' && (
             <WCAGAccessibilityPanel onBack={() => setSelectedSettingsPanel(null)} />
+          )}
+          {activeTab === "settings" && selectedSettingsPanel === 'ai' && (
+            <AiSettingsPanel onBack={() => setSelectedSettingsPanel(null)} />
           )}
 
           {activeTab === "tests" && (

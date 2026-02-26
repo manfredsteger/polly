@@ -29,11 +29,20 @@ export async function saveAiSettings(settings: AiSettings): Promise<void> {
   await storage.setSetting({ key: "ai_settings", value: settings });
 }
 
+export interface PollSuggestionSettings {
+  resultsPublic?: boolean;
+  allowVoteEdit?: boolean;
+  allowVoteWithdrawal?: boolean;
+  allowMaybe?: boolean;
+  allowMultipleSlots?: boolean;
+}
+
 export interface PollSuggestion {
   title: string;
   description: string;
   options: string[];
   pollType: "schedule" | "survey" | "organization";
+  settings?: PollSuggestionSettings;
 }
 
 const SYSTEM_PROMPT = `You are a helpful assistant for creating polls, surveys and organization lists.
@@ -50,21 +59,57 @@ The JSON must have this exact structure:
   "pollType": "schedule" | "survey" | "organization",
   "title": "Title here",
   "description": "Helpful description of the purpose, max 200 characters",
-  "options": ["Option 1", "Option 2", ...]
+  "options": ["Option 1", "Option 2", ...],
+  "settings": {
+    "resultsPublic": true or false,
+    "allowVoteEdit": true or false,
+    "allowVoteWithdrawal": true or false,
+    "allowMaybe": true or false,
+    "allowMultipleSlots": true or false
+  }
 }
 
-Rules per type:
+Rules per poll type for the OPTIONS field:
 - schedule: options must be date+time strings in EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
   Example: ["15.07.2026 09:00 - 10:00", "16.07.2026 14:00 - 15:30", "17.07.2026 10:00 - 11:00"]
   Use realistic future dates (within the next 2-4 weeks from today). Include 2-5 options.
 - survey: options are answer choices, 2-8 options, concise and distinct
 - organization: options are slot descriptions (e.g. "Aufbau 08:00 - 10:00", "Betreuung 10:00 - 14:00"), 2-8 slots
 
+Rules for the SETTINGS field — you MUST decide based on context:
+
+For SCHEDULE polls:
+- resultsPublic: true (participants should see each other's availability)
+- allowVoteEdit: true (people often need to change availability)
+- allowVoteWithdrawal: true
+- allowMaybe: true (common for schedule coordination)
+- allowMultipleSlots: true
+
+For ORGANIZATION polls:
+- resultsPublic: true (participants MUST see who signed up for what slot — this is the whole point)
+- allowVoteEdit: true (people may need to change slots)
+- allowVoteWithdrawal: true (people may need to cancel)
+- allowMaybe: false (not applicable for sign-up lists)
+- allowMultipleSlots: false (usually one slot per person)
+
+For SURVEY polls — decide based on sensitivity:
+- SENSITIVE topics (keywords: satisfaction, Zufriedenheit, mood, Stimmung, feedback, Bewertung, evaluation, Beurteilung, salary, Gehalt, anonymous, anonym, team climate, Teamklima, confidential, vertraulich, well-being, Wohlbefinden, peer review, performance, opinion about people):
+  - resultsPublic: false (participants should NOT see each other's answers — it would bias responses)
+  - allowVoteEdit: false (anonymous answers should be final)
+  - allowVoteWithdrawal: false
+  - allowMaybe: false (use clear yes/no or rating scales)
+- NEUTRAL topics (preferences, planning, choices, food, events, activities):
+  - resultsPublic: true
+  - allowVoteEdit: false
+  - allowVoteWithdrawal: false
+  - allowMaybe: true
+
 General rules:
 - title: short and clear, max 80 characters
 - description: explain the purpose well so participants understand what they are voting on, max 200 characters
 - Respond in the same language as the user's request (German if German, English if English)
-- Today's date context: use plausible near-future dates for schedule options`;
+- Today's date context: use plausible near-future dates for schedule options
+- Always include the settings field with all relevant boolean values`;
 
 export async function createPollFromDescription(
   description: string,
@@ -108,7 +153,7 @@ export async function createPollFromDescription(
           { role: "user", content: userMessage },
         ],
         temperature: 0.7,
-        max_tokens: 512,
+        max_tokens: 600,
       });
 
       const content = response.choices[0]?.message?.content?.trim();
@@ -126,11 +171,23 @@ export async function createPollFromDescription(
       const validTypes = ["schedule", "survey", "organization"];
       const pollType = validTypes.includes(parsed.pollType) ? parsed.pollType : "survey";
 
+      const rawSettings = parsed.settings as Record<string, unknown> | undefined;
+      const resolvedSettings: PollSuggestionSettings = {};
+
+      if (rawSettings && typeof rawSettings === "object") {
+        if (typeof rawSettings.resultsPublic === "boolean") resolvedSettings.resultsPublic = rawSettings.resultsPublic;
+        if (typeof rawSettings.allowVoteEdit === "boolean") resolvedSettings.allowVoteEdit = rawSettings.allowVoteEdit;
+        if (typeof rawSettings.allowVoteWithdrawal === "boolean") resolvedSettings.allowVoteWithdrawal = rawSettings.allowVoteWithdrawal;
+        if (typeof rawSettings.allowMaybe === "boolean") resolvedSettings.allowMaybe = rawSettings.allowMaybe;
+        if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
+      }
+
       return {
         pollType: pollType as PollSuggestion["pollType"],
         title: String(parsed.title).slice(0, 80),
         description: String(parsed.description || "").slice(0, 200),
         options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 8),
+        settings: resolvedSettings,
       };
     } catch (err: any) {
       lastError = err;

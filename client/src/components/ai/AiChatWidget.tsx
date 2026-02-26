@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle } from "lucide-react";
+import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface AiStatus {
@@ -17,11 +17,20 @@ interface AiStatus {
   resetAt?: string;
 }
 
+export interface AiSuggestionSettings {
+  resultsPublic?: boolean;
+  allowVoteEdit?: boolean;
+  allowVoteWithdrawal?: boolean;
+  allowMaybe?: boolean;
+  allowMultipleSlots?: boolean;
+}
+
 export interface AiSuggestion {
   pollType: "schedule" | "survey" | "organization";
   title: string;
   description: string;
   options: string[];
+  settings?: AiSuggestionSettings;
 }
 
 const POLL_TYPE_ROUTES: Record<AiSuggestion["pollType"], string> = {
@@ -120,6 +129,52 @@ function useTypewriter(lines: string[], paused: boolean) {
 }
 
 export const AI_SUGGESTION_KEY = "ai-suggestion";
+
+function SettingsBadges({ settings, pollType, t }: {
+  settings: AiSuggestionSettings;
+  pollType: AiSuggestion["pollType"];
+  t: (key: string) => string;
+}) {
+  const badges: { icon: React.ReactNode; label: string; className: string }[] = [];
+
+  if (settings.resultsPublic === false) {
+    badges.push({
+      icon: <EyeOff className="w-3 h-3" />,
+      label: t("aiWidget.settingsResultsPrivate"),
+      className: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+    });
+  } else if (settings.resultsPublic === true) {
+    badges.push({
+      icon: <Eye className="w-3 h-3" />,
+      label: t("aiWidget.settingsResultsPublic"),
+      className: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30",
+    });
+  }
+
+  if (pollType === "survey" && settings.allowMaybe === false) {
+    badges.push({
+      icon: <Minus className="w-3 h-3" />,
+      label: t("aiWidget.settingsNoMaybe"),
+      className: "bg-muted text-muted-foreground border-border",
+    });
+  }
+
+  if (badges.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 pt-1">
+      {badges.map((b, i) => (
+        <span
+          key={i}
+          className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${b.className}`}
+        >
+          {b.icon}
+          {b.label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function AiChatWidget() {
   const { t, i18n } = useTranslation();
@@ -328,6 +383,14 @@ export function AiChatWidget() {
                 ))}
               </ul>
             </div>
+
+            {suggestion.settings && Object.keys(suggestion.settings).length > 0 && (
+              <SettingsBadges
+                settings={suggestion.settings}
+                pollType={suggestion.pollType}
+                t={t}
+              />
+            )}
           </div>
 
           <Button onClick={handleApply} className="w-full gap-2" size="sm">

@@ -2665,6 +2665,13 @@
     "aiApply": "Übernehmen",
     "aiError": "KI-Anfrage fehlgeschlagen. Bitte versuche es erneut."
   },
+  "aiWidget": {
+    "settingsResultsPrivate": "Ergebnisse privat",
+    "settingsResultsPublic": "Ergebnisse öffentlich",
+    "settingsNoMaybe": "Kein Vielleicht",
+    "settingsVoteEdit": "Stimme änderbar",
+    "settingsVoteWithdrawal": "Abmelden möglich"
+  },
   "pollCreation": {
     "welcomeBack": "Willkommen zurück!",
     "formRestored": "Ihre Eingaben wurden wiederhergestellt. Sie können die Umfrage jetzt absenden.",

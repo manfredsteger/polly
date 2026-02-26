@@ -124,6 +124,12 @@ export default function CreatePoll() {
         });
         if (parsed.length > 0) setOptions(parsed);
       }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+      }
     } catch (_) {}
   }, []);
 

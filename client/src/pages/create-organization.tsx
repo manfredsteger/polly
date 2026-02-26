@@ -131,6 +131,13 @@ export default function CreateOrganization() {
           };
         }));
       }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.allowMultipleSlots === "boolean") setAllowMultipleSlots(s.allowMultipleSlots);
+      }
     } catch (_) {}
   }, []);
 

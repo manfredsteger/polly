@@ -102,6 +102,13 @@ export default function CreateSurvey() {
       if (Array.isArray(suggestion.options) && suggestion.options.length >= 2) {
         setOptions(suggestion.options.map((text: string, i: number) => ({ text, order: i })));
       }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
+      }
     } catch (_) {}
   }, []);
 

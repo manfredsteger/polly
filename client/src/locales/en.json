@@ -2665,6 +2665,13 @@
     "aiApply": "Apply",
     "aiError": "AI request failed. Please try again."
   },
+  "aiWidget": {
+    "settingsResultsPrivate": "Results private",
+    "settingsResultsPublic": "Results public",
+    "settingsNoMaybe": "No maybe option",
+    "settingsVoteEdit": "Votes editable",
+    "settingsVoteWithdrawal": "Withdrawal allowed"
+  },
   "pollCreation": {
     "welcomeBack": "Welcome back!",
     "formRestored": "Your inputs have been restored. You can now submit the poll.",

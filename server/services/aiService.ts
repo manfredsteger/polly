@@ -26,7 +26,7 @@ export async function getAiSettings(): Promise<AiSettings> {
 }
 
 export async function saveAiSettings(settings: AiSettings): Promise<void> {
-  await storage.setSetting("ai_settings", settings, "AI feature configuration");
+  await storage.setSetting({ key: "ai_settings", value: settings });
 }
 
 export interface PollSuggestion {

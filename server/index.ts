@@ -180,10 +180,8 @@ app.use((req, res, next) => {
     console.error('[Branding] Failed to bootstrap branding on startup:', error);
   }
 
-  // Docker deployment: seed admin and demo data in-process
-  // This is more reliable than running separate npx tsx processes
-  // because it reuses the established DB connection and module resolution
-  if (process.env.DOCKER_ENV === 'true') {
+  // Seed/update admin account if ADMIN_PASSWORD is set (Docker or manual override via secrets)
+  if (process.env.DOCKER_ENV === 'true' || process.env.ADMIN_PASSWORD) {
     try {
       const { seedInitialAdmin } = await import('./seed-admin');
       await seedInitialAdmin();

@@ -41,3 +41,9 @@ externalPort = 80
 
 [agent]
 integrations = ["javascript_sendgrid:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+ADMIN_USERNAME = "manfredsteger"
+ADMIN_EMAIL = "manfred.steger@ifp.bayern.de"

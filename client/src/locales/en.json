@@ -2676,7 +2676,8 @@
     "followUpPlaceholder": "e.g. Make all times after 3pm, add more options, make it anonymous...",
     "followUpSubmit": "Refine",
     "followUpLoading": "Refining...",
-    "quickSuggestionsLabel": "Common refinements"
+    "quickSuggestionsLabel": "Common refinements",
+    "followUpPlaceholderOptional": "Add something else (optional)..."
   },
   "pollCreation": {
     "welcomeBack": "Welcome back!",

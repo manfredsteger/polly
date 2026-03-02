@@ -123,10 +123,12 @@ export default function CreateOrganization() {
       if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
         const parsedSlots = suggestion.options.map((text: string, i: number) => {
           const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+          const capMatch = text.match(/\(max\.?\s*(\d+)/i);
           return {
             text,
             startTime: timeMatch ? timeMatch[1] : undefined,
             endTime: timeMatch ? timeMatch[2] : undefined,
+            maxCapacity: capMatch ? parseInt(capMatch[1]) : undefined,
             order: i,
           };
         });

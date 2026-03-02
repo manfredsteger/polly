@@ -2676,7 +2676,8 @@
     "followUpPlaceholder": "z.B. Die Termine sollen alle nach 15 Uhr sein, mehr Optionen hinzufügen...",
     "followUpSubmit": "Anpassen",
     "followUpLoading": "Wird angepasst...",
-    "quickSuggestionsLabel": "Häufige Anpassungen"
+    "quickSuggestionsLabel": "Häufige Anpassungen",
+    "followUpPlaceholderOptional": "Noch etwas ergänzen (optional)..."
   },
   "pollCreation": {
     "welcomeBack": "Willkommen zurück!",

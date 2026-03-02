@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send } from "lucide-react";
+import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 
@@ -226,6 +226,7 @@ export function AiChatWidget() {
   const [inputValue, setInputValue] = useState("");
   const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null);
   const [followUpValue, setFollowUpValue] = useState("");
+  const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
   const originalInputRef = useRef<string>("");
@@ -266,17 +267,18 @@ export function AiChatWidget() {
   });
 
   const refineMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (refinement: string) =>
       apiRequest("POST", "/api/v1/ai/create-poll", {
         description: originalInputRef.current || inputValue.trim(),
         language: lang,
-        refinement: followUpValue.trim(),
+        refinement,
         previousSuggestion: suggestion,
       }),
     onSuccess: async (res) => {
       const data = await res.json();
       setSuggestion(data.suggestion as AiSuggestion);
       setFollowUpValue("");
+      setSelectedChips([]);
       setTimeout(() => followUpRef.current?.focus(), 100);
     },
   });
@@ -285,12 +287,14 @@ export function AiChatWidget() {
     if (!inputValue.trim() || inputValue.trim().length < 5) return;
     setSuggestion(null);
     setFollowUpValue("");
+    setSelectedChips([]);
     mutation.mutate();
   };
 
   const handleRefine = () => {
-    if (!followUpValue.trim() || followUpValue.trim().length < 3 || !suggestion) return;
-    refineMutation.mutate();
+    const parts = [...selectedChips, followUpValue.trim()].filter(Boolean);
+    if (parts.length === 0 || !suggestion) return;
+    refineMutation.mutate(parts.join(". "));
   };
 
   const handleApply = () => {
@@ -338,7 +342,7 @@ export function AiChatWidget() {
           <textarea
             ref={textareaRef}
             value={inputValue}
-            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); setFollowUpValue(""); }}
+            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); setFollowUpValue(""); setSelectedChips([]); }}
             onKeyDown={(e) => { handleKeyDown(e); handleKeySubmit(e); }}
             rows={3}
             className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm text-foreground placeholder-transparent focus:outline-none"
@@ -493,38 +497,63 @@ export function AiChatWidget() {
               </p>
             </div>
 
-            {/* Quick suggestion chips */}
+            {/* Quick suggestion chips — always visible, toggleable */}
             {(() => {
               const chips = QUICK_SUGGESTIONS[lang === "de" ? "de" : "en"][suggestion.pollType] ?? [];
-              const showChips = chips.length > 0 && (!followUpValue || chips.includes(followUpValue));
-              if (!showChips) return null;
+              if (chips.length === 0) return null;
               return (
                 <div className="px-3 pb-2">
                   <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wide font-medium">
                     {t("aiWidget.quickSuggestionsLabel")}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {chips.map((chip) => (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => {
-                          setFollowUpValue(chip);
-                          setTimeout(() => followUpRef.current?.focus(), 50);
-                        }}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                          followUpValue === chip
-                            ? "border-primary/60 bg-primary/10 text-primary"
-                            : "border-border bg-background hover:border-primary/50 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {chip}
-                      </button>
-                    ))}
+                    {chips.map((chip) => {
+                      const isSelected = selectedChips.includes(chip);
+                      return (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() =>
+                            setSelectedChips((prev) =>
+                              isSelected ? prev.filter((c) => c !== chip) : [...prev, chip]
+                            )
+                          }
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                            isSelected
+                              ? "border-primary/60 bg-primary/10 text-primary font-medium"
+                              : "border-border bg-background hover:border-primary/50 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {chip}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })()}
+
+            {/* Selected chips as removable tags */}
+            {selectedChips.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 px-3 pb-2 pt-0.5 border-t border-border/30">
+                {selectedChips.map((chip) => (
+                  <span
+                    key={chip}
+                    className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-primary/15 border border-primary/40 text-primary font-medium"
+                  >
+                    {chip}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedChips((prev) => prev.filter((c) => c !== chip))}
+                      className="ml-0.5 rounded-full hover:bg-primary/20 transition-colors p-0.5"
+                      aria-label="Entfernen"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-end gap-2 px-3 pb-3 pt-1">
               <textarea
@@ -533,7 +562,11 @@ export function AiChatWidget() {
                 onChange={(e) => setFollowUpValue(e.target.value)}
                 onKeyDown={handleFollowUpKeyDown}
                 rows={2}
-                placeholder={t("aiWidget.followUpPlaceholder")}
+                placeholder={
+                  selectedChips.length > 0
+                    ? t("aiWidget.followUpPlaceholderOptional")
+                    : t("aiWidget.followUpPlaceholder")
+                }
                 disabled={isRefining}
                 className="flex-1 resize-none bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors disabled:opacity-50"
               />
@@ -541,7 +574,11 @@ export function AiChatWidget() {
                 type="button"
                 size="sm"
                 onClick={handleRefine}
-                disabled={!followUpValue.trim() || followUpValue.trim().length < 3 || isRefining || !status.canUse}
+                disabled={
+                  (selectedChips.length === 0 && followUpValue.trim().length < 3) ||
+                  isRefining ||
+                  !status.canUse
+                }
                 className="h-[52px] px-3 shrink-0 gap-1.5"
               >
                 {isRefining ? (

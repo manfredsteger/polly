@@ -74,7 +74,7 @@ Rules per poll type for the OPTIONS field:
   Example: ["15.07.2026 09:00 - 10:00", "16.07.2026 14:00 - 15:30", "17.07.2026 10:00 - 11:00"]
   Use realistic future dates (within the next 2-4 weeks from today). Include 2-5 options.
 - survey: options are answer choices, 2-8 options, concise and distinct
-- organization: options are slot descriptions (e.g. "Aufbau 08:00 - 10:00", "Betreuung 10:00 - 14:00"), 2-8 slots
+- organization: options are slot descriptions. Format: "Description HH:MM - HH:MM" or with capacity "Description HH:MM - HH:MM (max. N)" where N is the integer number of spots. Example: ["Aufbau 08:00 - 10:00 (max. 5)", "Betreuung 10:00 - 14:00 (max. 3)", "Abbau 14:00 - 16:00"]. Include capacity when context implies limited spots. Use 2-8 slots.
 
 Rules for the SETTINGS field — you MUST decide based on context:
 

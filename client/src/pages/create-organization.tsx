@@ -124,8 +124,16 @@ export default function CreateOrganization() {
         const parsedSlots = suggestion.options.map((text: string, i: number) => {
           const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
           const capMatch = text.match(/\(max\.?\s*(\d+)/i);
+          // Extract clean description: strip time range and capacity from the slot text
+          let cleanText = text;
+          if (timeMatch) {
+            const timeIndex = text.indexOf(timeMatch[0]);
+            const before = text.substring(0, timeIndex).trim();
+            cleanText = before || text;
+          }
+          cleanText = cleanText.replace(/\(max\.?\s*\d+[^)]*\)/gi, '').trim() || text;
           return {
-            text,
+            text: cleanText,
             startTime: timeMatch ? timeMatch[1] : undefined,
             endTime: timeMatch ? timeMatch[2] : undefined,
             maxCapacity: capMatch ? parseInt(capMatch[1]) : undefined,
@@ -138,6 +146,12 @@ export default function CreateOrganization() {
         );
         if (hasSimpleTimes) {
           setIsDayMode(true);
+          // Pre-fill today as the default date so validation passes immediately
+          const today = new Date();
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+          setDayModeDates([todayStr]);
+          setDayModeDate(todayStr);
         }
       }
       const s = suggestion.settings;

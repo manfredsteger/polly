@@ -121,7 +121,7 @@ export default function CreateOrganization() {
       if (suggestion.title) setTitle(suggestion.title);
       if (suggestion.description) setDescription(suggestion.description);
       if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
-        setSlots(suggestion.options.map((text: string, i: number) => {
+        const parsedSlots = suggestion.options.map((text: string, i: number) => {
           const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
           return {
             text,
@@ -129,7 +129,14 @@ export default function CreateOrganization() {
             endTime: timeMatch ? timeMatch[2] : undefined,
             order: i,
           };
-        }));
+        });
+        setSlots(parsedSlots);
+        const hasSimpleTimes = parsedSlots.some(
+          (s: { startTime?: string }) => s.startTime && /^\d{2}:\d{2}$/.test(s.startTime)
+        );
+        if (hasSimpleTimes) {
+          setIsDayMode(true);
+        }
       }
       const s = suggestion.settings;
       if (s && typeof s === "object") {

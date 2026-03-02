@@ -2675,7 +2675,8 @@
     "followUpHint": "Sag mir was du ändern möchtest — oder übernimm den aktuellen Stand und passe es selbst an.",
     "followUpPlaceholder": "z.B. Die Termine sollen alle nach 15 Uhr sein, mehr Optionen hinzufügen...",
     "followUpSubmit": "Anpassen",
-    "followUpLoading": "Wird angepasst..."
+    "followUpLoading": "Wird angepasst...",
+    "quickSuggestionsLabel": "Häufige Anpassungen"
   },
   "pollCreation": {
     "welcomeBack": "Willkommen zurück!",

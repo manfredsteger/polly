@@ -76,6 +76,49 @@ const PROMPTS_EN = [
   "Planning a department offsite and need to find a date that works?",
 ];
 
+const QUICK_SUGGESTIONS: Record<"de" | "en", Record<AiSuggestion["pollType"], string[]>> = {
+  de: {
+    organization: [
+      "Plätze pro Station begrenzen (z.B. 5 Personen)",
+      "Sollen Teilnehmer sich wieder abmelden können?",
+      "Weitere Stationen oder Zeitslots hinzufügen",
+      "Soll die Teilnehmerliste für alle sichtbar sein?",
+    ],
+    schedule: [
+      "Weitere Terminoptionen hinzufügen",
+      "Sollen Teilnehmer mit 'Vielleicht' antworten können?",
+      "Nur Werktage als Terminoptionen anbieten",
+      "Können Teilnehmer ihre Auswahl nachträglich ändern?",
+    ],
+    survey: [
+      "Weitere Antwortmöglichkeiten hinzufügen",
+      "Ergebnisse nur für den Ersteller sichtbar machen",
+      "Sollen Teilnehmer ihre Stimme nachträglich ändern dürfen?",
+      "Sollen Teilnehmer mit 'Vielleicht' abstimmen können?",
+    ],
+  },
+  en: {
+    organization: [
+      "Limit spots per slot (e.g. 5 people)",
+      "Allow participants to withdraw their sign-up?",
+      "Add more stations or time slots",
+      "Should the sign-up list be visible to all?",
+    ],
+    schedule: [
+      "Add more time options",
+      "Allow participants to answer 'Maybe'?",
+      "Only offer weekdays as options",
+      "Can participants change their selection later?",
+    ],
+    survey: [
+      "Add more answer options",
+      "Make results visible only to the creator",
+      "Allow participants to change their vote later?",
+      "Allow participants to answer 'Maybe'?",
+    ],
+  },
+};
+
 const TYPE_SPEED = 38;
 const ERASE_SPEED = 18;
 const PAUSE_AFTER_TYPE = 2400;
@@ -449,7 +492,41 @@ export function AiChatWidget() {
                 {t("aiWidget.followUpHint")}
               </p>
             </div>
-            <div className="flex items-end gap-2 px-3 pb-3 pt-2">
+
+            {/* Quick suggestion chips */}
+            {(() => {
+              const chips = QUICK_SUGGESTIONS[lang === "de" ? "de" : "en"][suggestion.pollType] ?? [];
+              const showChips = chips.length > 0 && (!followUpValue || chips.includes(followUpValue));
+              if (!showChips) return null;
+              return (
+                <div className="px-3 pb-2">
+                  <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wide font-medium">
+                    {t("aiWidget.quickSuggestionsLabel")}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {chips.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => {
+                          setFollowUpValue(chip);
+                          setTimeout(() => followUpRef.current?.focus(), 50);
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                          followUpValue === chip
+                            ? "border-primary/60 bg-primary/10 text-primary"
+                            : "border-border bg-background hover:border-primary/50 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="flex items-end gap-2 px-3 pb-3 pt-1">
               <textarea
                 ref={followUpRef}
                 value={followUpValue}

@@ -2670,7 +2670,12 @@
     "settingsResultsPublic": "Ergebnisse öffentlich",
     "settingsNoMaybe": "Kein Vielleicht",
     "settingsVoteEdit": "Stimme änderbar",
-    "settingsVoteWithdrawal": "Abmelden möglich"
+    "settingsVoteWithdrawal": "Abmelden möglich",
+    "followUpTitle": "Passt noch nicht ganz?",
+    "followUpHint": "Sag mir was du ändern möchtest — oder übernimm den aktuellen Stand und passe es selbst an.",
+    "followUpPlaceholder": "z.B. Die Termine sollen alle nach 15 Uhr sein, mehr Optionen hinzufügen...",
+    "followUpSubmit": "Anpassen",
+    "followUpLoading": "Wird angepasst..."
   },
   "pollCreation": {
     "welcomeBack": "Willkommen zurück!",

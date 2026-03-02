@@ -111,6 +111,141 @@ General rules:
 - Today's date context: use plausible near-future dates for schedule options
 - Always include the settings field with all relevant boolean values`;
 
+const REFINE_SYSTEM_PROMPT = `You are a helpful assistant for creating polls, surveys and organization lists.
+The user already has a poll suggestion and wants to modify it.
+You will receive the current suggestion as JSON and the user's requested change.
+Respond ONLY with a valid JSON object in the exact same structure as the current suggestion — no explanation, no markdown.
+
+Apply the user's requested change to the suggestion. You may:
+- Change the poll type if the user explicitly asks for it
+- Add, remove, or modify options
+- Update the title or description
+- Change the settings (resultsPublic, allowMaybe, etc.)
+- Adjust dates/times if requested
+
+Keep everything else the same unless the user asks to change it.
+The JSON must follow this exact structure:
+{
+  "pollType": "schedule" | "survey" | "organization",
+  "title": "Title here",
+  "description": "Description here",
+  "options": ["Option 1", "Option 2", ...],
+  "settings": {
+    "resultsPublic": true or false,
+    "allowVoteEdit": true or false,
+    "allowVoteWithdrawal": true or false,
+    "allowMaybe": true or false,
+    "allowMultipleSlots": true or false
+  }
+}
+
+For schedule options, use EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
+Respond in the same language as the user's refinement request.`;
+
+export async function refinePollSuggestion(
+  originalDescription: string,
+  previousSuggestion: PollSuggestion,
+  refinement: string,
+  language: string = "de"
+): Promise<PollSuggestion> {
+  const settings = await getAiSettings();
+
+  if (!settings.enabled) {
+    throw new Error("AI_DISABLED");
+  }
+
+  const model =
+    process.env.AI_MODEL || settings.model || "llama-3.3-70b-instruct";
+
+  const langHint =
+    language === "de"
+      ? "Please respond in German."
+      : "Please respond in English.";
+
+  const userMessage = `Original request: "${originalDescription}"
+
+Current suggestion:
+${JSON.stringify(previousSuggestion, null, 2)}
+
+User wants to change: "${refinement}"
+
+${langHint}`;
+
+  let client = openaiClient || getClient(false);
+  openaiClient = client;
+
+  if (!client) {
+    throw new Error("AI_NOT_CONFIGURED");
+  }
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const activeClient = attempt === 0 ? client : (openaiClientFallback || getClient(true));
+      if (!activeClient) throw new Error("AI_NOT_CONFIGURED");
+      if (attempt === 1) openaiClientFallback = activeClient;
+
+      const response = await activeClient.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: REFINE_SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+        temperature: 0.5,
+        max_tokens: 600,
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      if (!content) throw new Error("AI_EMPTY_RESPONSE");
+
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("AI_INVALID_JSON");
+
+      const parsed = JSON.parse(jsonMatch[0]) as PollSuggestion;
+
+      if (!parsed.title || !Array.isArray(parsed.options) || parsed.options.length < 1) {
+        throw new Error("AI_INVALID_STRUCTURE");
+      }
+
+      const validTypes = ["schedule", "survey", "organization"];
+      const pollType = validTypes.includes(parsed.pollType) ? parsed.pollType : previousSuggestion.pollType;
+
+      const rawSettings = parsed.settings as Record<string, unknown> | undefined;
+      const resolvedSettings: PollSuggestionSettings = {};
+
+      if (rawSettings && typeof rawSettings === "object") {
+        if (typeof rawSettings.resultsPublic === "boolean") resolvedSettings.resultsPublic = rawSettings.resultsPublic;
+        if (typeof rawSettings.allowVoteEdit === "boolean") resolvedSettings.allowVoteEdit = rawSettings.allowVoteEdit;
+        if (typeof rawSettings.allowVoteWithdrawal === "boolean") resolvedSettings.allowVoteWithdrawal = rawSettings.allowVoteWithdrawal;
+        if (typeof rawSettings.allowMaybe === "boolean") resolvedSettings.allowMaybe = rawSettings.allowMaybe;
+        if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
+      }
+
+      return {
+        pollType: pollType as PollSuggestion["pollType"],
+        title: String(parsed.title).slice(0, 80),
+        description: String(parsed.description || "").slice(0, 200),
+        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 8),
+        settings: resolvedSettings,
+      };
+    } catch (err: any) {
+      lastError = err;
+      const isRateLimit =
+        err?.status === 429 ||
+        err?.message?.includes("rate") ||
+        err?.message?.includes("quota");
+      if (isRateLimit && attempt === 0 && process.env.AI_API_KEY_FALLBACK) {
+        console.warn("[AI] Primary key rate-limited, trying fallback key...");
+        continue;
+      }
+      break;
+    }
+  }
+
+  throw lastError || new Error("AI_REQUEST_FAILED");
+}
+
 export async function createPollFromDescription(
   description: string,
   language: string = "de"

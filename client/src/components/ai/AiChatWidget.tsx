@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus } from "lucide-react";
+import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEffect } from "react";
 
 interface AiStatus {
   enabled: boolean;
@@ -181,7 +182,10 @@ export function AiChatWidget() {
   const [, setLocation] = useLocation();
   const [inputValue, setInputValue] = useState("");
   const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null);
+  const [followUpValue, setFollowUpValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const followUpRef = useRef<HTMLTextAreaElement>(null);
+  const originalInputRef = useRef<string>("");
   const isFilled = inputValue.trim().length > 0;
 
   const lang = i18n.language?.startsWith("de") ? "de" : "en";
@@ -205,19 +209,45 @@ export function AiChatWidget() {
   );
 
   const mutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/v1/ai/create-poll", { description: inputValue, language: lang }),
+    mutationFn: () => {
+      originalInputRef.current = inputValue.trim();
+      return apiRequest("POST", "/api/v1/ai/create-poll", { description: inputValue, language: lang });
+    },
     onSuccess: async (res) => {
       const data = await res.json();
       setSuggestion(data.suggestion as AiSuggestion);
+      setFollowUpValue("");
+      setTimeout(() => followUpRef.current?.focus(), 100);
     },
     onError: () => setSuggestion(null),
+  });
+
+  const refineMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/v1/ai/create-poll", {
+        description: originalInputRef.current || inputValue.trim(),
+        language: lang,
+        refinement: followUpValue.trim(),
+        previousSuggestion: suggestion,
+      }),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      setSuggestion(data.suggestion as AiSuggestion);
+      setFollowUpValue("");
+      setTimeout(() => followUpRef.current?.focus(), 100);
+    },
   });
 
   const handleSubmit = () => {
     if (!inputValue.trim() || inputValue.trim().length < 5) return;
     setSuggestion(null);
+    setFollowUpValue("");
     mutation.mutate();
+  };
+
+  const handleRefine = () => {
+    if (!followUpValue.trim() || followUpValue.trim().length < 3 || !suggestion) return;
+    refineMutation.mutate();
   };
 
   const handleApply = () => {
@@ -233,8 +263,16 @@ export function AiChatWidget() {
     }
   };
 
+  const handleFollowUpKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleRefine();
+    }
+  };
+
   if (!status?.enabled || !status?.apiConfigured) return null;
 
+  const isRefining = refineMutation.isPending;
   const pollTypeLabel = suggestion
     ? (lang === "de" ? POLL_TYPE_LABELS_DE[suggestion.pollType] : suggestion.pollType)
     : "";
@@ -257,7 +295,7 @@ export function AiChatWidget() {
           <textarea
             ref={textareaRef}
             value={inputValue}
-            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); }}
+            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); setFollowUpValue(""); }}
             onKeyDown={(e) => { handleKeyDown(e); handleKeySubmit(e); }}
             rows={3}
             className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm text-foreground placeholder-transparent focus:outline-none"
@@ -337,66 +375,109 @@ export function AiChatWidget() {
 
       {/* Suggestion result */}
       {suggestion && (
-        <div className="mt-3 rounded-xl border border-border bg-card/80 p-4 space-y-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
-                <CheckCircle className="w-4 h-4" />
-                {t("home.aiSuggestion")}
+        <div className="mt-3 rounded-xl border border-border bg-card/80 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden">
+          {/* Suggestion content */}
+          <div className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  {t("home.aiSuggestion")}
+                </div>
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                  {pollTypeLabel}
+                </span>
               </div>
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
-                {pollTypeLabel}
-              </span>
+              <button
+                type="button"
+                onClick={() => { setSuggestion(null); setFollowUpValue(""); mutation.mutate(); }}
+                disabled={mutation.isPending}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+                {t("home.aiRegenerate")}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => { setSuggestion(null); mutation.mutate(); }}
-              disabled={mutation.isPending}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <RefreshCw className="w-3 h-3" />
-              {t("home.aiRegenerate")}
-            </button>
-          </div>
 
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">{t("home.aiTitle")}</p>
-              <p className="text-sm font-semibold">{suggestion.title}</p>
-            </div>
-            {suggestion.description && (
+            <div className="space-y-2">
               <div>
-                <p className="text-xs text-muted-foreground mb-0.5">{t("home.aiDescription")}</p>
-                <p className="text-sm text-muted-foreground">{suggestion.description}</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t("home.aiTitle")}</p>
+                <p className="text-sm font-semibold">{suggestion.title}</p>
               </div>
-            )}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">
-                {t("home.aiOptions")} ({suggestion.options.length})
-              </p>
-              <ul className="space-y-1">
-                {suggestion.options.map((opt, i) => (
-                  <li key={i} className="text-sm flex items-start gap-1.5">
-                    <span className="text-muted-foreground text-xs mt-0.5 shrink-0">{i + 1}.</span>
-                    {opt}
-                  </li>
-                ))}
-              </ul>
+              {suggestion.description && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("home.aiDescription")}</p>
+                  <p className="text-sm text-muted-foreground">{suggestion.description}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">
+                  {t("home.aiOptions")} ({suggestion.options.length})
+                </p>
+                <ul className="space-y-1">
+                  {suggestion.options.map((opt, i) => (
+                    <li key={i} className="text-sm flex items-start gap-1.5">
+                      <span className="text-muted-foreground text-xs mt-0.5 shrink-0">{i + 1}.</span>
+                      {opt}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {suggestion.settings && Object.keys(suggestion.settings).length > 0 && (
+                <SettingsBadges
+                  settings={suggestion.settings}
+                  pollType={suggestion.pollType}
+                  t={t}
+                />
+              )}
             </div>
 
-            {suggestion.settings && Object.keys(suggestion.settings).length > 0 && (
-              <SettingsBadges
-                settings={suggestion.settings}
-                pollType={suggestion.pollType}
-                t={t}
-              />
-            )}
+            <Button onClick={handleApply} className="w-full gap-2" size="sm">
+              <CheckCircle className="w-4 h-4" />
+              {t("home.aiApply")} → {pollTypeLabel}
+            </Button>
           </div>
 
-          <Button onClick={handleApply} className="w-full gap-2" size="sm">
-            <CheckCircle className="w-4 h-4" />
-            {t("home.aiApply")} → {pollTypeLabel}
-          </Button>
+          {/* Follow-up refinement box */}
+          <div className="border-t border-border/60 bg-muted/10">
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-xs font-medium text-foreground/80">
+                {t("aiWidget.followUpTitle")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t("aiWidget.followUpHint")}
+              </p>
+            </div>
+            <div className="flex items-end gap-2 px-3 pb-3 pt-2">
+              <textarea
+                ref={followUpRef}
+                value={followUpValue}
+                onChange={(e) => setFollowUpValue(e.target.value)}
+                onKeyDown={handleFollowUpKeyDown}
+                rows={2}
+                placeholder={t("aiWidget.followUpPlaceholder")}
+                disabled={isRefining}
+                className="flex-1 resize-none bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors disabled:opacity-50"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleRefine}
+                disabled={!followUpValue.trim() || followUpValue.trim().length < 3 || isRefining || !status.canUse}
+                className="h-[52px] px-3 shrink-0 gap-1.5"
+              >
+                {isRefining ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {isRefining ? t("aiWidget.followUpLoading") : t("aiWidget.followUpSubmit")}
+                </span>
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

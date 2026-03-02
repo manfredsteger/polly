@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "./common";
 import {
   createPollFromDescription,
+  refinePollSuggestion,
   getAiSettings,
   saveAiSettings,
 } from "../services/aiService";
@@ -50,11 +51,19 @@ router.get("/status", async (req, res) => {
   }
 });
 
-// POST /api/v1/ai/create-poll — rate-limited, creates poll suggestion from description
+// POST /api/v1/ai/create-poll — rate-limited, creates or refines poll suggestion
 router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
   const schema = z.object({
     description: z.string().min(5).max(500),
     language: z.enum(["de", "en"]).default("de"),
+    refinement: z.string().min(3).max(300).optional(),
+    previousSuggestion: z.object({
+      pollType: z.enum(["schedule", "survey", "organization"]),
+      title: z.string(),
+      description: z.string(),
+      options: z.array(z.string()),
+      settings: z.record(z.boolean()).optional(),
+    }).optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -64,19 +73,22 @@ router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
       .json({ error: "Ungültige Eingabe", details: parsed.error.errors });
   }
 
-  const { description, language } = parsed.data;
+  const { description, language, refinement, previousSuggestion } = parsed.data;
   const userId = (req as any).aiUserId ?? null;
   const sessionId = (req as any).aiSessionId ?? "unknown";
   const settings = await getAiSettings();
   const model = process.env.AI_MODEL || settings.model;
+  const isRefinement = !!(refinement && previousSuggestion);
 
   try {
-    const suggestion = await createPollFromDescription(description, language);
+    const suggestion = isRefinement
+      ? await refinePollSuggestion(description, previousSuggestion as any, refinement!, language)
+      : await createPollFromDescription(description, language);
 
     await logAiUsage({
       userId,
       sessionId,
-      endpoint: "create-poll",
+      endpoint: isRefinement ? "refine-poll" : "create-poll",
       model,
       success: true,
     });
@@ -88,7 +100,7 @@ router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
     await logAiUsage({
       userId,
       sessionId,
-      endpoint: "create-poll",
+      endpoint: isRefinement ? "refine-poll" : "create-poll",
       model,
       success: false,
       errorMessage: errorCode,

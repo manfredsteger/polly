@@ -2670,7 +2670,12 @@
     "settingsResultsPublic": "Results public",
     "settingsNoMaybe": "No maybe option",
     "settingsVoteEdit": "Votes editable",
-    "settingsVoteWithdrawal": "Withdrawal allowed"
+    "settingsVoteWithdrawal": "Withdrawal allowed",
+    "followUpTitle": "Not quite right?",
+    "followUpHint": "Tell me what you'd like to change — or apply the current suggestion and adjust it yourself.",
+    "followUpPlaceholder": "e.g. Make all times after 3pm, add more options, make it anonymous...",
+    "followUpSubmit": "Refine",
+    "followUpLoading": "Refining..."
   },
   "pollCreation": {
     "welcomeBack": "Welcome back!",

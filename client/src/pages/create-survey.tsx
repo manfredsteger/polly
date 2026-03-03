@@ -90,28 +90,6 @@ export default function CreateSurvey() {
     }
   }, []);
 
-  // Read AI suggestion from sessionStorage if present
-  useEffect(() => {
-    const raw = sessionStorage.getItem("ai-suggestion");
-    if (!raw) return;
-    try {
-      const suggestion = JSON.parse(raw);
-      if (suggestion.pollType !== "survey") return;
-      sessionStorage.removeItem("ai-suggestion");
-      if (suggestion.title) setTitle(suggestion.title);
-      if (suggestion.description) setDescription(suggestion.description);
-      if (Array.isArray(suggestion.options) && suggestion.options.length >= 2) {
-        setOptions(suggestion.options.map((text: string, i: number) => ({ text, order: i })));
-      }
-      const s = suggestion.settings;
-      if (s && typeof s === "object") {
-        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
-        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
-        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
-        if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
-      }
-    } catch (_) {}
-  }, []);
 
   useEffect(() => {
     if (autoSubmitTriggeredRef.current) return;

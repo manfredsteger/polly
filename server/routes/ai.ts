@@ -13,6 +13,9 @@ import {
 } from "../services/aiRateLimiterService";
 import { aiSettingsSchema } from "@shared/schema";
 import { z } from "zod";
+import { storage } from "../storage";
+import { emailService } from "../services/emailService";
+import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
 
 const router = Router();
 
@@ -118,6 +121,150 @@ router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
     const mapped = messages[errorCode] || { status: 500, message: "Interner Fehler" };
     console.error("[AI] create-poll error:", errorCode, err);
     res.status(mapped.status).json({ error: mapped.message, code: errorCode });
+  }
+});
+
+// POST /api/v1/ai/apply — create a poll directly from an AI suggestion
+router.post("/apply", pollCreationRateLimiter, async (req, res) => {
+  const settingsSchema = z.object({
+    resultsPublic: z.boolean().optional(),
+    allowVoteEdit: z.boolean().optional(),
+    allowVoteWithdrawal: z.boolean().optional(),
+    allowMaybe: z.boolean().optional(),
+    allowMultipleSlots: z.boolean().optional(),
+  });
+
+  const schema = z.object({
+    suggestion: z.object({
+      pollType: z.enum(["schedule", "survey", "organization"]),
+      title: z.string().min(1).max(200),
+      description: z.string().optional(),
+      options: z.array(z.string().min(1)).min(1),
+      settings: settingsSchema.optional(),
+    }),
+    settings: settingsSchema,
+    creatorEmail: z.string().email().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Ungültige Eingabe", details: parsed.error.errors });
+  }
+
+  const { suggestion, settings, creatorEmail: bodyEmail } = parsed.data;
+
+  let userId: number | null = null;
+  let creatorEmail: string | null = null;
+
+  if ((req.session as any)?.userId) {
+    const sessionUser = await storage.getUser((req.session as any).userId);
+    if (!sessionUser) return res.status(401).json({ error: "Ungültige Session" });
+    userId = sessionUser.id;
+    creatorEmail = sessionUser.email;
+  } else {
+    creatorEmail = bodyEmail || null;
+    if (creatorEmail) {
+      const registeredUser = await storage.getUserByEmail(creatorEmail.toLowerCase().trim());
+      if (registeredUser) {
+        return res.status(409).json({
+          error: "Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an.",
+          errorCode: "REQUIRES_LOGIN",
+        });
+      }
+    }
+  }
+
+  // Transform options per poll type
+  const transformedOptions = suggestion.options.map((opt, index) => {
+    if (suggestion.pollType === "schedule") {
+      // Parse "DD.MM.YYYY HH:MM - HH:MM"
+      const match = opt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+      if (match) {
+        const [, day, month, year, startH, endH] = match;
+        const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        const startTime = new Date(d.toDateString() + " " + startH);
+        const endTime = new Date(d.toDateString() + " " + endH);
+        return {
+          text: opt,
+          startTime: isNaN(startTime.getTime()) ? null : startTime,
+          endTime: isNaN(endTime.getTime()) ? null : endTime,
+          maxCapacity: null,
+          order: index,
+          pollId: "",
+        };
+      }
+      return { text: opt, startTime: null, endTime: null, maxCapacity: null, order: index, pollId: "" };
+    }
+
+    if (suggestion.pollType === "organization") {
+      // Parse "Description HH:MM - HH:MM (max. N)"
+      const timeMatch = opt.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+      const capMatch = opt.match(/\(max\.?\s*(\d+)/i);
+      let cleanText = opt;
+      if (timeMatch) {
+        const timeIndex = opt.indexOf(timeMatch[0]);
+        const before = opt.substring(0, timeIndex).trim();
+        cleanText = before || opt;
+      }
+      cleanText = cleanText.replace(/\(max\.?\s*\d+[^)]*\)/gi, "").trim() || opt;
+      return {
+        text: cleanText,
+        startTime: null,
+        endTime: null,
+        maxCapacity: capMatch ? parseInt(capMatch[1]) : null,
+        order: index,
+        pollId: "",
+      };
+    }
+
+    // survey: plain text options
+    return { text: opt, startTime: null, endTime: null, maxCapacity: null, order: index, pollId: "" };
+  });
+
+  // Merge settings: AI defaults overridden by user toggles
+  const finalSettings = { ...suggestion.settings, ...settings };
+
+  const pollData = {
+    title: suggestion.title,
+    description: suggestion.description || "",
+    type: suggestion.pollType,
+    userId,
+    creatorEmail,
+    expiresAt: undefined,
+    enableExpiryReminder: false,
+    expiryReminderHours: 24,
+    allowMultipleSlots: finalSettings.allowMultipleSlots ?? (suggestion.pollType === "organization" ? false : true),
+    allowVoteEdit: finalSettings.allowVoteEdit ?? false,
+    allowVoteWithdrawal: finalSettings.allowVoteWithdrawal ?? false,
+    resultsPublic: finalSettings.resultsPublic ?? true,
+    isTestData: (req as any).isTestMode === true,
+  };
+
+  try {
+    const result = await storage.createPoll(pollData, transformedOptions as any);
+
+    if (creatorEmail) {
+      const { getBaseUrl } = await import("../utils/baseUrl");
+      const baseUrl = getBaseUrl();
+      const publicLink = `${baseUrl}/poll/${result.poll.publicToken}`;
+      const adminLink = `${baseUrl}/admin/${result.poll.adminToken}`;
+      await emailService.sendPollCreationEmails(
+        creatorEmail,
+        suggestion.title,
+        publicLink,
+        adminLink,
+        suggestion.pollType
+      );
+    }
+
+    res.json({
+      poll: { ...result.poll, options: result.options },
+      publicToken: result.publicToken,
+      adminToken: result.adminToken,
+    });
+  } catch (err) {
+    console.error("[AI] apply error:", err);
+    res.status(500).json({ error: "Fehler beim Erstellen der Umfrage" });
   }
 });
 

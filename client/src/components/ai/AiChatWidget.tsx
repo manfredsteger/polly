@@ -5,9 +5,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X } from "lucide-react";
+import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X, Pencil, Lock, UserMinus, UserX, HelpCircle, ListChecks, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AiStatus {
   enabled: boolean;
@@ -34,16 +36,16 @@ export interface AiSuggestion {
   settings?: AiSuggestionSettings;
 }
 
-const POLL_TYPE_ROUTES: Record<AiSuggestion["pollType"], string> = {
-  schedule: "/create-poll",
-  survey: "/create-survey",
-  organization: "/create-organization",
-};
-
 const POLL_TYPE_LABELS_DE: Record<AiSuggestion["pollType"], string> = {
   schedule: "Terminumfrage",
   survey: "Umfrage",
   organization: "Orga-Liste",
+};
+
+const SETTINGS_DEFAULTS: Record<AiSuggestion["pollType"], AiSuggestionSettings> = {
+  schedule:     { resultsPublic: true,  allowVoteEdit: true,  allowVoteWithdrawal: true },
+  survey:       { resultsPublic: true,  allowVoteEdit: false, allowVoteWithdrawal: false, allowMaybe: true },
+  organization: { resultsPublic: true,  allowVoteEdit: true,  allowVoteWithdrawal: true,  allowMultipleSlots: false },
 };
 
 const PROMPTS_DE = [
@@ -172,50 +174,104 @@ function useTypewriter(lines: string[], paused: boolean) {
   return { display, currentFull: lines[lineIdx] ?? "" };
 }
 
-export const AI_SUGGESTION_KEY = "ai-suggestion";
-
-function SettingsBadges({ settings, pollType, t }: {
+function SettingsToggles({
+  settings,
+  pollType,
+  onToggle,
+  t,
+}: {
   settings: AiSuggestionSettings;
   pollType: AiSuggestion["pollType"];
+  onToggle: (key: keyof AiSuggestionSettings) => void;
   t: (key: string) => string;
 }) {
-  const badges: { icon: React.ReactNode; label: string; className: string }[] = [];
+  type Toggle = {
+    key: keyof AiSuggestionSettings;
+    trueIcon: React.ReactNode;
+    falseIcon: React.ReactNode;
+    trueLabel: string;
+    falseLabel: string;
+    trueClass: string;
+    falseClass: string;
+  };
 
-  if (settings.resultsPublic === false) {
-    badges.push({
-      icon: <EyeOff className="w-3 h-3" />,
-      label: t("aiWidget.settingsResultsPrivate"),
-      className: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
-    });
-  } else if (settings.resultsPublic === true) {
-    badges.push({
-      icon: <Eye className="w-3 h-3" />,
-      label: t("aiWidget.settingsResultsPublic"),
-      className: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30",
-    });
-  }
+  const green = "bg-green-500/15 border-green-500/30 text-green-600 dark:text-green-400";
+  const amber = "bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400";
+  const muted = "bg-muted/50 border-border text-muted-foreground";
 
-  if (pollType === "survey" && settings.allowMaybe === false) {
-    badges.push({
-      icon: <Minus className="w-3 h-3" />,
-      label: t("aiWidget.settingsNoMaybe"),
-      className: "bg-muted text-muted-foreground border-border",
-    });
-  }
+  const common: Toggle[] = [
+    {
+      key: "resultsPublic",
+      trueIcon: <Eye className="w-3 h-3" />,
+      falseIcon: <EyeOff className="w-3 h-3" />,
+      trueLabel: t("aiWidget.settingsResultsPublic"),
+      falseLabel: t("aiWidget.settingsResultsPrivate"),
+      trueClass: green,
+      falseClass: muted,
+    },
+    {
+      key: "allowVoteEdit",
+      trueIcon: <Pencil className="w-3 h-3" />,
+      falseIcon: <Lock className="w-3 h-3" />,
+      trueLabel: t("aiWidget.settingsAllowVoteEdit"),
+      falseLabel: t("aiWidget.settingsVoteEditLocked"),
+      trueClass: green,
+      falseClass: muted,
+    },
+    {
+      key: "allowVoteWithdrawal",
+      trueIcon: <UserMinus className="w-3 h-3" />,
+      falseIcon: <UserX className="w-3 h-3" />,
+      trueLabel: t("aiWidget.settingsAllowWithdrawal"),
+      falseLabel: t("aiWidget.settingsNoWithdrawal"),
+      trueClass: green,
+      falseClass: muted,
+    },
+  ];
 
-  if (badges.length === 0) return null;
+  const extra: Toggle[] = pollType === "survey"
+    ? [{
+        key: "allowMaybe",
+        trueIcon: <HelpCircle className="w-3 h-3" />,
+        falseIcon: <Minus className="w-3 h-3" />,
+        trueLabel: t("aiWidget.settingsMaybeAllowed"),
+        falseLabel: t("aiWidget.settingsNoMaybe"),
+        trueClass: amber,
+        falseClass: muted,
+      }]
+    : pollType === "organization"
+    ? [{
+        key: "allowMultipleSlots",
+        trueIcon: <ListChecks className="w-3 h-3" />,
+        falseIcon: <Square className="w-3 h-3" />,
+        trueLabel: t("aiWidget.settingsMultipleSlots"),
+        falseLabel: t("aiWidget.settingsSingleSlot"),
+        trueClass: green,
+        falseClass: muted,
+      }]
+    : [];
+
+  const toggles = [...common, ...extra];
 
   return (
-    <div className="flex flex-wrap gap-1.5 pt-1">
-      {badges.map((b, i) => (
-        <span
-          key={i}
-          className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${b.className}`}
-        >
-          {b.icon}
-          {b.label}
-        </span>
-      ))}
+    <div className="flex flex-wrap gap-1.5 pt-2">
+      {toggles.map((tog) => {
+        const val = settings[tog.key] ?? false;
+        const cls = val ? tog.trueClass : tog.falseClass;
+        const icon = val ? tog.trueIcon : tog.falseIcon;
+        const label = val ? tog.trueLabel : tog.falseLabel;
+        return (
+          <button
+            key={tog.key}
+            type="button"
+            onClick={() => onToggle(tog.key)}
+            className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border font-medium cursor-pointer transition-all hover:opacity-75 select-none ${cls}`}
+          >
+            {icon}
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -223,12 +279,19 @@ function SettingsBadges({ settings, pollType, t }: {
 export function AiChatWidget() {
   const { t, i18n } = useTranslation();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
   const [inputValue, setInputValue] = useState("");
   const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null);
+  const [localSettings, setLocalSettings] = useState<AiSuggestionSettings>({});
   const [followUpValue, setFollowUpValue] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
+  const [isApplying, setIsApplying] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [showEmailInput, setShowEmailInput] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
+  const suggestionRef = useRef<HTMLDivElement>(null);
   const originalInputRef = useRef<string>("");
   const isFilled = inputValue.trim().length > 0;
 
@@ -241,6 +304,16 @@ export function AiChatWidget() {
     queryKey: ["/api/v1/ai/status"],
     refetchInterval: false,
   });
+
+  useEffect(() => {
+    if (!suggestion) return;
+    const defaults = SETTINGS_DEFAULTS[suggestion.pollType];
+    setLocalSettings({ ...defaults, ...(suggestion.settings ?? {}) });
+  }, [suggestion]);
+
+  const toggleSetting = (key: keyof AiSuggestionSettings) => {
+    setLocalSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -261,7 +334,8 @@ export function AiChatWidget() {
       const data = await res.json();
       setSuggestion(data.suggestion as AiSuggestion);
       setFollowUpValue("");
-      setTimeout(() => followUpRef.current?.focus(), 100);
+      setTimeout(() => suggestionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 150);
+      setTimeout(() => followUpRef.current?.focus(), 300);
     },
     onError: () => setSuggestion(null),
   });
@@ -279,7 +353,8 @@ export function AiChatWidget() {
       setSuggestion(data.suggestion as AiSuggestion);
       setFollowUpValue("");
       setSelectedChips([]);
-      setTimeout(() => followUpRef.current?.focus(), 100);
+      setTimeout(() => suggestionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 150);
+      setTimeout(() => followUpRef.current?.focus(), 300);
     },
   });
 
@@ -288,6 +363,7 @@ export function AiChatWidget() {
     setSuggestion(null);
     setFollowUpValue("");
     setSelectedChips([]);
+    setShowEmailInput(false);
     mutation.mutate();
   };
 
@@ -297,10 +373,49 @@ export function AiChatWidget() {
     refineMutation.mutate(parts.join(". "));
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!suggestion) return;
-    sessionStorage.setItem(AI_SUGGESTION_KEY, JSON.stringify(suggestion));
-    setLocation(POLL_TYPE_ROUTES[suggestion.pollType]);
+
+    if (!isAuthenticated && !showEmailInput) {
+      setShowEmailInput(true);
+      return;
+    }
+
+    if (!isAuthenticated && !guestEmail.trim()) {
+      return;
+    }
+
+    setIsApplying(true);
+    try {
+      const res = await apiRequest("POST", "/api/v1/ai/apply", {
+        suggestion,
+        settings: localSettings,
+        creatorEmail: isAuthenticated ? undefined : guestEmail.trim() || undefined,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (err.errorCode === "REQUIRES_LOGIN") {
+          toast({
+            title: lang === "de" ? "Anmeldung erforderlich" : "Login required",
+            description: lang === "de"
+              ? "Diese E-Mail gehört zu einem Konto. Bitte anmelden."
+              : "This email belongs to a registered account. Please log in.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: t("aiWidget.applyError"), variant: "destructive" });
+        }
+        return;
+      }
+
+      const data = await res.json();
+      setLocation(`/admin/${data.adminToken}`);
+    } catch {
+      toast({ title: t("aiWidget.applyError"), variant: "destructive" });
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const handleKeySubmit = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -342,7 +457,7 @@ export function AiChatWidget() {
           <textarea
             ref={textareaRef}
             value={inputValue}
-            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); setFollowUpValue(""); setSelectedChips([]); }}
+            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); setFollowUpValue(""); setSelectedChips([]); setShowEmailInput(false); }}
             onKeyDown={(e) => { handleKeyDown(e); handleKeySubmit(e); }}
             rows={3}
             className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm text-foreground placeholder-transparent focus:outline-none"
@@ -422,10 +537,13 @@ export function AiChatWidget() {
 
       {/* Suggestion result */}
       {suggestion && (
-        <div className="mt-3 rounded-xl border border-border bg-card/80 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden">
+        <div
+          ref={suggestionRef}
+          className="mt-3 rounded-xl border border-border bg-card/80 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden"
+        >
           {/* Suggestion content */}
           <div className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
                   <CheckCircle className="w-4 h-4" />
@@ -437,7 +555,7 @@ export function AiChatWidget() {
               </div>
               <button
                 type="button"
-                onClick={() => { setSuggestion(null); setFollowUpValue(""); mutation.mutate(); }}
+                onClick={() => { setSuggestion(null); setFollowUpValue(""); setShowEmailInput(false); mutation.mutate(); }}
                 disabled={mutation.isPending}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -447,9 +565,7 @@ export function AiChatWidget() {
             </div>
 
             <div className="space-y-3">
-              <div>
-                <p className="text-lg font-bold text-foreground leading-tight">{suggestion.title}</p>
-              </div>
+              <p className="text-lg font-bold text-foreground leading-tight">{suggestion.title}</p>
               {suggestion.description && (
                 <p className="text-sm text-muted-foreground leading-relaxed">{suggestion.description}</p>
               )}
@@ -467,20 +583,42 @@ export function AiChatWidget() {
                 </ul>
               </div>
 
-              {suggestion.settings && Object.keys(suggestion.settings).length > 0 && (
-                <SettingsBadges
-                  settings={suggestion.settings}
-                  pollType={suggestion.pollType}
-                  t={t}
-                />
-              )}
+              <SettingsToggles
+                settings={localSettings}
+                pollType={suggestion.pollType}
+                onToggle={toggleSetting}
+                t={t}
+              />
             </div>
-
           </div>
+
+          {/* Apply button section */}
           <div className="px-4 pb-4 pt-3 bg-primary/5 border-t-2 border-primary/20">
-            <Button onClick={handleApply} className="w-full h-12 text-base font-semibold gap-2.5 shadow-md hover:shadow-lg transition-shadow">
-              <ArrowRight className="w-5 h-5" />
-              {t("home.aiApply")} → {pollTypeLabel}
+            {showEmailInput && !isAuthenticated && (
+              <div className="mb-3">
+                <p className="text-xs text-muted-foreground mb-1.5">{t("aiWidget.emailRequired")}</p>
+                <input
+                  type="email"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  placeholder={t("aiWidget.emailPlaceholder")}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }}
+                  autoFocus
+                />
+              </div>
+            )}
+            <Button
+              onClick={handleApply}
+              disabled={isApplying || (showEmailInput && !isAuthenticated && !guestEmail.trim())}
+              className="w-full h-12 text-base font-semibold gap-2.5 shadow-md hover:shadow-lg transition-shadow"
+            >
+              {isApplying ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ArrowRight className="w-5 h-5" />
+              )}
+              {isApplying ? t("aiWidget.applyLoading") : `${t("home.aiApply")} → ${pollTypeLabel}`}
             </Button>
           </div>
 

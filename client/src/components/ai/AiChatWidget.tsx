@@ -8,8 +8,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X, Pencil, Lock, UserMinus, UserX, HelpCircle, ListChecks, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface AiStatus {
   enabled: boolean;
@@ -36,6 +34,12 @@ export interface AiSuggestion {
   settings?: AiSuggestionSettings;
 }
 
+const POLL_TYPE_ROUTES: Record<AiSuggestion["pollType"], string> = {
+  schedule: "/create-poll",
+  survey: "/create-survey",
+  organization: "/create-organization",
+};
+
 const POLL_TYPE_LABELS_DE: Record<AiSuggestion["pollType"], string> = {
   schedule: "Terminumfrage",
   survey: "Umfrage",
@@ -45,7 +49,7 @@ const POLL_TYPE_LABELS_DE: Record<AiSuggestion["pollType"], string> = {
 const SETTINGS_DEFAULTS: Record<AiSuggestion["pollType"], AiSuggestionSettings> = {
   schedule:     { resultsPublic: true,  allowVoteEdit: true,  allowVoteWithdrawal: true },
   survey:       { resultsPublic: true,  allowVoteEdit: false, allowVoteWithdrawal: false, allowMaybe: true },
-  organization: { resultsPublic: true,  allowVoteEdit: true,  allowVoteWithdrawal: true,  allowMultipleSlots: false },
+  organization: { resultsPublic: true,  allowVoteEdit: true,  allowVoteWithdrawal: true,  allowMultipleSlots: true },
 };
 
 const PROMPTS_DE = [
@@ -279,16 +283,11 @@ function SettingsToggles({
 export function AiChatWidget() {
   const { t, i18n } = useTranslation();
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
   const [inputValue, setInputValue] = useState("");
   const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null);
   const [localSettings, setLocalSettings] = useState<AiSuggestionSettings>({});
   const [followUpValue, setFollowUpValue] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
-  const [isApplying, setIsApplying] = useState(false);
-  const [guestEmail, setGuestEmail] = useState("");
-  const [showEmailInput, setShowEmailInput] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
@@ -363,7 +362,6 @@ export function AiChatWidget() {
     setSuggestion(null);
     setFollowUpValue("");
     setSelectedChips([]);
-    setShowEmailInput(false);
     mutation.mutate();
   };
 
@@ -373,49 +371,10 @@ export function AiChatWidget() {
     refineMutation.mutate(parts.join(". "));
   };
 
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!suggestion) return;
-
-    if (!isAuthenticated && !showEmailInput) {
-      setShowEmailInput(true);
-      return;
-    }
-
-    if (!isAuthenticated && !guestEmail.trim()) {
-      return;
-    }
-
-    setIsApplying(true);
-    try {
-      const res = await apiRequest("POST", "/api/v1/ai/apply", {
-        suggestion,
-        settings: localSettings,
-        creatorEmail: isAuthenticated ? undefined : guestEmail.trim() || undefined,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        if (err.errorCode === "REQUIRES_LOGIN") {
-          toast({
-            title: lang === "de" ? "Anmeldung erforderlich" : "Login required",
-            description: lang === "de"
-              ? "Diese E-Mail gehört zu einem Konto. Bitte anmelden."
-              : "This email belongs to a registered account. Please log in.",
-            variant: "destructive",
-          });
-        } else {
-          toast({ title: t("aiWidget.applyError"), variant: "destructive" });
-        }
-        return;
-      }
-
-      const data = await res.json();
-      setLocation(`/admin/${data.adminToken}`);
-    } catch {
-      toast({ title: t("aiWidget.applyError"), variant: "destructive" });
-    } finally {
-      setIsApplying(false);
-    }
+    sessionStorage.setItem("ai-suggestion", JSON.stringify({ ...suggestion, settings: localSettings }));
+    setLocation(POLL_TYPE_ROUTES[suggestion.pollType]);
   };
 
   const handleKeySubmit = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -457,7 +416,7 @@ export function AiChatWidget() {
           <textarea
             ref={textareaRef}
             value={inputValue}
-            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); setFollowUpValue(""); setSelectedChips([]); setShowEmailInput(false); }}
+            onChange={(e) => { setInputValue(e.target.value); setSuggestion(null); setFollowUpValue(""); setSelectedChips([]); }}
             onKeyDown={(e) => { handleKeyDown(e); handleKeySubmit(e); }}
             rows={3}
             className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm text-foreground placeholder-transparent focus:outline-none"
@@ -555,7 +514,7 @@ export function AiChatWidget() {
               </div>
               <button
                 type="button"
-                onClick={() => { setSuggestion(null); setFollowUpValue(""); setShowEmailInput(false); mutation.mutate(); }}
+                onClick={() => { setSuggestion(null); setFollowUpValue(""); mutation.mutate(); }}
                 disabled={mutation.isPending}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -594,31 +553,12 @@ export function AiChatWidget() {
 
           {/* Apply button section */}
           <div className="px-4 pb-4 pt-3 bg-primary/5 border-t-2 border-primary/20">
-            {showEmailInput && !isAuthenticated && (
-              <div className="mb-3">
-                <p className="text-xs text-muted-foreground mb-1.5">{t("aiWidget.emailRequired")}</p>
-                <input
-                  type="email"
-                  value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
-                  placeholder={t("aiWidget.emailPlaceholder")}
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }}
-                  autoFocus
-                />
-              </div>
-            )}
             <Button
               onClick={handleApply}
-              disabled={isApplying || (showEmailInput && !isAuthenticated && !guestEmail.trim())}
               className="w-full h-12 text-base font-semibold gap-2.5 shadow-md hover:shadow-lg transition-shadow"
             >
-              {isApplying ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <ArrowRight className="w-5 h-5" />
-              )}
-              {isApplying ? t("aiWidget.applyLoading") : `${t("home.aiApply")} → ${pollTypeLabel}`}
+              <ArrowRight className="w-5 h-5" />
+              {`${t("home.aiApply")} → ${pollTypeLabel}`}
             </Button>
           </div>
 

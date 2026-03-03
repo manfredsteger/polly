@@ -111,6 +111,46 @@ export default function CreateOrganization() {
     }
   }, []);
 
+  // Read AI suggestion from sessionStorage if present
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ai-suggestion");
+    if (!raw) return;
+    try {
+      const suggestion = JSON.parse(raw);
+      if (suggestion.pollType !== "organization") return;
+      sessionStorage.removeItem("ai-suggestion");
+      if (suggestion.title) setTitle(suggestion.title);
+      if (suggestion.description) setDescription(suggestion.description);
+      if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
+        const parsedSlots = suggestion.options.map((text: string, i: number) => {
+          const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+          const capMatch = text.match(/\(max\.?\s*(\d+)/i);
+          let cleanText = text;
+          if (timeMatch) {
+            const timeIndex = text.indexOf(timeMatch[0]);
+            const before = text.substring(0, timeIndex).trim();
+            cleanText = before || text;
+          }
+          cleanText = cleanText.replace(/\(max\.?\s*\d+[^)]*\)/gi, '').trim() || text;
+          return {
+            text: cleanText,
+            startTime: timeMatch ? timeMatch[1] : undefined,
+            endTime: timeMatch ? timeMatch[2] : undefined,
+            maxCapacity: capMatch ? parseInt(capMatch[1]) : undefined,
+            order: i,
+          };
+        });
+        setSlots(parsedSlots);
+      }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.allowMultipleSlots === "boolean") setAllowMultipleSlots(s.allowMultipleSlots);
+      }
+    } catch (_) {}
+  }, []);
 
   const combineDateTime = (date: string, time: string): string | undefined => {
     if (!date || !time) return undefined;

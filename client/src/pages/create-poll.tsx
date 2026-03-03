@@ -98,6 +98,41 @@ export default function CreatePoll() {
     }
   }, []);
 
+  // Read AI suggestion from sessionStorage if present
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ai-suggestion");
+    if (!raw) return;
+    try {
+      const suggestion = JSON.parse(raw);
+      if (suggestion.pollType !== "schedule") return;
+      sessionStorage.removeItem("ai-suggestion");
+      if (suggestion.title) setTitle(suggestion.title);
+      if (suggestion.description) setDescription(suggestion.description);
+      if (Array.isArray(suggestion.options) && suggestion.options.length > 0) {
+        const parsed: PollOption[] = [];
+        suggestion.options.forEach((opt: string, i: number) => {
+          const match = opt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+          if (match) {
+            const [, day, month, year, startH, endH] = match;
+            const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            parsed.push({
+              text: `${dateObj.toLocaleDateString("de-DE")} ${startH} - ${endH}`,
+              startTime: new Date(dateObj.toDateString() + " " + startH).toISOString(),
+              endTime: new Date(dateObj.toDateString() + " " + endH).toISOString(),
+              order: i,
+            });
+          }
+        });
+        if (parsed.length > 0) setOptions(parsed);
+      }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+      }
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
     if (autoSubmitTriggeredRef.current) return;

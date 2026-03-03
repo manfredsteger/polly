@@ -45,9 +45,12 @@ export interface PollSuggestion {
   settings?: PollSuggestionSettings;
 }
 
-const SYSTEM_PROMPT = `You are a helpful assistant for creating polls, surveys and organization lists.
+function buildSystemPrompt(todayStr: string): string {
+  return `You are a helpful assistant for creating polls, surveys and organization lists.
 The user will describe what they need, and you must respond ONLY with a valid JSON object.
 Do NOT include any explanation or markdown — just the raw JSON.
+
+Today's date: ${todayStr}. Use this to calculate realistic future dates.
 
 Decide which poll type fits best:
 - "schedule": finding a date/time (Terminumfrage) — when users want to coordinate meeting times, events, appointments
@@ -72,9 +75,17 @@ The JSON must have this exact structure:
 Rules per poll type for the OPTIONS field:
 - schedule: options must be date+time strings in EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
   Example: ["15.07.2026 09:00 - 10:00", "16.07.2026 14:00 - 15:30", "17.07.2026 10:00 - 11:00"]
-  Use realistic future dates (within the next 2-4 weeks from today). Include 2-5 options.
+  Use realistic future dates (within the next 2-4 weeks from today: ${todayStr}). Include 2-5 options.
 - survey: options are answer choices, 2-8 options, concise and distinct
-- organization: options are slot descriptions. Format: "Description HH:MM - HH:MM" or with capacity "Description HH:MM - HH:MM (max. N)" where N is the integer number of spots. Example: ["Aufbau 08:00 - 10:00 (max. 5)", "Betreuung 10:00 - 14:00 (max. 3)", "Abbau 14:00 - 16:00"]. Include capacity when context implies limited spots. Use 2-8 slots.
+- organization: TWO formats depending on context:
+  (A) FIXED-DATE events (party, festival, Sommerfest, Sportfest, workshop, Tag der offenen Tür, Firmenevent, etc. — any event with an implied specific day):
+      ALWAYS include the concrete event date in EVERY slot. Format: "DD.MM.YYYY Description HH:MM - HH:MM (max. N)"
+      Choose a realistic future date based on context (e.g., Sommerfest → a Saturday in summer; workshop → next or following week).
+      Example for a Sommerfest on 20.06.2026: ["20.06.2026 Aufbau 08:00 - 10:00 (max. 5)", "20.06.2026 Betreuung 10:00 - 14:00 (max. 3)", "20.06.2026 Abbau 14:00 - 16:00 (max. 4)"]
+  (B) ONGOING / RECURRING sign-up lists WITHOUT a fixed date (cleaning rota, recurring duty schedule, etc.):
+      Omit the date. Format: "Description HH:MM - HH:MM (max. N)"
+      Example: ["Aufbau 08:00 - 10:00 (max. 5)", "Betreuung 10:00 - 14:00 (max. 3)", "Abbau 14:00 - 16:00"]
+  Always include capacity (max. N) when context implies limited spots. Use 2-8 slots.
 
 Rules for the SETTINGS field — you MUST decide based on context:
 
@@ -108,13 +119,16 @@ General rules:
 - title: short and clear, max 80 characters
 - description: explain the purpose well so participants understand what they are voting on, max 200 characters
 - Respond in the same language as the user's request (German if German, English if English)
-- Today's date context: use plausible near-future dates for schedule options
 - Always include the settings field with all relevant boolean values`;
+}
 
-const REFINE_SYSTEM_PROMPT = `You are a helpful assistant for creating polls, surveys and organization lists.
+function buildRefinePrompt(todayStr: string): string {
+  return `You are a helpful assistant for creating polls, surveys and organization lists.
 The user already has a poll suggestion and wants to modify it.
 You will receive the current suggestion as JSON and the user's requested change.
 Respond ONLY with a valid JSON object in the exact same structure as the current suggestion — no explanation, no markdown.
+
+Today's date: ${todayStr}. Use this to calculate realistic future dates.
 
 Apply the user's requested change to the suggestion. You may:
 - Change the poll type if the user explicitly asks for it
@@ -140,7 +154,10 @@ The JSON must follow this exact structure:
 }
 
 For schedule options, use EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
+For organization options with a fixed event date, use: "DD.MM.YYYY Description HH:MM - HH:MM (max. N)"
+For organization options without a fixed date, use: "Description HH:MM - HH:MM (max. N)"
 Respond in the same language as the user's refinement request.`;
+}
 
 export async function refinePollSuggestion(
   originalDescription: string,
@@ -156,6 +173,8 @@ export async function refinePollSuggestion(
 
   const model =
     process.env.AI_MODEL || settings.model || "llama-3.3-70b-instruct";
+
+  const todayStr = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   const langHint =
     language === "de"
@@ -189,7 +208,7 @@ ${langHint}`;
       const response = await activeClient.chat.completions.create({
         model,
         messages: [
-          { role: "system", content: REFINE_SYSTEM_PROMPT },
+          { role: "system", content: buildRefinePrompt(todayStr) },
           { role: "user", content: userMessage },
         ],
         temperature: 0.5,
@@ -259,6 +278,8 @@ export async function createPollFromDescription(
   const model =
     process.env.AI_MODEL || settings.model || "llama-3.3-70b-instruct";
 
+  const todayStr = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
   const langHint =
     language === "de"
       ? "Please respond in German."
@@ -284,7 +305,7 @@ export async function createPollFromDescription(
       const response = await activeClient.chat.completions.create({
         model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: buildSystemPrompt(todayStr) },
           { role: "user", content: userMessage },
         ],
         temperature: 0.7,

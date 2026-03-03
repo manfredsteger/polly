@@ -122,24 +122,54 @@ export default function CreateOrganization() {
       if (suggestion.title) setTitle(suggestion.title);
       if (suggestion.description) setDescription(suggestion.description);
       if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
-        const parsedSlots = suggestion.options.map((text: string, i: number) => {
+        const DATE_PREFIX_RE = /^(\d{2})\.(\d{2})\.(\d{4})\s+/;
+
+        type RawSlot = { text: string; startTime?: string; endTime?: string; maxCapacity?: number; order: number; _isoDate?: string };
+
+        const rawParsed: RawSlot[] = (suggestion.options as string[]).map((text: string, i: number) => {
+          const dateMatch = text.match(DATE_PREFIX_RE);
           const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
           const capMatch = text.match(/\(max\.?\s*(\d+)/i);
+
+          let isoDate: string | undefined;
+          if (dateMatch) {
+            const [, dd, mm, yyyy] = dateMatch;
+            isoDate = `${yyyy}-${mm}-${dd}`;
+          }
+
           let cleanText = text;
+          if (dateMatch) {
+            cleanText = text.replace(DATE_PREFIX_RE, '');
+          }
           if (timeMatch) {
-            const timeIndex = text.indexOf(timeMatch[0]);
-            const before = text.substring(0, timeIndex).trim();
-            cleanText = before || text;
+            const timeIndex = cleanText.indexOf(timeMatch[0]);
+            const before = cleanText.substring(0, timeIndex).trim();
+            cleanText = before || cleanText;
           }
           cleanText = cleanText.replace(/\(max\.?\s*\d+[^)]*\)/gi, '').trim() || text;
+
           return {
             text: cleanText,
             startTime: timeMatch ? timeMatch[1] : undefined,
             endTime: timeMatch ? timeMatch[2] : undefined,
             maxCapacity: capMatch ? parseInt(capMatch[1]) : undefined,
             order: i,
+            _isoDate: isoDate,
           };
         });
+
+        const datesFound = rawParsed.map((s: RawSlot) => s._isoDate).filter(Boolean) as string[];
+        const uniqueDates = [...new Set(datesFound)];
+        const allSameDate = datesFound.length === rawParsed.length && uniqueDates.length === 1;
+
+        if (allSameDate) {
+          const sharedDate = uniqueDates[0];
+          setIsDayMode(true);
+          setDayModeDate(sharedDate);
+          setDayModeDates([sharedDate]);
+        }
+
+        const parsedSlots = rawParsed.map(({ _isoDate: _d, ...slot }: RawSlot) => slot);
         setSlots(parsedSlots);
       }
       const s = suggestion.settings;

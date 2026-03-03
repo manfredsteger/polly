@@ -446,26 +446,22 @@ export function AiChatWidget() {
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div>
-                <p className="text-xs text-muted-foreground mb-0.5">{t("home.aiTitle")}</p>
-                <p className="text-sm font-semibold">{suggestion.title}</p>
+                <p className="text-lg font-bold text-foreground leading-tight">{suggestion.title}</p>
               </div>
               {suggestion.description && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">{t("home.aiDescription")}</p>
-                  <p className="text-sm text-muted-foreground">{suggestion.description}</p>
-                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{suggestion.description}</p>
               )}
               <div>
-                <p className="text-xs text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground mb-2">
                   {t("home.aiOptions")} ({suggestion.options.length})
                 </p>
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {suggestion.options.map((opt, i) => (
-                    <li key={i} className="text-sm flex items-start gap-1.5">
-                      <span className="text-muted-foreground text-xs mt-0.5 shrink-0">{i + 1}.</span>
-                      {opt}
+                    <li key={i} className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-1.5">
+                      <span className="bg-primary/10 text-primary text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-medium">{i + 1}</span>
+                      <span className="text-sm">{opt}</span>
                     </li>
                   ))}
                 </ul>
@@ -480,8 +476,10 @@ export function AiChatWidget() {
               )}
             </div>
 
-            <Button onClick={handleApply} className="w-full gap-2" size="sm">
-              <CheckCircle className="w-4 h-4" />
+          </div>
+          <div className="px-4 pb-4 pt-3 bg-primary/5 border-t-2 border-primary/20">
+            <Button onClick={handleApply} className="w-full h-12 text-base font-semibold gap-2.5 shadow-md hover:shadow-lg transition-shadow">
+              <ArrowRight className="w-5 h-5" />
               {t("home.aiApply")} → {pollTypeLabel}
             </Button>
           </div>
@@ -489,7 +487,7 @@ export function AiChatWidget() {
           {/* Follow-up refinement box */}
           <div className="border-t border-border/60 bg-muted/10">
             <div className="px-4 pt-3 pb-1">
-              <p className="text-xs font-medium text-foreground/80">
+              <p className="text-sm font-semibold text-foreground/80">
                 {t("aiWidget.followUpTitle")}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -497,61 +495,60 @@ export function AiChatWidget() {
               </p>
             </div>
 
-            {/* Quick suggestion chips — always visible, toggleable */}
+            {/* Quick suggestion chips — filtered when selected */}
             {(() => {
               const chips = QUICK_SUGGESTIONS[lang === "de" ? "de" : "en"][suggestion.pollType] ?? [];
               if (chips.length === 0) return null;
+              const visibleChips = chips.filter((c) => !selectedChips.includes(c));
               return (
                 <div className="px-3 pb-2">
-                  <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wide font-medium">
-                    {t("aiWidget.quickSuggestionsLabel")}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {chips.map((chip) => {
-                      const isSelected = selectedChips.includes(chip);
-                      return (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-px flex-1 bg-border/50" />
+                    <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">{t("aiWidget.quickSuggestionsLabel")}</span>
+                    <div className="h-px flex-1 bg-border/50" />
+                  </div>
+                  {visibleChips.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {visibleChips.map((chip) => (
                         <button
                           key={chip}
                           type="button"
-                          onClick={() =>
-                            setSelectedChips((prev) =>
-                              isSelected ? prev.filter((c) => c !== chip) : [...prev, chip]
-                            )
-                          }
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                            isSelected
-                              ? "border-primary/60 bg-primary/10 text-primary font-medium"
-                              : "border-border bg-background hover:border-primary/50 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
-                          }`}
+                          onClick={() => setSelectedChips((prev) => [...prev, chip])}
+                          className="text-xs px-2.5 py-1 rounded-lg border border-transparent bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                         >
                           {chip}
                         </button>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 italic">Alle Optionen ausgewählt ✓</p>
+                  )}
                 </div>
               );
             })()}
 
             {/* Selected chips as removable tags */}
             {selectedChips.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 px-3 pb-2 pt-0.5 border-t border-border/30">
-                {selectedChips.map((chip) => (
-                  <span
-                    key={chip}
-                    className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-primary/15 border border-primary/40 text-primary font-medium"
-                  >
-                    {chip}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedChips((prev) => prev.filter((c) => c !== chip))}
-                      className="ml-0.5 rounded-full hover:bg-primary/20 transition-colors p-0.5"
-                      aria-label="Entfernen"
+              <div className="mx-3 mb-2 bg-primary/5 rounded-xl p-2.5">
+                <p className="text-[10px] text-primary/60 mb-1.5 font-medium">Wird angepasst:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedChips.map((chip) => (
+                    <span
+                      key={chip}
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary font-medium"
                     >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                ))}
+                      {chip}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedChips((prev) => prev.filter((c) => c !== chip))}
+                        className="ml-0.5 rounded-full hover:bg-primary/20 transition-colors p-0.5"
+                        aria-label="Entfernen"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 

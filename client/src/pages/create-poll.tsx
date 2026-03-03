@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
 import { formatScheduleOptionText } from "@/lib/utils";
-import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -59,6 +59,7 @@ export default function CreatePoll() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<PollOption[]>([]);
   
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -468,49 +469,70 @@ export default function CreatePoll() {
               );
             })()}
             
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteEdit')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.allowVoteEditDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={allowVoteEdit}
-                onCheckedChange={setAllowVoteEdit}
-                data-testid="switch-allow-vote-edit"
-                aria-label={t('pollCreation.allowVoteEdit')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.allowVoteWithdrawalDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={allowVoteWithdrawal}
-                onCheckedChange={setAllowVoteWithdrawal}
-                data-testid="switch-allow-vote-withdrawal"
-                aria-label={t('pollCreation.allowVoteWithdrawal')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.resultsPublic')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.resultsPublicDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={resultsPublic}
-                onCheckedChange={setResultsPublic}
-                data-testid="switch-results-public"
-                aria-label={t('pollCreation.resultsPublic')}
-              />
+            <div className="pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setSettingsExpanded(p => !p)}
+                className="flex items-center justify-between w-full text-left"
+                aria-expanded={settingsExpanded}
+              >
+                <span className="text-sm font-medium text-muted-foreground">{t('pollCreation.settings')}</span>
+                <div className="flex items-center gap-2">
+                  {!settingsExpanded && (
+                    <div className="flex gap-1">
+                      {allowVoteEdit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.allowVoteEdit')}</span>}
+                      {!resultsPublic && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.resultsPrivate')}</span>}
+                    </div>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${settingsExpanded ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+              {settingsExpanded && (
+                <div className="space-y-4 mt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowVoteEdit')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowVoteEditDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoteEdit}
+                      onCheckedChange={setAllowVoteEdit}
+                      data-testid="switch-allow-vote-edit"
+                      aria-label={t('pollCreation.allowVoteEdit')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowVoteWithdrawalDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoteWithdrawal}
+                      onCheckedChange={setAllowVoteWithdrawal}
+                      data-testid="switch-allow-vote-withdrawal"
+                      aria-label={t('pollCreation.allowVoteWithdrawal')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.resultsPublic')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.resultsPublicDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={resultsPublic}
+                      onCheckedChange={setResultsPublic}
+                      data-testid="switch-results-public"
+                      aria-label={t('pollCreation.resultsPublic')}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer } from "lucide-react";
+import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer, ChevronDown } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -66,6 +66,7 @@ export default function CreateOrganization() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [isDayMode, setIsDayMode] = useState(false);
   const [dayModeDate, setDayModeDate] = useState<string>("");
   const [dayModeDates, setDayModeDates] = useState<string[]>([]);
@@ -141,18 +142,6 @@ export default function CreateOrganization() {
           };
         });
         setSlots(parsedSlots);
-        const hasSimpleTimes = parsedSlots.some(
-          (s: { startTime?: string }) => s.startTime && /^\d{2}:\d{2}$/.test(s.startTime)
-        );
-        if (hasSimpleTimes) {
-          setIsDayMode(true);
-          // Pre-fill today as the default date so validation passes immediately
-          const today = new Date();
-          const pad = (n: number) => String(n).padStart(2, '0');
-          const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-          setDayModeDates([todayStr]);
-          setDayModeDate(todayStr);
-        }
       }
       const s = suggestion.settings;
       if (s && typeof s === "object") {
@@ -693,73 +682,92 @@ export default function CreateOrganization() {
         </Card>
 
         <Card className="polly-card">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Users className="w-5 h-5 mr-2 text-green-600" />
-              {t('createOrganization.settings')}
-            </CardTitle>
+          <CardHeader className="pb-0">
+            <button
+              type="button"
+              onClick={() => setSettingsExpanded(p => !p)}
+              className="flex items-center justify-between w-full text-left"
+              aria-expanded={settingsExpanded}
+            >
+              <CardTitle className="flex items-center">
+                <Users className="w-5 h-5 mr-2 text-green-600" />
+                {t('createOrganization.settings')}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                {!settingsExpanded && (
+                  <div className="flex gap-1 flex-wrap justify-end">
+                    {allowMultipleSlots && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('createOrganization.allowMultipleSlots')}</span>}
+                    {allowVoteEdit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.allowVoteEdit')}</span>}
+                    {!resultsPublic && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.resultsPrivate')}</span>}
+                  </div>
+                )}
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${settingsExpanded ? "rotate-180" : ""}`} />
+              </div>
+            </button>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t('createOrganization.allowMultipleSlots')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('createOrganization.allowMultipleSlotsDescription')}
-                </p>
+          {settingsExpanded && (
+            <CardContent className="space-y-6 pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('createOrganization.allowMultipleSlots')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createOrganization.allowMultipleSlotsDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={allowMultipleSlots}
+                  onCheckedChange={setAllowMultipleSlots}
+                  data-testid="switch-multiple-slots"
+                  aria-label={t('createOrganization.allowMultipleSlots')}
+                />
               </div>
-              <Switch
-                checked={allowMultipleSlots}
-                onCheckedChange={setAllowMultipleSlots}
-                data-testid="switch-multiple-slots"
-                aria-label={t('createOrganization.allowMultipleSlots')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteEdit')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('createOrganization.allowEntryEditDescription')}
-                </p>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('pollCreation.allowVoteEdit')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createOrganization.allowEntryEditDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={allowVoteEdit}
+                  onCheckedChange={setAllowVoteEdit}
+                  data-testid="switch-allow-vote-edit"
+                  aria-label={t('pollCreation.allowVoteEdit')}
+                />
               </div>
-              <Switch
-                checked={allowVoteEdit}
-                onCheckedChange={setAllowVoteEdit}
-                data-testid="switch-allow-vote-edit"
-                aria-label={t('pollCreation.allowVoteEdit')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('createOrganization.allowEntryWithdrawalDescription')}
-                </p>
+              
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="space-y-0.5">
+                  <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createOrganization.allowEntryWithdrawalDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={allowVoteWithdrawal}
+                  onCheckedChange={setAllowVoteWithdrawal}
+                  data-testid="switch-allow-vote-withdrawal"
+                  aria-label={t('pollCreation.allowVoteWithdrawal')}
+                />
               </div>
-              <Switch
-                checked={allowVoteWithdrawal}
-                onCheckedChange={setAllowVoteWithdrawal}
-                data-testid="switch-allow-vote-withdrawal"
-                aria-label={t('pollCreation.allowVoteWithdrawal')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.resultsPublic')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.resultsPublicDescription')}
-                </p>
+              
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="space-y-0.5">
+                  <Label>{t('pollCreation.resultsPublic')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('pollCreation.resultsPublicDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={resultsPublic}
+                  onCheckedChange={setResultsPublic}
+                  data-testid="switch-results-public"
+                  aria-label={t('pollCreation.resultsPublic')}
+                />
               </div>
-              <Switch
-                checked={resultsPublic}
-                onCheckedChange={setResultsPublic}
-                data-testid="switch-results-public"
-                aria-label={t('pollCreation.resultsPublic')}
-              />
-            </div>
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
 
         <Card className="polly-card">
@@ -813,7 +821,6 @@ export default function CreateOrganization() {
                   } else {
                     setDayModeDate("");
                     setDayModeDates([]);
-                    setSlots(slots.map(s => ({ ...s, startTime: undefined, endTime: undefined })));
                   }
                 }}
                 data-testid="switch-day-mode"
@@ -821,46 +828,37 @@ export default function CreateOrganization() {
               />
             </div>
             
-            <div className="p-4 border rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
-              </div>
-              <p className="text-sm text-muted-foreground mb-3">
-                {t('createOrganization.templates.subtitle')}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {orgaTemplateDefinitions.map((template) => {
-                  const Icon = template.icon;
-                  return (
-                    <button
-                      key={template.id}
-                      type="button"
-                      onClick={() => {
-                        if (!isDayMode) {
-                          setIsDayMode(true);
-                        }
-                        applyTemplate(template.id);
-                      }}
-                      className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
-                      data-testid={`template-${template.id}`}
-                    >
-                      <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">{t(template.nameKey)}</p>
-                        <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
-                💡 {t('createOrganization.templates.tip')}
-              </div>
-            </div>
-
             {isDayMode && (
               <>
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <Label className="flex items-center gap-2 mb-3">
+                    <Timer className="w-4 h-4" />
+                    {t('createOrganization.slotDuration')}
+                  </Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="slider-duration">
+                    {DURATION_OPTIONS.map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          setSlotDuration(d);
+                          recalcSlotTimes(d);
+                        }}
+                        className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
+                          slotDuration === d 
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
+                            : 'bg-background border-border hover:border-primary/50 hover:bg-accent/50 text-foreground'
+                        }`}
+                        data-testid={`duration-btn-${d}`}
+                      >
+                        <span data-testid={d === slotDuration ? "duration-value" : undefined}>
+                          {d} {t('createOrganization.minutes')}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="p-4 border rounded-lg bg-muted/30">
                   <Label className="flex items-center gap-2 mb-2">
                     <CalendarDays className="w-4 h-4" />
@@ -930,31 +928,35 @@ export default function CreateOrganization() {
                 </div>
 
                 <div className="p-4 border rounded-lg bg-muted/30">
-                  <Label className="flex items-center gap-2 mb-3">
-                    <Timer className="w-4 h-4" />
-                    {t('createOrganization.slotDuration')}
-                  </Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="slider-duration">
-                    {DURATION_OPTIONS.map(d => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          setSlotDuration(d);
-                          recalcSlotTimes(d);
-                        }}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                          slotDuration === d 
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
-                            : 'bg-background border-border hover:border-primary/50 hover:bg-accent/50 text-foreground'
-                        }`}
-                        data-testid={`duration-btn-${d}`}
-                      >
-                        <span data-testid={d === slotDuration ? "duration-value" : undefined}>
-                          {d} {t('createOrganization.minutes')}
-                        </span>
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {t('createOrganization.templates.subtitle')}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {orgaTemplateDefinitions.map((template) => {
+                      const Icon = template.icon;
+                      return (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => applyTemplate(template.id)}
+                          className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
+                          data-testid={`template-${template.id}`}
+                        >
+                          <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
+                          <div>
+                            <p className="font-medium text-sm">{t(template.nameKey)}</p>
+                            <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
+                    💡 {t('createOrganization.templates.tip')}
                   </div>
                 </div>
 

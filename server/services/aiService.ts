@@ -75,8 +75,10 @@ The JSON must have this exact structure:
 Rules per poll type for the OPTIONS field:
 - schedule: options must be date+time strings in EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
   Example: ["15.07.2026 09:00 - 10:00", "16.07.2026 14:00 - 15:30", "17.07.2026 10:00 - 11:00"]
-  Use realistic future dates (within the next 2-4 weeks from today: ${todayStr}). Include 2-5 options.
-- survey: options are answer choices, 2-8 options, concise and distinct
+  Use realistic future dates (within the next 2-4 weeks from today: ${todayStr}).
+  If the user specifies a count or lists specific dates, generate exactly that many. Otherwise, suggest 3-5 options.
+- survey: options are answer choices, concise and distinct.
+  If the user specifies a count or lists specific answer choices, generate exactly that many. Otherwise, suggest 4-6 options.
 - organization: TWO formats depending on context:
   (A) FIXED-DATE events (party, festival, Sommerfest, Sportfest, workshop, Tag der offenen Tür, Firmenevent, etc. — any event with an implied specific day):
       ALWAYS include the concrete event date in EVERY slot. Format: "DD.MM.YYYY Description HH:MM - HH:MM (max. N)"
@@ -85,7 +87,8 @@ Rules per poll type for the OPTIONS field:
   (B) ONGOING / RECURRING sign-up lists WITHOUT a fixed date (cleaning rota, recurring duty schedule, etc.):
       Omit the date. Format: "Description HH:MM - HH:MM (max. N)"
       Example: ["Aufbau 08:00 - 10:00 (max. 5)", "Betreuung 10:00 - 14:00 (max. 3)", "Abbau 14:00 - 16:00"]
-  Always include capacity (max. N) when context implies limited spots. Use 2-8 slots.
+  Always include capacity (max. N) when context implies limited spots.
+  If the user specifies a count or lists specific stations/tasks, generate exactly that many slots. Otherwise, suggest 5-8 slots.
 
 Rules for the SETTINGS field — you MUST decide based on context:
 
@@ -156,6 +159,7 @@ The JSON must follow this exact structure:
 For schedule options, use EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
 For organization options with a fixed event date, use: "DD.MM.YYYY Description HH:MM - HH:MM (max. N)"
 For organization options without a fixed date, use: "Description HH:MM - HH:MM (max. N)"
+If the user asks to add more items, add them freely — even if the total exceeds the initial count. If the user asks to remove items, remove them. Always honor the user's requested count exactly.
 Respond in the same language as the user's refinement request.`;
 }
 
@@ -212,7 +216,7 @@ ${langHint}`;
           { role: "user", content: userMessage },
         ],
         temperature: 0.5,
-        max_tokens: 600,
+        max_tokens: 2000,
       });
 
       const content = response.choices[0]?.message?.content?.trim();
@@ -245,7 +249,7 @@ ${langHint}`;
         pollType: pollType as PollSuggestion["pollType"],
         title: String(parsed.title).slice(0, 80),
         description: String(parsed.description || "").slice(0, 200),
-        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 8),
+        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 50),
         settings: resolvedSettings,
       };
     } catch (err: any) {
@@ -309,7 +313,7 @@ export async function createPollFromDescription(
           { role: "user", content: userMessage },
         ],
         temperature: 0.7,
-        max_tokens: 600,
+        max_tokens: 2000,
       });
 
       const content = response.choices[0]?.message?.content?.trim();
@@ -342,7 +346,7 @@ export async function createPollFromDescription(
         pollType: pollType as PollSuggestion["pollType"],
         title: String(parsed.title).slice(0, 80),
         description: String(parsed.description || "").slice(0, 200),
-        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 8),
+        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 50),
         settings: resolvedSettings,
       };
     } catch (err: any) {

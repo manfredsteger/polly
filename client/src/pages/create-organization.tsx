@@ -378,6 +378,11 @@ export default function CreateOrganization() {
     }
   };
 
+  const addSlotTop = () => {
+    const newSlot: OrgaSlot = { text: "", maxCapacity: undefined, order: 0 };
+    setSlots([newSlot, ...slots.map((s, i) => ({ ...s, order: i + 1 }))]);
+  };
+
   const applyTemplate = (templateId: string) => {
     const templateSlots = getTemplateSlots(templateId);
     const newSlots: OrgaSlot[] = templateSlots.map((s, idx) => ({
@@ -806,7 +811,7 @@ export default function CreateOrganization() {
                 <Clock className="w-5 h-5 mr-2 text-green-600" />
                 {t('createOrganization.slots')}
               </span>
-              <Button type="button" onClick={addSlot} variant="outline" size="sm" data-testid="button-add-slot">
+              <Button type="button" onClick={addSlotTop} variant="outline" size="sm" data-testid="button-add-slot">
                 <Plus className="w-4 h-4 mr-2" />
                 {t('createOrganization.addSlot')}
               </Button>
@@ -989,7 +994,7 @@ export default function CreateOrganization() {
                   </div>
                 </div>
 
-                <Button type="button" onClick={addSlot} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-day">
+                <Button type="button" onClick={addSlotTop} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-day">
                   <Plus className="w-4 h-4 mr-2" />
                   {t('createOrganization.addSlot')}
                 </Button>

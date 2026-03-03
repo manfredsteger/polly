@@ -104,7 +104,7 @@ For ORGANIZATION polls:
 - allowVoteEdit: true (people may need to change slots)
 - allowVoteWithdrawal: true (people may need to cancel)
 - allowMaybe: false (not applicable for sign-up lists)
-- allowMultipleSlots: false (usually one slot per person)
+- allowMultipleSlots: true (participants may want to sign up for multiple slots; set to false only if the user explicitly requests single-slot-only booking)
 
 For SURVEY polls — decide based on sensitivity:
 - SENSITIVE topics (keywords: satisfaction, Zufriedenheit, mood, Stimmung, feedback, Bewertung, evaluation, Beurteilung, salary, Gehalt, anonymous, anonym, team climate, Teamklima, confidential, vertraulich, well-being, Wohlbefinden, peer review, performance, opinion about people):

@@ -434,8 +434,8 @@ export function AiChatWidget() {
       const data = await res.json();
       setSuggestion(data.suggestion as AiSuggestion);
       setFollowUpValue("");
-      setTimeout(() => suggestionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 150);
-      setTimeout(() => followUpRef.current?.focus(), 300);
+      setTimeout(() => textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+      setTimeout(() => followUpRef.current?.focus({ preventScroll: true }), 400);
     },
     onError: () => setSuggestion(null),
   });
@@ -453,8 +453,8 @@ export function AiChatWidget() {
       setSuggestion(data.suggestion as AiSuggestion);
       setFollowUpValue("");
       setSelectedChips([]);
-      setTimeout(() => suggestionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 150);
-      setTimeout(() => followUpRef.current?.focus(), 300);
+      setTimeout(() => textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+      setTimeout(() => followUpRef.current?.focus({ preventScroll: true }), 400);
     },
   });
 

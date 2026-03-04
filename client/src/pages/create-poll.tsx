@@ -59,6 +59,7 @@ export default function CreatePoll() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [allowAnonymousVoting, setAllowAnonymousVoting] = useState(true);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<PollOption[]>([]);
   
@@ -85,6 +86,7 @@ export default function CreatePoll() {
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      if (stored.data.allowAnonymousVoting !== undefined) setAllowAnonymousVoting(stored.data.allowAnonymousVoting);
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
       }
@@ -160,6 +162,7 @@ export default function CreatePoll() {
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
+          allowAnonymousVoting: allowAnonymousVoting,
           options: options.map((option) => {
             const opt: any = {
               text: option.text,
@@ -330,6 +333,7 @@ export default function CreatePoll() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
+      allowAnonymousVoting,
       options: options.map((option) => {
         const opt: any = {
           text: option.text,
@@ -529,6 +533,20 @@ export default function CreatePoll() {
                       onCheckedChange={setResultsPublic}
                       data-testid="switch-results-public"
                       aria-label={t('pollCreation.resultsPublic')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowAnonymousVoting')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowAnonymousVotingDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowAnonymousVoting}
+                      onCheckedChange={setAllowAnonymousVoting}
+                      data-testid="switch-allow-anonymous-voting"
+                      aria-label={t('pollCreation.allowAnonymousVoting')}
                     />
                   </div>
                 </div>

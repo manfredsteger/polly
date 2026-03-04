@@ -146,11 +146,16 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
 
   // Group participants by their voting patterns
   const participantMap = new Map();
-  results.votes.forEach(vote => {
-    const key = vote.userId ? `user_${vote.userId}` : `anon_${vote.voterName}`;
+  const isAnonymousPoll = !!(poll as any).allowAnonymousVoting;
+  results.votes.forEach((vote, index) => {
+    const key = vote.userId
+      ? `user_${vote.userId}`
+      : (vote as any).voterKey
+        ? `key_${(vote as any).voterKey}`
+        : `anon_${vote.voterName || index}`;
     if (!participantMap.has(key)) {
       participantMap.set(key, {
-        name: vote.voterName,
+        name: isAnonymousPoll ? t('pollCreation.anonymousVotingActive') : (vote.voterName || t('pollCreation.anonymousVotingActive')),
         votedAt: vote.createdAt,
         votes: []
       });
@@ -414,7 +419,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           {options.filter((o: any) => o.isFreeText).map((option: any) => {
             const answers = results.votes
               .filter((v: any) => v.optionId === option.id && v.response === 'freetext' && v.freeTextAnswer)
-              .map((v: any) => ({ name: v.voterName, text: v.freeTextAnswer as string }));
+              .map((v: any) => ({ name: isAnonymousPoll ? null : v.voterName, text: v.freeTextAnswer as string }));
             return (
               <Card key={option.id} className="polly-card border-l-4 border-l-primary/40">
                 <CardHeader className="pb-2">
@@ -713,13 +718,15 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                         {slotVotes.map((vote, idx) => (
                           <div key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm">
                             <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px] font-medium shrink-0">
-                              {vote.voterName?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?'}
+                              {isAnonymousPoll ? '?' : (vote.voterName?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?')}
                             </div>
-                            <span className="font-medium text-foreground">{vote.voterName}</span>
+                            <span className="font-medium text-foreground">
+                              {isAnonymousPoll ? t('pollCreation.anonymousVotingActive') : vote.voterName}
+                            </span>
                             {vote.comment && (
                               <span className="text-muted-foreground">– {vote.comment}</span>
                             )}
-                            {vote.voterEmail && (
+                            {!isAnonymousPoll && vote.voterEmail && (
                               <span className="text-muted-foreground text-xs hidden sm:inline">
                                 <Mail className="w-3 h-3 inline mr-0.5" />{vote.voterEmail}
                               </span>

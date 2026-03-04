@@ -86,8 +86,8 @@ export const votes = pgTable("votes", {
   id: serial("id").primaryKey(),
   pollId: uuid("poll_id").notNull(),
   optionId: integer("option_id").notNull(),
-  voterName: text("voter_name").notNull(),
-  voterEmail: text("voter_email").notNull(),
+  voterName: text("voter_name"), // null for truly anonymous votes
+  voterEmail: text("voter_email"), // null for truly anonymous votes
   userId: integer("user_id"), // null for anonymous votes
   voterKey: text("voter_key"), // Unique voter identifier: "user:123" or "device:abc123" (for deduplication)
   voterSource: text("voter_source"), // "user" (logged in) or "device" (guest with device token)

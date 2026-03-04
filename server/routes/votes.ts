@@ -36,38 +36,55 @@ router.post('/polls/:token/vote', async (req, res) => {
     }
 
     const data = bulkVoteSchema.parse(req.body);
-    
+
+    // Truly anonymous mode: poll allows anonymous AND no email provided
+    const isAnonymousMode = !!(poll.allowAnonymousVoting && !data.voterEmail);
+    const deviceVoterKey = data.voterKey || null;
+
     const currentUserId = await extractUserId(req);
     let userId: number | null = null;
-    
-    if (currentUserId) {
-      const currentUser = await storage.getUser(currentUserId);
-      if (currentUser) {
-        if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
-          userId = currentUserId;
-        } else {
-          const targetUser = await storage.getUserByEmail(data.voterEmail.toLowerCase());
-          if (targetUser) {
-            return res.status(403).json({
-              error: 'Diese E-Mail-Adresse gehört zu einem anderen Konto. Sie können nur mit Ihrer eigenen E-Mail abstimmen.',
-              errorCode: 'EMAIL_BELONGS_TO_ANOTHER_USER'
-            });
+
+    if (!isAnonymousMode) {
+      if (!data.voterEmail) {
+        return res.status(400).json({ error: 'E-Mail-Adresse ist erforderlich.', errorCode: 'EMAIL_REQUIRED' });
+      }
+      if (currentUserId) {
+        const currentUser = await storage.getUser(currentUserId);
+        if (currentUser) {
+          if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
+            userId = currentUserId;
+          } else {
+            const targetUser = await storage.getUserByEmail(data.voterEmail.toLowerCase());
+            if (targetUser) {
+              return res.status(403).json({
+                error: 'Diese E-Mail-Adresse gehört zu einem anderen Konto. Sie können nur mit Ihrer eigenen E-Mail abstimmen.',
+                errorCode: 'EMAIL_BELONGS_TO_ANOTHER_USER'
+              });
+            }
           }
         }
+      } else {
+        const existingUser = await storage.getUserByEmail(data.voterEmail.toLowerCase().trim());
+        if (existingUser) {
+          return res.status(409).json({
+            error: 'Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an, um abzustimmen.',
+            errorCode: 'REQUIRES_LOGIN'
+          });
+        }
       }
-    } else {
-      const existingUser = await storage.getUserByEmail(data.voterEmail.toLowerCase().trim());
-      if (existingUser) {
-        return res.status(409).json({
-          error: 'Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an, um abzustimmen.',
-          errorCode: 'REQUIRES_LOGIN'
-        });
-      }
+    } else if (currentUserId) {
+      userId = currentUserId;
     }
 
     const isTestMode = req.isTestMode === true;
 
-    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
+    // Deduplication: use voterKey (device) for anonymous, email otherwise
+    const existingVotes = isAnonymousMode && deviceVoterKey
+      ? await storage.getVotesByVoterKey(poll.id, deviceVoterKey)
+      : data.voterEmail
+        ? await storage.getVotesByEmail(poll.id, data.voterEmail)
+        : [];
+
     if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
@@ -101,15 +118,16 @@ router.post('/polls/:token/vote', async (req, res) => {
         const result = await storage.createVote({
           pollId: poll.id,
           optionId: voteData.optionId,
-          voterName: data.voterName,
-          voterEmail: data.voterEmail,
+          voterName: isAnonymousMode ? null : (data.voterName || null),
+          voterEmail: isAnonymousMode ? null : (data.voterEmail || null),
+          voterKey: isAnonymousMode ? deviceVoterKey : undefined,
           response: voteData.response,
           comment: voteData.comment,
           freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
         }, voterEditToken);
-        
+
         createdVotes.push(result.vote);
         voterEditToken = result.editToken;
       }
@@ -134,8 +152,8 @@ router.post('/polls/:token/vote', async (req, res) => {
       }
     }
 
-    // Send confirmation email (with anti-spam check)
-    if (!isTestMode && data.voterEmail && createdVotes.length > 0) {
+    // Send confirmation email (skip for anonymous votes)
+    if (!isTestMode && !isAnonymousMode && data.voterEmail && createdVotes.length > 0) {
       const now = Date.now();
       const emailKey = `${poll.id}:${data.voterEmail.toLowerCase()}`;
       const lastSent = recentEmailSends.get(emailKey);
@@ -219,38 +237,55 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     }
 
     const data = bulkVoteSchema.parse(req.body);
-    
+
+    // Truly anonymous mode: poll allows anonymous AND no email provided
+    const isAnonymousMode = !!(poll.allowAnonymousVoting && !data.voterEmail);
+    const deviceVoterKey = data.voterKey || null;
+
     const currentUserId = await extractUserId(req);
     let userId: number | null = null;
-    
-    if (currentUserId) {
-      const currentUser = await storage.getUser(currentUserId);
-      if (currentUser) {
-        if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
-          userId = currentUserId;
-        } else {
-          const targetUser = await storage.getUserByEmail(data.voterEmail.toLowerCase());
-          if (targetUser) {
-            return res.status(403).json({
-              error: 'Diese E-Mail-Adresse gehört zu einem anderen Konto. Sie können nur mit Ihrer eigenen E-Mail abstimmen.',
-              errorCode: 'EMAIL_BELONGS_TO_ANOTHER_USER'
-            });
+
+    if (!isAnonymousMode) {
+      if (!data.voterEmail) {
+        return res.status(400).json({ error: 'E-Mail-Adresse ist erforderlich.', errorCode: 'EMAIL_REQUIRED' });
+      }
+      if (currentUserId) {
+        const currentUser = await storage.getUser(currentUserId);
+        if (currentUser) {
+          if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
+            userId = currentUserId;
+          } else {
+            const targetUser = await storage.getUserByEmail(data.voterEmail.toLowerCase());
+            if (targetUser) {
+              return res.status(403).json({
+                error: 'Diese E-Mail-Adresse gehört zu einem anderen Konto. Sie können nur mit Ihrer eigenen E-Mail abstimmen.',
+                errorCode: 'EMAIL_BELONGS_TO_ANOTHER_USER'
+              });
+            }
           }
         }
+      } else {
+        const existingUser = await storage.getUserByEmail(data.voterEmail.toLowerCase().trim());
+        if (existingUser) {
+          return res.status(409).json({
+            error: 'Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an, um abzustimmen.',
+            errorCode: 'REQUIRES_LOGIN'
+          });
+        }
       }
-    } else {
-      const existingUser = await storage.getUserByEmail(data.voterEmail.toLowerCase().trim());
-      if (existingUser) {
-        return res.status(409).json({
-          error: 'Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an, um abzustimmen.',
-          errorCode: 'REQUIRES_LOGIN'
-        });
-      }
+    } else if (currentUserId) {
+      userId = currentUserId;
     }
 
     const isTestMode = req.isTestMode === true;
 
-    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
+    // Deduplication: use voterKey (device) for anonymous, email otherwise
+    const existingVotes = isAnonymousMode && deviceVoterKey
+      ? await storage.getVotesByVoterKey(poll.id, deviceVoterKey)
+      : data.voterEmail
+        ? await storage.getVotesByEmail(poll.id, data.voterEmail)
+        : [];
+
     if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
@@ -284,15 +319,16 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
         const result = await storage.createVote({
           pollId: poll.id,
           optionId: voteData.optionId,
-          voterName: data.voterName,
-          voterEmail: data.voterEmail,
+          voterName: isAnonymousMode ? null : (data.voterName || null),
+          voterEmail: isAnonymousMode ? null : (data.voterEmail || null),
+          voterKey: isAnonymousMode ? deviceVoterKey : undefined,
           response: voteData.response,
           comment: voteData.comment,
           freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
         }, voterEditToken);
-        
+
         createdVotes.push(result.vote);
         voterEditToken = result.editToken;
       }
@@ -317,8 +353,8 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
       }
     }
 
-    // Send confirmation email (with anti-spam check)
-    if (!isTestMode && data.voterEmail && createdVotes.length > 0) {
+    // Send confirmation email (skip for anonymous votes)
+    if (!isTestMode && !isAnonymousMode && data.voterEmail && createdVotes.length > 0) {
       const now = Date.now();
       const emailKey = `${poll.id}:${data.voterEmail.toLowerCase()}`;
       const lastSent = recentEmailSends.get(emailKey);

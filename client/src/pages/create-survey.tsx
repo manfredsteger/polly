@@ -95,6 +95,7 @@ export default function CreateSurvey() {
   const [resultsPublic, setResultsPublic] = useState(true);
   const [allowMaybe, setAllowMaybe] = useState(true);
   const [showWinner, setShowWinner] = useState(true);
+  const [allowAnonymousVoting, setAllowAnonymousVoting] = useState(true);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<SurveyOption[]>([
     { id: nextOptionId(), text: "", order: 0 },
@@ -134,6 +135,7 @@ export default function CreateSurvey() {
       setResultsPublic(stored.data.resultsPublic ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
       if (stored.data.showWinner !== undefined) setShowWinner(stored.data.showWinner);
+      if (stored.data.allowAnonymousVoting !== undefined) setAllowAnonymousVoting(stored.data.allowAnonymousVoting);
       if (stored.data.options && stored.data.options.length >= 2) {
         setOptions(stored.data.options.map((o: any) => ({ ...o, id: o.id || nextOptionId() })));
       }
@@ -173,6 +175,7 @@ export default function CreateSurvey() {
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
         if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
         if (typeof s.showWinner === "boolean") setShowWinner(s.showWinner);
+        if (typeof s.allowAnonymousVoting === "boolean") setAllowAnonymousVoting(s.allowAnonymousVoting);
       }
     } catch (_) {}
   }, []);
@@ -206,6 +209,7 @@ export default function CreateSurvey() {
           resultsPublic: resultsPublic,
           allowMaybe,
           showWinner,
+          allowAnonymousVoting,
           options: validOptions.map((option, index) => ({
             text: option.text,
             imageUrl: option.imageUrl,
@@ -363,6 +367,7 @@ export default function CreateSurvey() {
       resultsPublic,
       allowMaybe,
       showWinner,
+      allowAnonymousVoting,
       options: validOptions.map((option, index) => {
         const opt: any = {
           text: option.text.trim(),
@@ -578,6 +583,20 @@ export default function CreateSurvey() {
                       onCheckedChange={setAllowMaybe}
                       data-testid="switch-allow-maybe"
                       aria-label={t('createSurvey.allowMaybe')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowAnonymousVoting')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowAnonymousVotingDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowAnonymousVoting}
+                      onCheckedChange={setAllowAnonymousVoting}
+                      data-testid="switch-allow-anonymous-voting"
+                      aria-label={t('pollCreation.allowAnonymousVoting')}
                     />
                   </div>
                 </div>

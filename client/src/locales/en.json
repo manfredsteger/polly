@@ -2600,7 +2600,12 @@
     "loginToVoteWithEmail": "Please log in to vote with this email.",
     "slotFullError": "This slot is fully booked. There are no more spots available.",
     "alreadySignedUpError": "You have already signed up for a slot in this list.",
-    "overbookingPrevented": "Overbooking was prevented. Please try a different slot."
+    "overbookingPrevented": "Overbooking was prevented. Please try a different slot.",
+    "anonymousMode": "Anonymous voting",
+    "anonymousHint": "Your vote is saved without a name or email. No confirmation link — please copy the link below.",
+    "anonymousEditLinkLabel": "Link to edit your vote:",
+    "anonymousEditLinkCopy": "Copy link",
+    "anonymousEditLinkCopied": "Copied!"
   },
   "organizationSlot": {
     "note": "Note:",
@@ -2729,6 +2734,9 @@
     "showWinner": "Show winner / most popular option",
     "showWinnerDescription": "Highlights the option with the most votes in the results.",
     "showWinnerActive": "Winner highlight",
+    "allowAnonymousVoting": "Anonymous voting",
+    "allowAnonymousVotingDescription": "Participants don't need to enter a name or email address.",
+    "anonymousVotingActive": "Anonymous",
     "creationOptions": "Creation Options",
     "settings": "Settings",
     "loggedInAs": "Logged in as {{name}}",

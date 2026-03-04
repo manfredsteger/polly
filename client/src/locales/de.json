@@ -2778,6 +2778,11 @@
     "optionsHint": "Fügen Sie mindestens 2 Optionen hinzu, zwischen denen die Teilnehmer wählen können.",
     "optionPlaceholder": "Option {{number}}",
     "addImage": "Bild hinzufügen (optional):",
+    "addFreeTextQuestion": "Frage hinzufügen",
+    "freeTextQuestion": "Offene Frage",
+    "freeTextQuestionPlaceholder": "Fragestellung eingeben...",
+    "freeTextHint": "Teilnehmer können hier frei antworten — kein Ja/Nein/Vielleicht.",
+    "optionsHintMixed": "Kombinieren Sie Auswahloptionen und offene Fragen nach Bedarf.",
     "tipTitle": "💡 Tipp",
     "tipContent": "Verwenden Sie Bilder, um Ihre Optionen visuell ansprechender zu gestalten. Bilder helfen den Teilnehmern bei der Entscheidung.",
     "submitButton": "Umfrage erstellen"

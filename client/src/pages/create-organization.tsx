@@ -730,6 +730,7 @@ export default function CreateOrganization() {
               <div className="flex items-center gap-2">
                 {!settingsExpanded && (
                   <div className="flex gap-1 flex-wrap justify-end">
+                    {isDayMode && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">{t('createOrganization.dayOrganization')}</span>}
                     {allowMultipleSlots && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('createOrganization.allowMultipleSlots')}</span>}
                     {allowVoteEdit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.allowVoteEdit')}</span>}
                     {!resultsPublic && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.resultsPrivate')}</span>}
@@ -800,6 +801,185 @@ export default function CreateOrganization() {
                   aria-label={t('pollCreation.resultsPublic')}
                 />
               </div>
+
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <div className="flex items-center gap-3">
+                    <CalendarDays className="w-5 h-5 text-blue-600" />
+                    <div className="space-y-0.5">
+                      <Label className="font-medium">{t('createOrganization.dayOrganization')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('createOrganization.dayOrganizationDescription')}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isDayMode}
+                    onCheckedChange={(checked) => {
+                      setIsDayMode(checked);
+                      if (checked) {
+                        const extractTime = (dt: string | undefined): string | undefined => {
+                          if (!dt) return undefined;
+                          if (dt.includes('T')) {
+                            const timePart = dt.split('T')[1];
+                            return timePart ? timePart.substring(0, 5) : undefined;
+                          }
+                          return dt.length === 5 ? dt : undefined;
+                        };
+                        setSlots(slots.map(s => ({
+                          ...s,
+                          startTime: extractTime(s.startTime),
+                          endTime: extractTime(s.endTime)
+                        })));
+                      } else {
+                        setDayModeDate("");
+                        setDayModeDates([]);
+                      }
+                    }}
+                    data-testid="switch-day-mode"
+                    aria-label={t('createOrganization.dayOrganization')}
+                  />
+                </div>
+
+                {isDayMode && (
+                  <div className="space-y-4 mt-4">
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <Label className="flex items-center gap-2 mb-3">
+                        <Timer className="w-4 h-4" />
+                        {t('createOrganization.slotDuration')}
+                      </Label>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="slider-duration">
+                        {DURATION_OPTIONS.map(d => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => {
+                              setSlotDuration(d);
+                              recalcSlotTimes(d);
+                            }}
+                            className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
+                              slotDuration === d
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'bg-background border-border hover:border-primary/50 hover:bg-accent/50 text-foreground'
+                            }`}
+                            data-testid={`duration-btn-${d}`}
+                          >
+                            <span data-testid={d === slotDuration ? "duration-value" : undefined}>
+                              {d} {t('createOrganization.minutes')}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <Label className="flex items-center gap-2 mb-2">
+                        <CalendarDays className="w-4 h-4" />
+                        {t('createOrganization.dateForAllSlots')}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {t('createOrganization.multiDateHint')}
+                      </p>
+                      <div className="flex gap-2 items-start">
+                        <DatePicker
+                          date={null}
+                          onDateChange={(date) => {
+                            if (date) {
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              const dateStr = `${year}-${month}-${day}`;
+                              if (!dayModeDates.includes(dateStr)) {
+                                const updated = [...dayModeDates, dateStr].sort();
+                                setDayModeDates(updated);
+                                setDayModeDate(updated[0]);
+                              }
+                            }
+                          }}
+                          minDate={new Date()}
+                          placeholder={t('createOrganization.addDate')}
+                          showClearButton={false}
+                          data-testid="input-day-mode-date"
+                        />
+                      </div>
+                      {dayModeDates.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {[...dayModeDates].sort().map((dateStr) => {
+                            const [y, m, d] = dateStr.split('-').map(Number);
+                            const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+                            const label = dateObj.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+                            return (
+                              <span
+                                key={dateStr}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20"
+                                data-testid={`date-chip-${dateStr}`}
+                              >
+                                <CalendarDays className="w-3 h-3" />
+                                {label}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = dayModeDates.filter(dd => dd !== dateStr);
+                                    setDayModeDates(updated);
+                                    setDayModeDate(updated[0] || "");
+                                  }}
+                                  className="ml-1 hover:text-destructive transition-colors"
+                                  aria-label={t('createOrganization.removeDate')}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {dayModeDates.length > 1 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                          {t('createOrganization.multiDateInfo', { count: dayModeDates.length })}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {t('createOrganization.templates.subtitle')}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {orgaTemplateDefinitions.map((template) => {
+                          const Icon = template.icon;
+                          return (
+                            <button
+                              key={template.id}
+                              type="button"
+                              onClick={() => applyTemplate(template.id)}
+                              className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
+                              data-testid={`template-${template.id}`}
+                            >
+                              <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
+                              <div>
+                                <p className="font-medium text-sm">{t(template.nameKey)}</p>
+                                <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
+                        💡 {t('createOrganization.templates.tip')}
+                      </div>
+                    </div>
+
+                    <Button type="button" onClick={addSlotTop} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-day">
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('createOrganization.addSlot')}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           )}
         </Card>
@@ -824,183 +1004,6 @@ export default function CreateOrganization() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="w-5 h-5 text-blue-600" />
-                <div className="space-y-0.5">
-                  <Label className="font-medium">{t('createOrganization.dayOrganization')}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t('createOrganization.dayOrganizationDescription')}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={isDayMode}
-                onCheckedChange={(checked) => {
-                  setIsDayMode(checked);
-                  if (checked) {
-                    const extractTime = (dt: string | undefined): string | undefined => {
-                      if (!dt) return undefined;
-                      if (dt.includes('T')) {
-                        const timePart = dt.split('T')[1];
-                        return timePart ? timePart.substring(0, 5) : undefined;
-                      }
-                      return dt.length === 5 ? dt : undefined;
-                    };
-                    setSlots(slots.map(s => ({ 
-                      ...s, 
-                      startTime: extractTime(s.startTime),
-                      endTime: extractTime(s.endTime)
-                    })));
-                  } else {
-                    setDayModeDate("");
-                    setDayModeDates([]);
-                  }
-                }}
-                data-testid="switch-day-mode"
-                aria-label={t('createOrganization.dayOrganization')}
-              />
-            </div>
-            
-            {isDayMode && (
-              <>
-                <div className="p-4 border rounded-lg bg-muted/30">
-                  <Label className="flex items-center gap-2 mb-3">
-                    <Timer className="w-4 h-4" />
-                    {t('createOrganization.slotDuration')}
-                  </Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="slider-duration">
-                    {DURATION_OPTIONS.map(d => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          setSlotDuration(d);
-                          recalcSlotTimes(d);
-                        }}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                          slotDuration === d 
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
-                            : 'bg-background border-border hover:border-primary/50 hover:bg-accent/50 text-foreground'
-                        }`}
-                        data-testid={`duration-btn-${d}`}
-                      >
-                        <span data-testid={d === slotDuration ? "duration-value" : undefined}>
-                          {d} {t('createOrganization.minutes')}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="p-4 border rounded-lg bg-muted/30">
-                  <Label className="flex items-center gap-2 mb-2">
-                    <CalendarDays className="w-4 h-4" />
-                    {t('createOrganization.dateForAllSlots')}
-                  </Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {t('createOrganization.multiDateHint')}
-                  </p>
-                  <div className="flex gap-2 items-start">
-                    <DatePicker
-                      date={null}
-                      onDateChange={(date) => {
-                        if (date) {
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const dateStr = `${year}-${month}-${day}`;
-                          if (!dayModeDates.includes(dateStr)) {
-                            const updated = [...dayModeDates, dateStr].sort();
-                            setDayModeDates(updated);
-                            setDayModeDate(updated[0]);
-                          }
-                        }
-                      }}
-                      minDate={new Date()}
-                      placeholder={t('createOrganization.addDate')}
-                      showClearButton={false}
-                      data-testid="input-day-mode-date"
-                    />
-                  </div>
-                  {dayModeDates.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {[...dayModeDates].sort().map((dateStr) => {
-                        const [y, m, d] = dateStr.split('-').map(Number);
-                        const dateObj = new Date(y, m - 1, d, 12, 0, 0);
-                        const label = dateObj.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
-                        return (
-                          <span
-                            key={dateStr}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20"
-                            data-testid={`date-chip-${dateStr}`}
-                          >
-                            <CalendarDays className="w-3 h-3" />
-                            {label}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = dayModeDates.filter(dd => dd !== dateStr);
-                                setDayModeDates(updated);
-                                setDayModeDate(updated[0] || "");
-                              }}
-                              className="ml-1 hover:text-destructive transition-colors"
-                              aria-label={t('createOrganization.removeDate')}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {dayModeDates.length > 1 && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                      {t('createOrganization.multiDateInfo', { count: dayModeDates.length })}
-                    </p>
-                  )}
-                </div>
-
-                <div className="p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {t('createOrganization.templates.subtitle')}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {orgaTemplateDefinitions.map((template) => {
-                      const Icon = template.icon;
-                      return (
-                        <button
-                          key={template.id}
-                          type="button"
-                          onClick={() => applyTemplate(template.id)}
-                          className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
-                          data-testid={`template-${template.id}`}
-                        >
-                          <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
-                          <div>
-                            <p className="font-medium text-sm">{t(template.nameKey)}</p>
-                            <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
-                    💡 {t('createOrganization.templates.tip')}
-                  </div>
-                </div>
-
-                <Button type="button" onClick={addSlotTop} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-day">
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('createOrganization.addSlot')}
-                </Button>
-              </>
-            )}
-            
             {slots.map((slot, index) => (
               <div 
                 key={index} 

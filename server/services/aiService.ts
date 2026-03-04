@@ -254,6 +254,10 @@ ${langHint}`;
       };
     } catch (err: any) {
       lastError = err;
+      if (err?.status === 503) {
+        console.warn("[AI] Model not loaded (503), not retrying.");
+        throw new Error("AI_MODEL_LOADING");
+      }
       const isRateLimit =
         err?.status === 429 ||
         err?.message?.includes("rate") ||
@@ -351,6 +355,10 @@ export async function createPollFromDescription(
       };
     } catch (err: any) {
       lastError = err;
+      if (err?.status === 503) {
+        console.warn("[AI] Model not loaded (503), not retrying.");
+        throw new Error("AI_MODEL_LOADING");
+      }
       const isRateLimit =
         err?.status === 429 ||
         err?.message?.includes("rate") ||

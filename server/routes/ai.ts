@@ -112,6 +112,7 @@ router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
     const messages: Record<string, { status: number; message: string }> = {
       AI_DISABLED: { status: 503, message: "KI-Funktion ist deaktiviert" },
       AI_NOT_CONFIGURED: { status: 503, message: "KI-API nicht konfiguriert" },
+      AI_MODEL_LOADING: { status: 503, message: "Das KI-Modell wird gerade gestartet. Bitte in einer Minute erneut versuchen." },
       AI_EMPTY_RESPONSE: { status: 502, message: "Keine Antwort von der KI erhalten" },
       AI_INVALID_JSON: { status: 502, message: "Ungültige Antwort der KI" },
       AI_INVALID_STRUCTURE: { status: 502, message: "KI-Antwort hat unerwartetes Format" },

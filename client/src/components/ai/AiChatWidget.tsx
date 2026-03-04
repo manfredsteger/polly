@@ -383,6 +383,7 @@ export function AiChatWidget() {
   const [followUpValue, setFollowUpValue] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const [orderedOptions, setOrderedOptions] = useState<string[]>([]);
+  const [refineError, setRefineError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
@@ -434,27 +435,48 @@ export function AiChatWidget() {
       const data = await res.json();
       setSuggestion(data.suggestion as AiSuggestion);
       setFollowUpValue("");
+      setRefineError(null);
       setTimeout(() => textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
       setTimeout(() => followUpRef.current?.focus({ preventScroll: true }), 400);
     },
-    onError: () => setSuggestion(null),
+    onError: (err: any) => {
+      setSuggestion(null);
+      setRefineError(null);
+    },
   });
 
   const refineMutation = useMutation({
-    mutationFn: (refinement: string) =>
-      apiRequest("POST", "/api/v1/ai/create-poll", {
+    mutationFn: (refinement: string) => {
+      setRefineError(null);
+      return apiRequest("POST", "/api/v1/ai/create-poll", {
         description: originalInputRef.current || inputValue.trim(),
         language: lang,
         refinement,
         previousSuggestion: suggestion,
-      }),
+      });
+    },
     onSuccess: async (res) => {
       const data = await res.json();
       setSuggestion(data.suggestion as AiSuggestion);
       setFollowUpValue("");
       setSelectedChips([]);
+      setRefineError(null);
       setTimeout(() => textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
       setTimeout(() => followUpRef.current?.focus({ preventScroll: true }), 400);
+    },
+    onError: (err: any) => {
+      let message = lang === "de"
+        ? "Anpassung fehlgeschlagen. Bitte erneut versuchen."
+        : "Refinement failed. Please try again.";
+      try {
+        const errMsg = err?.message || "";
+        const jsonStart = errMsg.indexOf("{");
+        if (jsonStart !== -1) {
+          const body = JSON.parse(errMsg.slice(jsonStart));
+          if (body?.error) message = body.error;
+        }
+      } catch {}
+      setRefineError(message);
     },
   });
 
@@ -782,14 +804,33 @@ export function AiChatWidget() {
                 </span>
               </Button>
             </div>
+            {refineError && (
+              <div className="mx-3 mb-3 flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-600 dark:text-red-400">{refineError}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {mutation.isError && !suggestion && (
-        <p className="mt-2 text-center text-xs text-red-500 dark:text-red-400">
-          {t("home.aiError")}
-        </p>
+        <div className="mt-2 flex items-start justify-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {(() => {
+              try {
+                const errMsg = (mutation.error as any)?.message || "";
+                const jsonStart = errMsg.indexOf("{");
+                if (jsonStart !== -1) {
+                  const body = JSON.parse(errMsg.slice(jsonStart));
+                  if (body?.error) return body.error;
+                }
+              } catch {}
+              return t("home.aiError");
+            })()}
+          </p>
+        </div>
       )}
     </div>
   );

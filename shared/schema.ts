@@ -74,6 +74,7 @@ export const pollOptions = pgTable("poll_options", {
   startTime: timestamp("start_time"), // for schedule polls
   endTime: timestamp("end_time"), // for schedule polls
   maxCapacity: integer("max_capacity"), // for organization polls: max signups per slot (null = unlimited)
+  isFreeText: boolean("is_free_text").default(false).notNull(), // for survey polls: marks this option as an open-ended question
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
@@ -89,8 +90,9 @@ export const votes = pgTable("votes", {
   userId: integer("user_id"), // null for anonymous votes
   voterKey: text("voter_key"), // Unique voter identifier: "user:123" or "device:abc123" (for deduplication)
   voterSource: text("voter_source"), // "user" (logged in) or "device" (guest with device token)
-  response: text("response").notNull(), // "yes", "maybe", "no", or "signup" for organization polls
+  response: text("response").notNull(), // "yes", "maybe", "no", "freetext", or "signup" for organization polls
   comment: text("comment"), // optional comment (e.g., contact info, which cake they bring)
+  freeTextAnswer: text("free_text_answer"), // for survey free-text questions: the voter's typed answer
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes
   isTestData: boolean("is_test_data").default(false).notNull(), // Test votes excluded from stats
   createdAt: timestamp("created_at").defaultNow().notNull(),

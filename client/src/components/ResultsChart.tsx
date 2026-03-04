@@ -1,3 +1,4 @@
+import { MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -289,8 +290,8 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
         </Card>
       )}
 
-      {/* Matrix View - Participants as rows, Options as columns */}
-      {!isOrganization && participants.length > 0 && (
+      {/* Matrix View - Participants as rows, Options as columns (only non-freetext options) */}
+      {!isOrganization && participants.length > 0 && options.filter((o: any) => !o.isFreeText).length > 0 && (
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -306,7 +307,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     <th className="text-right py-2 px-3 font-medium text-foreground border-b border-border min-w-[150px]">
                       {t('voting.participant')}
                     </th>
-                    {options.map((option) => {
+                    {options.filter((o: any) => !o.isFreeText).map((option) => {
                       const isSchedule = poll.type === 'schedule' && option.startTime && option.endTime;
                       return (
                         <th 
@@ -350,7 +351,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                       <td className="text-right py-2 px-3 font-medium text-foreground border-r border-border">
                         {participant.name}
                       </td>
-                      {options.map((option) => {
+                      {options.filter((o: any) => !o.isFreeText).map((option) => {
                         const vote = participant.votes.find((v: any) => v.optionId === option.id);
                         const response = vote?.response;
                         
@@ -387,7 +388,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     <td className="text-right py-2 px-3 text-sm text-muted-foreground">
                       {t('results.total')}
                     </td>
-                    {options.map((option) => {
+                    {options.filter((o: any) => !o.isFreeText).map((option) => {
                       const stat = stats.find(s => s.optionId === option.id);
                       const yesCount = stat?.yesCount || 0;
                       return (
@@ -405,6 +406,45 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Free-text answers section for survey polls */}
+      {poll.type === 'survey' && options.some((o: any) => o.isFreeText) && (
+        <div className="space-y-4">
+          {options.filter((o: any) => o.isFreeText).map((option: any) => {
+            const answers = results.votes
+              .filter((v: any) => v.optionId === option.id && v.response === 'freetext' && v.freeTextAnswer)
+              .map((v: any) => ({ name: v.voterName, text: v.freeTextAnswer as string }));
+            return (
+              <Card key={option.id} className="polly-card border-l-4 border-l-primary/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-base">
+                    <MessageSquare className="w-4 h-4 mr-2 text-primary/70" />
+                    {option.text}
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">{t('results.openAnswers')} · {answers.length} {answers.length === 1 ? t('voting.participant') : t('polls.participants')}</p>
+                </CardHeader>
+                <CardContent>
+                  {answers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">{t('results.noAnswersYet')}</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {answers.map((a, i) => (
+                        <li key={i} className="text-sm bg-muted/30 rounded-lg px-4 py-2">
+                          <span className="font-medium text-foreground/70 text-xs mr-2">{i + 1}.</span>
+                          {poll.resultsPublic && (
+                            <span className="text-xs text-muted-foreground mr-2">[{a.name}]</span>
+                          )}
+                          {a.text}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Matrix View for Organization Polls - Participants as rows, Slots as columns */}

@@ -732,7 +732,12 @@
     "uploadImage": "Upload Image",
     "altText": "Alt Text",
     "singleChoice": "Single Choice",
-    "multipleChoice": "Multiple Choice"
+    "multipleChoice": "Multiple Choice",
+    "addFreeTextQuestion": "Add question",
+    "freeTextQuestion": "Open question",
+    "freeTextQuestionPlaceholder": "Enter question...",
+    "freeTextAnswerPlaceholder": "Your answer...",
+    "freeTextAnswerOptional": "Answer (optional)"
   },
   "organization": {
     "slotName": "Slot Name",
@@ -763,7 +768,9 @@
     "exportToPdf": "Export PDF",
     "noResults": "No results yet",
     "votesForPoll": "Votes for poll",
-    "total": "Total"
+    "total": "Total",
+    "openAnswers": "Open answers",
+    "noAnswersYet": "No answers submitted yet."
   },
   "resultsChart": {
     "tie": "Tie",

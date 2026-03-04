@@ -105,6 +105,7 @@ router.post('/polls/:token/vote', async (req, res) => {
           voterEmail: data.voterEmail,
           response: voteData.response,
           comment: voteData.comment,
+          freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
         }, voterEditToken);
@@ -287,6 +288,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
           voterEmail: data.voterEmail,
           response: voteData.response,
           comment: voteData.comment,
+          freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
         }, voterEditToken);

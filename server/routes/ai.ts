@@ -64,7 +64,7 @@ router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
       pollType: z.enum(["schedule", "survey", "organization"]),
       title: z.string(),
       description: z.string(),
-      options: z.array(z.string()),
+      options: z.array(z.union([z.string(), z.object({ text: z.string(), isFreeText: z.boolean().optional() })])),
       settings: z.record(z.boolean()).optional(),
     }).optional(),
   });
@@ -140,7 +140,7 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
       pollType: z.enum(["schedule", "survey", "organization"]),
       title: z.string().min(1).max(200),
       description: z.string().optional(),
-      options: z.array(z.string().min(1)).min(1),
+      options: z.array(z.union([z.string().min(1), z.object({ text: z.string().min(1), isFreeText: z.boolean().optional() })])).min(1),
       settings: settingsSchema.optional(),
     }),
     settings: settingsSchema,

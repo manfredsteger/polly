@@ -81,6 +81,7 @@ export const createPollSchema = z.object({
     startTime: z.string().datetime().optional(),
     endTime: z.string().datetime().optional(),
     maxCapacity: z.number().min(1).optional(),
+    isFreeText: z.boolean().optional().default(false),
     order: z.number().default(0),
   })).min(1),
 });
@@ -103,8 +104,9 @@ export const bulkVoteSchema = z.object({
   voterEmail: z.string().email(),
   votes: z.array(z.object({
     optionId: z.number(),
-    response: z.enum(['yes', 'maybe', 'no']),
+    response: z.enum(['yes', 'maybe', 'no', 'freetext', 'signup']),
     comment: z.string().optional(),
+    freeTextAnswer: z.string().max(2000).optional(),
   })).min(1),
 });
 

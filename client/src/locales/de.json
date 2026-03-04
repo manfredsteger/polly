@@ -732,7 +732,12 @@
     "uploadImage": "Bild hochladen",
     "altText": "Alternativtext",
     "singleChoice": "Einzelauswahl",
-    "multipleChoice": "Mehrfachauswahl"
+    "multipleChoice": "Mehrfachauswahl",
+    "addFreeTextQuestion": "Frage hinzufügen",
+    "freeTextQuestion": "Offene Frage",
+    "freeTextQuestionPlaceholder": "Fragestellung eingeben...",
+    "freeTextAnswerPlaceholder": "Ihre Antwort...",
+    "freeTextAnswerOptional": "Antwort (optional)"
   },
   "organization": {
     "slotName": "Slot-Name",
@@ -763,7 +768,9 @@
     "exportToPdf": "PDF exportieren",
     "noResults": "Noch keine Ergebnisse",
     "votesForPoll": "Stimmabgaben zur Umfrage",
-    "total": "Gesamt"
+    "total": "Gesamt",
+    "openAnswers": "Offene Antworten",
+    "noAnswersYet": "Noch keine Antworten eingegangen."
   },
   "resultsChart": {
     "tie": "Gleichstand",

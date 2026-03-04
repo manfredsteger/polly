@@ -92,6 +92,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       startTime: opt.startTime ? new Date(opt.startTime) : null,
       endTime: opt.endTime ? new Date(opt.endTime) : null,
       maxCapacity: opt.maxCapacity || null,
+      isFreeText: opt.isFreeText ?? false,
       order: index,
       pollId: "",
     }));

@@ -37,10 +37,15 @@ export interface PollSuggestionSettings {
   allowMultipleSlots?: boolean;
 }
 
+export interface SurveyOption {
+  text: string;
+  isFreeText?: boolean;
+}
+
 export interface PollSuggestion {
   title: string;
   description: string;
-  options: string[];
+  options: string[] | SurveyOption[];
   pollType: "schedule" | "survey" | "organization";
   settings?: PollSuggestionSettings;
 }
@@ -77,8 +82,18 @@ Rules per poll type for the OPTIONS field:
   Example: ["15.07.2026 09:00 - 10:00", "16.07.2026 14:00 - 15:30", "17.07.2026 10:00 - 11:00"]
   Use realistic future dates (within the next 2-4 weeks from today: ${todayStr}).
   If the user specifies a count or lists specific dates, generate exactly that many. Otherwise, suggest 3-5 options.
-- survey: options are answer choices, concise and distinct.
-  If the user specifies a count or lists specific answer choices, generate exactly that many. Otherwise, suggest 4-6 options.
+- survey: TWO formats depending on context:
+  (A) CHOICE questions (preferences, opinions, ratings, food, activities — "Lieblingsessen", "Welcher Tag passt?", etc.):
+      options are plain strings: ["Option A", "Option B", "Option C"]
+      Participants pick yes/no/maybe for each option.
+      If the user specifies a count or lists specific choices, generate exactly that many. Otherwise, suggest 4-6 options.
+  (B) OPEN-ENDED / FEEDBACK forms (collecting text responses, feelings, suggestions, contact info, evaluation — keywords: Feedback, Meinung, Gefühle, Bedürfnisse, Wünsche, Vorschläge, offene Fragen, freier Text, NVC, Kita, Schule, Eltern, Team-Klima, Rückmeldung, anonymous input, open question):
+      options are objects with "isFreeText": true — each is an open question participants type an answer to.
+      Format: [{"text": "Question here?", "isFreeText": true}, ...]
+      Participants fill in free text for each. No yes/no/maybe buttons.
+      Use this format when the request is about gathering written feedback, opinions in free form, or contact details.
+      Example for a Kita feedback survey: [{"text": "Folgende Situation habe ich erlebt / wahrgenommen:", "isFreeText": true}, {"text": "Ich fühle mich dadurch:", "isFreeText": true}, {"text": "Mein Bedürfnis ist / Mir ist wichtig:", "isFreeText": true}, {"text": "Folgende Lösung würde ich mir wünschen:", "isFreeText": true}, {"text": "Name und Kontaktdaten (freiwillig):", "isFreeText": true}]
+  You may also MIX both formats in one survey (some string options + some isFreeText objects) when appropriate.
 - organization: TWO formats depending on context:
   (A) FIXED-DATE events (party, festival, Sommerfest, Sportfest, workshop, Tag der offenen Tür, Firmenevent, etc. — any event with an implied specific day):
       ALWAYS include the concrete event date in EVERY slot. Format: "DD.MM.YYYY Description HH:MM - HH:MM (max. N)"
@@ -159,6 +174,7 @@ The JSON must follow this exact structure:
 For schedule options, use EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
 For organization options with a fixed event date, use: "DD.MM.YYYY Description HH:MM - HH:MM (max. N)"
 For organization options without a fixed date, use: "Description HH:MM - HH:MM (max. N)"
+For survey options: plain strings for choice questions, or objects {"text": "...", "isFreeText": true} for open-ended text questions. Keep the same format as the existing options unless the user explicitly asks to change the survey type.
 If the user asks to add more items, add them freely — even if the total exceeds the initial count. If the user asks to remove items, remove them. Always honor the user's requested count exactly.
 Respond in the same language as the user's refinement request.`;
 }
@@ -245,11 +261,20 @@ ${langHint}`;
         if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
       }
 
+      const normalizeOptions = (opts: any[]): (string | SurveyOption)[] =>
+        opts.map((o) => {
+          if (typeof o === "string") return o.slice(0, 120);
+          if (o && typeof o === "object" && typeof o.text === "string") {
+            return { text: o.text.slice(0, 120), isFreeText: !!o.isFreeText };
+          }
+          return String(o).slice(0, 120);
+        }).slice(0, 50);
+
       return {
         pollType: pollType as PollSuggestion["pollType"],
         title: String(parsed.title).slice(0, 80),
         description: String(parsed.description || "").slice(0, 200),
-        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 50),
+        options: normalizeOptions(parsed.options as any[]),
         settings: resolvedSettings,
       };
     } catch (err: any) {
@@ -346,11 +371,20 @@ export async function createPollFromDescription(
         if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
       }
 
+      const normalizeOpts = (opts: any[]): (string | SurveyOption)[] =>
+        opts.map((o) => {
+          if (typeof o === "string") return o.slice(0, 120);
+          if (o && typeof o === "object" && typeof o.text === "string") {
+            return { text: o.text.slice(0, 120), isFreeText: !!o.isFreeText };
+          }
+          return String(o).slice(0, 120);
+        }).slice(0, 50);
+
       return {
         pollType: pollType as PollSuggestion["pollType"],
         title: String(parsed.title).slice(0, 80),
         description: String(parsed.description || "").slice(0, 200),
-        options: parsed.options.map((o) => String(o).slice(0, 120)).slice(0, 50),
+        options: normalizeOpts(parsed.options as any[]),
         settings: resolvedSettings,
       };
     } catch (err: any) {

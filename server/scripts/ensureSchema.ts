@@ -36,6 +36,8 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'votes', column: 'voter_source', definition: 'TEXT' },
   { table: 'votes', column: 'comment', definition: 'TEXT' },
   { table: 'users', column: 'email_verified', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'poll_options', column: 'is_free_text', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'votes', column: 'free_text_answer', definition: 'TEXT' },
 ];
 
 async function ensureSchema(): Promise<void> {

@@ -72,6 +72,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [voterName, setVoterName] = useState("");
   const [voterEmail, setVoterEmail] = useState("");
   const [votes, setVotes] = useState<Record<number, VoteResponse>>({});
+  const [freeTextAnswers, setFreeTextAnswers] = useState<Record<number, string>>({});
   const [orgaBookings, setOrgaBookings] = useState<SlotBookingInfo[]>([]);
   const [hasOrgaChanges, setHasOrgaChanges] = useState(false);
   const [showSelfVote, setShowSelfVote] = useState(false);
@@ -497,8 +498,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         return;
       }
     } else {
+      const hasFreeTextOptions = poll.options.some((o: any) => o.isFreeText);
       const votesToSubmit = Object.entries(votes);
-      if (votesToSubmit.length === 0) {
+      const hasFreeTextAnswers = hasFreeTextOptions && Object.values(freeTextAnswers).some(v => v?.trim());
+      if (votesToSubmit.length === 0 && !hasFreeTextAnswers) {
         toast({
           title: t('common.error'),
           description: t('votingInterface.pleaseSelectOption'),
@@ -542,14 +545,32 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else if (poll.type === 'survey') {
         // For surveys: Use bulk vote endpoint to ensure atomicity
-        const votesToSubmit = Object.entries(votes);
+        // Include free-text answers for isFreeText options
+        const freeTextOptions = poll.options.filter((o: any) => o.isFreeText);
+        const freeTextVotes = freeTextOptions
+          .filter((o: any) => freeTextAnswers[o.id]?.trim())
+          .map((o: any) => ({
+            optionId: o.id,
+            response: 'freetext' as const,
+            freeTextAnswer: freeTextAnswers[o.id].trim(),
+          }));
+        const regularVotes = Object.entries(votes).map(([optionId, response]) => ({
+          optionId: parseInt(optionId),
+          response,
+        }));
+        const allVotes = [...regularVotes, ...freeTextVotes];
+        if (allVotes.length === 0) {
+          toast({
+            title: t('common.error'),
+            description: t('votingInterface.pleaseSelectOption'),
+            variant: "destructive",
+          });
+          return;
+        }
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          votes: votesToSubmit.map(([optionId, response]) => ({
-            optionId: parseInt(optionId),
-            response
-          }))
+          votes: allVotes,
         };
         
         const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote-bulk`, bulkVoteData);
@@ -952,18 +973,42 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             )
           ) : (
             canVote && (showSelfVote || !isAdminAccess) ? (
-              <SimpleImageVoting
-                options={poll.options}
-                onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
-                existingVotes={Object.fromEntries(
-                  Object.entries(votes).map(([id, response]) => [id, response])
+              <>
+                {poll.options.filter((o: any) => o.isFreeText).length > 0 && (
+                  <div className="space-y-4 mb-4">
+                    {poll.options.filter((o: any) => o.isFreeText).map((option: any) => (
+                      <div key={option.id} className="space-y-1">
+                        <label className="block text-sm font-medium text-foreground">
+                          {option.text}
+                          <span className="ml-1 text-xs text-muted-foreground">({t('survey.freeTextAnswerOptional')})</span>
+                        </label>
+                        <textarea
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors resize-none"
+                          rows={3}
+                          placeholder={t('survey.freeTextAnswerPlaceholder')}
+                          value={freeTextAnswers[option.id] || ""}
+                          onChange={(e) => setFreeTextAnswers(prev => ({ ...prev, [option.id]: e.target.value }))}
+                          maxLength={2000}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
-                disabled={!canVote}
-                allowMaybe={poll.allowMaybe ?? true}
-              />
+                {poll.options.filter((o: any) => !o.isFreeText).length > 0 && (
+                  <SimpleImageVoting
+                    options={poll.options.filter((o: any) => !o.isFreeText)}
+                    onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
+                    existingVotes={Object.fromEntries(
+                      Object.entries(votes).map(([id, response]) => [id, response])
+                    )}
+                    disabled={!canVote}
+                    allowMaybe={poll.allowMaybe ?? true}
+                  />
+                )}
+              </>
             ) : (
               <SimpleImageVoting
-                options={poll.options}
+                options={poll.options.filter((o: any) => !o.isFreeText)}
                 onVote={() => {}}
                 existingVotes={{}}
                 disabled={true}
@@ -1022,7 +1067,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       className={`px-8 ${
                         poll.type === 'survey' ? 'polly-button-survey' : 'polly-button-schedule'
                       }`}
-                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || Object.keys(votes).length === 0}
+                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || (Object.keys(votes).length === 0 && !poll.options.some((o: any) => o.isFreeText))}
                       data-testid="button-submit-vote"
                     >
                       {voteMutation.isPending ? t('votingInterface.saving') : t('votingInterface.submitVote')}

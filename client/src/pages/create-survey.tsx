@@ -94,6 +94,7 @@ export default function CreateSurvey() {
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
   const [allowMaybe, setAllowMaybe] = useState(true);
+  const [showWinner, setShowWinner] = useState(true);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<SurveyOption[]>([
     { id: nextOptionId(), text: "", order: 0 },
@@ -132,6 +133,7 @@ export default function CreateSurvey() {
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
+      if (stored.data.showWinner !== undefined) setShowWinner(stored.data.showWinner);
       if (stored.data.options && stored.data.options.length >= 2) {
         setOptions(stored.data.options.map((o: any) => ({ ...o, id: o.id || nextOptionId() })));
       }
@@ -170,6 +172,7 @@ export default function CreateSurvey() {
         if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
         if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
+        if (typeof s.showWinner === "boolean") setShowWinner(s.showWinner);
       }
     } catch (_) {}
   }, []);
@@ -201,6 +204,8 @@ export default function CreateSurvey() {
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
+          allowMaybe,
+          showWinner,
           options: validOptions.map((option, index) => ({
             text: option.text,
             imageUrl: option.imageUrl,
@@ -357,6 +362,7 @@ export default function CreateSurvey() {
       allowVoteWithdrawal,
       resultsPublic,
       allowMaybe,
+      showWinner,
       options: validOptions.map((option, index) => {
         const opt: any = {
           text: option.text.trim(),

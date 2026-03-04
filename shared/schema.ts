@@ -50,6 +50,7 @@ export const polls = pgTable("polls", {
   allowVoteWithdrawal: boolean("allow_vote_withdrawal").default(false).notNull(), // allow voters to completely withdraw/delete their votes
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
+  showWinner: boolean("show_winner").default(true).notNull(), // whether the "best option" winner highlight is shown in results
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at"),
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports

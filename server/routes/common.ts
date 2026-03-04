@@ -74,6 +74,7 @@ export const createPollSchema = z.object({
   allowVoteEdit: z.boolean().optional().default(false),
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
+  showWinner: z.boolean().optional().default(true),
   options: z.array(z.object({
     text: z.string().min(1),
     imageUrl: z.string().optional(),

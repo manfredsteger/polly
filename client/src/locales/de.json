@@ -2776,16 +2776,11 @@
     "addOption": "Option hinzufügen",
     "removeOption": "Option entfernen",
     "optionsHint": "Fügen Sie mindestens 2 Optionen hinzu, zwischen denen die Teilnehmer wählen können.",
-    "optionsHintMixed": "Kombinieren Sie Auswahloptionen und offene Fragen nach Bedarf.",
     "optionPlaceholder": "Option {{number}}",
     "addImage": "Bild hinzufügen (optional):",
     "tipTitle": "💡 Tipp",
     "tipContent": "Verwenden Sie Bilder, um Ihre Optionen visuell ansprechender zu gestalten. Bilder helfen den Teilnehmern bei der Entscheidung.",
-    "submitButton": "Umfrage erstellen",
-    "addFreeTextQuestion": "Frage hinzufügen",
-    "freeTextQuestion": "Offene Frage",
-    "freeTextQuestionPlaceholder": "Fragestellung eingeben...",
-    "freeTextHint": "Teilnehmer können hier frei antworten — kein Ja/Nein/Vielleicht."
+    "submitButton": "Umfrage erstellen"
   },
   "createOrganization": {
     "pageTitle": "Orga erstellen",

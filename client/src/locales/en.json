@@ -2776,16 +2776,11 @@
     "addOption": "Add Option",
     "removeOption": "Remove Option",
     "optionsHint": "Add at least 2 options for participants to choose from.",
-    "optionsHintMixed": "Mix choice options and open questions as needed.",
     "optionPlaceholder": "Option {{number}}",
     "addImage": "Add image (optional):",
     "tipTitle": "💡 Tip",
     "tipContent": "Use images to make your options more visually appealing. Images help participants make decisions.",
-    "submitButton": "Create Survey",
-    "addFreeTextQuestion": "Add question",
-    "freeTextQuestion": "Open question",
-    "freeTextQuestionPlaceholder": "Enter question...",
-    "freeTextHint": "Participants answer freely here — no yes/no/maybe."
+    "submitButton": "Create Survey"
   },
   "createOrganization": {
     "pageTitle": "Create Organization List",

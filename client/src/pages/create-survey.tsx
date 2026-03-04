@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Vote, Mail, Plus, Trash2, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, MessageSquare, GripVertical } from "lucide-react";
+import { ArrowLeft, Vote, Mail, Plus, Trash2, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, GripVertical } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,48 +70,8 @@ function SortableSurveyRow({ option, index, options, onUpdate, onRemove, onImage
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: option.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
-  const normalIndex = options.slice(0, index + 1).filter(o => !o.isFreeText).length;
-  const freeTextIndex = options.slice(0, index + 1).filter(o => o.isFreeText).length;
-  const nonFreeTextCount = options.filter(o => !o.isFreeText).length;
-  const freeTextCount = options.filter(o => o.isFreeText).length;
-  const canDelete = option.isFreeText || nonFreeTextCount > 2 || freeTextCount > 0;
-
-  if (option.isFreeText) {
-    return (
-      <div ref={setNodeRef} style={style} className="border border-dashed border-primary/30 rounded-lg p-4 space-y-2 bg-primary/5">
-        <div className="flex items-center gap-2 mb-1">
-          <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
-            <GripVertical className="w-4 h-4" />
-          </button>
-          <MessageSquare className="w-4 h-4 text-primary/60 shrink-0" />
-          <span className="text-xs font-medium text-primary/60 uppercase tracking-wide">
-            {t('createSurvey.freeTextQuestion')} {freeTextIndex}
-          </span>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Input
-            value={option.text}
-            onChange={(e) => onUpdate(e.target.value)}
-            placeholder={t('createSurvey.freeTextQuestionPlaceholder')}
-            className="flex-1"
-            data-testid={`input-option-${index}`}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onRemove}
-            className="text-destructive hover:text-destructive"
-            aria-label={t('createSurvey.removeOption')}
-            data-testid={`button-delete-option-${index}`}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground pl-1">{t('createSurvey.freeTextHint')}</p>
-      </div>
-    );
-  }
+  const optionIndex = index + 1;
+  const canDelete = options.length > 2;
 
   return (
     <div ref={setNodeRef} style={style} className="border rounded-lg p-4 space-y-3">
@@ -120,12 +80,12 @@ function SortableSurveyRow({ option, index, options, onUpdate, onRemove, onImage
           <GripVertical className="w-4 h-4" />
         </button>
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted shrink-0">
-          <span className="text-sm font-medium">{normalIndex}</span>
+          <span className="text-sm font-medium">{optionIndex}</span>
         </div>
         <Input
           value={option.text}
           onChange={(e) => onUpdate(e.target.value)}
-          placeholder={t('createSurvey.optionPlaceholder', { number: normalIndex })}
+          placeholder={t('createSurvey.optionPlaceholder', { number: optionIndex })}
           className="flex-1"
           data-testid={`input-option-${index}`}
         />
@@ -357,18 +317,8 @@ export default function CreateSurvey() {
     setOptions(prev => [...prev, { id, text: "", order: prev.length }]);
   };
 
-  const addFreeTextQuestion = () => {
-    const id = String(nextIdRef.current++);
-    setOptions(prev => [...prev, { id, text: "", isFreeText: true, order: prev.length }]);
-  };
-
   const removeOption = (index: number) => {
-    const item = options[index];
-    const nonFreeTextCount = options.filter(o => !o.isFreeText).length;
-    const freeTextCount = options.filter(o => o.isFreeText).length;
-    if (item.isFreeText) {
-      setOptions(options.filter((_, i) => i !== index).map((o, idx) => ({ ...o, order: idx })));
-    } else if (nonFreeTextCount > 2 || freeTextCount > 0) {
+    if (options.length > 2) {
       setOptions(options.filter((_, i) => i !== index).map((o, idx) => ({ ...o, order: idx })));
     }
   };
@@ -674,44 +624,23 @@ export default function CreateSurvey() {
                 <Vote className="w-5 h-5 mr-2 text-polly-blue" />
                 {t('createSurvey.choices')}
               </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addFreeTextQuestion}
-                  data-testid="button-add-free-text"
-                  className="border-dashed text-muted-foreground hover:text-foreground"
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  {t('createSurvey.addFreeTextQuestion')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addOption}
-                  data-testid="button-add-option"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('createSurvey.addOption')}
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addOption}
+                data-testid="button-add-option"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {t('createSurvey.addOption')}
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(() => {
-                const hasFreeText = options.some(o => o.isFreeText);
-                const hasNormal = options.some(o => !o.isFreeText);
-                return (
-                  <p className="text-sm text-muted-foreground">
-                    {hasFreeText && hasNormal
-                      ? t('createSurvey.optionsHintMixed')
-                      : t('createSurvey.optionsHint')}
-                  </p>
-                );
-              })()}
+              <p className="text-sm text-muted-foreground">
+                {t('createSurvey.optionsHint')}
+              </p>
 
               <DndContext
                 sensors={sensors}

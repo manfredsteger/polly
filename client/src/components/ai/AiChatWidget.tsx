@@ -593,6 +593,15 @@ export function AiChatWidget() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            {inputValue.length > 0 && (
+              <span className={`text-xs tabular-nums transition-colors ${
+                inputValue.length > 9800 ? "text-red-500" :
+                inputValue.length > 9000 ? "text-amber-500" :
+                "text-muted-foreground/40"
+              }`}>
+                {inputValue.length.toLocaleString()} / 10 000
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -804,6 +813,17 @@ export function AiChatWidget() {
                 </span>
               </Button>
             </div>
+            {followUpValue.length > 0 && (
+              <div className="px-3 pb-1 flex justify-end">
+                <span className={`text-xs tabular-nums transition-colors ${
+                  followUpValue.length > 2800 ? "text-red-500" :
+                  followUpValue.length > 2500 ? "text-amber-500" :
+                  "text-muted-foreground/40"
+                }`}>
+                  {followUpValue.length.toLocaleString()} / 3 000
+                </span>
+              </div>
+            )}
             {refineError && (
               <div className="mx-3 mb-3 flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />

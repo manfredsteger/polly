@@ -57,9 +57,9 @@ router.get("/status", async (req, res) => {
 // POST /api/v1/ai/create-poll — rate-limited, creates or refines poll suggestion
 router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
   const schema = z.object({
-    description: z.string().min(5).max(500),
+    description: z.string().min(5).max(10000),
     language: z.enum(["de", "en"]).default("de"),
-    refinement: z.string().min(3).max(300).optional(),
+    refinement: z.string().min(3).max(3000).optional(),
     previousSuggestion: z.object({
       pollType: z.enum(["schedule", "survey", "organization"]),
       title: z.string(),

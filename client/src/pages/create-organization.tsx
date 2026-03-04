@@ -727,17 +727,7 @@ export default function CreateOrganization() {
                 <Users className="w-5 h-5 mr-2 text-green-600" />
                 {t('createOrganization.settings')}
               </CardTitle>
-              <div className="flex items-center gap-2">
-                {!settingsExpanded && (
-                  <div className="flex gap-1 flex-wrap justify-end">
-                    {isDayMode && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">{t('createOrganization.dayOrganization')}</span>}
-                    {allowMultipleSlots && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('createOrganization.allowMultipleSlots')}</span>}
-                    {allowVoteEdit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.allowVoteEdit')}</span>}
-                    {!resultsPublic && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.resultsPrivate')}</span>}
-                  </div>
-                )}
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${settingsExpanded ? "rotate-180" : ""}`} />
-              </div>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${settingsExpanded ? "rotate-180" : ""}`} />
             </button>
           </CardHeader>
           {settingsExpanded && (

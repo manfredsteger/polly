@@ -2719,6 +2719,7 @@
     "resultsPublic": "Ergebnisse öffentlich",
     "resultsPublicDescription": "Dürfen Teilnehmende die Ergebnisse einsehen?",
     "creationOptions": "Erstellungsoptionen",
+    "settings": "Einstellungen",
     "loggedInAs": "Angemeldet als {{name}}",
     "linksWillBeSentTo": "Sie erhalten alle Links an:",
     "participationLink": "Teilnahme-Link zum Teilen",

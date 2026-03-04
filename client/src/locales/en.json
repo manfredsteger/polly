@@ -2719,6 +2719,7 @@
     "resultsPublic": "Results public",
     "resultsPublicDescription": "Can participants view the results?",
     "creationOptions": "Creation Options",
+    "settings": "Settings",
     "loggedInAs": "Logged in as {{name}}",
     "linksWillBeSentTo": "You will receive all links at:",
     "participationLink": "Participation link to share",

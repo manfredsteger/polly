@@ -2725,6 +2725,7 @@
     "allowVoteWithdrawalDescription": "Can participants completely withdraw their vote?",
     "resultsPublic": "Results public",
     "resultsPublicDescription": "Can participants view the results?",
+    "resultsPrivate": "Results visible to creator only",
     "creationOptions": "Creation Options",
     "settings": "Settings",
     "loggedInAs": "Logged in as {{name}}",

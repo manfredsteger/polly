@@ -2725,6 +2725,7 @@
     "allowVoteWithdrawalDescription": "Dürfen Teilnehmende ihre Abstimmung komplett zurückziehen?",
     "resultsPublic": "Ergebnisse öffentlich",
     "resultsPublicDescription": "Dürfen Teilnehmende die Ergebnisse einsehen?",
+    "resultsPrivate": "Ergebnisse nur für Ersteller sichtbar",
     "creationOptions": "Erstellungsoptionen",
     "settings": "Einstellungen",
     "loggedInAs": "Angemeldet als {{name}}",

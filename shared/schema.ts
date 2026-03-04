@@ -50,7 +50,6 @@ export const polls = pgTable("polls", {
   allowVoteWithdrawal: boolean("allow_vote_withdrawal").default(false).notNull(), // allow voters to completely withdraw/delete their votes
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
-  showWinner: boolean("show_winner").default(true).notNull(), // whether the "best option" winner highlight is shown in results
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at"),
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports
@@ -86,8 +85,8 @@ export const votes = pgTable("votes", {
   id: serial("id").primaryKey(),
   pollId: uuid("poll_id").notNull(),
   optionId: integer("option_id").notNull(),
-  voterName: text("voter_name"), // null for truly anonymous votes
-  voterEmail: text("voter_email"), // null for truly anonymous votes
+  voterName: text("voter_name").notNull(),
+  voterEmail: text("voter_email").notNull(),
   userId: integer("user_id"), // null for anonymous votes
   voterKey: text("voter_key"), // Unique voter identifier: "user:123" or "device:abc123" (for deduplication)
   voterSource: text("voter_source"), // "user" (logged in) or "device" (guest with device token)

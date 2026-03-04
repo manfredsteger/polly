@@ -72,21 +72,6 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [voterName, setVoterName] = useState("");
   const [voterEmail, setVoterEmail] = useState("");
   const [votes, setVotes] = useState<Record<number, VoteResponse>>({});
-
-  // Anonymous voting: compute once, stable for this session
-  const isAnonymousVoting = !!poll.allowAnonymousVoting && !isAuthenticated;
-  const anonVoterKey = (() => {
-    if (!isAnonymousVoting) return null;
-    const storageKey = 'polly_anon_voter_key';
-    let key = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
-    if (!key) {
-      key = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-      if (typeof window !== 'undefined') localStorage.setItem(storageKey, key);
-    }
-    return key;
-  })();
-  const [anonEditLink, setAnonEditLink] = useState<string | null>(null);
-  const [anonEditLinkCopied, setAnonEditLinkCopied] = useState(false);
   const [freeTextAnswers, setFreeTextAnswers] = useState<Record<number, string>>({});
   const [orgaBookings, setOrgaBookings] = useState<SlotBookingInfo[]>([]);
   const [hasOrgaChanges, setHasOrgaChanges] = useState(false);
@@ -473,34 +458,33 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       return;
     }
 
-    if (!isAnonymousVoting) {
-      if (!voterName.trim()) {
-        toast({
-          title: t('common.error'),
-          description: t('votingInterface.pleaseEnterName'),
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!voterName.trim()) {
+      toast({
+        title: t('common.error'),
+        description: t('votingInterface.pleaseEnterName'),
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (!voterEmail.trim()) {
-        toast({
-          title: t('common.error'),
-          description: t('votingInterface.pleaseEnterEmail'),
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!voterEmail.trim()) {
+      toast({
+        title: t('common.error'),
+        description: t('votingInterface.pleaseEnterEmail'),
+        variant: "destructive",
+      });
+      return;
+    }
 
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(voterEmail)) {
-        toast({
-          title: t('common.error'),
-          description: t('votingInterface.pleaseEnterValidEmail'),
-          variant: "destructive",
-        });
-        return;
-      }
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(voterEmail)) {
+      toast({
+        title: t('common.error'),
+        description: t('votingInterface.pleaseEnterValidEmail'),
+        variant: "destructive",
+      });
+      return;
     }
 
     // For organization polls, check bookings; for others, check votes
@@ -527,49 +511,41 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
     }
 
-    // Helper: build base payload (handles anonymous vs named)
-    const buildBasePayload = () => isAnonymousVoting
-      ? { voterKey: anonVoterKey }
-      : { voterName: voterName.trim(), voterEmail: voterEmail.trim() };
-
-    // Helper: build successData and handle post-vote navigation
-    const handleVoteSuccess = (result: any, extraName?: string, extraEmail?: string) => {
-      if (isAnonymousVoting && result.voterEditToken) {
-        const editUrl = `${window.location.origin}/edit/${result.voterEditToken}`;
-        setAnonEditLink(editUrl);
-        // Scroll to top so the link is visible
-        if (containerRef.current) containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return; // Don't redirect for anonymous - show edit link inline
-      }
-      const successData = {
-        poll: { title: poll.title, type: poll.type },
-        pollType: poll.type,
-        publicToken: poll.publicToken,
-        voterName: extraName ?? voterName.trim(),
-        voterEmail: extraEmail ?? voterEmail.trim(),
-        voterEditToken: result.voterEditToken,
-        allowVoteWithdrawal: poll.allowVoteWithdrawal,
-        isAnonymous: isAnonymousVoting,
-      };
-      sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
-      setLocation("/vote-success");
-    };
-
     try {
       if (poll.type === 'organization') {
+        // For organization polls: Use bulk vote endpoint to submit all bookings at once
         const bulkVoteData = {
-          ...buildBasePayload(),
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
           votes: orgaBookings.map(booking => ({
             optionId: booking.optionId,
             response: 'yes' as const,
             comment: booking.comment?.trim() || undefined
           }))
         };
+        
         const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote`, bulkVoteData);
         const result = await response.json();
+        
+        // Reset unsaved changes state
         setHasOrgaChanges(false);
-        handleVoteSuccess(result);
+        
+        const successData = {
+          poll: {
+            title: poll.title,
+            type: poll.type
+          },
+          pollType: poll.type,
+          publicToken: poll.publicToken,
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          voterEditToken: result.voterEditToken,
+          allowVoteWithdrawal: poll.allowVoteWithdrawal
+        };
+        sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else if (poll.type === 'survey') {
+        // For surveys: Use bulk vote endpoint to ensure atomicity
+        // Include free-text answers for isFreeText options
         const freeTextOptions = poll.options.filter((o: any) => o.isFreeText);
         const freeTextVotes = freeTextOptions
           .filter((o: any) => freeTextAnswers[o.id]?.trim())
@@ -591,22 +567,58 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           });
           return;
         }
-        const bulkVoteData = { ...buildBasePayload(), votes: allVotes };
+        const bulkVoteData = {
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          votes: allVotes,
+        };
+        
         const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote-bulk`, bulkVoteData);
         const result = await response.json();
-        handleVoteSuccess(result);
+        
+        // Store vote success data for success page including edit token
+        const successData = {
+          poll: {
+            title: poll.title,
+            type: poll.type
+          },
+          pollType: poll.type,
+          publicToken: poll.publicToken,
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          voterEditToken: result.voterEditToken, // Include the edit token from bulk vote response
+          allowVoteWithdrawal: poll.allowVoteWithdrawal
+        };
+        sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else {
+        // For schedule polls: Use bulk vote endpoint to submit all votes at once
         const votesToSubmit = Object.entries(votes);
         const bulkVoteData = {
-          ...buildBasePayload(),
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
           votes: votesToSubmit.map(([optionId, response]) => ({
             optionId: parseInt(optionId),
             response
           }))
         };
+        
         const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote`, bulkVoteData);
         const result = await response.json();
-        handleVoteSuccess(result);
+        
+        // For schedule polls: Store success data with edit token if available
+        const successData = {
+          poll: {
+            title: poll.title,
+            type: poll.type
+          },
+          pollType: poll.type,
+          publicToken: poll.publicToken,
+          voterName: voterName.trim(),
+          voterEmail: voterEmail.trim(),
+          voterEditToken: result.voterEditToken,
+          allowVoteWithdrawal: poll.allowVoteWithdrawal
+        };
+        sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       }
       
       // Notify live voting system that vote was submitted
@@ -614,13 +626,16 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         sendVoteSubmitted();
       }
       
-      // Invalidate queries to refresh data
+      // Invalidate queries to refresh data (important for admin view staying on page)
       queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/public/${poll.publicToken}`] });
       if (poll.adminToken) {
         queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/admin/${poll.adminToken}`] });
       }
       queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${poll.publicToken}/results`] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
+      
+      // Redirect to vote success page
+      setLocation("/vote-success");
     } catch (error) {
       console.error('Voting failed:', error);
       

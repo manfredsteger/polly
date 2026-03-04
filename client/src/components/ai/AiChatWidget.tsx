@@ -382,7 +382,7 @@ export function AiChatWidget() {
   const [localSettings, setLocalSettings] = useState<AiSuggestionSettings>({});
   const [followUpValue, setFollowUpValue] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
-  const [orderedOptions, setOrderedOptions] = useState<(string | { text: string; isFreeText?: boolean })[]>([]);
+  const [orderedOptions, setOrderedOptions] = useState<string[]>([]);
   const [refineError, setRefineError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
@@ -682,7 +682,7 @@ export function AiChatWidget() {
                   >
                     <ul className="space-y-1.5">
                       {orderedOptions.map((opt, i) => (
-                        <SortableOptionItem key={`opt-${i}`} id={`opt-${i}`} index={i} text={typeof opt === "string" ? opt : opt.text} />
+                        <SortableOptionItem key={`opt-${i}`} id={`opt-${i}`} index={i} text={opt} />
                       ))}
                     </ul>
                   </SortableContext>

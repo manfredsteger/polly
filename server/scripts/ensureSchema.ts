@@ -38,7 +38,6 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'users', column: 'email_verified', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'poll_options', column: 'is_free_text', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'votes', column: 'free_text_answer', definition: 'TEXT' },
-  { table: 'polls', column: 'show_winner', definition: 'BOOLEAN NOT NULL DEFAULT TRUE' },
 ];
 
 async function ensureSchema(): Promise<void> {
@@ -237,8 +236,8 @@ async function createCoreTables(client: any): Promise<void> {
       id SERIAL PRIMARY KEY,
       poll_id UUID NOT NULL,
       option_id INTEGER NOT NULL,
-      voter_name TEXT,
-      voter_email TEXT,
+      voter_name TEXT NOT NULL,
+      voter_email TEXT NOT NULL,
       user_id INTEGER,
       voter_key TEXT,
       voter_source TEXT,

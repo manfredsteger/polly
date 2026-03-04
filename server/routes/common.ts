@@ -74,8 +74,6 @@ export const createPollSchema = z.object({
   allowVoteEdit: z.boolean().optional().default(false),
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
-  showWinner: z.boolean().optional().default(true),
-  allowAnonymousVoting: z.boolean().optional().default(true),
   options: z.array(z.object({
     text: z.string().min(1),
     imageUrl: z.string().optional(),
@@ -90,8 +88,8 @@ export const createPollSchema = z.object({
 
 export const voteSchema = z.object({
   optionId: z.number(),
-  voterName: z.string().min(1).optional(),
-  voterEmail: z.string().email().optional(),
+  voterName: z.string().min(1),
+  voterEmail: z.string().email(),
   response: z.enum(['yes', 'maybe', 'no']),
   comment: z.string().optional(),
 });
@@ -102,9 +100,8 @@ export const inviteSchema = z.object({
 });
 
 export const bulkVoteSchema = z.object({
-  voterName: z.string().min(1).optional(),
-  voterEmail: z.string().email().optional(),
-  voterKey: z.string().optional(), // device UUID for anonymous voting deduplication
+  voterName: z.string().min(1),
+  voterEmail: z.string().email(),
   votes: z.array(z.object({
     optionId: z.number(),
     response: z.enum(['yes', 'maybe', 'no', 'freetext', 'signup']),

@@ -5,9 +5,26 @@ import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X, Pencil, Lock, UserMinus, UserX, HelpCircle, ListChecks, Square } from "lucide-react";
+import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X, Pencil, Lock, UserMinus, UserX, HelpCircle, ListChecks, Square, GripVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface AiStatus {
   enabled: boolean;
@@ -82,48 +99,125 @@ const PROMPTS_EN = [
   "Planning a department offsite and need to find a date that works?",
 ];
 
-const QUICK_SUGGESTIONS: Record<"de" | "en", Record<AiSuggestion["pollType"], string[]>> = {
-  de: {
-    organization: [
-      "Begrenze die Plätze pro Station auf 5 Personen",
-      "Teilnehmer können sich wieder abmelden",
-      "Füge weitere Stationen oder Zeitslots hinzu",
-      "Mache die Teilnehmerliste für alle sichtbar",
-    ],
-    schedule: [
-      "Füge weitere Terminoptionen hinzu",
-      "Biete 'Vielleicht' als Antwortmöglichkeit an",
-      "Beschränke die Termine auf Werktage",
-      "Teilnehmer können ihre Auswahl nachträglich ändern",
-    ],
-    survey: [
-      "Füge weitere Antwortmöglichkeiten hinzu",
-      "Mache die Ergebnisse nur für den Ersteller sichtbar",
-      "Teilnehmer können ihre Stimme nachträglich ändern",
-      "Biete 'Vielleicht' als Abstimmungsoption an",
-    ],
-  },
-  en: {
-    organization: [
-      "Limit spots per slot to 5 people",
-      "Allow participants to withdraw their sign-up",
-      "Add more stations or time slots",
-      "Make the sign-up list visible to all participants",
-    ],
-    schedule: [
-      "Add more date and time options",
-      "Offer 'Maybe' as an answer option",
-      "Restrict the options to weekdays only",
-      "Allow participants to change their selection later",
-    ],
-    survey: [
-      "Add more answer options",
-      "Make results visible only to the creator",
-      "Allow participants to change their vote later",
-      "Offer 'Maybe' as a voting option",
-    ],
-  },
-};
+function getQuickSuggestions(
+  lang: "de" | "en",
+  pollType: AiSuggestion["pollType"],
+  settings: AiSuggestionSettings
+): string[] {
+  const chips: string[] = [];
+
+  if (lang === "de") {
+    if (settings.resultsPublic) {
+      chips.push("Ergebnisse nur für den Ersteller sichtbar machen");
+    } else {
+      chips.push("Ergebnisse für alle Teilnehmer öffentlich machen");
+    }
+    if (settings.allowVoteEdit) {
+      chips.push("Abgaben sollen endgültig sein – keine Änderungen mehr möglich");
+    } else {
+      chips.push("Teilnehmer sollen ihre Abgabe nachträglich ändern können");
+    }
+    if (settings.allowVoteWithdrawal) {
+      chips.push("Abmeldungen sperren – Buchungen sollen verbindlich sein");
+    } else {
+      chips.push("Teilnehmer sollen sich nachträglich abmelden können");
+    }
+    if (pollType === "organization") {
+      if (settings.allowMultipleSlots) {
+        chips.push("Jede Person darf sich nur für einen einzigen Slot anmelden");
+      } else {
+        chips.push("Mehrere Slots pro Teilnehmer erlauben");
+      }
+      chips.push("Begrenze die Plätze pro Station auf 5 Personen");
+      chips.push("Füge weitere Stationen oder Zeitslots hinzu");
+    } else if (pollType === "schedule") {
+      if (settings.allowMaybe) {
+        chips.push("Nur Ja/Nein als Antworten – kein 'Vielleicht'");
+      } else {
+        chips.push("'Vielleicht' als Antwortmöglichkeit hinzufügen");
+      }
+      chips.push("Füge weitere Terminoptionen hinzu");
+      chips.push("Beschränke die Termine auf Werktage");
+    } else if (pollType === "survey") {
+      if (settings.allowMaybe) {
+        chips.push("Nur Ja/Nein als Antworten – kein 'Vielleicht'");
+      } else {
+        chips.push("'Vielleicht' als Abstimmungsoption hinzufügen");
+      }
+      chips.push("Füge weitere Antwortmöglichkeiten hinzu");
+    }
+  } else {
+    if (settings.resultsPublic) {
+      chips.push("Make results visible only to the creator");
+    } else {
+      chips.push("Make results visible to all participants");
+    }
+    if (settings.allowVoteEdit) {
+      chips.push("Submissions should be final – no changes allowed after submitting");
+    } else {
+      chips.push("Allow participants to change their submission later");
+    }
+    if (settings.allowVoteWithdrawal) {
+      chips.push("Disable withdrawals – sign-ups should be binding");
+    } else {
+      chips.push("Allow participants to withdraw their sign-up later");
+    }
+    if (pollType === "organization") {
+      if (settings.allowMultipleSlots) {
+        chips.push("Each person may only sign up for one slot");
+      } else {
+        chips.push("Allow participants to sign up for multiple slots");
+      }
+      chips.push("Limit spots per slot to 5 people");
+      chips.push("Add more stations or time slots");
+    } else if (pollType === "schedule") {
+      if (settings.allowMaybe) {
+        chips.push("Only Yes/No answers – remove 'Maybe' option");
+      } else {
+        chips.push("Add 'Maybe' as an answer option");
+      }
+      chips.push("Add more date and time options");
+      chips.push("Restrict the options to weekdays only");
+    } else if (pollType === "survey") {
+      if (settings.allowMaybe) {
+        chips.push("Only Yes/No answers – remove 'Maybe' option");
+      } else {
+        chips.push("Add 'Maybe' as a voting option");
+      }
+      chips.push("Add more answer options");
+    }
+  }
+
+  return chips;
+}
+
+function SortableOptionItem({ id, index, text }: { id: string; index: number; text: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-1.5"
+    >
+      <span
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors shrink-0 touch-none"
+        aria-label="Ziehen zum Sortieren"
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </span>
+      <span className="bg-primary/10 text-primary text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 font-medium">
+        {index + 1}
+      </span>
+      <span className="text-sm">{text}</span>
+    </li>
+  );
+}
 
 const TYPE_SPEED = 38;
 const ERASE_SPEED = 18;
@@ -288,11 +382,17 @@ export function AiChatWidget() {
   const [localSettings, setLocalSettings] = useState<AiSuggestionSettings>({});
   const [followUpValue, setFollowUpValue] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
+  const [orderedOptions, setOrderedOptions] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
   const originalInputRef = useRef<string>("");
   const isFilled = inputValue.trim().length > 0;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const lang = i18n.language?.startsWith("de") ? "de" : "en";
   const prompts = lang === "de" ? PROMPTS_DE : PROMPTS_EN;
@@ -308,6 +408,7 @@ export function AiChatWidget() {
     if (!suggestion) return;
     const defaults = SETTINGS_DEFAULTS[suggestion.pollType];
     setLocalSettings({ ...defaults, ...(suggestion.settings ?? {}) });
+    setOrderedOptions(suggestion.options ?? []);
   }, [suggestion]);
 
   const toggleSetting = (key: keyof AiSuggestionSettings) => {
@@ -373,8 +474,19 @@ export function AiChatWidget() {
 
   const handleApply = () => {
     if (!suggestion) return;
-    sessionStorage.setItem("ai-suggestion", JSON.stringify({ ...suggestion, settings: localSettings }));
+    sessionStorage.setItem("ai-suggestion", JSON.stringify({ ...suggestion, options: orderedOptions, settings: localSettings }));
     setLocation(POLL_TYPE_ROUTES[suggestion.pollType]);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setOrderedOptions((items) => {
+        const from = items.findIndex((_, i) => `opt-${i}` === active.id);
+        const to = items.findIndex((_, i) => `opt-${i}` === over.id);
+        return arrayMove(items, from, to);
+      });
+    }
   };
 
   const handleKeySubmit = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -530,16 +642,20 @@ export function AiChatWidget() {
               )}
               <div>
                 <p className="text-xs text-muted-foreground mb-2">
-                  {t("home.aiOptions")} ({suggestion.options.length})
+                  {t("home.aiOptions")} ({orderedOptions.length})
                 </p>
-                <ul className="space-y-1.5">
-                  {suggestion.options.map((opt, i) => (
-                    <li key={i} className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-1.5">
-                      <span className="bg-primary/10 text-primary text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-medium">{i + 1}</span>
-                      <span className="text-sm">{opt}</span>
-                    </li>
-                  ))}
-                </ul>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext
+                    items={orderedOptions.map((_, i) => `opt-${i}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <ul className="space-y-1.5">
+                      {orderedOptions.map((opt, i) => (
+                        <SortableOptionItem key={`opt-${i}`} id={`opt-${i}`} index={i} text={opt} />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </DndContext>
               </div>
 
               <SettingsToggles
@@ -573,9 +689,9 @@ export function AiChatWidget() {
               </p>
             </div>
 
-            {/* Quick suggestion chips — filtered when selected */}
+            {/* Quick suggestion chips — dynamic, always opposite of current settings */}
             {(() => {
-              const chips = QUICK_SUGGESTIONS[lang === "de" ? "de" : "en"][suggestion.pollType] ?? [];
+              const chips = getQuickSuggestions(lang === "de" ? "de" : "en", suggestion.pollType, localSettings);
               if (chips.length === 0) return null;
               const visibleChips = chips.filter((c) => !selectedChips.includes(c));
               return (

@@ -716,7 +716,7 @@ export default function CreateOrganization() {
         </Card>
 
         <Card className="polly-card">
-          <CardHeader className="pb-0">
+          <CardHeader className={settingsExpanded ? "pb-0" : ""}>
             <button
               type="button"
               onClick={() => setSettingsExpanded(p => !p)}

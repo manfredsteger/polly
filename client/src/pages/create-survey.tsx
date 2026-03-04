@@ -11,12 +11,30 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Vote, Mail, Plus, Trash2, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, MessageSquare } from "lucide-react";
+import { ArrowLeft, Vote, Mail, Plus, Trash2, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, MessageSquare, GripVertical } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface SurveyOption {
+  id: string;
   text: string;
   imageUrl?: string;
   altText?: string;
@@ -36,6 +54,109 @@ interface SurveyFormData {
   expiresAt: string | null;
 }
 
+interface SortableSurveyRowProps {
+  option: SurveyOption;
+  index: number;
+  options: SurveyOption[];
+  onUpdate: (text: string) => void;
+  onRemove: () => void;
+  onImageUploaded: (url: string) => void;
+  onImageRemoved: () => void;
+  onAltTextChange: (alt: string) => void;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}
+
+function SortableSurveyRow({ option, index, options, onUpdate, onRemove, onImageUploaded, onImageRemoved, onAltTextChange, t }: SortableSurveyRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: option.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  const normalIndex = options.slice(0, index + 1).filter(o => !o.isFreeText).length;
+  const freeTextIndex = options.slice(0, index + 1).filter(o => o.isFreeText).length;
+  const nonFreeTextCount = options.filter(o => !o.isFreeText).length;
+  const freeTextCount = options.filter(o => o.isFreeText).length;
+  const canDelete = option.isFreeText || nonFreeTextCount > 2 || freeTextCount > 0;
+
+  if (option.isFreeText) {
+    return (
+      <div ref={setNodeRef} style={style} className="border border-dashed border-primary/30 rounded-lg p-4 space-y-2 bg-primary/5">
+        <div className="flex items-center gap-2 mb-1">
+          <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <MessageSquare className="w-4 h-4 text-primary/60 shrink-0" />
+          <span className="text-xs font-medium text-primary/60 uppercase tracking-wide">
+            {t('createSurvey.freeTextQuestion')} {freeTextIndex}
+          </span>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Input
+            value={option.text}
+            onChange={(e) => onUpdate(e.target.value)}
+            placeholder={t('createSurvey.freeTextQuestionPlaceholder')}
+            className="flex-1"
+            data-testid={`input-option-${index}`}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="text-destructive hover:text-destructive"
+            aria-label={t('createSurvey.removeOption')}
+            data-testid={`button-delete-option-${index}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground pl-1">{t('createSurvey.freeTextHint')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-center space-x-3">
+        <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground shrink-0" {...attributes} {...listeners}>
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted shrink-0">
+          <span className="text-sm font-medium">{normalIndex}</span>
+        </div>
+        <Input
+          value={option.text}
+          onChange={(e) => onUpdate(e.target.value)}
+          placeholder={t('createSurvey.optionPlaceholder', { number: normalIndex })}
+          className="flex-1"
+          data-testid={`input-option-${index}`}
+        />
+        {canDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="text-destructive hover:text-destructive"
+            aria-label={t('createSurvey.removeOption')}
+            data-testid={`button-delete-option-${index}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm text-muted-foreground">{t('createSurvey.addImage')}</span>
+        <ImageUpload
+          onImageUploaded={onImageUploaded}
+          onImageRemoved={onImageRemoved}
+          onAltTextChange={onAltTextChange}
+          currentImageUrl={option.imageUrl}
+          currentAltText={option.altText}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function CreateSurvey() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -53,10 +174,27 @@ export default function CreateSurvey() {
   const [resultsPublic, setResultsPublic] = useState(true);
   const [allowMaybe, setAllowMaybe] = useState(true);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const nextIdRef = useRef(2);
   const [options, setOptions] = useState<SurveyOption[]>([
-    { text: "", order: 0 },
-    { text: "", order: 1 },
+    { id: "0", text: "", order: 0 },
+    { id: "1", text: "", order: 1 },
   ]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setOptions((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex).map((opt, idx) => ({ ...opt, order: idx }));
+      });
+    }
+  };
 
   const formPersistence = useFormPersistence<SurveyFormData>({ key: 'create-survey' });
   const hasRestoredRef = useRef(false);
@@ -76,7 +214,9 @@ export default function CreateSurvey() {
       setResultsPublic(stored.data.resultsPublic ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
       if (stored.data.options && stored.data.options.length >= 2) {
-        setOptions(stored.data.options);
+        const restored = stored.data.options.map((o: SurveyOption, i: number) => ({ ...o, id: o.id ?? String(i) }));
+        nextIdRef.current = restored.length;
+        setOptions(restored);
       }
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
@@ -102,10 +242,12 @@ export default function CreateSurvey() {
       if (suggestion.title) setTitle(suggestion.title);
       if (suggestion.description) setDescription(suggestion.description);
       if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
-        setOptions(suggestion.options.map((opt: any, i: number) => {
-          if (typeof opt === "string") return { text: opt, order: i };
-          return { text: opt.text || "", isFreeText: opt.isFreeText ?? false, order: i };
-        }));
+        const mapped = suggestion.options.map((opt: any, i: number) => {
+          if (typeof opt === "string") return { id: String(i), text: opt, order: i };
+          return { id: String(i), text: opt.text || "", isFreeText: opt.isFreeText ?? false, order: i };
+        });
+        nextIdRef.current = mapped.length;
+        setOptions(mapped);
       }
       const s = suggestion.settings;
       if (s && typeof s === "object") {
@@ -211,21 +353,23 @@ export default function CreateSurvey() {
   });
 
   const addOption = () => {
-    setOptions([...options, { text: "", order: options.length }]);
+    const id = String(nextIdRef.current++);
+    setOptions(prev => [...prev, { id, text: "", order: prev.length }]);
   };
 
   const addFreeTextQuestion = () => {
-    setOptions([...options, { text: "", isFreeText: true, order: options.length }]);
+    const id = String(nextIdRef.current++);
+    setOptions(prev => [...prev, { id, text: "", isFreeText: true, order: prev.length }]);
   };
 
   const removeOption = (index: number) => {
-    const nonFreeText = options.filter(o => !o.isFreeText);
-    const freeText = options.filter(o => o.isFreeText);
     const item = options[index];
+    const nonFreeTextCount = options.filter(o => !o.isFreeText).length;
+    const freeTextCount = options.filter(o => o.isFreeText).length;
     if (item.isFreeText) {
-      setOptions(options.filter((_, i) => i !== index));
-    } else if (nonFreeText.length > 2) {
-      setOptions(options.filter((_, i) => i !== index));
+      setOptions(options.filter((_, i) => i !== index).map((o, idx) => ({ ...o, order: idx })));
+    } else if (nonFreeTextCount > 2 || freeTextCount > 0) {
+      setOptions(options.filter((_, i) => i !== index).map((o, idx) => ({ ...o, order: idx })));
     }
   };
 
@@ -557,90 +701,40 @@ export default function CreateSurvey() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {t('createSurvey.optionsHint')}
-              </p>
-              
-              {options.map((option, index) => {
-                const normalIndex = options.slice(0, index + 1).filter(o => !o.isFreeText).length;
-                const freeTextIndex = options.slice(0, index + 1).filter(o => o.isFreeText).length;
-                const nonFreeTextCount = options.filter(o => !o.isFreeText).length;
-                const canDelete = option.isFreeText || nonFreeTextCount > 2;
-
-                if (option.isFreeText) {
-                  return (
-                    <div key={index} className="border border-dashed border-primary/30 rounded-lg p-4 space-y-2 bg-primary/5">
-                      <div className="flex items-center gap-2 mb-1">
-                        <MessageSquare className="w-4 h-4 text-primary/60 shrink-0" />
-                        <span className="text-xs font-medium text-primary/60 uppercase tracking-wide">
-                          {t('createSurvey.freeTextQuestion')} {freeTextIndex}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <Input
-                          value={option.text}
-                          onChange={(e) => updateOption(index, e.target.value)}
-                          placeholder={t('createSurvey.freeTextQuestionPlaceholder')}
-                          className="flex-1"
-                          data-testid={`input-option-${index}`}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeOption(index)}
-                          className="text-destructive hover:text-destructive"
-                          aria-label={t('createSurvey.removeOption')}
-                          data-testid={`button-delete-option-${index}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground pl-1">{t('createSurvey.freeTextHint')}</p>
-                    </div>
-                  );
-                }
-
+              {(() => {
+                const hasFreeText = options.some(o => o.isFreeText);
+                const hasNormal = options.some(o => !o.isFreeText);
                 return (
-                  <div key={index} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
-                        <span className="text-sm font-medium">{normalIndex}</span>
-                      </div>
-                      <Input
-                        value={option.text}
-                        onChange={(e) => updateOption(index, e.target.value)}
-                        placeholder={t('createSurvey.optionPlaceholder', { number: normalIndex })}
-                        className="flex-1"
-                        data-testid={`input-option-${index}`}
-                      />
-                      {canDelete && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeOption(index)}
-                          className="text-destructive hover:text-destructive"
-                          aria-label={t('createSurvey.removeOption')}
-                          data-testid={`button-delete-option-${index}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <span className="text-sm text-muted-foreground">{t('createSurvey.addImage')}</span>
-                      <ImageUpload
-                        onImageUploaded={(imageUrl) => updateOptionImage(index, imageUrl)}
-                        onImageRemoved={() => removeOptionImage(index)}
-                        onAltTextChange={(altText) => updateOptionAltText(index, altText)}
-                        currentImageUrl={option.imageUrl}
-                        currentAltText={option.altText}
-                      />
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {hasFreeText && hasNormal
+                      ? t('createSurvey.optionsHintMixed')
+                      : t('createSurvey.optionsHint')}
+                  </p>
                 );
-              })}
+              })()}
+
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={options.map(o => o.id)} strategy={verticalListSortingStrategy}>
+                  {options.map((option, index) => (
+                    <SortableSurveyRow
+                      key={option.id}
+                      option={option}
+                      index={index}
+                      options={options}
+                      onUpdate={(text) => updateOption(index, text)}
+                      onRemove={() => removeOption(index)}
+                      onImageUploaded={(url) => updateOptionImage(index, url)}
+                      onImageRemoved={() => removeOptionImage(index)}
+                      onAltTextChange={(alt) => updateOptionAltText(index, alt)}
+                      t={t}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
             
             <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">

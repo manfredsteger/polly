@@ -303,12 +303,21 @@ export default function CreateOrganization() {
       if (suggestion.title) setTitle(suggestion.title);
       if (suggestion.description) setDescription(suggestion.description);
       if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
-        const DATE_PREFIX_RE = /^(\d{2})\.(\d{2})\.(\d{4})\s+/;
+        const DATE_PREFIX_RE = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+/;
 
         type RawSlot = { id: string; text: string; startTime?: string; endTime?: string; maxCapacity?: number; order: number; _isoDate?: string };
 
         const aiBaseId = nextSlotIdRef.current;
         nextSlotIdRef.current += (suggestion.options as string[]).length;
+
+        const toIso = (date: string, time: string): string | undefined => {
+          if (!date || !time) return undefined;
+          try {
+            const combined = new Date(`${date}T${time}`);
+            if (isNaN(combined.getTime())) return undefined;
+            return combined.toISOString();
+          } catch { return undefined; }
+        };
 
         const rawParsed: RawSlot[] = (suggestion.options as string[]).map((text: string, i: number) => {
           const dateMatch = text.match(DATE_PREFIX_RE);
@@ -318,7 +327,7 @@ export default function CreateOrganization() {
           let isoDate: string | undefined;
           if (dateMatch) {
             const [, dd, mm, yyyy] = dateMatch;
-            isoDate = `${yyyy}-${mm}-${dd}`;
+            isoDate = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
           }
 
           let cleanText = text;
@@ -346,12 +355,26 @@ export default function CreateOrganization() {
         const datesFound = rawParsed.map((s: RawSlot) => s._isoDate).filter(Boolean) as string[];
         const uniqueDates = [...new Set(datesFound)];
         const allSameDate = datesFound.length === rawParsed.length && uniqueDates.length === 1;
+        const hasAnyTimes = rawParsed.some((s: RawSlot) => s.startTime || s.endTime);
 
         if (allSameDate) {
           const sharedDate = uniqueDates[0];
           setIsDayMode(true);
           setDayModeDate(sharedDate);
           setDayModeDates([sharedDate]);
+        } else if (datesFound.length > 0) {
+          for (const slot of rawParsed) {
+            if (slot._isoDate) {
+              if (slot.startTime) {
+                slot.startTime = toIso(slot._isoDate, slot.startTime) || slot.startTime;
+              }
+              if (slot.endTime) {
+                slot.endTime = toIso(slot._isoDate, slot.endTime) || slot.endTime;
+              }
+            }
+          }
+        } else if (hasAnyTimes) {
+          setIsDayMode(true);
         }
 
         const parsedSlots = rawParsed.map(({ _isoDate: _d, ...slot }: RawSlot) => slot);
@@ -413,21 +436,25 @@ export default function CreateOrganization() {
         startTimeISO = combineDateTime(dayDate, slot.startTime || "");
         endTimeISO = combineDateTime(dayDate, slot.endTime || "");
       } else if (!useDayMode && slot.startTime) {
-        if (slot.startTime.includes('T')) {
-          try {
-            const parsed = new Date(slot.startTime);
-            if (!isNaN(parsed.getTime())) {
-              startTimeISO = parsed.toISOString();
-            }
-          } catch {}
-        }
-        if (slot.endTime && slot.endTime.includes('T')) {
-          try {
-            const parsed = new Date(slot.endTime);
-            if (!isNaN(parsed.getTime())) {
-              endTimeISO = parsed.toISOString();
-            }
-          } catch {}
+        const parseTimeField = (val: string): string | undefined => {
+          if (val.includes('T')) {
+            try {
+              const parsed = new Date(val);
+              if (!isNaN(parsed.getTime())) return parsed.toISOString();
+            } catch {}
+          }
+          if (/^\d{2}:\d{2}$/.test(val)) {
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const fallback = new Date(`${today}T${val}`);
+              if (!isNaN(fallback.getTime())) return fallback.toISOString();
+            } catch {}
+          }
+          return undefined;
+        };
+        startTimeISO = parseTimeField(slot.startTime);
+        if (slot.endTime) {
+          endTimeISO = parseTimeField(slot.endTime);
         }
       }
       

@@ -238,6 +238,35 @@ env:
     value: "true"
 ```
 
+### AI Assistant (Optional)
+
+Polly includes an optional AI assistant that helps users create polls through natural language. It uses any OpenAI-compatible API (recommended: GWDG SAIA).
+
+#### Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `AI_API_URL` | OpenAI-compatible API endpoint | `https://saia.2.rahtiapp.fi/v1` |
+| `AI_API_KEY` | API key for AI services | `your-api-key` |
+| `AI_API_KEY_FALLBACK` | Fallback key (on HTTP 429) | `your-fallback-key` |
+| `AI_MODEL` | AI model name | `llama-3.3-70b-instruct` |
+
+#### Voice Input
+
+The Docker image includes ffmpeg for voice input (WebM → MP3 audio conversion). No additional setup required.
+
+#### GDPR Compliance
+
+When using GWDG SAIA, all AI processing stays within European data centers (GDPR-compliant).
+
+#### Docker Compose Example
+
+```yaml
+environment:
+  - AI_API_URL=https://saia.2.rahtiapp.fi/v1
+  - AI_API_KEY=your-api-key
+```
+
 ### Instance-Specific Branding
 
 Polly supports instance-specific branding (colors, logo, site name) that persists across deployments without being committed to git. This is useful for organizations running their own branded instance.

@@ -41,6 +41,8 @@ docker run -d \
 - **Admin Dashboard**: User management, branding, security scanning, email templates
 - **WCAG 2.1 AA**: Automatic color contrast auditing and correction
 - **ClamAV Integration**: Optional virus scanning for file uploads
+- **AI Poll Assistant**: Create polls via natural language with GWDG SAIA (OpenAI-compatible API)
+- **Voice Input**: Speech-to-text for AI chat using Whisper
 - **GDPR Compliant**: All data stays on your server, no external tracking
 
 ## Available Tags
@@ -104,6 +106,15 @@ Start with ClamAV:
 ```bash
 docker compose --profile clamav up -d
 ```
+
+### AI Assistant (Optional)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AI_API_URL` | OpenAI-compatible API endpoint | — |
+| `AI_API_KEY` | API key for AI services | — |
+| `AI_API_KEY_FALLBACK` | Fallback key (on HTTP 429) | — |
+| `AI_MODEL` | AI model name | `llama-3.3-70b-instruct` |
 
 ## Docker Compose
 

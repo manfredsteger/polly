@@ -15,7 +15,7 @@ Vielen Dank für Ihr Interesse, zu Polly beizutragen! Diese Anleitung erklärt, 
 
 ### Voraussetzungen
 
-- Node.js 20+
+- Node.js 22+
 - PostgreSQL 15+
 - npm oder yarn
 
@@ -47,22 +47,31 @@ polly/
 ├── client/                 # React Frontend
 │   └── src/
 │       ├── components/     # UI-Komponenten
+│       │   └── ai/         # AI Chat Widget & Voice Input
 │       ├── pages/          # Seitenkomponenten
 │       ├── lib/            # Utilities
-│       └── hooks/          # React Hooks
+│       ├── hooks/          # React Hooks
+│       └── locales/        # i18n Übersetzungen (de.json, en.json)
 ├── server/                 # Express Backend
-│   ├── routes.ts           # API-Routen
-│   ├── storage.ts          # Datenbank-Interface
+│   ├── routes/             # API-Routen (modular)
+│   │   ├── admin.ts        # Admin-Endpunkte
+│   │   ├── auth.ts         # Authentifizierung
+│   │   ├── polls.ts        # Umfragen-CRUD
+│   │   ├── votes.ts        # Abstimmungen
+│   │   ├── ai.ts           # AI-Assistent & Transkription
+│   │   └── ...             # Weitere Route-Module
 │   ├── services/           # Business-Logik
+│   │   ├── aiService.ts    # AI Poll-Erstellung (GWDG SAIA)
+│   │   └── whisperService.ts # Spracheingabe (Whisper API)
+│   ├── storage.ts          # Datenbank-Interface
 │   └── tests/              # Backend-Tests
-│       ├── auth/           # Authentifizierungstests
-│       ├── api/            # API-Sicherheitstests
-│       ├── polls/          # Umfragen-Tests
-│       ├── security/       # Sicherheitstests
-│       └── fixtures/       # Test-Daten & Helpers
 ├── shared/                 # Geteilte TypeScript-Typen
 │   └── schema.ts           # Drizzle-Schema & Zod-Validierung
-└── e2e/                    # Playwright E2E-Tests
+├── docs/                   # Dokumentation
+│   ├── openapi.yaml        # API-Spezifikation
+│   └── SELF-HOSTING.md     # Deployment-Anleitung
+├── Dockerfile              # Production Container
+└── docker-compose.yml      # Docker Setup
 ```
 
 ## Tests schreiben

@@ -597,6 +597,61 @@ Bild für Umfrage-Optionen hochladen.
 
 ---
 
+## 9. AI-Assistent (Optional)
+
+### GET /api/v1/ai/status
+Prüft ob der AI-Assistent verfügbar ist.
+
+**Response:**
+```json
+{
+  "enabled": true,
+  "apiConfigured": true,
+  "model": "llama-3.3-70b-instruct"
+}
+```
+
+### POST /api/v1/ai/create-poll
+Umfrage-Vorschlag aus natürlicher Sprache erstellen.
+
+**Request:**
+```json
+{
+  "message": "Erstelle eine Terminumfrage für nächste Woche",
+  "conversationHistory": []
+}
+```
+
+**Response:**
+```json
+{
+  "suggestion": {
+    "pollType": "schedule",
+    "title": "Team Meeting",
+    "description": "...",
+    "options": ["Montag 10:00 - 11:00", "Dienstag 14:00 - 15:00"],
+    "settings": { "resultsPublic": true, "allowMaybe": true }
+  }
+}
+```
+
+### POST /api/v1/ai/transcribe
+Audio zu Text transkribieren (Spracheingabe).
+
+**Request:** `multipart/form-data`
+- `audio` - Die Audio-Datei
+
+**Response:**
+```json
+{
+  "success": true,
+  "text": "Transcribed text...",
+  "language": "de"
+}
+```
+
+---
+
 ## Fehler-Codes
 
 Die API verwendet einheitliche Fehler-Codes für Mobile-Handling:

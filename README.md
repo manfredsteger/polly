@@ -154,6 +154,8 @@ make complete
 - **QR Code Sharing**: Easy poll distribution via QR codes
 - **Full Customization**: Theme colors, logo, site name via admin panel
 - **Dark Mode**: System-wide dark mode with admin defaults
+- **AI Poll Assistant**: Create polls via natural language with AI-powered suggestions (GWDG SAIA integration)
+- **Voice Input**: Speech-to-text for AI chat with real-time waveform visualization
 - **Transactional Slot Booking**: PostgreSQL row-level locking prevents overbooking in organization polls
 
 ### Authentication Options
@@ -233,6 +235,15 @@ KEYCLOAK_CLIENT_SECRET=your-client-secret
 KEYCLOAK_AUTH_SERVER_URL=https://keycloak.example.com
 ```
 
+### Optional: AI Assistant (GWDG SAIA)
+
+```env
+AI_API_URL=https://saia.gwdg.de/v1/chat/completions
+AI_API_KEY=your-ai-api-key
+AI_API_KEY_FALLBACK=your-fallback-api-key
+AI_MODEL=llama-3.3-70b-instruct
+```
+
 ### Application URLs
 
 ```env
@@ -250,6 +261,7 @@ VITE_APP_URL=https://your-app-url.com
 | **Backend** | Express.js, TypeScript |
 | **Database** | PostgreSQL, Drizzle ORM |
 | **Auth** | Passport.js, express-session |
+| **AI** | GWDG SAIA (OpenAI-compatible), Whisper |
 
 ## 📁 Project Structure
 
@@ -306,6 +318,7 @@ Access the admin panel at `/admin` to customize:
 - Role-based access control
 - CSRF protection
 - Secure password hashing with bcrypt
+- AI API key proxying (server-side only)
 
 ## 🐳 Docker Deployment
 
@@ -409,7 +422,7 @@ Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
 | Priority | Feature | Status |
 |----------|---------|--------|
 | 🔐 | **Keycloak SSO (OIDC)** - Enterprise single sign-on integration | In Progress |
-| 🤖 | **AI Voice Control** - Create polls via speech with GWDG KISSKI Free Tier | Planned |
+| 🤖 | **AI Voice Control** - Create polls via speech with GWDG KISSKI Free Tier | ✅ Done |
 | 🔌 | **OpenAI-Compatible API** - Support for custom AI providers | Planned |
 | 💬 | **Matrix / Element Chatbot** - Create and manage polls directly from Matrix chat | Version 1.0 |
 | 🇪🇺 | **European DC Focus** - Simplified deployment for EU data centers | Version 1.0 |

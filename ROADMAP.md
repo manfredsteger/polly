@@ -37,13 +37,13 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [ ] Session synchronization with identity provider
 - [ ] Documentation for enterprise SSO setup
 
-#### 2. AI-Powered Voice Control (GWDG KISSKI Integration)
-- [ ] Integration with [GWDG KISSKI](https://kisski.gwdg.de) AI services
-- [ ] **Free Tier included** for all Polly installations
-- [ ] Voice-controlled poll creation with speech-to-text
-- [ ] AI agent-guided form completion (no manual input required)
-- [ ] Natural language commands: "Erstelle eine Terminumfrage für nächste Woche"
-- [ ] OpenAI-compatible provider support for custom deployments
+#### 2. AI-Powered Poll Creation & Voice Control (GWDG KISSKI Integration)
+- [x] Integration with [GWDG KISSKI](https://kisski.gwdg.de) AI services
+- [x] **Free Tier included** for all Polly installations
+- [x] Voice-controlled poll creation with speech-to-text
+- [x] AI agent-guided form completion (no manual input required)
+- [x] Natural language commands: "Erstelle eine Terminumfrage für nächste Woche"
+- [x] OpenAI-compatible provider support for custom deployments
 
 > **Partner:** GWDG (Gesellschaft für wissenschaftliche Datenverarbeitung mbH Göttingen) is the primary AI integration partner, providing free AI capabilities to all Polly users.
 
@@ -125,4 +125,4 @@ We welcome community input! If you have feature requests or suggestions:
 
 ---
 
-*Last updated: February 2025*
+*Last updated: March 2026*

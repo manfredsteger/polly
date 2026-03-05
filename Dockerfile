@@ -70,6 +70,7 @@ FROM node:22-slim AS production
 # Install minimal runtime dependencies
 # - canvas/pdfkit: libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 libpixman-1-0
 # - Puppeteer: chromium (system installation, not bundled)
+# - ffmpeg: audio conversion for AI voice transcription (WebM → MP3)
 # - Database: postgresql-client (for pg_isready)
 # - Utilities: wget for health checks
 # Note: Full apt reset to guarantee fresh package lists (no stale GPG signatures)
@@ -84,6 +85,7 @@ RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/* /etc/apt/apt.conf.d/docker-clea
     libgif7 \
     libpixman-1-0 \
     chromium \
+    ffmpeg \
     fonts-liberation \
     postgresql-client \
     wget \

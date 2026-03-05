@@ -8,13 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- AI-powered poll creation assistant with natural language input (GWDG SAIA integration)
+- Voice input (speech-to-text) for AI chat using GWDG Whisper API with real-time waveform visualization
+- Drag-and-drop reordering for organization poll slots and AI suggestion options
+- AI suggestion preview with inline editing, follow-up refinement, and one-click apply
+- Audio transcription endpoint (POST /api/v1/ai/transcribe) with ffmpeg WebM→MP3 conversion
+- Whisper hallucination filter for common artifacts ("Vielen Dank fürs Zuschauen", etc.)
+- Large audio file chunking (>20MB split into 150s segments for transcription)
+- AI rate limiting with configurable guest/user limits via admin panel
+- Microphone permission handling with user-friendly error messages
 - Accessibility (a11y) testing with axe-core and Playwright (WCAG 2.1 AA compliance)
 - README badges for Build Status, License, TypeScript version, and Docker
 
 ### Fixed
+- Multi-day organization poll time slots from AI suggestions now correctly preserve start/end times
+- Date regex for AI-generated slots now accepts single-digit day/month formats (e.g., 5.9.2026)
+- Permissions-Policy header updated to allow microphone access for voice input (microphone=(self))
 - Pentest-Tools scan ID extraction (now correctly reads `created_id` from API response)
 - Missing admin warning translations (defaultAdminAccount, defaultAdminWarning, createNewAdminWarning)
 - Docker schema migration for `language_preference` column in ensureSchema.ts
+
+### Security
+- AI API keys proxied server-side (never exposed to frontend)
+- Permissions-Policy: microphone restricted to same-origin only
 
 ---
 

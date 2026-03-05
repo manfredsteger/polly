@@ -40,6 +40,9 @@ Polly implements the following security measures:
 - **Server-side validation** with Zod schemas
 - **HTTP-only secure session cookies**
 - **Role-based access control** (User, Admin, Manager)
+- **AI API key proxying** — Keys stored server-side only, never exposed to frontend
+- **Permissions-Policy headers** — Microphone restricted to same-origin, camera/geolocation/payment disabled
+- **Audio upload validation** — File type and size checks before AI transcription
 
 ## Security Best Practices for Self-Hosting
 
@@ -49,6 +52,8 @@ Polly implements the following security measures:
 4. **Restrict database access** to application server only
 5. **Configure firewall rules** appropriately
 6. **Enable audit logging** for compliance requirements
+7. **Protect AI API keys** — Use environment variables, never commit keys to source control
+8. **Monitor AI usage** — Check admin panel for unusual AI request patterns
 
 ## Acknowledgments
 

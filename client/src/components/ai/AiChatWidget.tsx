@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X, Pencil, Lock, UserMinus, UserX, HelpCircle, ListChecks, Square, GripVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useToast } from "@/hooks/use-toast";
 import { VoiceRecordingOverlay } from "./VoiceRecordingOverlay";
 import {
   DndContext,
@@ -376,6 +377,7 @@ function SettingsToggles({
 
 export function AiChatWidget() {
   const { t, i18n } = useTranslation();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [inputValue, setInputValue] = useState("");
   const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null);
@@ -449,6 +451,10 @@ export function AiChatWidget() {
   }, []);
 
   const startRecording = useCallback(async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast({ title: t("home.aiMicError"), variant: "destructive" });
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
@@ -481,11 +487,17 @@ export function AiChatWidget() {
       };
 
       mediaRecorder.start(100);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[Voice] Failed to start recording:", error);
+      const msg = error?.name === "NotAllowedError"
+        ? t("home.aiMicError")
+        : error?.name === "NotFoundError"
+        ? t("home.aiMicError")
+        : t("home.aiMicError");
+      toast({ title: msg, variant: "destructive" });
       setIsListening(false);
     }
-  }, [transcribeVoice]);
+  }, [transcribeVoice, toast, t]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Mic, ArrowRight, Sparkles, Loader2, CheckCircle, RefreshCw, AlertCircle, EyeOff, Eye, Minus, Send, X, Pencil, Lock, UserMinus, UserX, HelpCircle, ListChecks, Square, GripVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEffect } from "react";
+import { VoiceRecordingOverlay } from "./VoiceRecordingOverlay";
 import {
   DndContext,
   closestCenter,
@@ -384,10 +384,16 @@ export function AiChatWidget() {
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const [orderedOptions, setOrderedOptions] = useState<string[]>([]);
   const [refineError, setRefineError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
   const originalInputRef = useRef<string>("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const isFilled = inputValue.trim().length > 0;
 
   const sensors = useSensors(
@@ -412,6 +418,86 @@ export function AiChatWidget() {
     setLocalSettings({ ...defaults, ...(suggestion.settings ?? {}) });
     setOrderedOptions(suggestion.options ?? []);
   }, [suggestion]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  const transcribeVoice = useCallback(async (audioBlob: Blob) => {
+    if (audioBlob.size < 1024) return;
+    setIsTranscribing(true);
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+      const response = await fetch("/api/v1/ai/transcribe", { method: "POST", body: formData });
+      const result = await response.json();
+      if (result.success && result.text) {
+        setInputValue((prev) => {
+          const trimmed = prev.trim();
+          return trimmed ? `${trimmed} ${result.text.trim()}` : result.text.trim();
+        });
+      }
+    } catch (error) {
+      console.error("[Voice] Transcription failed:", error);
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      setAudioStream(stream);
+      setIsListening(true);
+      audioChunksRef.current = [];
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/mp4";
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+          setAudioStream(null);
+        }
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioBlob.size > 0) await transcribeVoice(audioBlob);
+        audioChunksRef.current = [];
+      };
+
+      mediaRecorder.start(100);
+    } catch (error) {
+      console.error("[Voice] Failed to start recording:", error);
+      setIsListening(false);
+    }
+  }, [transcribeVoice]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  }, []);
+
+  const toggleListening = useCallback(() => {
+    if (isListening) stopRecording();
+    else startRecording();
+  }, [isListening, startRecording, stopRecording]);
 
   const toggleSetting = (key: keyof AiSuggestionSettings) => {
     setLocalSettings((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -582,11 +668,20 @@ export function AiChatWidget() {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-muted-foreground/40 text-xs cursor-not-allowed select-none"
+                    onClick={toggleListening}
+                    disabled={isTranscribing || mutation.isPending}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors select-none disabled:opacity-40 disabled:cursor-not-allowed ${
+                      isListening
+                        ? "text-primary animate-pulse"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
                   >
-                    <Mic className="w-4 h-4" />
-                    <span className="hidden sm:inline">Sprache</span>
+                    {isTranscribing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Mic className="w-4 h-4" />
+                    )}
+                    <span className="hidden sm:inline">{t("home.aiMicTooltip")}</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
@@ -853,6 +948,14 @@ export function AiChatWidget() {
           </p>
         </div>
       )}
+
+      <VoiceRecordingOverlay
+        isVisible={isListening || isTranscribing}
+        onStop={stopRecording}
+        audioStream={audioStream}
+        isTranscribing={isTranscribing}
+        isListening={isListening}
+      />
     </div>
   );
 }

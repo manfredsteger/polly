@@ -11,13 +11,53 @@ import {
   checkAiRateLimit,
   logAiUsage,
 } from "../services/aiRateLimiterService";
+import { transcribeLargeFile } from "../services/whisperService";
 import { aiSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { storage } from "../storage";
 import { emailService } from "../services/emailService";
 import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
+import multer from "multer";
 
 const router = Router();
+
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
+
+// POST /api/v1/ai/transcribe — Audio → Text via GWDG Whisper
+router.post("/transcribe", audioUpload.single("audio"), async (req, res) => {
+  try {
+    if (!process.env.AI_API_KEY) {
+      return res.status(503).json({ success: false, error: "AI API nicht konfiguriert" });
+    }
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ success: false, error: "Keine Audiodatei gefunden" });
+    }
+
+    const language = typeof req.body.language === "string" ? req.body.language : undefined;
+    const mimeType = file.mimetype || "audio/webm";
+
+    console.log(`[Transcribe] ${file.originalname}, ${(file.size / 1024 / 1024).toFixed(2)} MB, ${mimeType}`);
+
+    const result = await transcribeLargeFile(file.buffer, mimeType, language);
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: result.error });
+    }
+
+    return res.json({ success: true, text: result.text, language: result.language });
+  } catch (error) {
+    console.error("[Transcribe] Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unbekannter Fehler",
+    });
+  }
+});
 
 // GET /api/v1/ai/status — public (shows enabled state + quota for current user)
 router.get("/status", async (req, res) => {

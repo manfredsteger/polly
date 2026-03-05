@@ -39,6 +39,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Notification System**: Configurable email reminders (expiry, manual), with spam protection and rate limiting.
 - **Profile Security**: Secure password reset, email change, and GDPR-compliant account deletion request flow.
 - **Live Voting**: Real-time vote tracking via WebSocket with fullscreen presentation mode.
+- **Voice Input (AI Chat)**: Microphone button in the AI Chat Widget records audio via MediaRecorder API (WebM/Opus), sends to `POST /api/v1/ai/transcribe`, server converts WebM→MP3 via ffmpeg and forwards to GWDG Whisper API (`whisper-large-v2`), transcribed text is inserted into the chat input field. Hallucination filter removes common Whisper artifacts. Large files (>20 MB) are split into 150s chunks. Fallback to `AI_API_KEY_FALLBACK` on HTTP 429. Files: `server/services/whisperService.ts`, `client/src/components/ai/VoiceRecordingOverlay.tsx`.
 - **Admin Tools**: User management, email template customization, security scanning integration (ClamAV, npm audit, Pentest-Tools.com), and system package monitoring (Nix).
 - **Calendar Integration**: ICS export and webcal:// subscription for schedule polls with dynamic status prefixes (Tentative/Confirmed) and automatic cleanup when creator sets final date.
 - **Test Data Isolation**: `isTestData` flags in database for development and purging.

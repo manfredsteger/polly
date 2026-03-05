@@ -400,9 +400,10 @@ export function AiChatWidget() {
 
   const { display: placeholderDisplay, currentFull } = useTypewriter(prompts, isFilled);
 
-  const { data: status } = useQuery<AiStatus>({
+  const { data: status, isLoading: statusLoading } = useQuery<AiStatus>({
     queryKey: ["/api/v1/ai/status"],
     refetchInterval: false,
+    staleTime: 30_000,
   });
 
   useEffect(() => {
@@ -525,7 +526,7 @@ export function AiChatWidget() {
     }
   };
 
-  if (!status?.enabled || !status?.apiConfigured) return null;
+  if (status && (!status.enabled || !status.apiConfigured)) return null;
 
   const isRefining = refineMutation.isPending;
   const pollTypeLabel = suggestion
@@ -605,15 +606,15 @@ export function AiChatWidget() {
           </div>
 
           <div className="flex items-center gap-2">
-            {!status.canUse && status.reason && (
+            {!status?.canUse && status?.reason && (
               <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-1">
                 <AlertCircle className="w-3 h-3 text-amber-500" />
-                {status.reason === "GUEST_NOT_ALLOWED"
+                {status?.reason === "GUEST_NOT_ALLOWED"
                   ? t("home.aiLoginRequired")
                   : t("home.aiLimitReached")}
               </span>
             )}
-            {status.canUse && status.remaining !== null && status.remaining !== undefined && (
+            {status?.canUse && status?.remaining != null && (
               <span className="text-xs text-muted-foreground">
                 {status.remaining} {t("home.aiRemaining")}
               </span>
@@ -622,7 +623,7 @@ export function AiChatWidget() {
               type="button"
               size="sm"
               onClick={handleSubmit}
-              disabled={!status.canUse || !isFilled || inputValue.trim().length < 5 || mutation.isPending}
+              disabled={statusLoading || !status?.canUse || !isFilled || inputValue.trim().length < 5 || mutation.isPending}
               className="gap-1.5 h-8 px-3"
             >
               {mutation.isPending ? (
@@ -799,7 +800,7 @@ export function AiChatWidget() {
                 disabled={
                   (selectedChips.length === 0 && followUpValue.trim().length < 3) ||
                   isRefining ||
-                  !status.canUse
+                  !status?.canUse
                 }
                 className="h-[52px] px-3 shrink-0 gap-1.5"
               >

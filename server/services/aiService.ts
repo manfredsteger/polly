@@ -15,17 +15,28 @@ function getClient(fallback = false): OpenAI | null {
   return new OpenAI({ apiKey, baseURL });
 }
 
+let aiSettingsCache: { value: AiSettings; expiresAt: number } | null = null;
+const AI_SETTINGS_TTL_MS = 60_000;
+
 export async function getAiSettings(): Promise<AiSettings> {
+  if (aiSettingsCache && Date.now() < aiSettingsCache.expiresAt) {
+    return aiSettingsCache.value;
+  }
   try {
     const setting = await storage.getSetting("ai_settings");
     if (setting?.value) {
-      return aiSettingsSchema.parse(setting.value);
+      const parsed = aiSettingsSchema.parse(setting.value);
+      aiSettingsCache = { value: parsed, expiresAt: Date.now() + AI_SETTINGS_TTL_MS };
+      return parsed;
     }
   } catch (_) {}
-  return aiSettingsSchema.parse({});
+  const defaults = aiSettingsSchema.parse({});
+  aiSettingsCache = { value: defaults, expiresAt: Date.now() + AI_SETTINGS_TTL_MS };
+  return defaults;
 }
 
 export async function saveAiSettings(settings: AiSettings): Promise<void> {
+  aiSettingsCache = null;
   await storage.setSetting({ key: "ai_settings", value: settings });
 }
 

@@ -11,13 +11,31 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer, ChevronDown } from "lucide-react";
+import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer, ChevronDown, GripVertical } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface OrgaSlot {
+  id: string;
   text: string;
   startTime?: string;
   endTime?: string;
@@ -50,6 +68,150 @@ interface OrgaFormData {
   dayModeDates?: string[];
 }
 
+interface SortableSlotItemProps {
+  slot: OrgaSlot;
+  index: number;
+  slotsLength: number;
+  isDayMode: boolean;
+  updateSlot: (index: number, updates: Partial<OrgaSlot>) => void;
+  removeSlot: (index: number) => void;
+  t: (key: string) => string;
+}
+
+function SortableSlotItem({ slot, index, slotsLength, isDayMode, updateSlot, removeSlot, t }: SortableSlotItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: slot.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border rounded-lg p-4 bg-muted/30"
+      data-testid={`slot-${index}`}
+    >
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          className="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+          aria-label="Verschieben"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <div className="flex-1 space-y-4">
+          <div>
+            <Label>{t('createOrganization.slotDescription')}</Label>
+            <Input
+              value={slot.text}
+              onChange={(e) => updateSlot(index, { text: e.target.value })}
+              placeholder={t('createOrganization.slotDescriptionPlaceholder')}
+              className="mt-1"
+              data-testid={`input-slot-text-${index}`}
+            />
+          </div>
+
+          {isDayMode ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>{t('createOrganization.fromTime')}</Label>
+                <div className="mt-1">
+                  <TimePicker
+                    time={slot.startTime}
+                    onTimeChange={(time) => updateSlot(index, { startTime: time })}
+                    placeholder={t('createOrganization.startTime')}
+                    data-testid={`input-slot-start-${index}`}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>{t('createOrganization.toTime')}</Label>
+                <div className="mt-1">
+                  <TimePicker
+                    time={slot.endTime}
+                    onTimeChange={(time) => updateSlot(index, { endTime: time })}
+                    placeholder={t('createOrganization.endTime')}
+                    data-testid={`input-slot-end-${index}`}
+                  />
+                </div>
+                {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
+                  <p className="text-xs text-destructive mt-1">{t('createOrganization.timesMustDiffer')}</p>
+                )}
+              </div>
+              <div>
+                <Label>{t('createOrganization.maxSpots')}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={slot.maxCapacity ?? ""}
+                  onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
+                  placeholder={t('createOrganization.unlimitedPlaceholder')}
+                  className="mt-1"
+                  data-testid={`input-slot-capacity-${index}`}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>{t('createOrganization.fromOptional')}</Label>
+                <div className="mt-1">
+                  <DateTimePicker
+                    value={slot.startTime}
+                    onChange={(value) => updateSlot(index, { startTime: value })}
+                    placeholder={t('createOrganization.dateTimePlaceholder')}
+                    data-testid={`input-slot-start-${index}`}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>{t('createOrganization.toOptional')}</Label>
+                <div className="mt-1">
+                  <DateTimePicker
+                    value={slot.endTime}
+                    onChange={(value) => updateSlot(index, { endTime: value })}
+                    placeholder={t('createOrganization.dateTimePlaceholder')}
+                    data-testid={`input-slot-end-${index}`}
+                  />
+                </div>
+                {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
+                  <p className="text-xs text-destructive mt-1">{t('createOrganization.timesMustDiffer')}</p>
+                )}
+              </div>
+              <div>
+                <Label>{t('createOrganization.maxSpots')}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={slot.maxCapacity ?? ""}
+                  onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
+                  placeholder={t('createOrganization.unlimitedPlaceholder')}
+                  className="mt-1"
+                  data-testid={`input-slot-capacity-${index}`}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {slotsLength > 1 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeSlot(index)}
+            className="text-destructive hover:text-destructive mt-1"
+            aria-label={t('createOrganization.removeSlot')}
+            data-testid={`button-remove-slot-${index}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CreateOrganization() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -71,9 +233,26 @@ export default function CreateOrganization() {
   const [dayModeDate, setDayModeDate] = useState<string>("");
   const [dayModeDates, setDayModeDates] = useState<string[]>([]);
   const [slotDuration, setSlotDuration] = useState(30);
+  const nextSlotIdRef = useRef(1);
   const [slots, setSlots] = useState<OrgaSlot[]>([
-    { text: "", maxCapacity: undefined, order: 0 }
+    { id: "0", text: "", maxCapacity: undefined, order: 0 }
   ]);
+
+  const slotSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleSlotDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSlots((items) => {
+        const oldIndex = items.findIndex((s) => s.id === active.id);
+        const newIndex = items.findIndex((s) => s.id === over.id);
+        return arrayMove(items, oldIndex, newIndex).map((s, idx) => ({ ...s, order: idx }));
+      });
+    }
+  };
 
   const formPersistence = useFormPersistence<OrgaFormData>({ key: 'create-organization' });
   const hasRestoredRef = useRef(false);
@@ -96,7 +275,9 @@ export default function CreateOrganization() {
       setDayModeDate(stored.data.dayModeDate ?? "");
       setDayModeDates(stored.data.dayModeDates ?? (stored.data.dayModeDate ? [stored.data.dayModeDate] : []));
       if (stored.data.slots && stored.data.slots.length >= 1) {
-        setSlots(stored.data.slots);
+        const restored = stored.data.slots.map((s: OrgaSlot, i: number) => ({ ...s, id: s.id ?? String(i) }));
+        nextSlotIdRef.current = restored.length;
+        setSlots(restored);
       }
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
@@ -124,7 +305,10 @@ export default function CreateOrganization() {
       if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
         const DATE_PREFIX_RE = /^(\d{2})\.(\d{2})\.(\d{4})\s+/;
 
-        type RawSlot = { text: string; startTime?: string; endTime?: string; maxCapacity?: number; order: number; _isoDate?: string };
+        type RawSlot = { id: string; text: string; startTime?: string; endTime?: string; maxCapacity?: number; order: number; _isoDate?: string };
+
+        const aiBaseId = nextSlotIdRef.current;
+        nextSlotIdRef.current += (suggestion.options as string[]).length;
 
         const rawParsed: RawSlot[] = (suggestion.options as string[]).map((text: string, i: number) => {
           const dateMatch = text.match(DATE_PREFIX_RE);
@@ -149,6 +333,7 @@ export default function CreateOrganization() {
           cleanText = cleanText.replace(/\(max\.?\s*\d+[^)]*\)/gi, '').trim() || text;
 
           return {
+            id: String(aiBaseId + i),
             text: cleanText,
             startTime: timeMatch ? timeMatch[1] : undefined,
             endTime: timeMatch ? timeMatch[2] : undefined,
@@ -365,6 +550,7 @@ export default function CreateOrganization() {
   };
 
   const addSlot = () => {
+    const id = String(nextSlotIdRef.current++);
     const lastSlot = slots[slots.length - 1];
     if (isDayMode && lastSlot?.endTime) {
       const [h, m] = lastSlot.endTime.split(':').map(Number);
@@ -372,20 +558,24 @@ export default function CreateOrganization() {
       const endMin = startMin + slotDuration;
       const newStart = `${Math.floor(startMin / 60).toString().padStart(2, '0')}:${(startMin % 60).toString().padStart(2, '0')}`;
       const newEnd = `${Math.floor(endMin / 60).toString().padStart(2, '0')}:${(endMin % 60).toString().padStart(2, '0')}`;
-      setSlots([...slots, { text: "", startTime: newStart, endTime: newEnd, maxCapacity: undefined, order: slots.length }]);
+      setSlots([...slots, { id, text: "", startTime: newStart, endTime: newEnd, maxCapacity: undefined, order: slots.length }]);
     } else {
-      setSlots([...slots, { text: "", maxCapacity: undefined, order: slots.length }]);
+      setSlots([...slots, { id, text: "", maxCapacity: undefined, order: slots.length }]);
     }
   };
 
   const addSlotTop = () => {
-    const newSlot: OrgaSlot = { text: "", maxCapacity: undefined, order: 0 };
+    const id = String(nextSlotIdRef.current++);
+    const newSlot: OrgaSlot = { id, text: "", maxCapacity: undefined, order: 0 };
     setSlots([newSlot, ...slots.map((s, i) => ({ ...s, order: i + 1 }))]);
   };
 
   const applyTemplate = (templateId: string) => {
     const templateSlots = getTemplateSlots(templateId);
+    const baseId = nextSlotIdRef.current;
+    nextSlotIdRef.current += templateSlots.length;
     const newSlots: OrgaSlot[] = templateSlots.map((s, idx) => ({
+      id: String(baseId + idx),
       text: s.description,
       startTime: s.startTime,
       endTime: s.endTime,
@@ -411,6 +601,7 @@ export default function CreateOrganization() {
       const endH = Math.floor(endMin / 60).toString().padStart(2, '0');
       const endM = (endMin % 60).toString().padStart(2, '0');
       newSlots.push({
+        id: `gen-${idx}`,
         text: `${description} ${idx + 1}`,
         startTime: `${startH}:${startM}`,
         endTime: `${endH}:${endM}`,
@@ -994,128 +1185,22 @@ export default function CreateOrganization() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {slots.map((slot, index) => (
-              <div 
-                key={index} 
-                className="border rounded-lg p-4 bg-muted/30"
-                data-testid={`slot-${index}`}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex-1 space-y-4">
-                    <div>
-                      <Label>{t('createOrganization.slotDescription')}</Label>
-                      <Input
-                        value={slot.text}
-                        onChange={(e) => updateSlot(index, { text: e.target.value })}
-                        placeholder={t('createOrganization.slotDescriptionPlaceholder')}
-                        className="mt-1"
-                        data-testid={`input-slot-text-${index}`}
-                      />
-                    </div>
-                    
-                    {isDayMode ? (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label>{t('createOrganization.fromTime')}</Label>
-                          <div className="mt-1">
-                            <TimePicker
-                              time={slot.startTime}
-                              onTimeChange={(time) => updateSlot(index, { startTime: time })}
-                              placeholder={t('createOrganization.startTime')}
-                              data-testid={`input-slot-start-${index}`}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.toTime')}</Label>
-                          <div className="mt-1">
-                            <TimePicker
-                              time={slot.endTime}
-                              onTimeChange={(time) => updateSlot(index, { endTime: time })}
-                              placeholder={t('createOrganization.endTime')}
-                              data-testid={`input-slot-end-${index}`}
-                            />
-                          </div>
-                          {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
-                            <p className="text-xs text-destructive mt-1">
-                              {t('createOrganization.timesMustDiffer')}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.maxSpots')}</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={slot.maxCapacity ?? ""}
-                            onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
-                            placeholder={t('createOrganization.unlimitedPlaceholder')}
-                            className="mt-1"
-                            data-testid={`input-slot-capacity-${index}`}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label>{t('createOrganization.fromOptional')}</Label>
-                          <div className="mt-1">
-                            <DateTimePicker
-                              value={slot.startTime}
-                              onChange={(value) => updateSlot(index, { startTime: value })}
-                              placeholder={t('createOrganization.dateTimePlaceholder')}
-                              data-testid={`input-slot-start-${index}`}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.toOptional')}</Label>
-                          <div className="mt-1">
-                            <DateTimePicker
-                              value={slot.endTime}
-                              onChange={(value) => updateSlot(index, { endTime: value })}
-                              placeholder={t('createOrganization.dateTimePlaceholder')}
-                              data-testid={`input-slot-end-${index}`}
-                            />
-                          </div>
-                          {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
-                            <p className="text-xs text-destructive mt-1">
-                              {t('createOrganization.timesMustDiffer')}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.maxSpots')}</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={slot.maxCapacity ?? ""}
-                            onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
-                            placeholder={t('createOrganization.unlimitedPlaceholder')}
-                            className="mt-1"
-                            data-testid={`input-slot-capacity-${index}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {slots.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeSlot(index)}
-                      className="text-destructive hover:text-destructive"
-                      aria-label={t('createOrganization.removeSlot')}
-                      data-testid={`button-remove-slot-${index}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+            <DndContext sensors={slotSensors} collisionDetection={closestCenter} onDragEnd={handleSlotDragEnd}>
+              <SortableContext items={slots.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                {slots.map((slot, index) => (
+                  <SortableSlotItem
+                    key={slot.id}
+                    slot={slot}
+                    index={index}
+                    slotsLength={slots.length}
+                    isDayMode={isDayMode}
+                    updateSlot={updateSlot}
+                    removeSlot={removeSlot}
+                    t={t}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
             <Button type="button" onClick={addSlot} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-bottom">
               <Plus className="w-4 h-4 mr-2" />

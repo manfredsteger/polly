@@ -80,7 +80,7 @@ app.use((req, res, next) => {
   // Permissions-Policy - Restricts browser features
   res.setHeader('Permissions-Policy', [
     'camera=()',
-    'microphone=()',
+    'microphone=(self)',
     'geolocation=()',
     'payment=()',
   ].join(', '));

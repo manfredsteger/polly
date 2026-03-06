@@ -99,7 +99,7 @@ function getKeycloakConfig() {
   const realm = process.env.KEYCLOAK_REALM;
   const clientId = process.env.KEYCLOAK_CLIENT_ID;
   const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
-  const serverUrl = process.env.KEYCLOAK_URL || process.env.KEYCLOAK_AUTH_SERVER_URL;
+  const serverUrl = process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL;
 
   if (!realm || !clientId || !serverUrl) {
     return null;

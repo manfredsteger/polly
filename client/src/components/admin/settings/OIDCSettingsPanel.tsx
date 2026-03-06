@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
@@ -14,20 +16,37 @@ import {
   ArrowLeft,
   ChevronRight,
   CheckCircle,
+  XCircle,
   AlertCircle,
   Building2,
   Loader2,
   UserPlus,
-  UserX
+  UserX,
+  Info,
+  AlertTriangle
 } from "lucide-react";
+
+interface OidcConfig {
+  configured: boolean;
+  enabled: boolean;
+  issuerUrl: string;
+  clientId: string;
+  hasClientSecret: boolean;
+  callbackUrl: string;
+}
 
 export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isTesting, setIsTesting] = useState(false);
   
   const { data: authMethods } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean }>({
     queryKey: ['/api/v1/auth/methods'],
+  });
+
+  const { data: oidcConfig, isLoading: configLoading, isError: configError } = useQuery<OidcConfig>({
+    queryKey: ['/api/v1/oidc-config'],
   });
   
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean>(true);
@@ -69,6 +88,23 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const handleRegistrationToggle = (enabled: boolean) => {
     setRegistrationEnabled(enabled);
     saveRegistrationMutation.mutate(enabled);
+  };
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    try {
+      const res = await apiRequest('POST', '/api/v1/oidc-test');
+      const result = await res.json();
+      if (result.success) {
+        toast({ title: t('admin.oidc.testConnection'), description: t('admin.oidc.testSuccess') });
+      } else {
+        toast({ title: t('admin.oidc.testFailed'), description: result.error || t('admin.oidc.testError'), variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: t('admin.oidc.testFailed'), description: t('admin.oidc.testError'), variant: 'destructive' });
+    } finally {
+      setIsTesting(false);
+    }
   };
   
   return (
@@ -164,73 +200,135 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 
       <Card className="polly-card">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Key className="w-5 h-5 mr-2" />
-            {t('admin.oidc.keycloakSettings')}
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Key className="w-5 h-5 mr-2" />
+              {t('admin.oidc.keycloakSettings')}
+            </div>
+            {configLoading ? (
+              <Skeleton className="h-6 w-16" />
+            ) : oidcConfig?.enabled ? (
+              <Badge variant="outline" className="text-green-600 border-green-600">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                {t('admin.oidc.active')}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                <XCircle className="w-3 h-3 mr-1" />
+                {t('admin.oidc.inactive')}
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>{t('admin.oidc.keycloakDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="keycloak-issuer">{t('admin.oidc.issuerUrl')}</Label>
-              <Input 
-                id="keycloak-issuer" 
-                placeholder="https://keycloak.example.com/realms/kita" 
-                data-testid="input-keycloak-issuer"
-              />
-              <p className="text-xs text-muted-foreground mt-1">{t('admin.oidc.issuerUrlHint')}</p>
-            </div>
-            <div>
-              <Label htmlFor="keycloak-client">{t('admin.oidc.clientId')}</Label>
-              <Input 
-                id="keycloak-client" 
-                placeholder="polly-poll-client" 
-                data-testid="input-keycloak-client"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="keycloak-secret">{t('admin.oidc.clientSecret')}</Label>
-              <Input 
-                id="keycloak-secret" 
-                type="password" 
-                placeholder="••••••••••••••••" 
-                data-testid="input-keycloak-secret"
-              />
-            </div>
-            <div>
-              <Label htmlFor="keycloak-callback">{t('admin.oidc.callbackUrl')}</Label>
-              <Input 
-                id="keycloak-callback" 
-                value={typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''}
-                readOnly
-                className="bg-muted"
-                data-testid="input-keycloak-callback"
-              />
-              <p className="text-xs text-muted-foreground mt-1">{t('admin.oidc.callbackUrlHint')}</p>
-            </div>
-          </div>
+          {!configLoading && configError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{t('admin.oidc.testError')}</AlertDescription>
+            </Alert>
+          )}
 
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch id="keycloak-enabled" data-testid="switch-keycloak-enabled" />
-            <Label htmlFor="keycloak-enabled">{t('admin.oidc.enableOidc')}</Label>
-          </div>
+          {!configLoading && !configError && !oidcConfig?.configured && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{t('admin.oidc.notConfigured')}</AlertDescription>
+            </Alert>
+          )}
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" data-testid="button-test-oidc">
-              {t('admin.oidc.testConnection')}
-            </Button>
-            <Button 
-              className="polly-button-primary" 
-              data-testid="button-save-oidc"
-              onClick={() => toast({ title: t('admin.oidc.saved'), description: t('admin.oidc.oidcSaved') })}
-            >
-              {t('admin.oidc.saveSettings')}
-            </Button>
-          </div>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{t('admin.oidc.envHint')}</AlertDescription>
+          </Alert>
+
+          {configLoading ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="keycloak-issuer">{t('admin.oidc.issuerUrl')}</Label>
+                  <Input 
+                    id="keycloak-issuer" 
+                    value={oidcConfig?.issuerUrl || ''}
+                    readOnly
+                    className="bg-muted"
+                    data-testid="input-keycloak-issuer"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">{t('admin.oidc.issuerUrlHint')}</p>
+                </div>
+                <div>
+                  <Label htmlFor="keycloak-client">{t('admin.oidc.clientId')}</Label>
+                  <Input 
+                    id="keycloak-client" 
+                    value={oidcConfig?.clientId || ''}
+                    readOnly
+                    className="bg-muted"
+                    data-testid="input-keycloak-client"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="keycloak-secret">{t('admin.oidc.clientSecret')}</Label>
+                  <Input 
+                    id="keycloak-secret" 
+                    type="password" 
+                    value={oidcConfig?.hasClientSecret ? '••••••••••••••••' : ''}
+                    readOnly
+                    className="bg-muted"
+                    data-testid="input-keycloak-secret"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="keycloak-callback">{t('admin.oidc.callbackUrl')}</Label>
+                  <Input 
+                    id="keycloak-callback" 
+                    value={oidcConfig?.callbackUrl || ''}
+                    readOnly
+                    className="bg-muted"
+                    data-testid="input-keycloak-callback"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">{t('admin.oidc.callbackUrlHint')}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <Switch id="keycloak-enabled" checked={oidcConfig?.enabled ?? false} disabled data-testid="switch-keycloak-enabled" />
+                <Label htmlFor="keycloak-enabled">{t('admin.oidc.enableOidc')}</Label>
+              </div>
+
+              {oidcConfig?.configured && (
+                <div className="flex justify-end pt-4">
+                  <Button 
+                    variant="outline" 
+                    data-testid="button-test-oidc"
+                    onClick={handleTestConnection}
+                    disabled={isTesting}
+                  >
+                    {isTesting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {t('admin.oidc.testing')}
+                      </>
+                    ) : (
+                      t('admin.oidc.testConnection')
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 

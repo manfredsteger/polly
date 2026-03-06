@@ -86,7 +86,7 @@ interface KeycloakConfig {
 
 const getKeycloakConfig = (): KeycloakConfig | null => {
   const realm = process.env.KEYCLOAK_REALM;
-  const serverUrl = process.env.KEYCLOAK_URL;
+  const serverUrl = process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL;
   const clientId = process.env.KEYCLOAK_CLIENT_ID;
   const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
 
@@ -128,6 +128,48 @@ export const authService = {
 
   isKeycloakEnabled(): boolean {
     return oidcConfig !== null;
+  },
+
+  getDisplayConfig(): {
+    configured: boolean;
+    enabled: boolean;
+    issuerUrl: string;
+    clientId: string;
+    hasClientSecret: boolean;
+    callbackUrl: string;
+  } {
+    const config = getKeycloakConfig();
+    const issuerUrl = config ? `${config.serverUrl}/realms/${config.realm}` : '';
+
+    return {
+      configured: config !== null,
+      enabled: oidcConfig !== null,
+      issuerUrl,
+      clientId: config?.clientId || '',
+      hasClientSecret: !!(config?.clientSecret),
+      callbackUrl: config?.redirectUri || '',
+    };
+  },
+
+  async testOidcConnection(): Promise<{ success: boolean; error?: string }> {
+    const config = getKeycloakConfig();
+    if (!config) {
+      return { success: false, error: 'Keycloak not configured' };
+    }
+    try {
+      const wellKnownUrl = `${config.serverUrl}/realms/${config.realm}/.well-known/openid-configuration`;
+      const response = await fetch(wellKnownUrl, { signal: AbortSignal.timeout(10000) });
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      }
+      const data = await response.json();
+      if (data.issuer) {
+        return { success: true };
+      }
+      return { success: false, error: 'Invalid OpenID Configuration response' };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Connection failed' };
+    }
   },
 
   getKeycloakAuthUrl(state: string): { url: string; codeVerifier: string } | null {

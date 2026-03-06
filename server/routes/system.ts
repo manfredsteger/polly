@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from "./common";
 import { matrixService } from "../services/matrixService";
 import { imageService } from "../services/imageService";
 import { emailService } from "../services/emailService";
+import { authService } from "../services/authService";
 
 const router = Router();
 
@@ -22,6 +23,15 @@ router.get('/smtp-config', requireAdmin, (req, res) => {
 
 router.post('/smtp-test', requireAdmin, async (req, res) => {
   const result = await emailService.testConnection();
+  res.json(result);
+});
+
+router.get('/oidc-config', requireAdmin, (req, res) => {
+  res.json(authService.getDisplayConfig());
+});
+
+router.post('/oidc-test', requireAdmin, async (req, res) => {
+  const result = await authService.testOidcConnection();
   res.json(result);
 });
 

@@ -62,6 +62,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # Default: Built automatically from POSTGRES_* variables (for integrated docker-compose setup)
+      # External DB: Set DATABASE_URL directly in .env (POSTGRES_* variables will be ignored)
+      # Example: DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly
       DATABASE_URL: postgresql://${POSTGRES_USER:-polly}:${POSTGRES_PASSWORD:-polly_secret}@postgres:5432/${POSTGRES_DB:-polly}
       SESSION_SECRET: ${SESSION_SECRET:-change-this-in-production-to-a-secure-random-string}
       BASE_URL: ${BASE_URL:-http://localhost:3080}

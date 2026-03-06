@@ -156,6 +156,10 @@ make complete
 - `make release` — Interactive version prompt, build + push versioned + latest tags
 - Full documentation: `docs/RELEASING.md`
 
+## Docker Deployment
+-   **Entrypoint** (`docker-entrypoint.sh`): Parses `DATABASE_URL` via Node.js `URL` parser (handles special chars in passwords), falls back to `POSTGRES_HOST`/`POSTGRES_PORT` env vars. Only extracts host+port for `pg_isready` TCP check — no credentials in shell variables or logs.
+-   **External DB**: Set `DATABASE_URL` directly, start with `docker compose up -d app` (skip bundled postgres). See `docs/SELF-HOSTING.md` → "External Database".
+
 ## External Dependencies
 
 -   **PostgreSQL**: Main database for all application data.

@@ -153,6 +153,42 @@ npm start
 | `DATABASE_URL` | PostgreSQL connection URL | `postgresql://user:pass@host:5432/db` |
 | `SESSION_SECRET` | Session encryption key (min 32 chars) | `your-secure-random-string` |
 
+### External Database (Managed PostgreSQL)
+
+If you use a managed or external PostgreSQL instance (e.g. AWS RDS, Azure Database, GWDG, Hetzner), you only need to set the `DATABASE_URL` environment variable. The entrypoint script automatically parses host and port from the URL using Node.js — special characters in passwords (`:`, `@`, `#`, URL-encoded like `%40`) are handled correctly.
+
+```bash
+# .env
+DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly
+SESSION_SECRET=your-secure-random-string
+```
+
+- **PostgreSQL 14+ recommended**
+- The `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` variables are only used by the bundled docker-compose PostgreSQL service — they are ignored when `DATABASE_URL` is set directly
+- SSL connections are supported via query parameters: `?sslmode=require`
+
+#### Using docker-compose with an external database
+
+To use an external database, start only the `app` service (skip the bundled `postgres` container) and pass `DATABASE_URL` directly:
+
+```bash
+DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly \
+  docker compose up -d app
+```
+
+Alternatively, create a `docker-compose.override.yml` to override the database connection:
+
+```yaml
+# docker-compose.override.yml
+services:
+  app:
+    depends_on: []
+    environment:
+      DATABASE_URL: postgresql://user:pass@your-db-host:5432/polly
+```
+
+Then start with `docker compose up -d app` (omit the `postgres` service).
+
 ### Application URLs
 
 | Variable | Description | Example |
@@ -522,8 +558,11 @@ docker compose logs app
 ### Database Connection Issues
 
 ```bash
-# Test connection from app container
-docker compose exec app sh -c "pg_isready -h postgres -U polly"
+# Test connection from app container (bundled PostgreSQL)
+docker compose exec app sh -c "pg_isready -h postgres -p 5432"
+
+# Test connection to external database
+docker compose exec app sh -c "pg_isready -h your-db-host -p 5432"
 
 # Check environment variable
 docker compose exec app sh -c "echo \$DATABASE_URL"

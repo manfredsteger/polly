@@ -63,6 +63,9 @@ docker run -d \
 | `DATABASE_URL` | PostgreSQL connection string | Auto-configured in Docker Compose |
 | `SESSION_SECRET` | Session encryption key (min 32 chars) | Change in production! |
 
+> **External / Managed PostgreSQL:** Set `DATABASE_URL` directly (e.g. `postgresql://user:pass@your-db-host:5432/polly`) — the entrypoint automatically parses host and port from it. Special characters in passwords are supported (URL-encoded).
+> The `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, and `POSTGRES_HOST` variables are only used by the integrated Docker Compose setup and are ignored when `DATABASE_URL` is set.
+
 ### Application
 
 | Variable | Description | Default |

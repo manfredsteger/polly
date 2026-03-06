@@ -16,6 +16,15 @@ router.get('/email-status', (req, res) => {
   res.json({ smtpConfigured: emailService.smtpConfigured });
 });
 
+router.get('/smtp-config', requireAdmin, (req, res) => {
+  res.json(emailService.getDisplayConfig());
+});
+
+router.post('/smtp-test', requireAdmin, async (req, res) => {
+  const result = await emailService.testConnection();
+  res.json(result);
+});
+
 // Public endpoint for theme/branding (for frontend to apply without auth)
 router.get('/customization', async (req, res) => {
   try {

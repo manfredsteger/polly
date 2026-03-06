@@ -19,6 +19,44 @@ export class EmailService {
     return this.isConfigured;
   }
 
+  getDisplayConfig(): {
+    configured: boolean;
+    host: string;
+    port: number;
+    user: string;
+    hasPassword: boolean;
+    secure: boolean;
+    fromEmail: string;
+    fromName: string;
+  } {
+    const smtpPassword = process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '';
+    const portRaw = parseInt(process.env.SMTP_PORT || '587');
+    const port = Number.isNaN(portRaw) ? 587 : portRaw;
+
+    return {
+      configured: this.isConfigured,
+      host: process.env.SMTP_HOST || '',
+      port,
+      user: process.env.SMTP_USER || '',
+      hasPassword: smtpPassword.length > 0,
+      secure: process.env.SMTP_SECURE === 'true',
+      fromEmail: process.env.FROM_EMAIL || 'noreply@polly.example.com',
+      fromName: process.env.FROM_NAME || 'Polly',
+    };
+  }
+
+  async testConnection(): Promise<{ success: boolean; error?: string }> {
+    if (!this.isConfigured || !this.transporter) {
+      return { success: false, error: 'SMTP not configured' };
+    }
+    try {
+      await this.transporter.verify();
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Connection failed' };
+    }
+  }
+
   constructor() {
     // Check if SMTP is properly configured
     // Support both SMTP_PASSWORD (docker-compose.yml) and SMTP_PASS (legacy) for compatibility

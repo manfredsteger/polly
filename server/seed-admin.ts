@@ -15,14 +15,30 @@ import { users } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
+const DEFAULTS = {
+  username: "admin",
+  email: "admin@polly.local",
+  password: "Admin123!",
+};
+
 function getAdminConfig() {
+  const username = process.env.ADMIN_USERNAME || DEFAULTS.username;
+  const email = process.env.ADMIN_EMAIL || DEFAULTS.email;
+  const password = process.env.ADMIN_PASSWORD || DEFAULTS.password;
+
+  const isUsingDefaults =
+    username === DEFAULTS.username &&
+    email === DEFAULTS.email &&
+    password === DEFAULTS.password;
+
   const config = {
-    username: process.env.ADMIN_USERNAME || "admin",
-    email: process.env.ADMIN_EMAIL || "admin@polly.local",
-    password: process.env.ADMIN_PASSWORD || "Admin123!",
-    name: "Initial Administrator",
+    username,
+    email,
+    password,
+    name: isUsingDefaults ? "Initial Administrator" : username,
+    isUsingDefaults,
   };
-  console.log(`[Admin Seed] Config: username=${config.username}, email=${config.email}`);
+  console.log(`[Admin Seed] Config: username=${config.username}, email=${config.email}, usingDefaults=${config.isUsingDefaults}`);
   return config;
 }
 
@@ -49,7 +65,8 @@ export async function seedInitialAdmin() {
         console.log("[Admin Seed] Password comparison failed, will reset password");
       }
 
-      const needsUpdate = !passwordMatches || admin.email !== config.email || admin.role !== "admin" || !admin.emailVerified;
+      const shouldBeInitialAdmin = config.isUsingDefaults;
+      const needsUpdate = !passwordMatches || admin.email !== config.email || admin.role !== "admin" || !admin.emailVerified || admin.isInitialAdmin !== shouldBeInitialAdmin;
 
       if (needsUpdate) {
         const newHash = await bcrypt.hash(config.password, 10);
@@ -58,11 +75,13 @@ export async function seedInitialAdmin() {
           .set({
             passwordHash: newHash,
             email: config.email,
+            name: config.name,
             role: "admin",
             emailVerified: true,
+            isInitialAdmin: shouldBeInitialAdmin,
           })
           .where(eq(users.username, config.username));
-        console.log("[Admin Seed] Admin credentials updated successfully");
+        console.log(`[Admin Seed] Admin credentials updated successfully (isInitialAdmin=${shouldBeInitialAdmin})`);
 
         const verify = await bcrypt.compare(config.password, newHash);
         console.log(`[Admin Seed] Password verification: ${verify ? 'OK' : 'FAILED'}`);
@@ -86,7 +105,7 @@ export async function seedInitialAdmin() {
       passwordHash,
       role: "admin",
       provider: "local",
-      isInitialAdmin: true,
+      isInitialAdmin: config.isUsingDefaults,
       emailVerified: true,
     });
 

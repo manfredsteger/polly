@@ -408,7 +408,7 @@ export function AiChatWidget() {
 
   const { display: placeholderDisplay, currentFull } = useTypewriter(prompts, isFilled);
 
-  const { data: status, isLoading: statusLoading } = useQuery<AiStatus>({
+  const { data: status, isLoading: statusLoading, isError: statusError } = useQuery<AiStatus>({
     queryKey: ["/api/v1/ai/status"],
     refetchInterval: false,
     staleTime: 30_000,
@@ -624,7 +624,7 @@ export function AiChatWidget() {
     }
   };
 
-  if (status && (!status.enabled || !status.apiConfigured)) return null;
+  if (statusLoading || statusError || (status && (!status.enabled || !status.apiConfigured))) return null;
 
   const isRefining = refineMutation.isPending;
   const pollTypeLabel = suggestion

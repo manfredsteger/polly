@@ -39,8 +39,8 @@ export function SettingsPanel({
     queryKey: ['/api/v1/admin/matrix-status'],
   });
 
-  const { data: emailStatus } = useQuery<{ configured: boolean }>({
-    queryKey: ['/api/v1/admin/email-status'],
+  const { data: emailStatus } = useQuery<{ smtpConfigured: boolean }>({
+    queryKey: ['/api/v1/email-status'],
   });
 
   return (
@@ -78,8 +78,8 @@ export function SettingsPanel({
           title={t('admin.settings.email.title')}
           description={t('admin.settings.email.description')}
           icon={<Mail className="w-5 h-5" />}
-          status={emailStatus?.configured ? t('admin.settings.status.configured') : t('admin.settings.status.notConfigured')}
-          statusType={emailStatus?.configured ? 'success' : 'warning'}
+          status={emailStatus?.smtpConfigured ? t('admin.settings.status.configured') : t('admin.settings.status.notConfigured')}
+          statusType={emailStatus?.smtpConfigured ? 'success' : 'warning'}
           onClick={() => onSelectPanel('email')}
           testId="setting-email"
         />

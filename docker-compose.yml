@@ -88,6 +88,11 @@ services:
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-false}
       CLAMAV_HOST: ${CLAMAV_HOST:-localhost}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      # AI Assistant (Optional) — see docs/SELF-HOSTING.md for details
+      # AI_API_URL: ${AI_API_URL:-}
+      # AI_API_KEY: ${AI_API_KEY:-}
+      # AI_API_KEY_FALLBACK: ${AI_API_KEY_FALLBACK:-}
+      # AI_MODEL: ${AI_MODEL:-llama-3.3-70b-instruct}
     ports:
       - "${APP_PORT:-3080}:5000"
     volumes:

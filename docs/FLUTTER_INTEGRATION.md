@@ -599,6 +599,15 @@ Bild für Umfrage-Optionen hochladen.
 
 ## 9. AI-Assistent (Optional)
 
+> **Voraussetzung:** Der AI-Assistent muss serverseitig konfiguriert sein.
+> Folgende Umgebungsvariablen werden benötigt:
+> - `AI_API_URL` — OpenAI-kompatible API-URL (optional, Standard: GWDG SAIA)
+> - `AI_API_KEY` — API-Schlüssel (wird serverseitig gespeichert, nie an Clients übermittelt)
+> - `AI_API_KEY_FALLBACK` — Fallback-Schlüssel bei Rate-Limiting (optional)
+> - `AI_MODEL` — Modellname (optional, Standard: `llama-3.3-70b-instruct`)
+>
+> Prüfe mit `GET /api/v1/ai/status` ob der Assistent aktiv ist, bevor AI-Features im Client angezeigt werden.
+
 ### GET /api/v1/ai/status
 Prüft ob der AI-Assistent verfügbar ist.
 

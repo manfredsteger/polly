@@ -788,6 +788,19 @@ MediaRecorder API → WebM audio → ffmpeg → MP3 → Whisper API → text
 | `client/src/components/ai/AiChatWidget.tsx` | Chat interface for AI poll creation |
 | `client/src/components/ai/VoiceRecordingOverlay.tsx` | Voice recording UI with MediaRecorder API |
 
+**Configuration:**
+
+| Environment Variable | Description | Required |
+|----------------------|-------------|----------|
+| `AI_API_URL` | OpenAI-compatible API endpoint (default: GWDG SAIA) | Optional (has default) |
+| `AI_API_KEY` | API key for the AI service | Yes (for AI features) |
+| `AI_API_KEY_FALLBACK` | Fallback API key (used if primary key fails) | Optional |
+| `AI_MODEL` | Model identifier (default: `llama-3.3-70b-instruct`) | Optional |
+
+> API keys are **never** stored in code or version control. Configure them via environment variables or the Admin Panel (Administration → KI-Assistent).
+
+> Keys are proxied server-side — the frontend never sees API credentials.
+
 ---
 
 ## Security Architecture

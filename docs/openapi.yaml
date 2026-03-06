@@ -42,6 +42,8 @@ tags:
     description: Corporate Design und Branding
   - name: Matrix
     description: Matrix-Chat-Integration
+  - name: AI
+    description: KI-Assistent für Umfrage-Erstellung (Optional, erfordert serverseitige Konfiguration von AI_API_KEY)
 
 security:
   - BearerAuth: []
@@ -1054,3 +1056,130 @@ paths:
                 properties:
                   imageUrl:
                     type: string
+
+  /ai/status:
+    get:
+      tags: [AI]
+      summary: AI-Verfügbarkeit prüfen
+      description: Prüft ob der KI-Assistent serverseitig konfiguriert und verfügbar ist. Erfordert serverseitige AI_API_KEY Konfiguration.
+      responses:
+        '200':
+          description: AI-Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Ob der AI-Assistent aktiviert ist
+                  apiConfigured:
+                    type: boolean
+                    description: Ob ein API-Key serverseitig konfiguriert ist
+                  model:
+                    type: string
+                    description: Konfiguriertes AI-Modell (z.B. llama-3.3-70b-instruct)
+
+  /ai/create-poll:
+    post:
+      tags: [AI]
+      summary: Umfrage-Vorschlag aus natürlicher Sprache erstellen
+      description: Erstellt einen strukturierten Umfrage-Vorschlag basierend auf einer natürlichsprachigen Beschreibung. Erfordert serverseitige AI_API_KEY Konfiguration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: Natürlichsprachige Beschreibung der gewünschten Umfrage
+                conversationHistory:
+                  type: array
+                  description: Bisheriger Gesprächsverlauf für Kontext
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant]
+                      content:
+                        type: string
+      responses:
+        '200':
+          description: AI-generierter Umfrage-Vorschlag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestion:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                      description:
+                        type: string
+                      type:
+                        type: string
+                        enum: [schedule, survey, organization]
+                      options:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            text:
+                              type: string
+                  message:
+                    type: string
+                    description: Begleitende Nachricht des AI-Assistenten
+        '503':
+          description: AI-Service nicht verfügbar (API-Key nicht konfiguriert)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ai/transcribe:
+    post:
+      tags: [AI]
+      summary: Audio-Transkription
+      description: Transkribiert eine Audio-Datei in Text mittels Whisper. Erfordert serverseitige AI_API_KEY Konfiguration.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio-Datei zur Transkription
+      responses:
+        '200':
+          description: Transkriptionsergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  text:
+                    type: string
+                    description: Transkribierter Text
+                  language:
+                    type: string
+                    description: Erkannte Sprache (z.B. de, en)
+        '503':
+          description: AI-Service nicht verfügbar (API-Key nicht konfiguriert)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

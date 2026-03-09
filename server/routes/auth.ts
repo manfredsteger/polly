@@ -68,6 +68,19 @@ router.post('/request-deletion', requireAuth, async (req, res) => {
 
     const updatedUser = await storage.requestDeletion(userId);
     console.log(`[GDPR] User ${user.email} requested account deletion`);
+
+    try {
+      const adminUsers = await storage.getAdminUsers();
+      const adminEmails = adminUsers.map(a => a.email).filter(Boolean) as string[];
+      if (adminEmails.length > 0) {
+        const { getBaseUrl } = await import('../utils/baseUrl');
+        const adminPanelUrl = `${getBaseUrl()}/admin?tab=deletion-requests`;
+        emailService.sendDeletionRequestNotification(adminEmails, user.name || '', user.email, adminPanelUrl)
+          .catch(err => console.error('[GDPR] Failed to notify admins:', err));
+      }
+    } catch (notifyError) {
+      console.error('[GDPR] Error notifying admins about deletion request:', notifyError);
+    }
     
     res.json({ 
       success: true, 

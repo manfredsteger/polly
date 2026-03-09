@@ -281,8 +281,8 @@ export const authService = {
           const updateData: Record<string, any> = {
             keycloakId,
             provider: 'keycloak',
+            emailVerified: true,
           };
-          // Only update role if Keycloak provides one
           if (keycloakRole) {
             updateData.role = keycloakRole;
           }
@@ -296,13 +296,20 @@ export const authService = {
             role: keycloakRole || 'user',
             keycloakId,
             provider: 'keycloak',
+            emailVerified: true,
           });
           await storage.updateUserLastLogin(user.id);
         }
       } else {
-        // Sync role from Keycloak on every login (if role is provided in token)
+        const syncData: Record<string, any> = {};
         if (keycloakRole && user.role !== keycloakRole) {
-          user = await storage.updateUser(user.id, { role: keycloakRole });
+          syncData.role = keycloakRole;
+        }
+        if (!user.emailVerified) {
+          syncData.emailVerified = true;
+        }
+        if (Object.keys(syncData).length > 0) {
+          user = await storage.updateUser(user.id, syncData);
         }
         await storage.updateUserLastLogin(user.id);
       }

@@ -69,7 +69,17 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
   const { t } = useTranslation();
   const { toast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      const validTabs: AdminTab[] = ['overview', 'monitoring', 'polls', 'users', 'customize', 'settings', 'tests', 'deletion-requests'];
+      if (tab && validTabs.includes(tab as AdminTab)) {
+        return tab as AdminTab;
+      }
+    }
+    return "overview";
+  });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedPoll, setSelectedPoll] = useState<PollWithOptions | null>(null);
   const [selectedSettingsPanel, setSelectedSettingsPanel] = useState<SettingsPanelType>(null);

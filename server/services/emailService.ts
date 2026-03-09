@@ -960,6 +960,65 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
     }
   }
 
+  async sendDeletionRequestNotification(adminEmails: string[], userName: string, userEmail: string, adminPanelUrl: string): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.log(`[Email] Deletion request notification would be sent to admins for user ${userEmail}`);
+      return;
+    }
+
+    try {
+      const subject = '[Polly] Neuer Löschantrag eingegangen';
+      const requestDate = new Date().toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FF6B35;">Neuer Löschantrag</h2>
+          
+          <p>Ein Benutzer hat die Löschung seines Kontos beantragt (DSGVO Art. 17).</p>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Benutzer:</strong> ${userName || 'Unbekannt'}</p>
+            <p><strong>E-Mail:</strong> ${userEmail}</p>
+            <p><strong>Zeitpunkt:</strong> ${requestDate}</p>
+          </div>
+          
+          <p>Bitte bearbeiten Sie den Löschantrag innerhalb eines Monats gemäß DSGVO.</p>
+          
+          <div style="margin: 20px 0;">
+            <a href="${adminPanelUrl}" style="background-color: #FF6B35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Löschanträge verwalten</a>
+          </div>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
+          <p style="color: #6c757d; font-size: 14px;">
+            Diese E-Mail wurde automatisch von <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> erstellt.<br>
+            Open-Source Abstimmungsplattform für Teams
+          </p>
+        </div>
+      `;
+      const text = `Neuer Löschantrag\n\nEin Benutzer hat die Löschung seines Kontos beantragt.\n\nBenutzer: ${userName || 'Unbekannt'}\nE-Mail: ${userEmail}\nZeitpunkt: ${requestDate}\n\nBitte bearbeiten Sie den Löschantrag: ${adminPanelUrl}`;
+
+      for (const adminEmail of adminEmails) {
+        try {
+          await this.transporter.sendMail({
+            from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+            to: adminEmail,
+            subject,
+            html,
+            text,
+            headers: {
+              'X-Mailer': 'Polly System',
+              'X-Priority': '1',
+            },
+          });
+        } catch (error) {
+          console.error(`[Email] Failed to send deletion notification to admin ${adminEmail}:`, error);
+        }
+      }
+      console.log(`[GDPR] Deletion request notification sent to ${adminEmails.length} admin(s)`);
+    } catch (error) {
+      console.error('[Email] Failed to send deletion request notifications:', error);
+    }
+  }
+
   async sendBulkInvitations(emails: string[], pollTitle: string, senderName: string, pollUrl: string, customMessage?: string): Promise<{ sent: number; failed: string[]; smtpConfigured: boolean }> {
     const failed: string[] = [];
     let sent = 0;

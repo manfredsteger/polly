@@ -902,8 +902,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
       });
       console.log(`[Email] Password changed notification sent to ${email}`);
     } catch (error) {
-      console.error('Failed to send password changed email:', error);
-      throw error;
+      console.error(`[Password Changed] Failed to send notification to ${email}:`, error);
     }
   }
 

@@ -157,6 +157,7 @@ make complete
 - Full documentation: `docs/RELEASING.md`
 
 ## Docker Deployment
+-   **APP_URL**: Single env var for the public application URL (e.g. `https://poll.example.com`). Used for OIDC redirects, email links, sharing, pentest scanning. `BASE_URL` and `VITE_APP_URL` are deprecated aliases (backward compat). Resolved centrally via `server/utils/baseUrl.ts` → `getBaseUrl()`.
 -   **Entrypoint** (`docker-entrypoint.sh`): Parses `DATABASE_URL` via Node.js `URL` parser (handles special chars in passwords), falls back to `POSTGRES_HOST`/`POSTGRES_PORT` env vars. Only extracts host+port for `pg_isready` TCP check — no credentials in shell variables or logs.
 -   **External DB**: Set `DATABASE_URL` directly, start with `docker compose up -d app` (skip bundled postgres). See `docs/SELF-HOSTING.md` → "External Database".
 

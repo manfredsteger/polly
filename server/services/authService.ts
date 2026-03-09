@@ -2,6 +2,7 @@ import * as client from 'openid-client';
 import bcrypt from 'bcryptjs';
 import { storage } from '../storage';
 import type { User } from '@shared/schema';
+import { getBaseUrl } from '../utils/baseUrl';
 
 let oidcConfig: client.Configuration | null = null;
 
@@ -94,16 +95,12 @@ const getKeycloakConfig = (): KeycloakConfig | null => {
     return null;
   }
 
-  const baseUrl = process.env.BASE_URL 
-    || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : null)
-    || 'http://localhost:5000';
-
   return {
     realm,
     serverUrl,
     clientId,
     clientSecret,
-    redirectUri: `${baseUrl}/api/v1/auth/keycloak/callback`
+    redirectUri: `${getBaseUrl()}/api/v1/auth/keycloak/callback`
   };
 };
 

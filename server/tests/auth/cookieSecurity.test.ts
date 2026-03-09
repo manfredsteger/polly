@@ -103,8 +103,9 @@ describe('Cookie Security - CRITICAL', () => {
     });
 
     it('should verify production config sets secure=true for proxied environments', () => {
+      const resolvedUrl = process.env.APP_URL || process.env.BASE_URL || '';
       const isProxied = process.env.NODE_ENV === 'production' || 
-                        process.env.BASE_URL?.includes('replit') ||
+                        resolvedUrl.includes('replit') ||
                         process.env.REPLIT_DEV_DOMAIN ||
                         process.env.REPL_ID;
       

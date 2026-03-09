@@ -9,6 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
 import { bootstrapBranding } from "./scripts/applyBranding";
 import { errorHandler } from "./lib/errorHandler";
+import { getBaseUrl } from "./utils/baseUrl";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -20,8 +21,9 @@ app.disable('x-powered-by');
 
 // Trust proxy - required for secure cookies behind reverse proxy (Replit, Heroku, etc.)
 // Enable always when running behind a proxy (detected via common proxy headers or explicit config)
+const resolvedAppUrl = getBaseUrl();
 const isProxied = process.env.NODE_ENV === 'production' || 
-                  process.env.BASE_URL?.includes('replit') ||
+                  resolvedAppUrl.includes('replit') ||
                   process.env.REPLIT_DEV_DOMAIN ||
                   process.env.REPL_ID;
 if (isProxied) {
@@ -41,7 +43,7 @@ app.use((req, res, next) => {
   
   // Check if app is actually running over HTTPS
   const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || 
-    (process.env.BASE_URL && process.env.BASE_URL.startsWith('https://'));
+    (resolvedAppUrl && resolvedAppUrl.startsWith('https://'));
   
   const cspDirectives = [
     "default-src 'self'",

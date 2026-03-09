@@ -189,12 +189,13 @@ services:
 
 Then start with `docker compose up -d app` (omit the `postgres` service).
 
-### Application URLs
+### Application URL
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `APP_URL` | Public URL of your application | `https://poll.example.com` |
-| `VITE_APP_URL` | Same as APP_URL (for frontend) | `https://poll.example.com` |
+| `APP_URL` | Public URL of your application (required for OIDC, emails, sharing) | `https://poll.example.com` |
+
+> **Note:** `BASE_URL` and `VITE_APP_URL` are supported as deprecated aliases for backward compatibility. Use `APP_URL` for new deployments.
 
 ### Email Configuration (Optional)
 

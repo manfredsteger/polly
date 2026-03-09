@@ -5,6 +5,7 @@ import { matrixService } from "../services/matrixService";
 import { imageService } from "../services/imageService";
 import { emailService } from "../services/emailService";
 import { authService } from "../services/authService";
+import { getBaseUrl } from "../utils/baseUrl";
 
 const router = Router();
 
@@ -71,7 +72,7 @@ router.get('/settings/accessibility', async (req, res) => {
 router.get('/customization/mobile', async (req, res) => {
   try {
     const settings = await storage.getCustomizationSettings();
-    const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || `https://${req.get('host')}`;
+    const baseUrl = getBaseUrl();
     
     const siteName = settings.branding?.siteName || 'Polly';
     const siteNameAccent = settings.branding?.siteNameAccent || 'y';
@@ -168,7 +169,7 @@ router.post('/polls/:token/invite/matrix', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung' });
     }
 
-    const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || `https://${req.get('host')}`;
+    const baseUrl = getBaseUrl();
     const pollUrl = `${baseUrl}/poll/${poll.publicToken}`;
 
     const result = await matrixService.sendPollInvitation(

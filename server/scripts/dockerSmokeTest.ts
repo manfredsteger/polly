@@ -1,7 +1,8 @@
 #!/usr/bin/env npx tsx
 import http from 'http';
+import { getBaseUrl } from '../utils/baseUrl';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const BASE_URL = getBaseUrl();
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const MAX_RETRIES = 30;

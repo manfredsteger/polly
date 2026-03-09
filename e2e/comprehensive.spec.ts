@@ -1,7 +1,7 @@
 import { test, expect, Page, BrowserContext, request } from '@playwright/test';
 import { nanoid } from 'nanoid';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const BASE_URL = process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000';
 
 // Helper function to create a poll via API
 async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organization', options: {

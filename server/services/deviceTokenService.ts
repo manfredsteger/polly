@@ -111,7 +111,7 @@ export const deviceTokenService = {
   getCookieOptions() {
     return {
       httpOnly: true,
-      secure: process.env.FORCE_HTTPS === 'true' || (process.env.NODE_ENV === 'production' && process.env.BASE_URL?.startsWith('https://')),
+      secure: process.env.FORCE_HTTPS === 'true' || (process.env.NODE_ENV === 'production' && (process.env.APP_URL || process.env.BASE_URL || '').startsWith('https://')),
       sameSite: 'lax' as const,
       maxAge: TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
       path: '/',

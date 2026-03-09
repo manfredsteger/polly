@@ -31,17 +31,36 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const { t } = useTranslation();
 
-  const { data: oidcStatus } = useQuery<{ enabled: boolean }>({
-    queryKey: ['/api/v1/admin/oidc-status'],
+  const { data: oidcConfig } = useQuery<{ enabled: boolean; configured: boolean }>({
+    queryKey: ['/api/v1/oidc-config'],
   });
 
   const { data: matrixStatus } = useQuery<{ enabled: boolean }>({
-    queryKey: ['/api/v1/admin/matrix-status'],
+    queryKey: ['/api/v1/matrix/status'],
   });
 
   const { data: emailStatus } = useQuery<{ smtpConfigured: boolean }>({
     queryKey: ['/api/v1/email-status'],
   });
+
+  const { data: aiStatus } = useQuery<{ enabled: boolean; apiConfigured: boolean }>({
+    queryKey: ['/api/v1/ai/status'],
+  });
+
+  const getOidcStatus = () => {
+    if (!oidcConfig?.configured) return { label: t('admin.settings.status.notConfigured'), type: 'warning' as const };
+    if (oidcConfig.enabled) return { label: t('admin.settings.status.enabled'), type: 'success' as const };
+    return { label: t('admin.settings.status.disabled'), type: 'neutral' as const };
+  };
+
+  const getAiStatus = () => {
+    if (!aiStatus?.apiConfigured) return { label: t('admin.settings.status.notConfigured'), type: 'warning' as const };
+    if (aiStatus.enabled) return { label: t('admin.settings.status.enabled'), type: 'success' as const };
+    return { label: t('admin.settings.status.disabled'), type: 'neutral' as const };
+  };
+
+  const oidcSt = getOidcStatus();
+  const aiSt = getAiStatus();
 
   return (
     <div className="space-y-6">
@@ -58,8 +77,8 @@ export function SettingsPanel({
           title={t('admin.settings.oidc.title')}
           description={t('admin.settings.oidc.description')}
           icon={<Key className="w-5 h-5" />}
-          status={oidcStatus?.enabled ? t('admin.settings.status.enabled') : t('admin.settings.status.disabled')}
-          statusType={oidcStatus?.enabled ? 'success' : 'neutral'}
+          status={oidcSt.label}
+          statusType={oidcSt.type}
           onClick={() => onSelectPanel('oidc')}
           testId="setting-oidc"
         />
@@ -182,18 +201,18 @@ export function SettingsPanel({
 
       <div className="pt-6 border-t border-border">
         <div className="flex items-center gap-2 mb-4">
-          <h3 className="text-lg font-semibold text-foreground">KI-Funktionen</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t('admin.settings.ai.sectionTitle')}</h3>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-medium">
             Beta
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <SettingCard
-            title="KI-Assistent"
-            description="GWDG SAIA API konfigurieren, Modell wählen und Kontingente pro Rolle festlegen"
+            title={t('admin.settings.ai.title')}
+            description={t('admin.settings.ai.description')}
             icon={<Bot className="w-5 h-5" />}
-            status="Konfigurieren"
-            statusType="neutral"
+            status={aiSt.label}
+            statusType={aiSt.type}
             onClick={() => onSelectPanel('ai')}
             testId="setting-ai"
           />

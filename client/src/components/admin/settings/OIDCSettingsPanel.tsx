@@ -96,7 +96,7 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       const res = await apiRequest('POST', '/api/v1/oidc-test');
       const result = await res.json();
       if (result.success) {
-        toast({ title: t('admin.oidc.testConnection'), description: t('admin.oidc.testSuccess') });
+        toast({ title: t('admin.oidc.testConnection'), description: result.details || t('admin.oidc.testSuccess') });
       } else {
         toast({ title: t('admin.oidc.testFailed'), description: result.error || t('admin.oidc.testError'), variant: 'destructive' });
       }

@@ -1613,6 +1613,11 @@
         "title": "Pentest Tools",
         "description": "Security scanning and vulnerability analysis"
       },
+      "ai": {
+        "title": "AI Assistant",
+        "description": "Configure GWDG SAIA API, select model and set quotas per role",
+        "sectionTitle": "AI Features"
+      },
       "integrations": {
         "title": "Integrations",
         "matrix": {

@@ -151,41 +151,75 @@ export const authService = {
     };
   },
 
-  async testOidcConnection(): Promise<{ success: boolean; error?: string }> {
+  async testOidcConnection(): Promise<{ success: boolean; error?: string; details?: string }> {
     const config = getKeycloakConfig();
     if (!config) {
       return { success: false, error: 'Keycloak not configured' };
     }
     try {
       const wellKnownUrl = `${config.serverUrl}/realms/${config.realm}/.well-known/openid-configuration`;
-      const response = await fetch(wellKnownUrl, { signal: AbortSignal.timeout(10000) });
-      if (!response.ok) {
-        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      const discoveryResponse = await fetch(wellKnownUrl, { signal: AbortSignal.timeout(10000) });
+      if (!discoveryResponse.ok) {
+        return { success: false, error: `Discovery endpoint: HTTP ${discoveryResponse.status} ${discoveryResponse.statusText}` };
       }
-      const data = await response.json();
-      if (data.issuer) {
-        return { success: true };
+      const discoveryData = await discoveryResponse.json();
+      if (!discoveryData.issuer) {
+        return { success: false, error: 'Invalid OpenID Configuration: missing issuer' };
       }
-      return { success: false, error: 'Invalid OpenID Configuration response' };
+
+      if (config.clientSecret && discoveryData.token_endpoint) {
+        try {
+          const tokenResponse = await fetch(discoveryData.token_endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              grant_type: 'client_credentials',
+              client_id: config.clientId,
+              client_secret: config.clientSecret,
+            }),
+            signal: AbortSignal.timeout(10000),
+          });
+          let tokenData: any;
+          try {
+            tokenData = await tokenResponse.json();
+          } catch {
+            return { success: true, details: `Discovery OK, token endpoint returned non-JSON (HTTP ${tokenResponse.status})` };
+          }
+          if (tokenResponse.ok && tokenData.access_token) {
+            return { success: true, details: 'Discovery OK, client credentials verified' };
+          }
+          if (tokenData.error === 'invalid_client') {
+            return { success: false, error: `Client authentication failed: ${tokenData.error_description || tokenData.error}` };
+          }
+          if (tokenData.error === 'unauthorized_client' || tokenData.error === 'unsupported_grant_type') {
+            return { success: true, details: 'Discovery OK, client_credentials grant not enabled (normal for authorization-code clients)' };
+          }
+          return { success: true, details: `Discovery OK, token endpoint responded: ${tokenData.error || 'unknown'}` };
+        } catch (tokenError: any) {
+          return { success: false, error: `Discovery OK, but token endpoint unreachable: ${tokenError.message}` };
+        }
+      }
+
+      return { success: true, details: 'Discovery OK (no client secret configured for credential verification)' };
     } catch (error: any) {
       return { success: false, error: error.message || 'Connection failed' };
     }
   },
 
-  getKeycloakAuthUrl(state: string): { url: string; codeVerifier: string } | null {
+  async getKeycloakAuthUrl(state: string): Promise<{ url: string; codeVerifier: string } | null> {
     if (!oidcConfig) return null;
 
     const config = getKeycloakConfig();
     if (!config) return null;
 
     const codeVerifier = client.randomPKCECodeVerifier();
-    const codeChallenge = client.calculatePKCECodeChallenge(codeVerifier);
+    const codeChallenge = await client.calculatePKCECodeChallenge(codeVerifier);
     
     const parameters: Record<string, string> = {
       redirect_uri: config.redirectUri,
       scope: 'openid email profile',
       state,
-      code_challenge: codeChallenge as unknown as string,
+      code_challenge: codeChallenge,
       code_challenge_method: 'S256',
     };
 
@@ -196,7 +230,7 @@ export const authService = {
 
   async initiateKeycloakLogin(req: any): Promise<{ authUrl: string; codeVerifier: string; state: string }> {
     const state = Math.random().toString(36).substring(7);
-    const result = this.getKeycloakAuthUrl(state);
+    const result = await this.getKeycloakAuthUrl(state);
     if (!result) {
       throw new Error('Keycloak not configured');
     }

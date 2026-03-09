@@ -1613,6 +1613,11 @@
         "title": "Pentest-Tools",
         "description": "Sicherheits-Scanning und Schwachstellenanalyse"
       },
+      "ai": {
+        "title": "KI-Assistent",
+        "description": "GWDG SAIA API konfigurieren, Modell wählen und Kontingente pro Rolle festlegen",
+        "sectionTitle": "KI-Funktionen"
+      },
       "integrations": {
         "title": "Integrationen",
         "matrix": {

@@ -5,6 +5,8 @@ import {
   refinePollSuggestion,
   getAiSettings,
   saveAiSettings,
+  getEffectiveApiKey,
+  getEffectiveApiUrl,
 } from "../services/aiService";
 import {
   aiRateLimitMiddleware,
@@ -29,7 +31,8 @@ const audioUpload = multer({
 // POST /api/v1/ai/transcribe — Audio → Text via GWDG Whisper
 router.post("/transcribe", audioUpload.single("audio"), async (req, res) => {
   try {
-    if (!process.env.AI_API_KEY) {
+    const transcribeSettings = await getAiSettings();
+    if (!getEffectiveApiKey(transcribeSettings)) {
       return res.status(503).json({ success: false, error: "AI API nicht konfiguriert" });
     }
 
@@ -76,7 +79,7 @@ router.get("/status", async (req, res) => {
 
     res.json({
       enabled: settings.enabled,
-      apiConfigured: !!process.env.AI_API_KEY,
+      apiConfigured: !!getEffectiveApiKey(settings),
       model: settings.model,
       canUse: rateCheck.allowed,
       remaining: rateCheck.remaining,
@@ -320,10 +323,16 @@ router.get("/admin/settings", requireAuth, async (req, res) => {
     }
 
     const settings = await getAiSettings();
+    const safeSettings = { ...settings, apiKey: undefined, apiKeyFallback: undefined };
     res.json({
-      settings,
-      apiConfigured: !!process.env.AI_API_KEY,
-      fallbackConfigured: !!process.env.AI_API_KEY_FALLBACK,
+      settings: safeSettings,
+      apiConfigured: !!getEffectiveApiKey(settings),
+      fallbackConfigured: !!(process.env.AI_API_KEY_FALLBACK || settings.apiKeyFallback),
+      hasApiKey: !!settings.apiKey,
+      hasApiKeyFallback: !!settings.apiKeyFallback,
+      apiKeyViaEnv: !!process.env.AI_API_KEY,
+      apiKeyFallbackViaEnv: !!process.env.AI_API_KEY_FALLBACK,
+      apiUrlViaEnv: !!process.env.AI_API_URL,
       envModel: process.env.AI_MODEL || null,
       envApiUrl: process.env.AI_API_URL || null,
     });
@@ -350,8 +359,22 @@ router.put("/admin/settings", requireAuth, async (req, res) => {
         .json({ error: "Ungültige Einstellungen", details: parsed.error.errors });
     }
 
-    await saveAiSettings(parsed.data);
-    res.json({ success: true, settings: parsed.data });
+    const existing = await getAiSettings();
+    const toSave = { ...parsed.data };
+    if (toSave.apiKey === "__CLEAR__") {
+      toSave.apiKey = "";
+    } else if (!toSave.apiKey && existing.apiKey) {
+      toSave.apiKey = existing.apiKey;
+    }
+    if (toSave.apiKeyFallback === "__CLEAR__") {
+      toSave.apiKeyFallback = "";
+    } else if (!toSave.apiKeyFallback && existing.apiKeyFallback) {
+      toSave.apiKeyFallback = existing.apiKeyFallback;
+    }
+
+    await saveAiSettings(toSave);
+    const safeResponse = { ...toSave, apiKey: undefined, apiKeyFallback: undefined };
+    res.json({ success: true, settings: safeResponse });
   } catch (err) {
     console.error("[AI] Admin settings PUT error:", err);
     res.status(500).json({ error: "Interner Fehler" });

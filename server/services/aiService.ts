@@ -5,6 +5,17 @@ import { aiSettingsSchema, type AiSettings } from "@shared/schema";
 let openaiClient: OpenAI | null = null;
 let openaiClientFallback: OpenAI | null = null;
 
+export function getEffectiveApiKey(settings: AiSettings, fallback = false): string {
+  if (fallback) {
+    return process.env.AI_API_KEY_FALLBACK || settings.apiKeyFallback || '';
+  }
+  return process.env.AI_API_KEY || settings.apiKey || '';
+}
+
+export function getEffectiveApiUrl(settings: AiSettings): string {
+  return process.env.AI_API_URL || settings.apiUrl || 'https://saia.gwdg.de/v1';
+}
+
 function getClient(fallback = false): OpenAI | null {
   const apiKey = fallback
     ? process.env.AI_API_KEY_FALLBACK
@@ -12,6 +23,14 @@ function getClient(fallback = false): OpenAI | null {
   if (!apiKey) return null;
   const baseURL =
     process.env.AI_API_URL || "https://saia.gwdg.de/v1";
+  return new OpenAI({ apiKey, baseURL });
+}
+
+async function getClientWithDbFallback(fallback = false): Promise<OpenAI | null> {
+  const settings = await getAiSettings();
+  const apiKey = getEffectiveApiKey(settings, fallback);
+  if (!apiKey) return null;
+  const baseURL = getEffectiveApiUrl(settings);
   return new OpenAI({ apiKey, baseURL });
 }
 
@@ -37,6 +56,8 @@ export async function getAiSettings(): Promise<AiSettings> {
 
 export async function saveAiSettings(settings: AiSettings): Promise<void> {
   aiSettingsCache = null;
+  openaiClient = null;
+  openaiClientFallback = null;
   await storage.setSetting({ key: "ai_settings", value: settings });
 }
 
@@ -221,7 +242,7 @@ User wants to change: "${refinement}"
 
 ${langHint}`;
 
-  let client = openaiClient || getClient(false);
+  let client = openaiClient || await getClientWithDbFallback(false);
   openaiClient = client;
 
   if (!client) {
@@ -232,7 +253,7 @@ ${langHint}`;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const activeClient = attempt === 0 ? client : (openaiClientFallback || getClient(true));
+      const activeClient = attempt === 0 ? client : (openaiClientFallback || await getClientWithDbFallback(true));
       if (!activeClient) throw new Error("AI_NOT_CONFIGURED");
       if (attempt === 1) openaiClientFallback = activeClient;
 
@@ -298,7 +319,8 @@ ${langHint}`;
         err?.status === 429 ||
         err?.message?.includes("rate") ||
         err?.message?.includes("quota");
-      if (isRateLimit && attempt === 0 && process.env.AI_API_KEY_FALLBACK) {
+      const fallbackSettings = await getAiSettings();
+      if (isRateLimit && attempt === 0 && getEffectiveApiKey(fallbackSettings, true)) {
         console.warn("[AI] Primary key rate-limited, trying fallback key...");
         continue;
       }
@@ -331,7 +353,7 @@ export async function createPollFromDescription(
 
   const userMessage = `${description}\n\n${langHint}`;
 
-  let client = openaiClient || getClient(false);
+  let client = openaiClient || await getClientWithDbFallback(false);
   openaiClient = client;
 
   if (!client) {
@@ -342,7 +364,7 @@ export async function createPollFromDescription(
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const activeClient = attempt === 0 ? client : (openaiClientFallback || getClient(true));
+      const activeClient = attempt === 0 ? client : (openaiClientFallback || await getClientWithDbFallback(true));
       if (!activeClient) throw new Error("AI_NOT_CONFIGURED");
       if (attempt === 1) openaiClientFallback = activeClient;
 
@@ -408,7 +430,8 @@ export async function createPollFromDescription(
         err?.status === 429 ||
         err?.message?.includes("rate") ||
         err?.message?.includes("quota");
-      if (isRateLimit && attempt === 0 && process.env.AI_API_KEY_FALLBACK) {
+      const fallbackSettings2 = await getAiSettings();
+      if (isRateLimit && attempt === 0 && getEffectiveApiKey(fallbackSettings2, true)) {
         console.warn("[AI] Primary key rate-limited, trying fallback key...");
         continue;
       }

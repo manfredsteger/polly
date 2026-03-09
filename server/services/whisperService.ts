@@ -93,9 +93,11 @@ export async function transcribeAudio(
     return { success: true, text: "", duration: 0, language: "de" };
   }
 
-  const apiUrl = process.env.AI_API_URL || "https://saia.gwdg.de/v1";
-  const apiKey = process.env.AI_API_KEY;
-  const apiKeyFallback = process.env.AI_API_KEY_FALLBACK || "";
+  const { getAiSettings, getEffectiveApiKey, getEffectiveApiUrl } = await import("./aiService");
+  const whisperSettings = await getAiSettings();
+  const apiUrl = getEffectiveApiUrl(whisperSettings);
+  const apiKey = getEffectiveApiKey(whisperSettings);
+  const apiKeyFallback = process.env.AI_API_KEY_FALLBACK || whisperSettings.apiKeyFallback || "";
 
   if (!apiKey) {
     return { success: false, error: "API nicht konfiguriert" };

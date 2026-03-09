@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity } from "lucide-react";
+import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity, Key, Globe, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AiSettings } from "@shared/schema";
 
@@ -31,6 +31,11 @@ interface AdminAiData {
   settings: AiSettings;
   apiConfigured: boolean;
   fallbackConfigured: boolean;
+  hasApiKey: boolean;
+  hasApiKeyFallback: boolean;
+  apiKeyViaEnv: boolean;
+  apiKeyFallbackViaEnv: boolean;
+  apiUrlViaEnv: boolean;
   envModel: string | null;
   envApiUrl: string | null;
 }
@@ -101,6 +106,14 @@ function RoleLimitControl({
   );
 }
 
+function EnvBadge() {
+  return (
+    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30">
+      ENV
+    </Badge>
+  );
+}
+
 export function AiSettingsPanel({ onBack }: Props) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -110,6 +123,9 @@ export function AiSettingsPanel({ onBack }: Props) {
   });
 
   const [localSettings, setLocalSettings] = useState<AiSettings | null>(null);
+  const [newApiKey, setNewApiKey] = useState("");
+  const [newApiKeyFallback, setNewApiKeyFallback] = useState("");
+  const [newApiUrl, setNewApiUrl] = useState("");
   const settings: AiSettings | null = localSettings ?? data?.settings ?? null;
 
   const saveMutation = useMutation({
@@ -118,6 +134,9 @@ export function AiSettingsPanel({ onBack }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/admin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/status"] });
+      setNewApiKey("");
+      setNewApiKeyFallback("");
+      setNewApiUrl("");
       toast({ title: "KI-Einstellungen gespeichert" });
     },
     onError: () => {
@@ -132,7 +151,23 @@ export function AiSettingsPanel({ onBack }: Props) {
 
   const handleSave = () => {
     if (!settings) return;
-    saveMutation.mutate(settings);
+    const toSave = { ...settings };
+    if (newApiKey) toSave.apiKey = newApiKey;
+    if (newApiKeyFallback) toSave.apiKeyFallback = newApiKeyFallback;
+    if (newApiUrl) toSave.apiUrl = newApiUrl;
+    saveMutation.mutate(toSave);
+  };
+
+  const handleClearApiKey = () => {
+    if (!settings) return;
+    const toSave = { ...settings, apiKey: "__CLEAR__" };
+    saveMutation.mutate(toSave);
+  };
+
+  const handleClearApiKeyFallback = () => {
+    if (!settings) return;
+    const toSave = { ...settings, apiKeyFallback: "__CLEAR__" };
+    saveMutation.mutate(toSave);
   };
 
   if (isLoading || !settings) {
@@ -160,13 +195,157 @@ export function AiSettingsPanel({ onBack }: Props) {
         <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
           <Info className="w-4 h-4 text-amber-600" />
           <AlertDescription className="text-amber-700 dark:text-amber-400">
-            <strong>AI_API_KEY</strong> ist nicht gesetzt. Hinterlege den GWDG SAIA Bearer Token als Secret,
-            damit die KI-Funktion genutzt werden kann.
+            Kein API-Key konfiguriert. Hinterlege den GWDG SAIA Bearer Token entweder als Umgebungsvariable
+            (<code className="font-mono text-xs">AI_API_KEY</code>) oder über die Felder unten.
           </AlertDescription>
         </Alert>
       )}
 
       <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Key className="w-4 h-4" /> API-Konfiguration
+            </CardTitle>
+            <CardDescription>
+              Umgebungsvariablen haben Vorrang. Wenn gesetzt, sind die Felder schreibgeschützt.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Label>API-Key</Label>
+                {data?.apiKeyViaEnv && <EnvBadge />}
+              </div>
+              {data?.apiKeyViaEnv ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value="••••••••••••••••"
+                    readOnly
+                    disabled
+                    className="bg-muted font-mono text-xs"
+                  />
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="password"
+                      placeholder={data?.hasApiKey ? "••••••••  (gespeichert)" : "Bearer Token eingeben"}
+                      value={newApiKey}
+                      onChange={(e) => setNewApiKey(e.target.value)}
+                      className="font-mono text-xs"
+                    />
+                    {data?.hasApiKey ? (
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    )}
+                    {data?.hasApiKey && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={handleClearApiKey}
+                        title="Gespeicherten Key löschen"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  {!data?.hasApiKey && (
+                    <p className="text-xs text-muted-foreground">
+                      Alternativ als Umgebungsvariable <code className="font-mono">AI_API_KEY</code> setzen
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Label>Fallback-Key</Label>
+                {data?.apiKeyFallbackViaEnv && <EnvBadge />}
+              </div>
+              {data?.apiKeyFallbackViaEnv ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value="••••••••••••••••"
+                    readOnly
+                    disabled
+                    className="bg-muted font-mono text-xs"
+                  />
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="password"
+                      placeholder={data?.hasApiKeyFallback ? "••••••••  (gespeichert)" : "Optional: Fallback Bearer Token"}
+                      value={newApiKeyFallback}
+                      onChange={(e) => setNewApiKeyFallback(e.target.value)}
+                      className="font-mono text-xs"
+                    />
+                    {data?.hasApiKeyFallback && (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={handleClearApiKeyFallback}
+                          title="Gespeicherten Fallback-Key löschen"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Wird bei HTTP 429 (Rate-Limit) automatisch verwendet
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Label>API-URL</Label>
+                {data?.apiUrlViaEnv && <EnvBadge />}
+              </div>
+              {data?.apiUrlViaEnv ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={data?.envApiUrl || ""}
+                    readOnly
+                    disabled
+                    className="bg-muted font-mono text-xs"
+                  />
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Input
+                    type="url"
+                    placeholder="https://saia.gwdg.de/v1"
+                    value={newApiUrl || settings.apiUrl || ""}
+                    onChange={(e) => {
+                      setNewApiUrl(e.target.value);
+                      update({ apiUrl: e.target.value });
+                    }}
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Standard: <code className="font-mono">https://saia.gwdg.de/v1</code>
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -222,6 +401,12 @@ export function AiSettingsPanel({ onBack }: Props) {
                 <span className="text-muted-foreground">
                   API-Key: {apiOk ? "Konfiguriert" : "Nicht gesetzt"}
                 </span>
+                {apiOk && data?.apiKeyViaEnv && (
+                  <span className="text-xs text-muted-foreground">(ENV)</span>
+                )}
+                {apiOk && data?.hasApiKey && !data?.apiKeyViaEnv && (
+                  <span className="text-xs text-muted-foreground">(DB)</span>
+                )}
               </div>
               {data?.fallbackConfigured && (
                 <div className="flex items-center gap-1.5">

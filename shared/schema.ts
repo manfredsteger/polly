@@ -710,6 +710,8 @@ export const aiSettingsSchema = z.object({
   enabled: z.boolean().default(false),
   model: z.string().default("llama-3.3-70b-instruct"),
   apiUrl: z.string().default("https://saia.gwdg.de/v1"),
+  apiKey: z.string().default(""),
+  apiKeyFallback: z.string().default(""),
   guestLimits: aiRoleLimitSchema.default({ enabled: false, requestsPerHour: 0 }),
   userLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: 5 }),
   adminLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: null }),

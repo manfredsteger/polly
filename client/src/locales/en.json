@@ -953,6 +953,7 @@
       "noUsersFound": "No users found.",
       "noPolls": "No Polls",
       "userPolls": "User Polls",
+      "userPollsDescription": "Polls created by this user",
       "viewDetails": "View Details",
       "details": "Details",
       "management": "User Management",

@@ -7,10 +7,6 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Communication**: Simple, everyday language (German).
 - **Git Commits**: Aussagekräftige, beschreibende Commit-Nachrichten auf Englisch (kein "saved progress"). Format: Kurzer Titel + optionale Details zu den Änderungen.
 
-## CRITICAL Rules (MUST check every time)
-- **Makefile MUST use TAB indentation** — NEVER spaces. GNU Make requires TABs for recipe lines. Every time the Makefile is edited, verify with `python3 -c "..." ` that indentation bytes are `\t` (0x09), not spaces (0x20). The `write`/`edit` tools may silently convert tabs to spaces — always verify and fix after editing.
-- **Git Sync Flow**: Replit → GitHub (source of truth) → GitLab (read-only mirror). GitLab NEVER pushes to GitHub. One-way only!
-
 ## System Architecture
 
 ### Full-Stack Architecture
@@ -18,156 +14,58 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 -   **Frontend**: React 18 with TypeScript, Vite, Shadcn/ui (Radix UI) + Tailwind CSS, TanStack Query v5, Wouter
 -   **Backend**: Express.js server with TypeScript
 -   **Database**: PostgreSQL with Drizzle ORM
--   **API Routing**: Modular structure in `server/routes/` with 158 endpoints:
-    -   `admin.ts` (89): Admin dashboard, tests, security, Pentest-Tools
-    -   `auth.ts` (15): Login, registration, Keycloak, password reset
-    -   `polls.ts` (17): Poll CRUD, options, invitations, reminders
-    -   `votes.ts` (7): Voting, bulk votes, edit tokens
-    -   `users.ts` (9): Profile, language, device tokens, user polls
-    -   `system.ts` (13): Health, theme, Matrix, upload, customization, SMTP config/test, OIDC config/test
-    -   `export.ts` (8): PDF, CSV, ICS, QR code, calendar feed
-    -   `common.ts`: Shared middleware, schemas, auth helpers
+-   **API Routing**: Modular structure in `server/routes/` with endpoints for admin, authentication, polls, votes, users, system, export, and common utilities.
 
 ### Key Features
 - **Poll Types**: Terminumfrage (Schedule), Umfrage (Survey), Orga-Liste (Organization/Booking).
-- **Vote Management**: Configurable vote editing, unique edit links, and results visibility (public/private).
+- **Vote Management**: Configurable vote editing, unique edit links, and results visibility.
 - **Authentication**: Anonymous token-based, local email/password, and optional Keycloak OIDC with role-based access.
 - **Data Export**: CSV and PDF export of results, including QR code sharing for polls.
 - **Customization**: Admin panel for branding (theme, logo, site name) and dark mode settings.
 - **Multi-Language Support**: German (de) and English (en) with automatic browser detection and per-user preference storage.
-- **API Versioning**: `/api/v1/` endpoints with redirects from legacy paths.
-- **Notification System**: Configurable email reminders (expiry, manual), with spam protection and rate limiting.
-- **Profile Security**: Secure password reset, email change, and GDPR-compliant account deletion request flow with admin email notifications and red badge counter in admin sidebar.
-- **OIDC Email Verification**: Keycloak/OIDC users automatically get `emailVerified: true` (skips local email verification banner). Synced on every login.
-- **Admin Deep-Linking**: `/admin?tab=deletion-requests` (and other tabs) opens the admin panel at the specified tab.
+- **API Versioning**: `/api/v1/` endpoints.
+- **Notification System**: Configurable email reminders with spam protection and rate limiting.
+- **Profile Security**: Secure password reset, email change, and GDPR-compliant account deletion request flow.
 - **Live Voting**: Real-time vote tracking via WebSocket with fullscreen presentation mode.
-- **Voice Input (AI Chat)**: Microphone button in the AI Chat Widget records audio via MediaRecorder API (WebM/Opus), sends to `POST /api/v1/ai/transcribe`, server converts WebM→MP3 via ffmpeg and forwards to GWDG Whisper API (`whisper-large-v2`), transcribed text is inserted into the chat input field. Hallucination filter removes common Whisper artifacts. Large files (>20 MB) are split into 150s chunks. Fallback to `AI_API_KEY_FALLBACK` on HTTP 429. Files: `server/services/whisperService.ts`, `client/src/components/ai/VoiceRecordingOverlay.tsx`.
-- **Admin Tools**: User management, email template customization, security scanning integration (ClamAV, npm audit, Pentest-Tools.com), and system package monitoring (Nix).
-- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls with dynamic status prefixes (Tentative/Confirmed) and automatic cleanup when creator sets final date.
-- **Test Data Isolation**: `isTestData` flags in database for development and purging.
-    -   **Test Mode Header**: API requests with `X-Test-Mode: polly-e2e-test-mode` header automatically set `isTestData: true` on created polls, votes, and users
-    -   **Middleware**: `testModeMiddleware` in `server/routes/common.ts` sets `req.isTestMode = true`
-    -   **Secret Override**: Set `TEST_MODE_SECRET` env var to customize the header value
-    -   **Admin Purge**: Admin dashboard "Tests" panel has "Testdaten löschen" to remove all test data
+- **AI Auto-Enable**: AI chat is automatically enabled if `AI_API_KEY` is set unless explicitly disabled by admin.
+- **Voice Input (AI Chat)**: Microphone button records audio, transcodes to text via Whisper API, and inserts into chat.
+- **Admin Tools**: User management, email template customization, security scanning integration, and system package monitoring.
+- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls.
+- **Test Data Isolation**: `isTestData` flags for development and purging, with specific API header for test mode.
+- **Real-Time Slot Reservation (Orga-Listen)**: Uses transactional locking and advisory locks with WebSocket updates for capacity management.
 
 ### Technical Implementations
-- **Timezone Handling**: Schedule poll times stored in UTC, frontend displays and converts to local time.
-- **PDF Export**: Utilizes Puppeteer (Headless Chrome) for high-quality HTML/CSS-based PDF generation.
-- **Email Templates**: JSON-based, customizable templates with variable substitution and admin preview/test functionality.
-- **Internationalization (i18n)**:
-    -   **Library**: react-i18next with i18next-browser-languagedetector
-    -   **Languages**: German (de), English (en) - fallback
-    -   **Translation Files**: `client/src/locales/de.json`, `client/src/locales/en.json`
-    -   **Configuration**: `client/src/lib/i18n.ts`
-    -   **Language Switcher**: Globe icon in navigation bar
-    -   **User Preference**: Stored in database (`users.language_preference`), synced with localStorage
-    -   **API Endpoint**: `PATCH /api/v1/users/me/language` for updating preference
-    -   **Detection Order**: localStorage → browser navigator → fallback to English
-    -   **Coverage**: Complete frontend localization including:
-        -   All UI components (date-picker, time-picker, datetime-picker, CalendarPicker)
-        -   Large components (LiveResultsView, VotingInterface, OrganizationSlotVoting, AdminDashboard)
-        -   All poll creation pages (create-poll, create-survey, create-organization)
-        -   All poll viewing pages (poll, my-polls, poll-success, vote-success)
-    -   **Translation Key Structure**: Organized by component/page (e.g., `pollCreation.*`, `admin.*`, `liveResults.*`)
-- **WCAG 2.1 AA Color Contrast**:
-    -   **Audit**: Admin panel checks all theme colors against BOTH Light (#ffffff) and Dark (#0f172a) backgrounds
-    -   **Per-Mode Issues**: Reports separate issues for Light Mode and Dark Mode (no combined "worst of both")
-    -   **Per-Mode Corrections**: Stores separate color overrides per mode (e.g., `primaryColorLight`, `primaryColorDark`)
-    -   **CustomizationContext**: Uses per-mode overrides based on current dark/light mode; MutationObserver re-applies on mode toggle
-    -   **No Infinite Loop**: After applying corrections and re-auditing, all colors pass (verified by automated test)
-    -   **Schema Fields**: `themeSettingsSchema` has 8 optional per-mode override fields; `wcagAuditIssueSchema` includes `mode` and `bgColor`
-    -   **Endpoints**: `POST /api/v1/admin/wcag/audit`, `POST /api/v1/admin/wcag/apply-corrections`, `PUT /api/v1/admin/wcag/settings`
-- **Security Scanning**:
-    -   **ClamAV**: On-the-fly virus scanning of file uploads using `multer.memoryStorage`. Fail-secure: blocks uploads when enabled but daemon unreachable.
-    -   **ClamAV Scan Logs**: Stored in `clamav_scan_logs` table with context (userId, email, IP) for forensic analysis
-    -   **npm Audit**: Local scanning for dependency vulnerabilities with severity and impact labels.
-    -   **Pentest-Tools.com**: Integration for automated vulnerability scanning with real-time results.
-- **System Package Monitoring**: Displays Nix package information and versions for core dependencies.
-- **Session Management**:
-    -   **Store**: PostgreSQL (connect-pg-simple) when DATABASE_URL is set, MemoryStore fallback otherwise
-    -   **Cookie**: `polly.sid`, httpOnly, secure='auto' (adapts to HTTPS/HTTP), sameSite=lax
-    -   **Proxy Trust**: Auto-detected via REPL_ID, REPLIT_DEV_DOMAIN environment variables
-    -   **Session Save**: Explicit `req.session.save()` before response in login/register/callback endpoints
-    -   **Table**: `session` table auto-created by connect-pg-simple with pruning every 15 minutes
-    -   **Persistence**: Sessions survive server restarts when using PostgreSQL store
-- **Rate Limiting**:
-    -   **Login Endpoint**: 5 failed attempts per IP/Account → 15 Minuten Sperre (HTTP 429)
-    -   **Implementation**: `server/services/rateLimiterService.ts` mit In-Memory-Speicher
-    -   **Logging**: Gesperrte Konten werden mit IP-Adresse protokolliert
-    -   **Test Coverage**: Automatisierte Tests verifizieren Rate-Limit-Durchsetzung
-    -   **Production Note**: Rate-Limiter-Status geht bei Server-Neustart verloren; Redis empfohlen für Produktion
-- **Real-Time Slot Reservation (Orga-Listen)**:
-    -   **Transactional Locking**: `storage.vote()` für Organization Polls nutzt PostgreSQL `db.transaction()` mit `SELECT ... FOR UPDATE` Row-Level Locking
-    -   **Advisory Locks**: `pg_advisory_xact_lock()` basierend auf Poll+Voter-Email verhindert Race Conditions beim gleichzeitigen Buchen
-    -   **Überbuchungsschutz**: Kapazitätsprüfung innerhalb der Transaktion garantiert, dass maxCapacity nie überschritten wird
-    -   **WebSocket slot_update**: Nach jeder Buchung/Stornierung werden aktuelle Platzzahlen per WebSocket an alle verbundenen Clients gesendet
-    -   **Frontend Live-Updates**: `useLiveVoting` Hook empfängt `slot_update` Events, `VotingInterface` nutzt `liveSlotUpdates` State für Echtzeit-Anzeige
-    -   **Error Codes**: `SLOT_FULL` (HTTP 409), `ALREADY_SIGNED_UP` (HTTP 409) mit lokalisierten Fehlermeldungen
+- **Timezone Handling**: Schedule poll times stored in UTC, frontend converts to local time.
+- **PDF Export**: Utilizes Puppeteer for HTML/CSS-based PDF generation.
+- **Email Templates**: JSON-based, customizable templates with variable substitution.
+- **Internationalization (i18n)**: React-i18next for localization, covering all UI components and pages, with language preference stored in the database.
+- **WCAG 2.1 AA Color Contrast**: Admin panel audits theme colors against accessibility standards, with separate corrections for light and dark modes.
+- **Security Scanning**: ClamAV for file uploads, npm audit for dependencies, and Pentest-Tools.com integration for vulnerability scanning.
+- **System Package Monitoring**: Displays Nix package information for core dependencies.
+- **Session Management**: PostgreSQL-backed sessions with `polly.sid` cookie, secure and sameSite configuration, and proxy trust detection.
+- **Rate Limiting**: In-memory rate limiter for login attempts (5 failed attempts per IP/Account → 15 min lockout).
 
-## API Documentation
+### API Documentation
+-   **OpenAPI Spec**: `docs/openapi.yaml` provides a full API specification.
+-   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` for mobile app integration.
+-   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` for Docker/Production Deployment.
 
--   **OpenAPI Spec**: `docs/openapi.yaml` - Vollständige API-Spezifikation im OpenAPI 3.0 Format
--   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` - Detaillierte Dokumentation für Mobile App Integration
--   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` - Anleitung für Docker/Production Deployment
+### Docker Migration Path
+Schema changes involve updating `shared/schema.ts`, `server/scripts/ensureSchema.ts`, and migration files. `ensureSchema.ts` automatically adds missing columns on update.
 
-## Docker Migration Path
+### Release & CI/CD
+-   **GitHub Actions**: Workflows for CI (lint, type check, tests, build, E2E, security audit) and Release (Docker image build/push to Docker Hub, GitHub Release, GitLab mirror).
+-   **Docker Image**: `manfredsteger/polly` with beta and stable tags.
 
-When schema changes are made (new columns in `shared/schema.ts`), existing Docker databases need to be updated:
-
-### For Developers Adding New Schema Columns
-1. Add the column to `shared/schema.ts` (Drizzle schema)
-2. Add matching entry to `server/scripts/ensureSchema.ts` in `COLUMN_UPDATES` array
-3. Update `migrations/0000_old_vance_astro.sql` for fresh installs
-4. Update `createCoreTables()` fallback function in `ensureSchema.ts`
-
-### For Users Updating Existing Docker Installations
-After pulling new code with schema changes:
-```bash
-docker compose down
-docker compose build --no-cache app
-make complete
-```
-
-The `ensureSchema.ts` script automatically adds missing columns via `ALTER TABLE ADD COLUMN IF NOT EXISTS`.
-
-### Fresh Install (No Existing Data)
-```bash
-docker compose down -v  # Removes database volumes
-make complete
-```
-
-## Release & CI/CD
-
-### GitHub Actions Workflows
--   **CI** (`.github/workflows/ci.yml`): Runs on push/PR to main/develop — lint, type check, unit tests, build, E2E tests, security audit
--   **Release** (`.github/workflows/release.yml`): Triggered by `v*` tags — validates, builds Docker image, pushes to Docker Hub (`manfredsteger/polly`), creates GitHub Release, mirrors tags to GitLab
-
-### Release Process
-1. Create annotated tag: `git tag -a v0.1.0-beta.1 -m "Beta Release"`
-2. Push tag: `git push origin v0.1.0-beta.1`
-3. Pipeline runs automatically: validate → Docker build+push → Docker Hub README sync → GitHub Release → GitLab mirror
-4. Required GitHub Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, optionally `GITLAB_TOKEN`
-
-### Docker Image: `manfredsteger/polly`
-- Beta tags: `manfredsteger/polly:0.1.0-beta.1` + `manfredsteger/polly:beta`
-- Stable tags: `manfredsteger/polly:1.0.0` + `manfredsteger/polly:latest`
-
-### Makefile
-- Default `IMAGE_NAME`: `manfredsteger/polly`
-- `make publish` — Build + push to Docker Hub
-- `make release` — Interactive version prompt, build + push versioned + latest tags
-- Full documentation: `docs/RELEASING.md`
-
-## Docker Deployment
--   **APP_URL**: Single env var for the public application URL (e.g. `https://poll.example.com`). Used for OIDC redirects, email links, sharing, pentest scanning. `BASE_URL` and `VITE_APP_URL` are deprecated aliases (backward compat). Resolved centrally via `server/utils/baseUrl.ts` → `getBaseUrl()`.
--   **Entrypoint** (`docker-entrypoint.sh`): Parses `DATABASE_URL` via Node.js `URL` parser (handles special chars in passwords), falls back to `POSTGRES_HOST`/`POSTGRES_PORT` env vars. Only extracts host+port for `pg_isready` TCP check — no credentials in shell variables or logs.
--   **External DB**: Set `DATABASE_URL` directly, start with `docker compose up -d app` (skip bundled postgres). See `docs/SELF-HOSTING.md` → "External Database".
+### Docker Deployment
+-   **APP_URL**: Single environment variable for the public application URL, used for OIDC redirects, email links, and sharing.
+-   **Entrypoint**: `docker-entrypoint.sh` parses `DATABASE_URL` and handles `pg_isready` checks.
 
 ## External Dependencies
 
--   **PostgreSQL**: Main database for all application data.
--   **Keycloak OIDC**: Optional OpenID Connect provider for enterprise SSO.
--   **SMTP Service**: For sending application emails (notifications, password resets).
--   **Chromium**: Required for PDF export functionality (used by Puppeteer).
--   **ClamAV**: External antivirus engine for file upload scanning.
+-   **PostgreSQL**: Main database.
+-   **Keycloak OIDC**: Optional OpenID Connect provider.
+-   **SMTP Service**: For sending application emails.
+-   **Chromium**: Used by Puppeteer for PDF export.
+-   **ClamAV**: External antivirus engine for file uploads.
 -   **Pentest-Tools.com Pro API**: For automated security vulnerability scanning.

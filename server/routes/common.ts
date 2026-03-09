@@ -163,8 +163,7 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
       throw new AuthorizationError('Administratorberechtigung erforderlich');
     }
     
-    // Admins must have verified email
-    if (!user.emailVerified) {
+    if (!user.emailVerified && user.provider === 'local') {
       return res.status(403).json({ 
         error: 'E-Mail-Adresse nicht verifiziert',
         code: 'EMAIL_NOT_VERIFIED',
@@ -194,8 +193,7 @@ export const requireEmailVerified = async (req: Request, res: Response, next: Ne
       return next();
     }
     
-    // If user is logged in but email not verified, block the action
-    if (!user.emailVerified) {
+    if (!user.emailVerified && user.provider === 'local') {
       return res.status(403).json({ 
         error: 'E-Mail-Adresse nicht verifiziert',
         code: 'EMAIL_NOT_VERIFIED',

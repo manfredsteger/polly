@@ -44,14 +44,24 @@ export async function getAiSettings(): Promise<AiSettings> {
   try {
     const setting = await storage.getSetting("ai_settings");
     if (setting?.value) {
-      const parsed = aiSettingsSchema.parse(setting.value);
-      aiSettingsCache = { value: parsed, expiresAt: Date.now() + AI_SETTINGS_TTL_MS };
-      return parsed;
+      const raw = setting.value as Record<string, unknown>;
+      const parsed = aiSettingsSchema.parse(raw);
+      const result = applyEnvAutoEnable(parsed, raw);
+      aiSettingsCache = { value: result, expiresAt: Date.now() + AI_SETTINGS_TTL_MS };
+      return result;
     }
   } catch (_) {}
-  const defaults = aiSettingsSchema.parse({});
+  const defaults = applyEnvAutoEnable(aiSettingsSchema.parse({}), {});
   aiSettingsCache = { value: defaults, expiresAt: Date.now() + AI_SETTINGS_TTL_MS };
   return defaults;
+}
+
+function applyEnvAutoEnable(settings: AiSettings, rawDbValue: Record<string, unknown>): AiSettings {
+  if (!process.env.AI_API_KEY) return settings;
+  if (settings.enabled) return settings;
+  const adminExplicitlySetEnabled = 'enabled' in rawDbValue && rawDbValue.enabled === false;
+  if (adminExplicitlySetEnabled) return settings;
+  return { ...settings, enabled: true };
 }
 
 export async function saveAiSettings(settings: AiSettings): Promise<void> {

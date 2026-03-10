@@ -203,10 +203,25 @@ Then start with `docker compose up -d app` (omit the `postgres` service).
 |----------|-------------|---------|
 | `SMTP_HOST` | SMTP server hostname | `smtp.example.com` |
 | `SMTP_PORT` | SMTP port | `587` |
-| `SMTP_SECURE` | Use TLS | `false` |
+| `SMTP_SECURE` | Use TLS (`true`/`false`) | `false` |
 | `SMTP_USER` | SMTP username | `user@example.com` |
 | `SMTP_PASSWORD` | SMTP password | `password` |
-| `EMAIL_FROM` | From address | `noreply@example.com` |
+| `FROM_EMAIL` | Sender address for outgoing emails | `noreply@example.com` |
+| `FROM_NAME` | Sender display name | `Polly` |
+
+> **Legacy aliases:** `EMAIL_FROM` (same as `FROM_EMAIL`), `SMTP_PASS` (same as `SMTP_PASSWORD`)
+
+### Initial Admin Account (Docker)
+
+When running via Docker, the admin account is automatically created or updated on each start.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ADMIN_USERNAME` | Admin username | `admin` |
+| `ADMIN_EMAIL` | Admin email address | `admin@polly.local` |
+| `ADMIN_PASSWORD` | Admin password | `Admin123!` |
+
+> **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
 
 ### Keycloak OIDC (Optional)
 
@@ -216,6 +231,9 @@ Then start with `docker compose up -d app` (omit the `postgres` service).
 | `KEYCLOAK_CLIENT_ID` | Client ID | `polly` |
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
 | `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
+| `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived from realm + server URL if not set) | `https://keycloak.example.com/realms/myrealm` |
+
+> **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
 
 ### ClamAV Virus Scanning (Optional)
 
@@ -284,8 +302,8 @@ Polly includes an optional AI assistant that helps users create polls through na
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `AI_API_URL` | OpenAI-compatible API endpoint | `https://saia.2.rahtiapp.fi/v1` |
-| `AI_API_KEY` | API key for AI services | `your-api-key` |
-| `AI_API_KEY_FALLBACK` | Fallback key (on HTTP 429) | `your-fallback-key` |
+| `AI_API_KEY` | API key. When set via ENV, AI chat is **auto-enabled** without admin toggle | `your-api-key` |
+| `AI_API_KEY_FALLBACK` | Fallback key (used on HTTP 429 rate limit) | `your-fallback-key` |
 | `AI_MODEL` | AI model name | `llama-3.3-70b-instruct` |
 
 #### Voice Input
@@ -385,6 +403,21 @@ npm run dev  # or docker compose restart
 #### Environment Override
 
 Set `POLLY_WCAG_OVERRIDE=true` to disable default theme enforcement without creating a local config file.
+
+### Advanced Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port inside the container | `5000` |
+| `NODE_ENV` | Node environment (`production`, `development`) | `production` |
+| `DATABASE_SSL` | Enable SSL for database connections (e.g., managed PostgreSQL with TLS) | `false` |
+| `FORCE_HTTPS` | Force secure cookies even when `APP_URL` is not HTTPS (behind TLS-terminating proxy) | auto-detect from `APP_URL` |
+| `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
+| `SEED_DEMO_DATA` | Seed demo polls showing all three poll types on first start | `false` |
+| `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export (set automatically in Docker image) | auto-detected |
+| `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
+| `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
+| `TEST_MODE_SECRET` | Custom header value for E2E test mode (`X-Test-Mode` header) | `polly-e2e-test-mode` |
 
 ---
 

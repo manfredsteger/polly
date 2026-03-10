@@ -40,7 +40,7 @@ export class EmailService {
       user: process.env.SMTP_USER || '',
       hasPassword: smtpPassword.length > 0,
       secure: process.env.SMTP_SECURE === 'true',
-      fromEmail: process.env.FROM_EMAIL || 'noreply@polly.example.com',
+      fromEmail: process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com',
       fromName: process.env.FROM_NAME || 'Polly',
     };
   }
@@ -148,7 +148,7 @@ export class EmailService {
     `;
 
     await this.transporter.sendMail({
-      from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+      from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
       to: creatorEmail,
       subject: adminSubject,
       html: adminHtml,
@@ -157,7 +157,7 @@ export class EmailService {
         'X-Mailer': 'Polly System',
         'X-Priority': '3',
         'X-MSMail-Priority': 'Normal',
-        'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
+        'Reply-To': process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com',
       },
     });
     } catch (error) {
@@ -226,7 +226,7 @@ export class EmailService {
     `;
 
     await this.transporter.sendMail({
-      from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+      from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
       to: inviteeEmail,
       subject,
       html,
@@ -235,7 +235,7 @@ export class EmailService {
         'X-Mailer': 'Polly System',
         'X-Priority': '3',
         'X-MSMail-Priority': 'Normal',
-        'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
+        'Reply-To': process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com',
       },
     });
     } catch (error) {
@@ -292,7 +292,7 @@ export class EmailService {
       `;
 
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: voterEmail,
         subject,
         html,
@@ -310,7 +310,7 @@ ${resultsLink}
 Diese E-Mail wurde automatisch von Polly (https://github.com/manfredsteger/polly) erstellt.
 Open-Source Abstimmungsplattform für Teams`,
         headers: {
-          'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
+          'Reply-To': process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com',
         },
       });
     } catch (error) {
@@ -381,7 +381,7 @@ Open-Source Abstimmungsplattform für Teams`,
       `;
 
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: recipientEmail,
         subject,
         html,
@@ -390,7 +390,7 @@ Open-Source Abstimmungsplattform für Teams`,
           'X-Mailer': 'Polly System',
           'X-Priority': '3',
           'X-MSMail-Priority': 'Normal',
-          'Reply-To': process.env.FROM_EMAIL || 'noreply@polly.example.com',
+          'Reply-To': process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com',
         },
       });
     } catch (error) {
@@ -451,7 +451,7 @@ Open-Source Abstimmungsplattform für Teams`,
       `;
 
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: email,
         subject,
         html,
@@ -505,7 +505,7 @@ Open-Source Abstimmungsplattform für Teams`,
       `;
 
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: newEmail,
         subject,
         html,
@@ -548,7 +548,7 @@ Open-Source Abstimmungsplattform für Teams`,
       `;
 
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: email,
         subject,
         html,
@@ -685,7 +685,7 @@ ${pdfBuffer ? 'Der vollständige Testbericht ist als PDF angehängt.' : ''}
 Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
 
       const mailOptions: nodemailer.SendMailOptions = {
-        from: `"Polly Tests" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'} Tests" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: recipientEmail,
         subject,
         html,
@@ -727,7 +727,7 @@ Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
 
     try {
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: recipientEmail,
         subject,
         html,
@@ -848,7 +848,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
     try {
       for (const adminEmail of adminEmails) {
         await this.transporter.sendMail({
-          from: `"Polly Security" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+          from: `"${process.env.FROM_NAME || 'Polly'} Security" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
           to: adminEmail,
           subject,
           html,
@@ -878,7 +878,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
 
     try {
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: email,
         subject: '[Polly] Ihr Passwort wurde geändert',
         text: `${greeting}\n\nIhr Passwort für Ihren Polly (https://github.com/manfredsteger/polly) Account wurde erfolgreich geändert.\n\nFalls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.`,
@@ -942,7 +942,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
       `;
 
       await this.transporter.sendMail({
-        from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+        from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
         to: email,
         subject,
         html,
@@ -998,7 +998,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
       for (const adminEmail of adminEmails) {
         try {
           await this.transporter.sendMail({
-            from: `"Polly" <${process.env.FROM_EMAIL || 'noreply@polly.example.com'}>`,
+            from: `"${process.env.FROM_NAME || 'Polly'}" <${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com'}>`,
             to: adminEmail,
             subject,
             html,

@@ -208,48 +208,92 @@ npm run dev
 
 ## ⚙️ Configuration
 
-### Required Environment Variables
+> **Full reference**: See [`.env.example`](.env.example) for a ready-to-use template with all variables.
+> **Production guide**: See [`docs/SELF-HOSTING.md`](docs/SELF-HOSTING.md) for deployment-specific configuration.
 
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/polly
-SESSION_SECRET=your-secure-random-string-min-32-chars
-```
+### Required
 
-### Optional: Email (SMTP)
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection URL | `postgresql://user:pass@host:5432/polly` |
+| `SESSION_SECRET` | Session encryption key (min 32 chars). Generate with `openssl rand -base64 32` | `a1b2c3d4...` |
 
-```env
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-email@example.com
-SMTP_PASSWORD=your-email-password
-EMAIL_FROM=noreply@yourdomain.com
-```
+### Application URL
 
-### Optional: Keycloak OIDC
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `APP_URL` | Public URL of your application (used for OIDC redirects, email links, QR codes, sharing) | `https://poll.example.com` |
 
-```env
-KEYCLOAK_REALM=your-realm
-KEYCLOAK_CLIENT_ID=polly
-KEYCLOAK_CLIENT_SECRET=your-client-secret
-KEYCLOAK_AUTH_SERVER_URL=https://keycloak.example.com
-```
+> **Note:** `BASE_URL` and `VITE_APP_URL` are supported as legacy aliases. Use `APP_URL` for new deployments.
 
-### Optional: AI Assistant (GWDG SAIA)
+### Email (SMTP) — Optional
 
-```env
-AI_API_URL=https://saia.gwdg.de/v1/chat/completions
-AI_API_KEY=your-ai-api-key
-AI_API_KEY_FALLBACK=your-fallback-api-key
-AI_MODEL=llama-3.3-70b-instruct
-```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SMTP_HOST` | SMTP server hostname | — |
+| `SMTP_PORT` | SMTP port | `587` |
+| `SMTP_SECURE` | Use TLS (`true`/`false`) | `false` |
+| `SMTP_USER` | SMTP username | — |
+| `SMTP_PASSWORD` | SMTP password | — |
+| `FROM_EMAIL` | Sender address for outgoing emails | `noreply@polly.example.com` |
+| `FROM_NAME` | Sender display name | `Polly` |
 
-### Application URLs
+> **Legacy aliases:** `EMAIL_FROM` (same as `FROM_EMAIL`), `SMTP_PASS` (same as `SMTP_PASSWORD`)
 
-```env
-APP_URL=https://your-app-url.com
-VITE_APP_URL=https://your-app-url.com
-```
+### Keycloak OIDC — Optional
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `KEYCLOAK_REALM` | Keycloak realm name | `university` |
+| `KEYCLOAK_CLIENT_ID` | Client ID | `polly` |
+| `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
+| `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
+| `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived if not set) | `https://keycloak.example.com/realms/myrealm` |
+
+> **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
+
+### AI Assistant — Optional
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AI_API_URL` | OpenAI-compatible API endpoint | — |
+| `AI_API_KEY` | API key. When set via ENV, AI chat is **auto-enabled** without admin toggle | — |
+| `AI_API_KEY_FALLBACK` | Fallback key (used on HTTP 429 rate limit) | — |
+| `AI_MODEL` | AI model name | `llama-3.3-70b-instruct` |
+
+### Security Scanning — Optional
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CLAMAV_ENABLED` | Enable ClamAV virus scanning for uploads | `false` |
+| `CLAMAV_HOST` | ClamAV daemon hostname | `clamav` |
+| `CLAMAV_PORT` | ClamAV daemon port | `3310` |
+| `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token | — |
+
+### Docker / Initial Admin — Optional
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ADMIN_USERNAME` | Initial admin username | `admin` |
+| `ADMIN_EMAIL` | Initial admin email | `admin@polly.local` |
+| `ADMIN_PASSWORD` | Initial admin password | `Admin123!` |
+| `SEED_DEMO_DATA` | Seed demo polls on first start | `false` |
+| `POSTGRES_USER` | Bundled PostgreSQL user (docker-compose only) | `polly` |
+| `POSTGRES_PASSWORD` | Bundled PostgreSQL password (docker-compose only) | `polly_secret` |
+| `POSTGRES_DB` | Bundled PostgreSQL database (docker-compose only) | `polly` |
+
+### Advanced
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `5000` |
+| `NODE_ENV` | Node environment | `production` |
+| `DATABASE_SSL` | Enable SSL for database connections | `false` |
+| `FORCE_HTTPS` | Force secure cookies (behind TLS-terminating proxy) | auto-detect from `APP_URL` |
+| `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
+| `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export | auto-detected |
+| `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement | `false` |
+| `TEST_MODE_SECRET` | Custom header value for E2E test mode | `polly-e2e-test-mode` |
 
 ## 🏗️ Tech Stack
 

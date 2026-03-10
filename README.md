@@ -250,7 +250,7 @@ npm run dev
 | `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
 | `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived if not set) | `https://keycloak.example.com/realms/myrealm` |
 | `SSO_BUTTON_LABEL` | Custom login button text (e.g. "Kita Hub Login"). Also configurable in Admin panel | — |
-| `SHOW_LOGIN_FORM` | Show/hide local username+password login form. Set `false` when SSO is primary | `true` |
+| `HIDE_LOGIN_FORM` | Hide local username+password login form when SSO is primary | `false` |
 
 > **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
 

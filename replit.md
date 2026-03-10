@@ -19,7 +19,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ### Key Features
 - **Poll Types**: Terminumfrage (Schedule), Umfrage (Survey), Orga-Liste (Organization/Booking).
 - **Vote Management**: Configurable vote editing, unique edit links, and results visibility.
-- **Authentication**: Anonymous token-based, local email/password, and optional Keycloak OIDC with role-based access. `SHOW_LOGIN_FORM=false` hides local form when SSO is primary (safety: auto-shows if SSO unavailable).
+- **Authentication**: Anonymous token-based, local email/password, and optional Keycloak OIDC with role-based access. `HIDE_LOGIN_FORM=true` hides local form when SSO is primary (safety: auto-shows if SSO unavailable).
 - **Data Export**: CSV and PDF export of results, including QR code sharing for polls.
 - **Customization**: Admin panel for branding (theme, logo, site name) and dark mode settings.
 - **Multi-Language Support**: German (de) and English (en) with automatic browser detection and per-user preference storage.

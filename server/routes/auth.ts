@@ -144,11 +144,11 @@ router.get('/methods', async (req, res) => {
       ssoButtonLabel = dbLabel || process.env.SSO_BUTTON_LABEL || undefined;
     }
     
-    // Show local login form: ENV SHOW_LOGIN_FORM controls visibility (default: true)
+    // Hide local login form: ENV HIDE_LOGIN_FORM=true hides username/password form (default: visible)
     // Safety: if SSO is not available, always show the local form to prevent lockout
-    const showLoginFormEnv = process.env.SHOW_LOGIN_FORM;
-    const showLoginFormFromEnv = showLoginFormEnv === undefined ? true : showLoginFormEnv.toLowerCase() === 'true';
-    const showLoginForm = !authService.isKeycloakEnabled() ? true : showLoginFormFromEnv;
+    const hideLoginFormEnv = process.env.HIDE_LOGIN_FORM;
+    const hideLoginForm = hideLoginFormEnv !== undefined && hideLoginFormEnv.toLowerCase() === 'true';
+    const showLoginForm = !authService.isKeycloakEnabled() ? true : !hideLoginForm;
     
     res.json({
       local: true,

@@ -399,19 +399,6 @@ Open-Source Abstimmungsplattform für Teams`,
     }
   }
 
-  async testConnection(): Promise<boolean> {
-    if (!this.isConfigured || !this.transporter) {
-      return false;
-    }
-    
-    try {
-      await this.transporter.verify();
-      return true;
-    } catch (error) {
-      console.error('Email service connection failed:', error);
-      return false;
-    }
-  }
 
   async sendPasswordResetEmail(email: string, resetLink: string, userName?: string): Promise<void> {
     if (!this.isConfigured || !this.transporter) {

@@ -219,9 +219,9 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
   }
 
   // Transform options per poll type
-  const transformedOptions = suggestion.options.map((opt, index) => {
+  const transformedOptions = suggestion.options.map((rawOpt, index) => {
+    const opt = typeof rawOpt === 'string' ? rawOpt : (rawOpt as any).text || String(rawOpt);
     if (suggestion.pollType === "schedule") {
-      // Parse "DD.MM.YYYY HH:MM - HH:MM"
       const match = opt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
       if (match) {
         const [, day, month, year, startH, endH] = match;
@@ -241,7 +241,6 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
     }
 
     if (suggestion.pollType === "organization") {
-      // Parse "Description HH:MM - HH:MM (max. N)"
       const timeMatch = opt.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
       const capMatch = opt.match(/\(max\.?\s*(\d+)/i);
       let cleanText = opt;
@@ -261,7 +260,6 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
       };
     }
 
-    // survey: plain text options
     return { text: opt, startTime: null, endTime: null, maxCapacity: null, order: index, pollId: "" };
   });
 

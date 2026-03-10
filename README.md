@@ -249,6 +249,7 @@ npm run dev
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
 | `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
 | `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived if not set) | `https://keycloak.example.com/realms/myrealm` |
+| `SSO_BUTTON_LABEL` | Custom login button text (e.g. "Kita Hub Login"). Also configurable in Admin panel | — |
 
 > **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
 

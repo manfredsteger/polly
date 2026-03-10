@@ -527,7 +527,7 @@ export default function Login() {
                 data-testid="button-keycloak-login"
               >
                 <KeyRound className="h-4 w-4 mr-2" />
-                {t('auth.loginWithKeycloak')}
+                {authMethods.ssoButtonLabel || t('auth.loginWithKeycloak')}
               </Button>
             </>
           )}

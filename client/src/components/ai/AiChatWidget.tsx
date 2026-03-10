@@ -633,14 +633,17 @@ export function AiChatWidget() {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="flex items-center justify-center gap-2 mb-3">
-        <span className="text-sm text-muted-foreground">{t("home.aiChatHint")}</span>
-        <Badge
-          variant="secondary"
-          className="text-[10px] px-1.5 py-0 bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-        >
-          Beta
-        </Badge>
+      <div className="text-center mb-3">
+        <h2 className="text-xl font-semibold text-foreground inline-flex items-center gap-2 mb-1">
+          {t("home.aiChatTitle")}
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+          >
+            {t("home.betaBadge")}
+          </Badge>
+        </h2>
+        <p className="text-sm text-muted-foreground">{t("home.aiChatHint")}</p>
       </div>
 
       <div className="rounded-2xl border-2 border-primary/30 bg-card shadow-lg overflow-hidden focus-within:border-primary/60 transition-colors duration-200">

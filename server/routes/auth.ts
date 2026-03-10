@@ -136,12 +136,21 @@ router.get('/methods', async (req, res) => {
       keycloakAccountUrl = `${process.env.KEYCLOAK_ISSUER_URL}/account`;
     }
     
+    // Custom SSO button label: DB setting > ENV > undefined (frontend uses default i18n)
+    let ssoButtonLabel: string | undefined;
+    if (authService.isKeycloakEnabled()) {
+      const labelSetting = await storage.getSetting('oidc_button_label');
+      const dbLabel = typeof labelSetting?.value === 'string' ? labelSetting.value : undefined;
+      ssoButtonLabel = dbLabel || process.env.SSO_BUTTON_LABEL || undefined;
+    }
+    
     res.json({
       local: true,
       keycloak: authService.isKeycloakEnabled(),
       bearerToken: tokenService.isOIDCEnabled(),
       registrationEnabled,
       keycloakAccountUrl,
+      ssoButtonLabel,
     });
   } catch (error) {
     console.error('Error getting auth methods:', error);

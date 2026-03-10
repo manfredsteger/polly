@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
   Key,
+  KeyRound,
   ArrowLeft,
   ChevronRight,
   CheckCircle,
@@ -41,7 +42,7 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
   const [isTesting, setIsTesting] = useState(false);
   
-  const { data: authMethods } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean }>({
+  const { data: authMethods } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string }>({
     queryKey: ['/api/v1/auth/methods'],
   });
 
@@ -50,12 +51,30 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   });
   
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean>(true);
+  const [ssoButtonLabel, setSsoButtonLabel] = useState<string>('');
   
   useEffect(() => {
     if (authMethods) {
       setRegistrationEnabled(authMethods.registrationEnabled);
     }
   }, [authMethods]);
+
+  const { data: settings } = useQuery<any[]>({
+    queryKey: ['/api/v1/admin/settings'],
+  });
+
+  const ssoLabelFromDb = settings?.find((s: any) => s.key === 'oidc_button_label')?.value;
+  const ssoLabelIsFromEnv = !ssoLabelFromDb && !!authMethods?.ssoButtonLabel;
+
+  useEffect(() => {
+    if (settings) {
+      if (ssoLabelFromDb) {
+        setSsoButtonLabel(typeof ssoLabelFromDb === 'string' ? ssoLabelFromDb : '');
+      } else if (authMethods?.ssoButtonLabel) {
+        setSsoButtonLabel(authMethods.ssoButtonLabel);
+      }
+    }
+  }, [settings, authMethods, ssoLabelFromDb]);
   
   const saveRegistrationMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -88,6 +107,36 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const handleRegistrationToggle = (enabled: boolean) => {
     setRegistrationEnabled(enabled);
     saveRegistrationMutation.mutate(enabled);
+  };
+
+  const saveSsoLabelMutation = useMutation({
+    mutationFn: async (label: string) => {
+      const res = await apiRequest('POST', '/api/v1/admin/settings', {
+        key: 'oidc_button_label',
+        value: label,
+        description: 'Custom SSO button label for login page'
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/methods'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/settings'] });
+      toast({ 
+        title: t('admin.oidc.ssoLabelSaved'),
+        description: t('admin.oidc.ssoLabelSavedDescription')
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: t('errors.generic'), 
+        description: t('admin.oidc.saveError'),
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleSaveSsoLabel = () => {
+    saveSsoLabelMutation.mutate(ssoButtonLabel.trim());
   };
 
   const handleTestConnection = async () => {
@@ -328,6 +377,57 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
                 </div>
               )}
             </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Key className="w-5 h-5 mr-2" />
+            {t('admin.oidc.ssoButtonLabel')}
+          </CardTitle>
+          <CardDescription>{t('admin.oidc.ssoButtonLabelDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <Input
+                id="sso-button-label"
+                value={ssoButtonLabel}
+                onChange={(e) => setSsoButtonLabel(e.target.value)}
+                placeholder={t('admin.oidc.ssoButtonLabelPlaceholder')}
+                data-testid="input-sso-button-label"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('admin.oidc.ssoButtonLabelHint')}
+                {ssoLabelIsFromEnv && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    ({t('admin.oidc.ssoLabelFromEnv')})
+                  </span>
+                )}
+              </p>
+            </div>
+            <Button
+              onClick={handleSaveSsoLabel}
+              disabled={saveSsoLabelMutation.isPending}
+              data-testid="button-save-sso-label"
+            >
+              {saveSsoLabelMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t('admin.oidc.ssoLabelSave')
+              )}
+            </Button>
+          </div>
+          {ssoButtonLabel && (
+            <div className="p-3 border rounded-lg bg-muted/50">
+              <p className="text-xs text-muted-foreground mb-2">{t('admin.oidc.ssoLabelPreview')}</p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 border rounded-md bg-background text-sm font-medium">
+                <KeyRound className="h-4 w-4" />
+                {ssoButtonLabel}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

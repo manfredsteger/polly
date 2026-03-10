@@ -232,6 +232,7 @@ When running via Docker, the admin account is automatically created or updated o
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
 | `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
 | `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived from realm + server URL if not set) | `https://keycloak.example.com/realms/myrealm` |
+| `SSO_BUTTON_LABEL` | Custom login button text (default: "Login with Keycloak"). Also configurable in Admin → Authentication | `Kita Hub Login` |
 
 > **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
 

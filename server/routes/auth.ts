@@ -144,6 +144,12 @@ router.get('/methods', async (req, res) => {
       ssoButtonLabel = dbLabel || process.env.SSO_BUTTON_LABEL || undefined;
     }
     
+    // Show local login form: ENV SHOW_LOGIN_FORM controls visibility (default: true)
+    // Safety: if SSO is not available, always show the local form to prevent lockout
+    const showLoginFormEnv = process.env.SHOW_LOGIN_FORM;
+    const showLoginFormFromEnv = showLoginFormEnv === undefined ? true : showLoginFormEnv.toLowerCase() === 'true';
+    const showLoginForm = !authService.isKeycloakEnabled() ? true : showLoginFormFromEnv;
+    
     res.json({
       local: true,
       keycloak: authService.isKeycloakEnabled(),
@@ -151,6 +157,7 @@ router.get('/methods', async (req, res) => {
       registrationEnabled,
       keycloakAccountUrl,
       ssoButtonLabel,
+      showLoginForm,
     });
   } catch (error) {
     console.error('Error getting auth methods:', error);
@@ -159,6 +166,7 @@ router.get('/methods', async (req, res) => {
       keycloak: authService.isKeycloakEnabled(),
       bearerToken: tokenService.isOIDCEnabled(),
       registrationEnabled: true,
+      showLoginForm: true,
     });
   }
 });

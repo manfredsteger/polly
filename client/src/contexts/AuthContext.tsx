@@ -14,7 +14,7 @@ interface AuthContextType {
   login: (usernameOrEmail: string, password: string) => Promise<SafeUser>;
   register: (username: string, email: string, name: string, password: string) => Promise<SafeUser>;
   logout: () => Promise<void>;
-  authMethods: { local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string };
+  authMethods: { local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string; showLoginForm?: boolean };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
 
-  const { data: methods, isLoading: isAuthMethodsLoading } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string }>({
+  const { data: methods, isLoading: isAuthMethodsLoading } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string; showLoginForm?: boolean }>({
     queryKey: ['/api/v1/auth/methods'],
     staleTime: 1000 * 60 * 5,
   });

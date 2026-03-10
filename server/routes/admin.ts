@@ -159,7 +159,7 @@ router.post('/users', requireAdmin, async (req, res) => {
 router.patch('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, name, email, organization } = req.body;
+    const { role, name, email, organization, emailVerified } = req.body;
     
     const updates: Record<string, any> = {};
     if (role && ['user', 'admin', 'manager'].includes(role)) {
@@ -168,6 +168,7 @@ router.patch('/users/:id', requireAdmin, async (req, res) => {
     if (name) updates.name = name;
     if (email) updates.email = email;
     if (organization !== undefined) updates.organization = organization;
+    if (emailVerified === true) updates.emailVerified = true;
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });

@@ -5,23 +5,6 @@ import { deviceTokenService } from "../services/deviceTokenService";
 
 const router = Router();
 
-// Get user dashboard data
-router.get('/users/:userId/dashboard', async (req, res) => {
-  try {
-    const userId = parseInt(req.params.userId);
-    const userPolls = await storage.getUserPolls(userId);
-    const sharedPolls = await storage.getSharedPolls(userId);
-    
-    res.json({
-      userPolls,
-      sharedPolls,
-    });
-  } catch (error) {
-    console.error('Error fetching dashboard:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Get user profile
 router.get('/user/profile', async (req, res) => {
   try {

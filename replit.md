@@ -29,7 +29,9 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Live Voting**: Real-time vote tracking via WebSocket with fullscreen presentation mode.
 - **AI Auto-Enable**: AI chat is automatically enabled if `AI_API_KEY` is set unless explicitly disabled by admin.
 - **Voice Input (AI Chat)**: Microphone button records audio, transcodes to text via Whisper API, and inserts into chat.
-- **Admin Tools**: User management, email template customization, security scanning integration, and system package monitoring.
+- **Admin Tools**: User management (incl. manual email verification), email template customization, security scanning integration, and system package monitoring.
+- **Post-Login Flow**: Regular users land on Home (`/`) with AI chat front and center; admins redirect to `/admin`.
+- **Meine Umfragen**: Consolidated poll management with stat cards (active/total/participations/this week), inline action buttons (stats/share/edit/delete), and archive tab for expired/closed polls. Dashboard page removed.
 - **Calendar Integration**: ICS export and webcal:// subscription for schedule polls.
 - **Test Data Isolation**: `isTestData` flags for development and purging, with specific API header for test mode.
 - **Real-Time Slot Reservation (Orga-Listen)**: Uses transactional locking and advisory locks with WebSocket updates for capacity management.

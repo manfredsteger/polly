@@ -19,7 +19,6 @@ const Poll = lazy(() => import("@/pages/poll"));
 const PollSuccess = lazy(() => import("@/pages/poll-success"));
 const VoteSuccess = lazy(() => import("@/pages/vote-success"));
 const VoteEdit = lazy(() => import("@/pages/vote-edit"));
-const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Admin = lazy(() => import("@/pages/admin"));
 const Login = lazy(() => import("@/pages/login"));
 const MyPolls = lazy(() => import("@/pages/my-polls"));
@@ -52,7 +51,6 @@ function Router() {
         <Route path="/success" component={PollSuccess} />
         <Route path="/vote-success" component={VoteSuccess} />
         <Route path="/edit/:editToken" component={VoteEdit} />
-        <Route path="/dashboard" component={Dashboard} />
         <Route path="/admin" component={Admin} />
         <Route path="/anmelden" component={Login} />
         <Route path="/meine-umfragen" component={MyPolls} />

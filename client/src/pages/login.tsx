@@ -169,7 +169,7 @@ export default function Login() {
   const getRedirectUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
-    return redirect ? decodeURIComponent(redirect) : '/meine-umfragen';
+    return redirect ? decodeURIComponent(redirect) : '/';
   };
 
   useEffect(() => {

@@ -699,7 +699,7 @@ router.get('/keycloak/callback', async (req, res) => {
         console.error('Session save error:', err);
         return res.redirect('/?error=session_error');
       }
-      res.redirect('/dashboard');
+      res.redirect('/');
     });
   } catch (error) {
     console.error('Keycloak callback error:', error);

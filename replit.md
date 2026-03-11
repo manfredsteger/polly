@@ -44,8 +44,9 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **WCAG 2.1 AA Color Contrast**: Admin panel audits theme colors against accessibility standards, with separate corrections for light and dark modes.
 - **Security Scanning**: ClamAV for file uploads, npm audit for dependencies, and Pentest-Tools.com integration for vulnerability scanning.
 - **System Package Monitoring**: Displays Nix package information for core dependencies.
-- **Session Management**: PostgreSQL-backed sessions with `polly.sid` cookie, secure and sameSite configuration, and proxy trust detection.
+- **Session Management**: PostgreSQL-backed sessions with `polly.sid` cookie, secure and sameSite configuration, proxy trust detection, session regeneration on login/register (session fixation prevention), role-based idle timeout middleware (admin/manager/user), and `lastActivity` tracking.
 - **Rate Limiting**: In-memory rate limiter for login attempts (5 failed attempts per IP/Account → 15 min lockout).
+- **Security Hardening**: Force-password-change for default admin credentials (`isInitialAdmin` middleware blocks API until password changed), Cache-Control `no-store` on all API responses, generic error messages (no `error.message` leaks), JSON body limit 1MB, field-level input length validation (voter names 100, option text 500, description 5000, email 254), `autocomplete="off"` on all password fields, `X-Powered-By` disabled.
 
 ### API Documentation
 -   **OpenAPI Spec**: `docs/openapi.yaml` provides a full API specification.

@@ -1675,7 +1675,7 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
     res.json({ success: true, message: 'Test-E-Mail gesendet' });
   } catch (error: any) {
     console.error('Error sending test email:', error);
-    res.status(500).json({ error: error.message || 'Fehler beim Senden der Test-E-Mail' });
+    res.status(500).json({ error: 'Fehler beim Senden der Test-E-Mail' });
   }
 });
 
@@ -1844,7 +1844,7 @@ router.post('/matrix/test', requireAdmin, async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error('Matrix connection test error:', error);
-    res.json({ success: false, error: error.message });
+    res.json({ success: false, error: 'Verbindungstest fehlgeschlagen' });
   }
 });
 

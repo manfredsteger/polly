@@ -18,6 +18,7 @@ declare module "express-session" {
     userId?: number;
     keycloakCodeVerifier?: string;
     keycloakState?: string;
+    lastActivity?: number;
   }
 }
 
@@ -63,7 +64,7 @@ export const registerSchema = z.object({
 
 export const createPollSchema = z.object({
   title: z.string().min(1).max(200),
-  description: z.string().optional(),
+  description: z.string().max(5000).optional(),
   type: z.enum(['schedule', 'survey', 'organization']),
   creatorEmail: z.string().email().optional(),
   userId: z.number().optional(),
@@ -75,7 +76,7 @@ export const createPollSchema = z.object({
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
   options: z.array(z.object({
-    text: z.string().min(1),
+    text: z.string().min(1).max(500),
     imageUrl: z.string().optional(),
     altText: z.string().optional(),
     startTime: z.string().datetime().optional(),
@@ -88,20 +89,20 @@ export const createPollSchema = z.object({
 
 export const voteSchema = z.object({
   optionId: z.number(),
-  voterName: z.string().min(1),
-  voterEmail: z.string().email(),
+  voterName: z.string().min(1).max(100),
+  voterEmail: z.string().email().max(254),
   response: z.enum(['yes', 'maybe', 'no']),
   comment: z.string().optional(),
 });
 
 export const inviteSchema = z.object({
-  emails: z.array(z.string().email()),
-  customMessage: z.string().optional(),
+  emails: z.array(z.string().email()).max(100),
+  customMessage: z.string().max(2000).optional(),
 });
 
 export const bulkVoteSchema = z.object({
-  voterName: z.string().min(1),
-  voterEmail: z.string().email(),
+  voterName: z.string().min(1).max(100),
+  voterEmail: z.string().email().max(254),
   votes: z.array(z.object({
     optionId: z.number(),
     response: z.enum(['yes', 'maybe', 'no', 'freetext', 'signup']),

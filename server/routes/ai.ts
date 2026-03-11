@@ -57,7 +57,7 @@ router.post("/transcribe", audioUpload.single("audio"), async (req, res) => {
     console.error("[Transcribe] Error:", error);
     return res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : "Unbekannter Fehler",
+      error: "Transkription fehlgeschlagen",
     });
   }
 });

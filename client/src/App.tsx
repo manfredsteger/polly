@@ -1,14 +1,21 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CustomizationProvider } from "@/contexts/CustomizationContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Layout from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ShieldAlert } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
 
@@ -64,6 +71,87 @@ function Router() {
   );
 }
 
+function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useAuth();
+  const qc = useQueryClient();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (!user?.isInitialAdmin) return <>{children}</>;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (newPassword !== confirmPassword) {
+      setError('Passwörter stimmen nicht überein');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError('Passwort muss mindestens 8 Zeichen lang sein');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiRequest('POST', '/api/v1/auth/change-password', { currentPassword, newPassword });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Fehler beim Ändern des Passworts');
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
+    } catch {
+      setError('Fehler beim Ändern des Passworts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {children}
+      <Dialog open={true} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md [&>button:last-child]:hidden" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              <DialogTitle>Passwort ändern erforderlich</DialogTitle>
+            </div>
+            <DialogDescription>
+              Sie verwenden das Standard-Administratorpasswort. Aus Sicherheitsgründen müssen Sie Ihr Passwort ändern, bevor Sie fortfahren können.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="force-current">Aktuelles Passwort</Label>
+              <Input id="force-current" type="password" autoComplete="off" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="force-new">Neues Passwort</Label>
+              <Input id="force-new" type="password" autoComplete="off" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="force-confirm">Neues Passwort bestätigen</Label>
+              <Input id="force-confirm" type="password" autoComplete="off" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => logout()}>Abmelden</Button>
+              <Button type="submit" disabled={loading}>{loading ? 'Wird geändert...' : 'Passwort ändern'}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -71,10 +159,12 @@ function App() {
         <AuthProvider>
           <ThemeProvider>
             <TooltipProvider>
-              <Layout>
-                <Toaster />
-                <Router />
-              </Layout>
+              <ForcePasswordChangeGuard>
+                <Layout>
+                  <Toaster />
+                  <Router />
+                </Layout>
+              </ForcePasswordChangeGuard>
             </TooltipProvider>
           </ThemeProvider>
         </AuthProvider>

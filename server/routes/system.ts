@@ -143,7 +143,7 @@ router.get('/matrix/users/search', requireAuth, async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error('Matrix user search error:', error);
-    res.status(500).json({ error: error.message || 'Suche fehlgeschlagen' });
+    res.status(500).json({ error: 'Suche fehlgeschlagen' });
   }
 });
 
@@ -187,7 +187,7 @@ router.post('/polls/:token/invite/matrix', requireAuth, async (req, res) => {
     });
   } catch (error: any) {
     console.error('Matrix invitation error:', error);
-    res.status(500).json({ error: error.message || 'Einladung fehlgeschlagen' });
+    res.status(500).json({ error: 'Einladung fehlgeschlagen' });
   }
 });
 
@@ -199,7 +199,7 @@ router.post('/matrix/test', requireAdmin, async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error('Matrix connection test error:', error);
-    res.json({ success: false, error: error.message });
+    res.json({ success: false, error: 'Matrix-Verbindungstest fehlgeschlagen' });
   }
 });
 

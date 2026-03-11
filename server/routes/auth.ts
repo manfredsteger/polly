@@ -280,15 +280,20 @@ router.post('/login', async (req, res) => {
     }
 
     await loginRateLimiter.recordSuccessfulLogin(data.usernameOrEmail, clientIp);
-    req.session.userId = user.id;
     
-    // Explicitly save session before responding to ensure cookie is set
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
+    req.session.regenerate((regenerateErr) => {
+      if (regenerateErr) {
+        console.error('Session regenerate error:', regenerateErr);
         return res.status(500).json({ error: 'Interner Fehler' });
       }
-      res.json({ user: authService.sanitizeUser(user) });
+      req.session.userId = user.id;
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json({ error: 'Interner Fehler' });
+        }
+        res.json({ user: authService.sanitizeUser(user) });
+      });
     });
   } catch (error) {
     // Validation errors are expected for missing/invalid fields,
@@ -323,10 +328,10 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
     );
     
     if (!user) {
-      return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vergeben' });
+      console.log('[Register] Registration blocked: username or email already taken');
+      return res.status(400).json({ error: 'Registrierung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.' });
     }
 
-    // Create email verification token and send welcome email
     try {
       const verificationToken = await storage.createEmailVerificationToken(user.id);
       const { getBaseUrl } = await import('../utils/baseUrl');
@@ -340,15 +345,19 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
       console.error('Failed to create verification token or send welcome email:', emailError);
     }
 
-    req.session.userId = user.id;
-    
-    // Explicitly save session before responding
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
+    req.session.regenerate((regenerateErr) => {
+      if (regenerateErr) {
+        console.error('Session regenerate error:', regenerateErr);
         return res.status(500).json({ error: 'Interner Fehler' });
       }
-      res.json({ user: authService.sanitizeUser(user) });
+      req.session.userId = user.id;
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json({ error: 'Interner Fehler' });
+        }
+        res.json({ user: authService.sanitizeUser(user) });
+      });
     });
   } catch (error) {
     // Validation errors should not be logged as server errors;
@@ -532,9 +541,12 @@ router.post('/change-password', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Aktuelles Passwort ist falsch' });
     }
 
-    // Hash new password and update user
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await storage.updateUser(user.id, { passwordHash: hashedPassword });
+    const updateData: Record<string, any> = { passwordHash: hashedPassword };
+    if (user.isInitialAdmin) {
+      updateData.isInitialAdmin = false;
+    }
+    await storage.updateUser(user.id, updateData);
 
     // Send notification email
     emailService.sendPasswordChangedEmail(user.email, user.name)
@@ -689,17 +701,22 @@ router.get('/keycloak/callback', async (req, res) => {
       return res.redirect('/?error=auth_failed');
     }
 
-    // Clear Keycloak session data
-    delete req.session.keycloakCodeVerifier;
-    delete req.session.keycloakState;
-
-    req.session.userId = user.id;
-    req.session.save((err) => {
+    // Clear Keycloak session data and regenerate session to prevent fixation
+    const keycloakUserId = user.id;
+    req.session.regenerate((err) => {
       if (err) {
-        console.error('Session save error:', err);
+        console.error('Session regeneration error:', err);
         return res.redirect('/?error=session_error');
       }
-      res.redirect('/');
+      req.session.userId = keycloakUserId;
+      req.session.lastActivity = Date.now();
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error('Session save error:', saveErr);
+          return res.redirect('/?error=session_error');
+        }
+        res.redirect('/');
+      });
     });
   } catch (error) {
     console.error('Keycloak callback error:', error);

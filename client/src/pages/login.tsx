@@ -313,6 +313,7 @@ export default function Login() {
                         onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                         placeholder="••••••••"
                         required
+                        autoComplete="off"
                         className="pr-10"
                         data-testid="input-login-password"
                       />
@@ -398,6 +399,7 @@ export default function Login() {
                         onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
                         placeholder={t('auth.enterSecurePassword')}
                         required
+                        autoComplete="off"
                         className="pr-10"
                         data-testid="input-register-password"
                       />
@@ -422,6 +424,7 @@ export default function Login() {
                         onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
                         placeholder={t('auth.repeatPassword')}
                         required
+                        autoComplete="off"
                         className="pr-10"
                         data-testid="input-register-confirm"
                       />
@@ -478,6 +481,7 @@ export default function Login() {
                     onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                     placeholder="••••••••"
                     required
+                    autoComplete="off"
                     className="pr-10"
                     data-testid="input-login-password"
                   />

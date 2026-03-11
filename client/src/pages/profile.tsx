@@ -642,6 +642,7 @@ export default function Profile() {
               <Input
                 id="currentPassword"
                 type="password"
+                autoComplete="off"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="mt-1"
@@ -653,6 +654,7 @@ export default function Profile() {
               <Input
                 id="newPassword"
                 type="password"
+                autoComplete="off"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="mt-1"
@@ -665,6 +667,7 @@ export default function Profile() {
               <Input
                 id="confirmPassword"
                 type="password"
+                autoComplete="off"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="mt-1"
@@ -714,6 +717,7 @@ export default function Profile() {
               <Input
                 id="emailPassword"
                 type="password"
+                autoComplete="off"
                 value={emailPassword}
                 onChange={(e) => setEmailPassword(e.target.value)}
                 className="mt-1"

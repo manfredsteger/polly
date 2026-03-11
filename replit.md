@@ -53,7 +53,19 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 -   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` for Docker/Production Deployment.
 
 ### Docker Migration Path
-Schema changes involve updating `shared/schema.ts`, `server/scripts/ensureSchema.ts`, and migration files. `ensureSchema.ts` automatically adds missing columns on update.
+Schema changes involve updating `shared/schema.ts`, `server/scripts/ensureSchema.ts`, and migration files. `ensureSchema.ts` automatically adds missing columns and indexes on startup.
+
+### Database Indexes
+Token tables (`password_reset_tokens`, `email_verification_tokens`, `email_change_tokens`) have indexes on `token` and `user_id`. `notification_logs` is indexed on `poll_id` and `type`. `votes` is indexed on `poll_id`, `option_id`, `voter_email`, `voter_key`, and `voter_edit_token`.
+
+### Test Coverage (423+ tests)
+- **API**: 174 tests (admin CRUD, user profile/theme/language, poll CRUD/voting/export, email templates, security, validation)
+- **Auth**: 55 tests (login, registration, password reset, session persistence, cookie security)
+- **Polls**: 30 tests (CRUD, voting, finalize, types)
+- **Data/Storage**: 40 tests (settings, branding, storage, test data)
+- **Unit**: 34 tests (validation, token service, QR service)
+- **Services**: 68+ tests (email templates, ClamAV, ICS, PDF, WCAG audit)
+- **E2E/Integration**: 49 tests (poll flow, multi-voter, Docker build, deployment readiness, DB migration)
 
 ### Release & CI/CD
 -   **GitHub Actions**: Workflows for CI (lint, type check, tests, build, E2E, security audit) and Release (Docker image build/push to Docker Hub, GitHub Release, GitLab mirror).

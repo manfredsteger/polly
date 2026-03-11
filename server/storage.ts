@@ -338,13 +338,25 @@ export class DatabaseStorage implements IStorage {
   async getPollByAdminToken(token: string): Promise<PollWithOptions | undefined> {
     const [poll] = await db.select().from(polls).where(eq(polls.adminToken, token));
     if (!poll) return undefined;
-    return this.getPoll(poll.id);
+    const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id)).orderBy(pollOptions.id);
+    const allVotes = await db.select().from(votes).where(eq(votes.pollId, poll.id));
+    let user: User | undefined;
+    if (poll.userId) {
+      [user] = await db.select().from(users).where(eq(users.id, poll.userId));
+    }
+    return { ...poll, options, votes: allVotes, user };
   }
 
   async getPollByPublicToken(token: string): Promise<PollWithOptions | undefined> {
     const [poll] = await db.select().from(polls).where(eq(polls.publicToken, token));
     if (!poll) return undefined;
-    return this.getPoll(poll.id);
+    const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id)).orderBy(pollOptions.id);
+    const allVotes = await db.select().from(votes).where(eq(votes.pollId, poll.id));
+    let user: User | undefined;
+    if (poll.userId) {
+      [user] = await db.select().from(users).where(eq(users.id, poll.userId));
+    }
+    return { ...poll, options, votes: allVotes, user };
   }
 
   async updatePoll(id: string, updates: Partial<InsertPoll>): Promise<Poll> {
@@ -353,9 +365,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePoll(id: string): Promise<void> {
-    await db.delete(votes).where(eq(votes.pollId, id));
-    await db.delete(pollOptions).where(eq(pollOptions.pollId, id));
-    await db.delete(polls).where(eq(polls.id, id));
+    await db.transaction(async (tx) => {
+      await tx.delete(votes).where(eq(votes.pollId, id));
+      await tx.delete(pollOptions).where(eq(pollOptions.pollId, id));
+      await tx.delete(polls).where(eq(polls.id, id));
+    });
   }
 
   async getUserPolls(userId: number): Promise<PollWithOptions[]> {
@@ -1350,28 +1364,29 @@ export class DatabaseStorage implements IStorage {
     let deletedOptions = 0;
     let deletedPolls = 0;
     
-    // Only proceed if there are test polls to delete
     if (testPollIds.length > 0) {
-      // Count votes before deletion
-      const [voteCount] = await db.select({ count: count() }).from(votes)
-        .where(sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
-      deletedVotes = voteCount.count;
+      const pollResult = await db.transaction(async (tx) => {
+        const [voteCount] = await tx.select({ count: count() }).from(votes)
+          .where(sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
+        
+        const [optionCount] = await tx.select({ count: count() }).from(pollOptions)
+          .where(sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
+        
+        await tx.delete(votes).where(
+          sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
+        );
+        
+        await tx.delete(pollOptions).where(
+          sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
+        );
+        
+        await tx.delete(polls).where(testPatternCondition);
+        
+        return { deletedVotes: voteCount.count, deletedOptions: optionCount.count };
+      });
       
-      // Count options before deletion
-      const [optionCount] = await db.select({ count: count() }).from(pollOptions)
-        .where(sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
-      deletedOptions = optionCount.count;
-      
-      // Delete in correct order: votes first, then options, then polls
-      await db.delete(votes).where(
-        sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
-      );
-      
-      await db.delete(pollOptions).where(
-        sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
-      );
-      
-      await db.delete(polls).where(testPatternCondition);
+      deletedVotes = pollResult.deletedVotes;
+      deletedOptions = pollResult.deletedOptions;
       deletedPolls = testPollIds.length;
     }
     

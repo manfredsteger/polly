@@ -30,7 +30,10 @@ export const emailVerificationTokens = pgTable("email_verification_tokens", {
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("email_verification_tokens_token_idx").on(table.token),
+  index("email_verification_tokens_user_id_idx").on(table.userId),
+]);
 
 export const polls = pgTable("polls", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -102,6 +105,7 @@ export const votes = pgTable("votes", {
   index("votes_option_id_idx").on(table.optionId),
   index("votes_voter_email_idx").on(table.voterEmail),
   index("votes_voter_key_idx").on(table.voterKey),
+  index("votes_voter_edit_token_idx").on(table.voterEditToken),
 ]);
 
 export const systemSettings = pgTable("system_settings", {
@@ -116,14 +120,17 @@ export const systemSettings = pgTable("system_settings", {
 export const notificationLogs = pgTable("notification_logs", {
   id: serial("id").primaryKey(),
   pollId: uuid("poll_id").notNull(),
-  type: text("type").notNull(), // "expiry_reminder", "manual_reminder", "vote_confirmation", "poll_created"
+  type: text("type").notNull(),
   recipientEmail: text("recipient_email").notNull(),
-  sentBy: text("sent_by"), // user id or "system" for automatic reminders
+  sentBy: text("sent_by"),
   sentByGuest: boolean("sent_by_guest").default(false).notNull(),
   success: boolean("success").default(true).notNull(),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("notification_logs_poll_id_idx").on(table.pollId),
+  index("notification_logs_type_idx").on(table.type),
+]);
 
 // Password reset tokens - for secure password reset workflow
 export const passwordResetTokens = pgTable("password_reset_tokens", {
@@ -131,9 +138,12 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   userId: integer("user_id").notNull(),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"), // null if not yet used
+  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("password_reset_tokens_token_idx").on(table.token),
+  index("password_reset_tokens_user_id_idx").on(table.userId),
+]);
 
 // Email change tokens - for secure email change confirmation workflow
 export const emailChangeTokens = pgTable("email_change_tokens", {
@@ -142,9 +152,12 @@ export const emailChangeTokens = pgTable("email_change_tokens", {
   newEmail: text("new_email").notNull(),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"), // null if not yet used
+  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("email_change_tokens_token_idx").on(table.token),
+  index("email_change_tokens_user_id_idx").on(table.userId),
+]);
 
 // Test runs - for storing automated test execution history
 export const testRuns = pgTable("test_runs", {

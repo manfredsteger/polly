@@ -50,7 +50,9 @@ export async function getAiSettings(): Promise<AiSettings> {
       aiSettingsCache = { value: result, expiresAt: Date.now() + AI_SETTINGS_TTL_MS };
       return result;
     }
-  } catch (_) {}
+  } catch (err) {
+    console.warn('[AI] Failed to load AI settings from DB, using defaults:', (err as Error).message);
+  }
   const defaults = applyEnvAutoEnable(aiSettingsSchema.parse({}), {});
   aiSettingsCache = { value: defaults, expiresAt: Date.now() + AI_SETTINGS_TTL_MS };
   return defaults;

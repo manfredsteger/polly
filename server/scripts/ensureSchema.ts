@@ -148,6 +148,29 @@ async function ensureSchema(): Promise<void> {
       await client.query(`
         CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
       `);
+
+      console.log('🔧 Ensuring indexes...');
+      const indexStatements = [
+        'CREATE INDEX IF NOT EXISTS "password_reset_tokens_token_idx" ON "password_reset_tokens" ("token")',
+        'CREATE INDEX IF NOT EXISTS "password_reset_tokens_user_id_idx" ON "password_reset_tokens" ("user_id")',
+        'CREATE INDEX IF NOT EXISTS "email_change_tokens_token_idx" ON "email_change_tokens" ("token")',
+        'CREATE INDEX IF NOT EXISTS "email_change_tokens_user_id_idx" ON "email_change_tokens" ("user_id")',
+        'CREATE INDEX IF NOT EXISTS "email_verification_tokens_token_idx" ON "email_verification_tokens" ("token")',
+        'CREATE INDEX IF NOT EXISTS "email_verification_tokens_user_id_idx" ON "email_verification_tokens" ("user_id")',
+        'CREATE INDEX IF NOT EXISTS "notification_logs_poll_id_idx" ON "notification_logs" ("poll_id")',
+        'CREATE INDEX IF NOT EXISTS "notification_logs_type_idx" ON "notification_logs" ("type")',
+        'CREATE INDEX IF NOT EXISTS "votes_voter_edit_token_idx" ON "votes" ("voter_edit_token")',
+      ];
+      for (const stmt of indexStatements) {
+        try {
+          await client.query(stmt);
+        } catch (err: any) {
+          if (!err.message?.includes('already exists')) {
+            console.warn(`  ⚠️ Index warning: ${err.message?.substring(0, 100)}`);
+          }
+        }
+      }
+      console.log('✅ Indexes ensured');
     } finally {
       client.release();
     }

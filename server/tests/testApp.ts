@@ -54,6 +54,32 @@ export async function createTestApp(): Promise<Express> {
     }),
   }));
 
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    next();
+  });
+
+  app.use(async (req, res, next) => {
+    if (!req.session?.userId) return next();
+    if (!req.path.startsWith('/api/')) return next();
+
+    const allowedPaths = ['/api/v1/auth/me', '/api/v1/auth/logout', '/api/v1/auth/change-password'];
+    if (allowedPaths.some(p => req.path === p)) return next();
+
+    try {
+      const { storage } = await import('../storage');
+      const user = await storage.getUser(req.session.userId);
+      if (user && (user as any).isInitialAdmin) {
+        return res.status(403).json({ error: 'Passwortänderung erforderlich', code: 'PASSWORD_CHANGE_REQUIRED' });
+      }
+    } catch {}
+    next();
+  });
+
   testServer = await registerRoutes(app);
 
   // Disable rate limiting for tests

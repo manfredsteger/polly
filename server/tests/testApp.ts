@@ -97,3 +97,7 @@ export async function closeTestApp(): Promise<void> {
 export function getTestApp(): Express | null {
   return testApp;
 }
+
+export function getTestServer(): Server | null {
+  return testServer;
+}

@@ -58,13 +58,14 @@ Schema changes involve updating `shared/schema.ts`, `server/scripts/ensureSchema
 ### Database Indexes
 Token tables (`password_reset_tokens`, `email_verification_tokens`, `email_change_tokens`) have indexes on `token` and `user_id`. `notification_logs` is indexed on `poll_id` and `type`. `votes` is indexed on `poll_id`, `option_id`, `voter_email`, `voter_key`, and `voter_edit_token`.
 
-### Test Coverage (423+ tests)
+### Test Coverage (454+ tests)
 - **API**: 174 tests (admin CRUD, user profile/theme/language, poll CRUD/voting/export, email templates, security, validation)
 - **Auth**: 55 tests (login, registration, password reset, session persistence, cookie security)
 - **Polls**: 30 tests (CRUD, voting, finalize, types)
 - **Data/Storage**: 40 tests (settings, branding, storage, test data)
 - **Unit**: 34 tests (validation, token service, QR service)
 - **Services**: 68+ tests (email templates, ClamAV, ICS, PDF, WCAG audit)
+- **Security**: 31 tests (WebSocket presenter escalation, poll token validation, email HTML escaping/XSS, deprovision Basic Auth, timing attack resistance)
 - **E2E/Integration**: 49 tests (poll flow, multi-voter, Docker build, deployment readiness, DB migration)
 
 ### Release & CI/CD

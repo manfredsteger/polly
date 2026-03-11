@@ -122,7 +122,7 @@ describe('EmailTemplateService', () => {
       
       expect(html).toBeDefined();
       expect(typeof html).toBe('string');
-      expect(html.includes('<html')).toBe(true);
+      expect(html.includes('<div')).toBe(true);
     });
 
     it('should include siteName in rendered template', async () => {

@@ -438,30 +438,22 @@ export function substituteVariables(
 }
 
 // Convert email-builder JSON to HTML
-export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
+export function jsonToHtml(jsonContent: EmailBuilderDocument, theme?: EmailTheme): string {
   const root = jsonContent.root;
   if (!root || root.type !== 'EmailLayout') {
     return '<div>Template-Fehler: Ungültiges Format</div>';
   }
 
-  const { backdropColor, canvasColor, textColor, fontFamily, childrenIds } = root.data;
+  const { childrenIds } = root.data;
 
-  let html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { margin: 0; padding: 0; background-color: ${backdropColor}; font-family: ${fontFamily}; }
-    .email-container { max-width: 600px; margin: 0 auto; background-color: ${canvasColor}; color: ${textColor}; }
-    .button { display: inline-block; text-decoration: none; }
-    .divider { border-top: 1px solid #e9ecef; }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-`;
+  const effectiveTextColor = theme?.textColor || root.data.textColor || DEFAULT_EMAIL_THEME.textColor;
+  const effectiveHeadingColor = theme?.headingColor || DEFAULT_EMAIL_THEME.headingColor;
+  const effectiveButtonBg = theme?.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor;
+  const effectiveButtonText = theme?.buttonTextColor || DEFAULT_EMAIL_THEME.buttonTextColor;
+  const effectiveButtonRadius = theme?.buttonBorderRadius ?? DEFAULT_EMAIL_THEME.buttonBorderRadius;
+  const effectiveFontFamily = theme?.fontFamily || root.data.fontFamily || DEFAULT_EMAIL_THEME.fontFamily;
+
+  let html = `<div style="font-family: ${effectiveFontFamily}; color: ${effectiveTextColor};">`;
 
   for (const blockId of childrenIds) {
     const block = jsonContent[blockId];
@@ -475,7 +467,7 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
       case 'Heading': {
         const level = props.level || 'h2';
         const text = props.text || '';
-        const color = style.color || textColor;
+        const color = effectiveHeadingColor;
         const padding = style.padding as Record<string, number> | undefined;
         const paddingStyle = padding 
           ? `padding: ${padding.top || 0}px ${padding.right || 0}px ${padding.bottom || 0}px ${padding.left || 0}px;`
@@ -485,7 +477,7 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
       }
       case 'Text': {
         const text = props.text || '';
-        const color = style.color || textColor;
+        const color = effectiveTextColor;
         const fontSize = style.fontSize || 16;
         const padding = style.padding as Record<string, number> | undefined;
         const paddingStyle = padding 
@@ -497,9 +489,9 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
       case 'Button': {
         const text = props.text || 'Click';
         const url = props.url || '#';
-        const bgColor = style.backgroundColor || '#FF6B35';
-        const color = style.color || '#FFFFFF';
-        const borderRadius = style.borderRadius || 6;
+        const bgColor = effectiveButtonBg;
+        const color = effectiveButtonText;
+        const borderRadius = effectiveButtonRadius;
         const padding = style.padding as Record<string, number> | undefined;
         const margin = style.margin as Record<string, number> | undefined;
         const paddingStyle = padding 
@@ -509,7 +501,7 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
           ? `margin: ${margin.top || 0}px ${margin.right || 0}px ${margin.bottom || 0}px ${margin.left || 0}px;`
           : '';
         html += `<div style="text-align: center; ${marginStyle}">
-          <a href="${url}" class="button" style="background-color: ${bgColor}; color: ${color}; ${paddingStyle} border-radius: ${borderRadius}px; font-weight: bold; text-decoration: none;">${text}</a>
+          <a href="${url}" style="display: inline-block; text-decoration: none; background-color: ${bgColor}; color: ${color}; ${paddingStyle} border-radius: ${borderRadius}px; font-weight: bold;">${text}</a>
         </div>\n`;
         break;
       }
@@ -518,7 +510,7 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
         const paddingStyle = padding 
           ? `padding: ${padding.top || 0}px ${padding.right || 0}px ${padding.bottom || 0}px ${padding.left || 0}px;`
           : '';
-        html += `<div style="${paddingStyle}"><hr class="divider" style="margin: 0; border: none; border-top: 1px solid #e9ecef;"></div>\n`;
+        html += `<div style="${paddingStyle}"><hr style="margin: 0; border: none; border-top: 1px solid #e9ecef;"></div>\n`;
         break;
       }
       case 'Image': {
@@ -531,10 +523,7 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument): string {
     }
   }
 
-  html += `
-  </div>
-</body>
-</html>`;
+  html += `</div>`;
 
   return html;
 }
@@ -665,7 +654,9 @@ export class EmailTemplateService {
       throw new Error(`Unknown template type: ${type}`);
     }
     
-    // Substitute variables in JSON content first
+    const service = new EmailTemplateService();
+    const emailTheme = await service.getEmailTheme();
+    
     const jsonStr = substituteVariables(
       JSON.stringify(defaultData.jsonContent),
       variables,
@@ -673,7 +664,7 @@ export class EmailTemplateService {
     );
     const renderedJson = JSON.parse(jsonStr) as EmailBuilderDocument;
     
-    return jsonToHtml(renderedJson);
+    return jsonToHtml(renderedJson, emailTheme);
   }
 
   // Get all templates (from DB or defaults)
@@ -748,13 +739,13 @@ export class EmailTemplateService {
     let htmlContent: string;
     let textContent: string;
     
+    const currentTheme = await this.getEmailTheme();
+    
     if (textContentOverride) {
-      // User edited the text content - generate simple HTML from it
       textContent = textContentOverride;
-      htmlContent = this.textToSimpleHtmlWithTheme(textContent, DEFAULT_EMAIL_THEME);
+      htmlContent = this.textToSimpleHtmlWithTheme(textContent, currentTheme);
     } else {
-      // Generate from JSON as before
-      htmlContent = jsonToHtml(jsonContent as EmailBuilderDocument);
+      htmlContent = jsonToHtml(jsonContent as EmailBuilderDocument, currentTheme);
       textContent = '';
       const root = (jsonContent as EmailBuilderDocument).root;
       if (root && root.data.childrenIds) {
@@ -1030,28 +1021,19 @@ export class EmailTemplateService {
     // Render subject
     const subject = renderTemplate(template.subject, allVariables);
     
-    // Render body HTML
-    // Priority: stored htmlContent > textContent (for customized) > generated from JSON
     let bodyHtml: string;
-    if (template.htmlContent && !template.isDefault) {
-      // Use stored HTML for customized templates
-      bodyHtml = renderTemplate(template.htmlContent, allVariables);
-    } else if (template.textContent && !template.isDefault) {
-      // Use textContent with theme for customized templates
+    if (!template.isDefault && template.textContent) {
       const renderedText = renderTemplate(template.textContent, allVariables);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
-    } else if (template.isDefault) {
-      // For default templates, generate from JSON
+    } else if (template.jsonContent && Object.keys(template.jsonContent).length > 0) {
       const renderedJson = JSON.parse(
         renderTemplate(JSON.stringify(template.jsonContent), allVariables)
       ) as EmailBuilderDocument;
-      bodyHtml = jsonToHtml(renderedJson);
+      bodyHtml = jsonToHtml(renderedJson, emailTheme);
+    } else if (template.htmlContent) {
+      bodyHtml = renderTemplate(template.htmlContent, allVariables);
     } else {
-      // Fallback to JSON-based rendering
-      const renderedJson = JSON.parse(
-        renderTemplate(JSON.stringify(template.jsonContent), allVariables)
-      ) as EmailBuilderDocument;
-      bodyHtml = jsonToHtml(renderedJson);
+      bodyHtml = '<p>Template-Fehler: Kein Inhalt verfügbar</p>';
     }
     
     // Generate header with branding

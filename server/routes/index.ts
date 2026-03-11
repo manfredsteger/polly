@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { Router } from "express";
 import express from "express";
 import path from "path";
+import crypto from "crypto";
 import { storage } from "../storage";
 import bcrypt from "bcryptjs";
 import type { User } from "@shared/schema";
@@ -89,17 +90,15 @@ export function registerRoutes(app: Express): Server {
       const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
       const [username, password] = credentials.split(':');
       
-      if (username !== config.username) {
-        console.log(`[DEPROVISION] Request rejected: invalid username "${username}"`);
-        return res.status(401).json({ 
-          error: 'Ungültige Anmeldedaten',
-          code: 'INVALID_CREDENTIALS'
-        });
-      }
+      const usernameBuffer = Buffer.from(username || '');
+      const configUsernameBuffer = Buffer.from(config.username || '');
+      const usernameMatch = usernameBuffer.length === configUsernameBuffer.length &&
+        crypto.timingSafeEqual(usernameBuffer, configUsernameBuffer);
       
-      const isValidPassword = await bcrypt.compare(password, config.passwordHash);
-      if (!isValidPassword) {
-        console.log('[DEPROVISION] Request rejected: invalid password');
+      const isValidPassword = await bcrypt.compare(password || '', config.passwordHash);
+      
+      if (!usernameMatch || !isValidPassword) {
+        console.log('[DEPROVISION] Request rejected: invalid credentials');
         return res.status(401).json({ 
           error: 'Ungültige Anmeldedaten',
           code: 'INVALID_CREDENTIALS'

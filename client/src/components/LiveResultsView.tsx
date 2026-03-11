@@ -79,6 +79,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
   } = useLiveVoting({
     pollToken: publicToken,
     isPresenter: true,
+    adminToken: poll.adminToken,
     onResultsRefresh: handleResultsRefresh,
     onVoteFinalized: handleVoteFinalized,
   });

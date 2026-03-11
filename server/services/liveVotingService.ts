@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
+import { storage } from '../storage';
 
 interface LiveVoter {
   odId: string;
@@ -161,8 +162,17 @@ class LiveVotingService {
     }
   }
 
-  private handleJoinPoll(ws: WebSocket, message: { pollToken: string; voterName?: string; sessionId: string; isPresenter?: boolean }) {
-    const { pollToken, voterName, sessionId, isPresenter = false } = message;
+  private async handleJoinPoll(ws: WebSocket, message: { pollToken: string; voterName?: string; sessionId: string; isPresenter?: boolean; adminToken?: string }) {
+    const { pollToken, voterName, sessionId } = message;
+
+    const poll = await storage.getPollByPublicToken(pollToken);
+    if (!poll) {
+      ws.send(JSON.stringify({ type: 'error', code: 'POLL_NOT_FOUND', message: 'Umfrage nicht gefunden' }));
+      ws.close(4404, 'Poll not found');
+      return;
+    }
+
+    const isPresenter = !!(message.adminToken && poll.adminToken === message.adminToken);
 
     let room = this.pollRooms.get(pollToken);
     if (!room) {
@@ -283,16 +293,22 @@ class LiveVotingService {
     console.log(`[LiveVoting] Vote submitted by ${message.voterName} in poll ${pollToken}`);
   }
 
-  private handleStartPresenting(ws: WebSocket, message: { pollToken: string }) {
+  private async handleStartPresenting(ws: WebSocket, message: { pollToken: string; adminToken?: string }) {
     const session = this.wsToSession.get(ws);
-    if (session) {
-      session.isPresenter = true;
-      const room = this.pollRooms.get(session.pollToken);
-      if (room) {
-        const viewer = room.viewers.get(session.sessionId);
-        if (viewer) {
-          viewer.isPresenter = true;
-        }
+    if (!session) return;
+
+    const poll = await storage.getPollByPublicToken(session.pollToken);
+    if (!poll || !message.adminToken || poll.adminToken !== message.adminToken) {
+      ws.send(JSON.stringify({ type: 'error', code: 'FORBIDDEN', message: 'Presenter-Berechtigung fehlt' }));
+      return;
+    }
+
+    session.isPresenter = true;
+    const room = this.pollRooms.get(session.pollToken);
+    if (room) {
+      const viewer = room.viewers.get(session.sessionId);
+      if (viewer) {
+        viewer.isPresenter = true;
       }
     }
   }

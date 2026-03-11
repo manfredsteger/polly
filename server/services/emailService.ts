@@ -1,6 +1,15 @@
 import nodemailer from 'nodemailer';
 import { qrService } from './qrService';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface EmailConfig {
   host: string;
   port: number;
@@ -123,7 +132,7 @@ export class EmailService {
         
         <p>Hallo,</p>
         
-        <p>Ihre ${pollTypeText} "<strong>${pollTitle}</strong>" wurde erfolgreich erstellt.</p>
+        <p>Ihre ${pollTypeText} "<strong>${escapeHtml(pollTitle)}</strong>" wurde erfolgreich erstellt.</p>
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h3 style="color: #212529; margin-top: 0;">Administratorlink (nur für Sie):</h3>
@@ -193,11 +202,11 @@ export class EmailService {
         
         <p>Hallo,</p>
         
-        <p><strong>${inviterName}</strong> hat Sie zur Teilnahme an der Umfrage "<strong>${pollTitle}</strong>" eingeladen.</p>
+        <p><strong>${escapeHtml(inviterName)}</strong> hat Sie zur Teilnahme an der Umfrage "<strong>${escapeHtml(pollTitle)}</strong>" eingeladen.</p>
         
         ${customMessage ? `
           <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #FF6B35;">
-            <p style="margin: 0; font-style: italic;">"${customMessage}"</p>
+            <p style="margin: 0; font-style: italic;">"${escapeHtml(customMessage)}"</p>
           </div>
         ` : ''}
         
@@ -266,9 +275,9 @@ export class EmailService {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <h2 style="color: #FF6B35;">Vielen Dank für Ihre Teilnahme!</h2>
           
-          <p>Hallo ${voterName},</p>
+          <p>Hallo ${escapeHtml(voterName)},</p>
           
-          <p>vielen Dank für Ihre Teilnahme an der ${pollTypeText} "<strong>${pollTitle}</strong>".</p>
+          <p>vielen Dank für Ihre Teilnahme an der ${pollTypeText} "<strong>${escapeHtml(pollTitle)}</strong>".</p>
           <p>${confirmationText}</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -350,7 +359,7 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <p>Hallo,</p>
           
-          <p><strong>${senderName}</strong> erinnert Sie freundlich an die Teilnahme an der Umfrage "<strong>${pollTitle}</strong>".</p>
+          <p><strong>${escapeHtml(senderName)}</strong> erinnert Sie freundlich an die Teilnahme an der Umfrage "<strong>${escapeHtml(pollTitle)}</strong>".</p>
           
           <p>Ihre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.</p>
           
@@ -408,7 +417,7 @@ Open-Source Abstimmungsplattform für Teams`,
     }
 
     const displayName = userName || '';
-    const greeting = displayName ? `Hallo ${displayName},` : 'Hallo,';
+    const greeting = displayName ? `Hallo ${escapeHtml(displayName)},` : 'Hallo,';
 
     try {
       const subject = '[Polly] Passwort zurücksetzen';
@@ -471,8 +480,8 @@ Open-Source Abstimmungsplattform für Teams`,
           
           <p>Sie haben angefordert, Ihre E-Mail-Adresse für Ihren <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a> Account zu ändern.</p>
           
-          <p><strong>Alte E-Mail:</strong> ${oldEmail}<br>
-          <strong>Neue E-Mail:</strong> ${newEmail}</p>
+          <p><strong>Alte E-Mail:</strong> ${escapeHtml(oldEmail)}<br>
+          <strong>Neue E-Mail:</strong> ${escapeHtml(newEmail)}</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p>Klicken Sie auf den folgenden Button, um Ihre neue E-Mail-Adresse zu bestätigen:</p>
@@ -773,11 +782,11 @@ Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
           <table style="width: 100%; border-collapse: collapse;">
             <tr style="border-bottom: 1px solid #f5c6cb;">
               <td style="padding: 10px 0; font-weight: bold; color: #721c24; width: 140px;">Erkannter Virus:</td>
-              <td style="padding: 10px 0; color: #dc3545; font-weight: bold;">${details.virusName}</td>
+              <td style="padding: 10px 0; color: #dc3545; font-weight: bold;">${escapeHtml(details.virusName)}</td>
             </tr>
             <tr style="border-bottom: 1px solid #f5c6cb;">
               <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Dateiname:</td>
-              <td style="padding: 10px 0;">${details.filename}</td>
+              <td style="padding: 10px 0;">${escapeHtml(details.filename)}</td>
             </tr>
             <tr style="border-bottom: 1px solid #f5c6cb;">
               <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Dateigröße:</td>
@@ -785,7 +794,7 @@ Diese E-Mail wurde automatisch vom Polly Testsystem erstellt.`;
             </tr>
             <tr style="border-bottom: 1px solid #f5c6cb;">
               <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Uploader:</td>
-              <td style="padding: 10px 0;">${details.uploaderEmail || 'Anonym / Unbekannt'}</td>
+              <td style="padding: 10px 0;">${details.uploaderEmail ? escapeHtml(details.uploaderEmail) : 'Anonym / Unbekannt'}</td>
             </tr>
             <tr style="border-bottom: 1px solid #f5c6cb;">
               <td style="padding: 10px 0; font-weight: bold; color: #721c24;">IP-Adresse:</td>
@@ -861,7 +870,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
     }
 
     const displayName = userName || '';
-    const greeting = displayName ? `Hallo ${displayName},` : 'Hallo,';
+    const greeting = displayName ? `Hallo ${escapeHtml(displayName)},` : 'Hallo,';
 
     try {
       await this.transporter.sendMail({
@@ -906,7 +915,7 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #FF6B35;">Willkommen bei <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a>!</h2>
           
-          <p>Hallo ${userName},</p>
+          <p>Hallo ${escapeHtml(userName)},</p>
           
           <p>vielen Dank für Ihre Registrierung bei <a href="https://github.com/manfredsteger/polly" style="color: #FF6B35; text-decoration: none;">Polly</a>!</p>
           
@@ -962,8 +971,8 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
           <p>Ein Benutzer hat die Löschung seines Kontos beantragt (DSGVO Art. 17).</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Benutzer:</strong> ${userName || 'Unbekannt'}</p>
-            <p><strong>E-Mail:</strong> ${userEmail}</p>
+            <p><strong>Benutzer:</strong> ${escapeHtml(userName || 'Unbekannt')}</p>
+            <p><strong>E-Mail:</strong> ${escapeHtml(userEmail)}</p>
             <p><strong>Zeitpunkt:</strong> ${requestDate}</p>
           </div>
           

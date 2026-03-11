@@ -75,6 +75,7 @@ export interface IStorage {
   // System settings
   getSetting(key: string): Promise<SystemSetting | undefined>;
   setSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+  deleteSetting(key: string): Promise<void>;
   getSettings(): Promise<SystemSetting[]>;
 
   // Customization settings
@@ -796,6 +797,10 @@ export class DatabaseStorage implements IStorage {
       const [setting] = await db.insert(systemSettings).values(insertSetting).returning();
       return setting;
     }
+  }
+
+  async deleteSetting(key: string): Promise<void> {
+    await db.delete(systemSettings).where(eq(systemSettings.key, key));
   }
 
   async getSettings(): Promise<SystemSetting[]> {

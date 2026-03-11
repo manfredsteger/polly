@@ -136,6 +136,11 @@ router.post('/users', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Dieser Benutzername wird bereits verwendet.' });
     }
     
+    const validRoles = ['user', 'admin', 'manager'];
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({ error: `Ungültige Rolle. Erlaubte Rollen: ${validRoles.join(', ')}` });
+    }
+    
     const passwordHash = await bcrypt.hash(password, 12);
     
     const newUser = await storage.createUser({
@@ -144,7 +149,7 @@ router.post('/users', requireAdmin, async (req, res) => {
       username: username.toLowerCase().trim(),
       passwordHash,
       provider: 'local',
-      role: role && ['user', 'admin', 'manager'].includes(role) ? role : 'user',
+      role: role || 'user',
     });
     
     console.log(`[Admin] User created manually by admin: ${newUser.email} (ID: ${newUser.id})`);
@@ -289,6 +294,12 @@ router.get('/polls', requireAdmin, async (req, res) => {
 router.patch('/polls/:id', requireAdmin, async (req, res) => {
   try {
     const pollId = req.params.id;
+    
+    const existing = await storage.getPoll(pollId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Umfrage nicht gefunden' });
+    }
+    
     const { isActive, title, description, expiresAt, resultsPublic } = req.body;
     
     const updates: Record<string, any> = {};
@@ -313,6 +324,12 @@ router.patch('/polls/:id', requireAdmin, async (req, res) => {
 router.delete('/polls/:id', requireAdmin, async (req, res) => {
   try {
     const pollId = req.params.id;
+    
+    const existing = await storage.getPoll(pollId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Umfrage nicht gefunden' });
+    }
+    
     await storage.deletePoll(pollId);
     res.json({ success: true, message: 'Umfrage gelöscht' });
   } catch (error) {
@@ -347,7 +364,7 @@ router.post('/settings', requireAdmin, async (req, res) => {
 router.delete('/settings/:key', requireAdmin, async (req, res) => {
   try {
     const key = req.params.key;
-    await storage.setSetting({ key, value: null, description: 'Deleted' });
+    await storage.deleteSetting(key);
     res.json({ success: true, message: 'Einstellung gelöscht' });
   } catch (error) {
     console.error('Error deleting setting:', error);

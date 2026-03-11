@@ -268,10 +268,26 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     },
   });
 
+  const stripBase64Images = (obj: unknown): unknown => {
+    if (typeof obj === 'string' && obj.startsWith('data:image/')) {
+      return '[image-removed]';
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(stripBase64Images);
+    }
+    if (obj && typeof obj === 'object') {
+      return Object.fromEntries(
+        Object.entries(obj as Record<string, unknown>).map(([k, v]) => [k, stripBase64Images(v)])
+      );
+    }
+    return obj;
+  };
+
   const handleThemeJsonPreview = () => {
     try {
       const parsed = JSON.parse(themeJsonInput);
-      previewThemeMutation.mutate(parsed);
+      const cleaned = stripBase64Images(parsed);
+      previewThemeMutation.mutate(cleaned);
     } catch {
       toast({ title: t('admin.emailTemplates.toasts.invalidJson'), description: t('admin.emailTemplates.toasts.invalidJsonDescription'), variant: 'destructive' });
     }
@@ -453,7 +469,8 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   onClick={() => {
                     try {
                       const parsed = JSON.parse(themeJsonInput);
-                      confirmThemeImportMutation.mutate(parsed);
+                      const cleaned = stripBase64Images(parsed);
+                      confirmThemeImportMutation.mutate(cleaned);
                     } catch {
                       toast({ title: t('admin.emailTemplates.toasts.invalidJson'), description: t('admin.emailTemplates.toasts.invalidJsonDescription'), variant: 'destructive' });
                     }

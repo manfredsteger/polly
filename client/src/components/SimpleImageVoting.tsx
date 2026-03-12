@@ -33,7 +33,7 @@ export function SimpleImageVoting({
   adminPreview = false,
   allowMaybe = true
 }: SimpleImageVotingProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [votes, setVotes] = useState<Record<string, 'yes' | 'no' | 'maybe'>>(existingVotes);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -76,7 +76,7 @@ export function SimpleImageVoting({
   }, [votes, lightboxOpen]);
 
   if (!hasImages && textOptions.length === 0) {
-    return <div>No options available</div>;
+    return <div>{t('voting.noOptionsAvailable')}</div>;
   }
 
   return (
@@ -99,7 +99,7 @@ export function SimpleImageVoting({
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center">
                     <div className="text-white font-medium text-sm bg-black bg-opacity-50 px-3 py-1 rounded opacity-0 hover:opacity-100 transition-opacity">
-                      Click to enlarge
+                      {t('voting.clickToEnlarge')}
                     </div>
                   </div>
                   {/* Vote indicator */}
@@ -110,8 +110,8 @@ export function SimpleImageVoting({
                         currentVote === 'maybe' ? 'bg-yellow-500 text-black' :
                         'bg-red-600 text-white'
                       }`}>
-                        {currentVote === 'yes' ? 'Ja' :
-                         currentVote === 'maybe' ? 'Vielleicht' : 'Nein'}
+                        {currentVote === 'yes' ? t('voting.yes') :
+                         currentVote === 'maybe' ? t('voting.maybe') : t('voting.no')}
                       </div>
                     </div>
                   )}
@@ -131,7 +131,7 @@ export function SimpleImageVoting({
                         data-testid={`vote-yes-${index}`}
                       >
                         <Check className="w-4 h-4 mr-1" />
-                        Ja
+                        {t('voting.yes')}
                       </Button>
                       {allowMaybe && (
                         <Button
@@ -143,7 +143,7 @@ export function SimpleImageVoting({
                           data-testid={`vote-maybe-${index}`}
                         >
                           <Minus className="w-4 h-4 mr-1" />
-                          Vielleicht
+                          {t('voting.maybe')}
                         </Button>
                       )}
                       <Button
@@ -155,7 +155,7 @@ export function SimpleImageVoting({
                         data-testid={`vote-no-${index}`}
                       >
                         <X className="w-4 h-4 mr-1" />
-                        Nein
+                        {t('voting.no')}
                       </Button>
                     </div>
                   )}
@@ -169,7 +169,7 @@ export function SimpleImageVoting({
       {/* Text-only options */}
       {textOptions.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold mb-4">Text Optionen</h3>
+          <h3 className="text-lg font-semibold mb-4">{t('voting.textOptions')}</h3>
           {textOptions.map((option, textIndex) => {
             const currentVote = votes[String(option.id)];
             const globalIndex = imageOptions.length + textIndex;
@@ -187,7 +187,7 @@ export function SimpleImageVoting({
                       data-testid={`vote-yes-${globalIndex}`}
                     >
                       <Check className="w-4 h-4 mr-1" />
-                      Ja
+                      {t('voting.yes')}
                     </Button>
                     {allowMaybe && (
                       <Button
@@ -199,7 +199,7 @@ export function SimpleImageVoting({
                         data-testid={`vote-maybe-${globalIndex}`}
                       >
                         <Minus className="w-4 h-4 mr-1" />
-                        Vielleicht
+                        {t('voting.maybe')}
                       </Button>
                     )}
                     <Button
@@ -211,7 +211,7 @@ export function SimpleImageVoting({
                       data-testid={`vote-no-${globalIndex}`}
                     >
                       <X className="w-4 h-4 mr-1" />
-                      Nein
+                      {t('voting.no')}
                     </Button>
                   </div>
                 )}
@@ -308,7 +308,7 @@ export function SimpleImageVoting({
                       }}
                     >
                       <span style={{ fontSize: '20px' }}>✓</span>
-                      <span>Ja</span>
+                      <span>{t('voting.yes')}</span>
                     </button>
                     
                     {allowMaybe && (
@@ -334,7 +334,7 @@ export function SimpleImageVoting({
                         }}
                       >
                         <span style={{ fontSize: '20px' }}>−</span>
-                        <span>Vielleicht</span>
+                        <span>{t('voting.maybe')}</span>
                       </button>
                     )}
                     
@@ -360,7 +360,7 @@ export function SimpleImageVoting({
                       }}
                     >
                       <span style={{ fontSize: '20px' }}>✗</span>
-                      <span>Nein</span>
+                      <span>{t('voting.no')}</span>
                     </button>
                   </div>
                 )}

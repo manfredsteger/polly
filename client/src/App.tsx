@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
 
@@ -73,6 +74,7 @@ function Router() {
 
 function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -86,11 +88,11 @@ function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
     e.preventDefault();
     setError('');
     if (newPassword !== confirmPassword) {
-      setError('Passwörter stimmen nicht überein');
+      setError(t('forcePassword.passwordsMismatch'));
       return;
     }
     if (newPassword.length < 8) {
-      setError('Passwort muss mindestens 8 Zeichen lang sein');
+      setError(t('forcePassword.passwordTooShort'));
       return;
     }
     setLoading(true);
@@ -98,12 +100,12 @@ function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
       const res = await apiRequest('POST', '/api/v1/auth/change-password', { currentPassword, newPassword });
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || 'Fehler beim Ändern des Passworts');
+        setError(data.error || t('forcePassword.error'));
         return;
       }
       qc.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
     } catch {
-      setError('Fehler beim Ändern des Passworts');
+      setError(t('forcePassword.error'));
     } finally {
       setLoading(false);
     }
@@ -117,10 +119,10 @@ function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
           <DialogHeader>
             <div className="flex items-center gap-2 text-destructive">
               <ShieldAlert className="h-5 w-5" />
-              <DialogTitle>Passwort ändern erforderlich</DialogTitle>
+              <DialogTitle>{t('forcePassword.title')}</DialogTitle>
             </div>
             <DialogDescription>
-              Sie verwenden das Standard-Administratorpasswort. Aus Sicherheitsgründen müssen Sie Ihr Passwort ändern, bevor Sie fortfahren können.
+              {t('forcePassword.description')}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -130,20 +132,20 @@ function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="force-current">Aktuelles Passwort</Label>
+              <Label htmlFor="force-current">{t('forcePassword.currentPassword')}</Label>
               <Input id="force-current" type="password" autoComplete="off" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="force-new">Neues Passwort</Label>
+              <Label htmlFor="force-new">{t('forcePassword.newPassword')}</Label>
               <Input id="force-new" type="password" autoComplete="off" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="force-confirm">Neues Passwort bestätigen</Label>
+              <Label htmlFor="force-confirm">{t('forcePassword.confirmPassword')}</Label>
               <Input id="force-confirm" type="password" autoComplete="off" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={() => logout()}>Abmelden</Button>
-              <Button type="submit" disabled={loading}>{loading ? 'Wird geändert...' : 'Passwort ändern'}</Button>
+              <Button type="button" variant="outline" onClick={() => logout()}>{t('forcePassword.logout')}</Button>
+              <Button type="submit" disabled={loading}>{loading ? t('forcePassword.changing') : t('forcePassword.submit')}</Button>
             </div>
           </form>
         </DialogContent>

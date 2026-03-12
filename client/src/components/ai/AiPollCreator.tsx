@@ -41,13 +41,13 @@ function BetaBadge() {
   );
 }
 
-function QuotaInfo({ remaining }: { remaining: number | null }) {
-  if (remaining === null) return <span className="text-xs text-muted-foreground">Unbegrenzt</span>;
+function QuotaInfo({ remaining, t }: { remaining: number | null; t: (key: string, opts?: any) => string }) {
+  if (remaining === null) return <span className="text-xs text-muted-foreground">{t('aiCreator.unlimited')}</span>;
   if (remaining === 0)
-    return <span className="text-xs text-red-500">Kontingent aufgebraucht</span>;
+    return <span className="text-xs text-red-500">{t('aiCreator.quotaExhausted')}</span>;
   return (
     <span className="text-xs text-muted-foreground">
-      {remaining} Anfrage{remaining !== 1 ? "n" : ""} übrig
+      {t('aiCreator.requestsRemaining', { count: remaining })}
     </span>
   );
 }
@@ -56,6 +56,7 @@ export function AiPollCreatorButton({
   onApply,
   pollType,
 }: AiPollCreatorProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const { data: status } = useQuery<AiStatus>({
@@ -75,7 +76,7 @@ export function AiPollCreatorButton({
         onClick={() => setOpen(true)}
       >
         <Sparkles className="w-3.5 h-3.5 text-primary" />
-        Mit KI erstellen
+        {t('aiCreator.createWithAi')}
         <BetaBadge />
       </Button>
 
@@ -106,22 +107,17 @@ function AiPollCreatorDialog({
   status: AiStatus;
   pollType?: "schedule" | "survey" | "organization";
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const [description, setDescription] = useState("");
   const [suggestion, setSuggestion] = useState<PollSuggestion | null>(null);
 
   const lang = i18n.language?.startsWith("de") ? "de" : "en";
 
-  const placeholders: Record<string, string> = {
-    schedule: "z.B. Teambesprechung für nächste Woche planen, 5–6 Personen, bevorzugt Dienstag oder Donnerstag morgens",
-    survey: "z.B. Zufriedenheitsumfrage für unsere letzte Teamveranstaltung",
-    organization: "z.B. Mittagspausen-Schichten für 3 Personen, Montag bis Freitag",
-  };
-
-  const placeholder =
-    (pollType && placeholders[pollType]) ||
-    "Beschreibe deine Umfrage oder Terminabfrage...";
+  const placeholderKey = pollType
+    ? `aiCreator.placeholder${pollType.charAt(0).toUpperCase() + pollType.slice(1)}`
+    : "aiCreator.placeholderDefault";
+  const placeholder = t(placeholderKey);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -131,7 +127,7 @@ function AiPollCreatorDialog({
       setSuggestion(data.suggestion);
     },
     onError: async (err: any) => {
-      let msg = "KI-Anfrage fehlgeschlagen";
+      let msg = t('aiCreator.requestFailed');
       try {
         const data = await err.json?.();
         if (data?.error) msg = data.error;
@@ -148,35 +144,42 @@ function AiPollCreatorDialog({
 
   const canUse = status.canUse;
 
+  const getReasonMessage = () => {
+    if (status.reason === "GUEST_NOT_ALLOWED") return t('aiCreator.guestNotAllowed');
+    if (status.reason === "RATE_LIMIT_EXCEEDED") {
+      const timeStr = status.resetAt
+        ? new Date(status.resetAt).toLocaleTimeString(lang === "de" ? "de-DE" : "en-US", { hour: "2-digit", minute: "2-digit" })
+        : t('aiCreator.rateLimitLater');
+      return t('aiCreator.rateLimitExceeded', { time: timeStr });
+    }
+    return t('aiCreator.notAvailable');
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); setSuggestion(null); setDescription(""); } }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-primary" />
-            KI-Assistent
+            {t('aiCreator.title')}
             <BetaBadge />
           </DialogTitle>
           <DialogDescription>
-            Beschreibe deine Umfrage — die KI schlägt Titel, Beschreibung und Optionen vor.
+            {t('aiCreator.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">GWDG SAIA · DSGVO-konform · Server in Deutschland</span>
-            <QuotaInfo remaining={status.remaining ?? null} />
+            <span className="text-muted-foreground">{t('aiCreator.gdprNote')}</span>
+            <QuotaInfo remaining={status.remaining ?? null} t={t} />
           </div>
 
           {!canUse && (
             <Alert className="border-red-500/30 bg-red-50 dark:bg-red-950/20">
               <AlertCircle className="w-4 h-4 text-red-500" />
               <AlertDescription className="text-red-700 dark:text-red-400 text-sm">
-                {status.reason === "GUEST_NOT_ALLOWED"
-                  ? "Bitte melde dich an, um den KI-Assistenten zu nutzen."
-                  : status.reason === "RATE_LIMIT_EXCEEDED"
-                  ? `Stundenlimit erreicht. Versuche es ${status.resetAt ? `ab ${new Date(status.resetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr` : "später"} erneut.`
-                  : "KI-Assistent momentan nicht verfügbar."}
+                {getReasonMessage()}
               </AlertDescription>
             </Alert>
           )}
@@ -201,11 +204,11 @@ function AiPollCreatorDialog({
               ) : (
                 <Sparkles className="w-4 h-4" />
               )}
-              {mutation.isPending ? "Erstelle..." : "Vorschlag generieren"}
+              {mutation.isPending ? t('aiCreator.generating') : t('aiCreator.generate')}
             </Button>
             {suggestion && (
               <Button variant="ghost" size="sm" onClick={handleGenerate} disabled={mutation.isPending}>
-                <RefreshCw className="w-3.5 h-3.5 mr-1" /> Neu generieren
+                <RefreshCw className="w-3.5 h-3.5 mr-1" /> {t('aiCreator.regenerate')}
               </Button>
             )}
           </div>
@@ -213,20 +216,20 @@ function AiPollCreatorDialog({
           {suggestion && (
             <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
               <div className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
-                <CheckCircle className="w-4 h-4" /> Vorschlag
+                <CheckCircle className="w-4 h-4" /> {t('aiCreator.suggestion')}
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-0.5">Titel</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t('aiCreator.suggestionTitle')}</p>
                 <p className="text-sm font-medium">{suggestion.title}</p>
               </div>
               {suggestion.description && (
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Beschreibung</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('aiCreator.suggestionDescription')}</p>
                   <p className="text-sm">{suggestion.description}</p>
                 </div>
               )}
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Optionen ({suggestion.options.length})</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('aiCreator.suggestionOptions', { count: suggestion.options.length })}</p>
                 <ul className="space-y-1">
                   {suggestion.options.map((opt, i) => (
                     <li key={i} className="text-sm flex items-start gap-1.5">
@@ -237,7 +240,7 @@ function AiPollCreatorDialog({
                 </ul>
               </div>
               <Button onClick={() => onApply(suggestion)} className="w-full gap-2" size="sm">
-                <CheckCircle className="w-4 h-4" /> Vorschlag übernehmen
+                <CheckCircle className="w-4 h-4" /> {t('aiCreator.apply')}
               </Button>
             </div>
           )}

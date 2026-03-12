@@ -58,10 +58,10 @@ const POLL_TYPE_ROUTES: Record<AiSuggestion["pollType"], string> = {
   organization: "/create-organization",
 };
 
-const POLL_TYPE_LABELS_DE: Record<AiSuggestion["pollType"], string> = {
-  schedule: "Terminumfrage",
-  survey: "Umfrage",
-  organization: "Orga-Liste",
+const POLL_TYPE_LABEL_KEYS: Record<AiSuggestion["pollType"], string> = {
+  schedule: "aiWidget.pollTypeSchedule",
+  survey: "aiWidget.pollTypeSurvey",
+  organization: "aiWidget.pollTypeOrganization",
 };
 
 const SETTINGS_DEFAULTS: Record<AiSuggestion["pollType"], AiSuggestionSettings> = {
@@ -101,98 +101,57 @@ const PROMPTS_EN = [
 ];
 
 function getQuickSuggestions(
-  lang: "de" | "en",
+  t: (key: string) => string,
   pollType: AiSuggestion["pollType"],
   settings: AiSuggestionSettings
 ): string[] {
   const chips: string[] = [];
 
-  if (lang === "de") {
-    if (settings.resultsPublic) {
-      chips.push("Ergebnisse nur für den Ersteller sichtbar machen");
-    } else {
-      chips.push("Ergebnisse für alle Teilnehmer öffentlich machen");
-    }
-    if (settings.allowVoteEdit) {
-      chips.push("Abgaben sollen endgültig sein – keine Änderungen mehr möglich");
-    } else {
-      chips.push("Teilnehmer sollen ihre Abgabe nachträglich ändern können");
-    }
-    if (settings.allowVoteWithdrawal) {
-      chips.push("Abmeldungen sperren – Buchungen sollen verbindlich sein");
-    } else {
-      chips.push("Teilnehmer sollen sich nachträglich abmelden können");
-    }
-    if (pollType === "organization") {
-      if (settings.allowMultipleSlots) {
-        chips.push("Jede Person darf sich nur für einen einzigen Slot anmelden");
-      } else {
-        chips.push("Mehrere Slots pro Teilnehmer erlauben");
-      }
-      chips.push("Begrenze die Plätze pro Station auf 5 Personen");
-      chips.push("Füge weitere Stationen oder Zeitslots hinzu");
-    } else if (pollType === "schedule") {
-      if (settings.allowMaybe) {
-        chips.push("Nur Ja/Nein als Antworten – kein 'Vielleicht'");
-      } else {
-        chips.push("'Vielleicht' als Antwortmöglichkeit hinzufügen");
-      }
-      chips.push("Füge weitere Terminoptionen hinzu");
-      chips.push("Beschränke die Termine auf Werktage");
-    } else if (pollType === "survey") {
-      if (settings.allowMaybe) {
-        chips.push("Nur Ja/Nein als Antworten – kein 'Vielleicht'");
-      } else {
-        chips.push("'Vielleicht' als Abstimmungsoption hinzufügen");
-      }
-      chips.push("Füge weitere Antwortmöglichkeiten hinzu");
-    }
+  if (settings.resultsPublic) {
+    chips.push(t("aiWidget.quickSuggestions.resultsOnlyCreator"));
   } else {
-    if (settings.resultsPublic) {
-      chips.push("Make results visible only to the creator");
+    chips.push(t("aiWidget.quickSuggestions.resultsPublicAll"));
+  }
+  if (settings.allowVoteEdit) {
+    chips.push(t("aiWidget.quickSuggestions.submissionsFinal"));
+  } else {
+    chips.push(t("aiWidget.quickSuggestions.allowEditSubmission"));
+  }
+  if (settings.allowVoteWithdrawal) {
+    chips.push(t("aiWidget.quickSuggestions.disableWithdrawals"));
+  } else {
+    chips.push(t("aiWidget.quickSuggestions.allowWithdrawal"));
+  }
+  if (pollType === "organization") {
+    if (settings.allowMultipleSlots) {
+      chips.push(t("aiWidget.quickSuggestions.singleSlotOnly"));
     } else {
-      chips.push("Make results visible to all participants");
+      chips.push(t("aiWidget.quickSuggestions.allowMultipleSlots"));
     }
-    if (settings.allowVoteEdit) {
-      chips.push("Submissions should be final – no changes allowed after submitting");
+    chips.push(t("aiWidget.quickSuggestions.limitSpots"));
+    chips.push(t("aiWidget.quickSuggestions.addMoreStations"));
+  } else if (pollType === "schedule") {
+    if (settings.allowMaybe) {
+      chips.push(t("aiWidget.quickSuggestions.yesNoOnly"));
     } else {
-      chips.push("Allow participants to change their submission later");
+      chips.push(t("aiWidget.quickSuggestions.addMaybe"));
     }
-    if (settings.allowVoteWithdrawal) {
-      chips.push("Disable withdrawals – sign-ups should be binding");
+    chips.push(t("aiWidget.quickSuggestions.addMoreDates"));
+    chips.push(t("aiWidget.quickSuggestions.weekdaysOnly"));
+  } else if (pollType === "survey") {
+    if (settings.allowMaybe) {
+      chips.push(t("aiWidget.quickSuggestions.yesNoOnly"));
     } else {
-      chips.push("Allow participants to withdraw their sign-up later");
+      chips.push(t("aiWidget.quickSuggestions.addMaybeVoting"));
     }
-    if (pollType === "organization") {
-      if (settings.allowMultipleSlots) {
-        chips.push("Each person may only sign up for one slot");
-      } else {
-        chips.push("Allow participants to sign up for multiple slots");
-      }
-      chips.push("Limit spots per slot to 5 people");
-      chips.push("Add more stations or time slots");
-    } else if (pollType === "schedule") {
-      if (settings.allowMaybe) {
-        chips.push("Only Yes/No answers – remove 'Maybe' option");
-      } else {
-        chips.push("Add 'Maybe' as an answer option");
-      }
-      chips.push("Add more date and time options");
-      chips.push("Restrict the options to weekdays only");
-    } else if (pollType === "survey") {
-      if (settings.allowMaybe) {
-        chips.push("Only Yes/No answers – remove 'Maybe' option");
-      } else {
-        chips.push("Add 'Maybe' as a voting option");
-      }
-      chips.push("Add more answer options");
-    }
+    chips.push(t("aiWidget.quickSuggestions.addMoreOptions"));
   }
 
   return chips;
 }
 
 function SortableOptionItem({ id, index, text }: { id: string; index: number; text: string }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   return (
     <li
@@ -208,7 +167,7 @@ function SortableOptionItem({ id, index, text }: { id: string; index: number; te
         {...attributes}
         {...listeners}
         className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors shrink-0 touch-none"
-        aria-label="Ziehen zum Sortieren"
+        aria-label={t("aiWidget.dragToSort")}
       >
         <GripVertical className="w-3.5 h-3.5" />
       </span>
@@ -564,9 +523,7 @@ export function AiChatWidget() {
       setTimeout(() => followUpRef.current?.focus({ preventScroll: true }), 400);
     },
     onError: (err: any) => {
-      let message = lang === "de"
-        ? "Anpassung fehlgeschlagen. Bitte erneut versuchen."
-        : "Refinement failed. Please try again.";
+      let message = t("aiWidget.refineFailed");
       try {
         const errMsg = err?.message || "";
         const jsonStart = errMsg.indexOf("{");
@@ -628,7 +585,7 @@ export function AiChatWidget() {
 
   const isRefining = refineMutation.isPending;
   const pollTypeLabel = suggestion
-    ? (lang === "de" ? POLL_TYPE_LABELS_DE[suggestion.pollType] : suggestion.pollType)
+    ? t(POLL_TYPE_LABEL_KEYS[suggestion.pollType])
     : "";
 
   return (
@@ -833,7 +790,7 @@ export function AiChatWidget() {
 
             {/* Quick suggestion chips — dynamic, always opposite of current settings */}
             {(() => {
-              const chips = getQuickSuggestions(lang === "de" ? "de" : "en", suggestion.pollType, localSettings);
+              const chips = getQuickSuggestions(t, suggestion.pollType, localSettings);
               if (chips.length === 0) return null;
               const visibleChips = chips.filter((c) => !selectedChips.includes(c));
               return (
@@ -857,7 +814,7 @@ export function AiChatWidget() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground/60 italic">Alle Optionen ausgewählt ✓</p>
+                    <p className="text-xs text-muted-foreground/60 italic">{t("aiWidget.allOptionsSelected")}</p>
                   )}
                 </div>
               );
@@ -866,7 +823,7 @@ export function AiChatWidget() {
             {/* Selected chips as removable tags */}
             {selectedChips.length > 0 && (
               <div className="mx-3 mb-2 bg-primary/5 rounded-xl p-2.5">
-                <p className="text-[10px] text-primary/60 mb-1.5 font-medium">Wird angepasst:</p>
+                <p className="text-[10px] text-primary/60 mb-1.5 font-medium">{t("aiWidget.beingAdjusted")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedChips.map((chip) => (
                     <span
@@ -878,7 +835,7 @@ export function AiChatWidget() {
                         type="button"
                         onClick={() => setSelectedChips((prev) => prev.filter((c) => c !== chip))}
                         className="ml-0.5 rounded-full hover:bg-primary/20 transition-colors p-0.5"
-                        aria-label="Entfernen"
+                        aria-label={t("aiWidget.remove")}
                       >
                         <X className="w-2.5 h-2.5" />
                       </button>

@@ -178,23 +178,23 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-foreground">
-            {isOrganization ? 'Eintragungen' : 'Ergebnisse'}
+            {isOrganization ? t('results.entries') : t('results.resultsTitle')}
           </h2>
           <p className="text-muted-foreground">
             {isOrganization 
-              ? `${participantCount} ${participantCount === 1 ? 'Person hat' : 'Personen haben'} sich eingetragen`
-              : `${participantCount} ${participantCount === 1 ? 'Person hat' : 'Personen haben'} abgestimmt`
+              ? (participantCount === 1 ? t('results.personSignedUpSingular', { count: participantCount }) : t('results.personSignedUpPlural', { count: participantCount }))
+              : (participantCount === 1 ? t('results.personVotedSingular', { count: participantCount }) : t('results.personVotedPlural', { count: participantCount }))
             }
           </p>
         </div>
         <div className="flex space-x-3">
           <Button variant="outline" onClick={handleExportCSV}>
             <FileText className="w-4 h-4 mr-2" />
-            CSV Export
+            {t('results.csvExport')}
           </Button>
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="w-4 h-4 mr-2" />
-            PDF Export
+            {t('results.pdfExport')}
           </Button>
         </div>
       </div>
@@ -204,26 +204,26 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">
-              {isOrganization ? 'Gesamte Eintragungen' : 'Gesamte Abstimmungen'}
+              {isOrganization ? t('results.totalEntries') : t('results.totalVotes')}
             </span>
             <span className="text-sm font-medium text-foreground">
               {isOrganization 
-                ? `${results.votes.length} ${results.votes.length === 1 ? 'Eintragung' : 'Eintragungen'}`
-                : `${participantCount} ${participantCount === 1 ? 'Stimme' : 'Stimmen'}`
+                ? `${results.votes.length} ${results.votes.length === 1 ? t('results.entrySingular') : t('results.entriesPlural')}`
+                : `${participantCount} ${participantCount === 1 ? t('results.voteSingular') : t('results.votesPlural')}`
               }
             </span>
           </div>
           <div className="flex items-center space-x-4 mt-4">
             <div className="flex items-center space-x-2">
               <Users className="w-4 h-4 text-polly-blue" />
-              <span className="text-sm text-muted-foreground">Teilnehmer: {participantCount}</span>
+              <span className="text-sm text-muted-foreground">{t('results.participantsLabel', { count: participantCount })}</span>
             </div>
             <div className="flex items-center space-x-2">
               <Check className="w-4 h-4 text-green-600" />
               <span className="text-sm text-muted-foreground">
                 {isOrganization 
-                  ? `Gesamte Eintragungen: ${results.votes.length}`
-                  : `Gesamte Stimmen: ${results.votes.length}`
+                  ? t('results.totalEntriesCount', { count: results.votes.length })
+                  : t('results.totalVotesCount', { count: results.votes.length })
                 }
               </span>
             </div>
@@ -241,17 +241,17 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           <CardContent className="p-6">
             <div className="flex items-center space-x-3 mb-2">
               <Crown className={poll.type === 'schedule' ? 'w-5 h-5 text-orange-600 dark:text-orange-400' : 'w-5 h-5 text-teal-600 dark:text-teal-400'} />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Beliebteste Option</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t('results.bestOption')}</h3>
               <Badge className={
                 poll.type === 'schedule' ? 'polly-badge-schedule-solid' : 
                 poll.type === 'organization' ? 'polly-badge-organization-solid' :
                 'polly-badge-survey-solid'
               }>
-                {bestOption.score} Punkte
+                {t('results.points', { count: bestOption.score })}
               </Badge>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-              Bewertung: Ja = 2 Punkte, Vielleicht = 1 Punkt, Nein = 0 Punkte
+              {t('results.scoringDescription')}
             </p>
             <div className="flex items-center space-x-3 mb-2">
               {bestOptionData.imageUrl && (
@@ -275,12 +275,12 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
             {bestOptionData.startTime && bestOptionData.endTime && (
               <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                 <Calendar className="w-4 h-4 mr-1" />
-                {new Date(bestOptionData.startTime).toLocaleDateString('de-DE')}
+                {new Date(bestOptionData.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
                 <Clock className="w-4 h-4 ml-3 mr-1" />
-                {new Date(bestOptionData.startTime).toLocaleTimeString('de-DE', { 
+                {new Date(bestOptionData.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                   hour: '2-digit', 
                   minute: '2-digit' 
-                })} - {new Date(bestOptionData.endTime).toLocaleTimeString('de-DE', { 
+                })} - {new Date(bestOptionData.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                   hour: '2-digit', 
                   minute: '2-digit' 
                 })}
@@ -317,17 +317,17 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                           {isSchedule ? (
                             <div className="flex flex-col items-center text-xs">
                               <span className="font-semibold">
-                                {new Date(option.startTime!).toLocaleDateString('de-DE', { 
+                                {new Date(option.startTime!).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   weekday: 'short',
                                   day: '2-digit',
                                   month: '2-digit'
                                 })}
                               </span>
                               <span className="text-muted-foreground">
-                                {new Date(option.startTime!).toLocaleTimeString('de-DE', { 
+                                {new Date(option.startTime!).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
-                                })} - {new Date(option.endTime!).toLocaleTimeString('de-DE', { 
+                                })} - {new Date(option.endTime!).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
                                 })}
@@ -479,16 +479,16 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                             <span className="font-semibold"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></span>
                             {option.startTime && option.endTime && (
                               <span className="text-muted-foreground">
-                                {new Date(option.startTime).toLocaleDateString('de-DE', { 
+                                {new Date(option.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   weekday: 'short',
                                   day: '2-digit',
                                   month: '2-digit'
                                 })}
                                 <br />
-                                {new Date(option.startTime).toLocaleTimeString('de-DE', { 
+                                {new Date(option.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
-                                })} - {new Date(option.endTime).toLocaleTimeString('de-DE', { 
+                                })} - {new Date(option.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
                                 })}
@@ -548,7 +548,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                   ) : (
                     <tr>
                       <td colSpan={options.length + 1} className="py-4 text-center text-muted-foreground text-sm italic">
-                        Noch keine Eintragungen vorhanden
+                        {t('results.noEntriesYet')}
                       </td>
                     </tr>
                   )}
@@ -556,7 +556,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 <tfoot>
                   <tr className="border-t-2 border-border font-medium">
                     <td className="text-left py-2 px-3 text-sm text-muted-foreground">
-                      Gesamt
+                      {t('results.total')}
                     </td>
                     {options.map((option) => {
                       const slotVotes = results.votes.filter(v => v.optionId === option.id && v.response === 'yes');
@@ -581,7 +581,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       {isOrganization ? (
         <Card className="polly-card">
           <CardHeader>
-            <CardTitle>Slots und Eintragungen</CardTitle>
+            <CardTitle>{t('results.slotsAndEntries')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -686,7 +686,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                           <>
                             <Badge className={isFull ? "bg-red-100 text-red-900" : "bg-green-100 text-green-900"}>
                               {signupCount} / {capacity || '∞'}
-                              {isFull && <span className="ml-1">voll</span>}
+                              {isFull && <span className="ml-1">{t('results.full')}</span>}
                             </Badge>
                             {isAdminAccess && onCapacityUpdate && (
                               <Button
@@ -728,7 +728,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic">{t('organizationSlot.noEntries', 'Noch keine Eintragungen')}</p>
+                      <p className="text-sm text-muted-foreground italic">{t('results.noEntriesYet')}</p>
                     )}
                   </div>
                 );
@@ -739,7 +739,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       ) : (
         <Card className="polly-card">
           <CardHeader>
-            <CardTitle>Detaillierte Ergebnisse</CardTitle>
+            <CardTitle>{t('results.detailedResults')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -747,31 +747,31 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 font-medium text-foreground">
-                      Option
+                      {t('results.option')}
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-24">
                       <div className="flex items-center justify-center space-x-1">
                         <Check className="w-4 h-4 text-green-600" />
-                        <span>Ja</span>
+                        <span>{t('voting.yes')}</span>
                       </div>
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-24">
                       <div className="flex items-center justify-center space-x-1">
                         <HelpCircle className="w-4 h-4 text-yellow-600" />
-                        <span>Vielleicht</span>
+                        <span>{t('voting.maybe')}</span>
                       </div>
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-24">
                       <div className="flex items-center justify-center space-x-1">
                         <X className="w-4 h-4 text-red-600" />
-                        <span>Nein</span>
+                        <span>{t('voting.no')}</span>
                       </div>
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-32">
                       <div className="flex flex-col items-center">
-                        <span>Punkte</span>
+                        <span>{t('results.pointsHeader')}</span>
                         <span className="text-xs text-muted-foreground font-normal">
-                          (Ja=2, Vielleicht=1, Nein=0)
+                          ({t('voting.yes')}=2, {t('voting.maybe')}=1, {t('voting.no')}=0)
                         </span>
                       </div>
                     </th>
@@ -812,11 +812,11 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                               </div>
                               {option.startTime && option.endTime && (
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  {new Date(option.startTime).toLocaleDateString('de-DE')} • {' '}
-                                  {new Date(option.startTime).toLocaleTimeString('de-DE', { 
+                                  {new Date(option.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} • {' '}
+                                  {new Date(option.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                     hour: '2-digit', 
                                     minute: '2-digit' 
-                                  })} - {new Date(option.endTime).toLocaleTimeString('de-DE', { 
+                                  })} - {new Date(option.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                     hour: '2-digit', 
                                     minute: '2-digit' 
                                   })}
@@ -1010,7 +1010,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     }}>
                       <span style={{ fontSize: '24px', color: '#10b981' }}>✓</span>
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.yesCount}</span>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#10b981' }}>Ja</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#10b981' }}>{t('voting.yes')}</span>
                     </div>
                     
                     {/* Vielleicht Button Style */}
@@ -1027,7 +1027,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     }}>
                       <span style={{ fontSize: '24px', color: '#f59e0b' }}>~</span>
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.maybeCount}</span>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#f59e0b' }}>Vielleicht</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#f59e0b' }}>{t('voting.maybe')}</span>
                     </div>
                     
                     {/* Nein Button Style */}
@@ -1044,7 +1044,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     }}>
                       <span style={{ fontSize: '24px', color: '#ef4444' }}>✗</span>
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.noCount}</span>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#ef4444' }}>Nein</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#ef4444' }}>{t('voting.no')}</span>
                     </div>
                   </div>
                   
@@ -1058,7 +1058,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     borderRadius: '8px'
                   }}>
                     <span style={{ fontSize: '16px', fontWeight: '600', color: '#fbbf24' }}>
-                      Punkte: {currentStat.score}
+                      {t('results.pointsLabel', { count: currentStat.score })}
                     </span>
                   </div>
                 </div>

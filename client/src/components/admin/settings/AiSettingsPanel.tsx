@@ -15,12 +15,12 @@ import { useToast } from "@/hooks/use-toast";
 import type { AiSettings } from "@shared/schema";
 
 const GWDG_MODELS = [
-  { id: "llama-3.3-70b-instruct", name: "LLaMA 3.3 70B", note: "Empfohlen" },
-  { id: "gemma-3-27b-it", name: "Gemma 3 27B", note: "Schnell" },
-  { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B", note: "Reasoning" },
-  { id: "qwen3-235b-a22b", name: "Qwen3 235B", note: "Sehr stark" },
-  { id: "mistral-large-3-675b-instruct-2512", name: "Mistral Large 675B", note: "Größtes Modell" },
-  { id: "meta-llama-3.1-8b-instruct", name: "LLaMA 3.1 8B", note: "Sehr schnell" },
+  { id: "llama-3.3-70b-instruct", name: "LLaMA 3.3 70B", noteKey: "modelRecommended" },
+  { id: "gemma-3-27b-it", name: "Gemma 3 27B", noteKey: "modelFast" },
+  { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B", noteKey: "modelReasoning" },
+  { id: "qwen3-235b-a22b", name: "Qwen3 235B", noteKey: "modelVeryStrong" },
+  { id: "mistral-large-3-675b-instruct-2512", name: "Mistral Large 675B", noteKey: "modelLargest" },
+  { id: "meta-llama-3.1-8b-instruct", name: "LLaMA 3.1 8B", noteKey: "modelVeryFast" },
 ];
 
 interface Props {
@@ -46,12 +46,14 @@ function RoleLimitControl({
   requestsPerHour,
   onEnabledChange,
   onLimitChange,
+  t,
 }: {
   label: string;
   enabled: boolean;
   requestsPerHour: number | null;
   onEnabledChange: (v: boolean) => void;
   onLimitChange: (v: number | null) => void;
+  t: (key: string) => string;
 }) {
   const [unlimited, setUnlimited] = useState(requestsPerHour === null);
   const [localValue, setLocalValue] = useState(requestsPerHour ?? 5);
@@ -84,7 +86,7 @@ function RoleLimitControl({
               id={`unlimited-${label}`}
             />
             <Label htmlFor={`unlimited-${label}`} className="text-xs text-muted-foreground flex items-center gap-1">
-              <Infinity className="w-3 h-3" /> Unbegrenzt
+              <Infinity className="w-3 h-3" /> {t('admin.aiSettings.unlimited')}
             </Label>
           </div>
           {!unlimited && (
@@ -97,7 +99,7 @@ function RoleLimitControl({
                 onChange={(e) => handleValueChange(e.target.value)}
                 className="w-20 h-7 text-xs"
               />
-              <span className="text-xs text-muted-foreground">/Stunde</span>
+              <span className="text-xs text-muted-foreground">{t('admin.aiSettings.perHour')}</span>
             </div>
           )}
         </div>
@@ -137,10 +139,10 @@ export function AiSettingsPanel({ onBack }: Props) {
       setNewApiKey("");
       setNewApiKeyFallback("");
       setNewApiUrl("");
-      toast({ title: "KI-Einstellungen gespeichert" });
+      toast({ title: t('admin.aiSettings.savedToast') });
     },
     onError: () => {
-      toast({ title: "Fehler beim Speichern", variant: "destructive" });
+      toast({ title: t('admin.aiSettings.saveError'), variant: "destructive" });
     },
   });
 
@@ -171,7 +173,7 @@ export function AiSettingsPanel({ onBack }: Props) {
   };
 
   if (isLoading || !settings) {
-    return <div className="p-8 text-center text-muted-foreground">Lade...</div>;
+    return <div className="p-8 text-center text-muted-foreground">{t('admin.aiSettings.loading')}</div>;
   }
 
   const apiOk = data?.apiConfigured;
@@ -180,11 +182,11 @@ export function AiSettingsPanel({ onBack }: Props) {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-1" /> Zurück
+          <ArrowLeft className="w-4 h-4 mr-1" /> {t('admin.aiSettings.back')}
         </Button>
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-semibold">KI-Assistent</h2>
+          <h2 className="text-xl font-semibold">{t('admin.aiSettings.title')}</h2>
           <Badge variant="secondary" className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30">
             Beta
           </Badge>
@@ -195,8 +197,7 @@ export function AiSettingsPanel({ onBack }: Props) {
         <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
           <Info className="w-4 h-4 text-amber-600" />
           <AlertDescription className="text-amber-700 dark:text-amber-400">
-            Kein API-Key konfiguriert. Hinterlege den GWDG SAIA Bearer Token entweder als Umgebungsvariable
-            (<code className="font-mono text-xs">AI_API_KEY</code>) oder über die Felder unten.
+            {t('admin.aiSettings.noApiKeyWarning')}
           </AlertDescription>
         </Alert>
       )}
@@ -205,16 +206,16 @@ export function AiSettingsPanel({ onBack }: Props) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Key className="w-4 h-4" /> API-Konfiguration
+              <Key className="w-4 h-4" /> {t('admin.aiSettings.apiConfiguration')}
             </CardTitle>
             <CardDescription>
-              Umgebungsvariablen haben Vorrang. Wenn gesetzt, sind die Felder schreibgeschützt.
+              {t('admin.aiSettings.envPrecedence')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <Label>API-Key</Label>
+                <Label>{t('admin.aiSettings.apiKey')}</Label>
                 {data?.apiKeyViaEnv && <EnvBadge />}
               </div>
               {data?.apiKeyViaEnv ? (
@@ -232,7 +233,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="password"
-                      placeholder={data?.hasApiKey ? "••••••••  (gespeichert)" : "Bearer Token eingeben"}
+                      placeholder={data?.hasApiKey ? t('admin.aiSettings.apiKeyPlaceholderSaved') : t('admin.aiSettings.apiKeyPlaceholder')}
                       value={newApiKey}
                       onChange={(e) => setNewApiKey(e.target.value)}
                       className="font-mono text-xs"
@@ -248,7 +249,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={handleClearApiKey}
-                        title="Gespeicherten Key löschen"
+                        title={t('admin.aiSettings.deleteKeyTitle')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -256,7 +257,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                   </div>
                   {!data?.hasApiKey && (
                     <p className="text-xs text-muted-foreground">
-                      Alternativ als Umgebungsvariable <code className="font-mono">AI_API_KEY</code> setzen
+                      {t('admin.aiSettings.envAlternative')}
                     </p>
                   )}
                 </div>
@@ -265,7 +266,7 @@ export function AiSettingsPanel({ onBack }: Props) {
 
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <Label>Fallback-Key</Label>
+                <Label>{t('admin.aiSettings.fallbackKey')}</Label>
                 {data?.apiKeyFallbackViaEnv && <EnvBadge />}
               </div>
               {data?.apiKeyFallbackViaEnv ? (
@@ -283,7 +284,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="password"
-                      placeholder={data?.hasApiKeyFallback ? "••••••••  (gespeichert)" : "Optional: Fallback Bearer Token"}
+                      placeholder={data?.hasApiKeyFallback ? t('admin.aiSettings.apiKeyPlaceholderSaved') : t('admin.aiSettings.fallbackPlaceholder')}
                       value={newApiKeyFallback}
                       onChange={(e) => setNewApiKeyFallback(e.target.value)}
                       className="font-mono text-xs"
@@ -296,7 +297,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={handleClearApiKeyFallback}
-                          title="Gespeicherten Fallback-Key löschen"
+                          title={t('admin.aiSettings.deleteFallbackTitle')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -304,7 +305,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Wird bei HTTP 429 (Rate-Limit) automatisch verwendet
+                    {t('admin.aiSettings.fallbackUsageNote')}
                   </p>
                 </div>
               )}
@@ -312,7 +313,7 @@ export function AiSettingsPanel({ onBack }: Props) {
 
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <Label>API-URL</Label>
+                <Label>{t('admin.aiSettings.apiUrl')}</Label>
                 {data?.apiUrlViaEnv && <EnvBadge />}
               </div>
               {data?.apiUrlViaEnv ? (
@@ -338,7 +339,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                     className="font-mono text-xs"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Standard: <code className="font-mono">https://saia.gwdg.de/v1</code>
+                    {t('admin.aiSettings.defaultUrl')} <code className="font-mono">https://saia.gwdg.de/v1</code>
                   </p>
                 </div>
               )}
@@ -349,15 +350,15 @@ export function AiSettingsPanel({ onBack }: Props) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Zap className="w-4 h-4" /> Allgemein
+              <Zap className="w-4 h-4" /> {t('admin.aiSettings.general')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>KI-Funktion aktivieren</Label>
+                <Label>{t('admin.aiSettings.enableAi')}</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Aktiviert den KI-Assistenten für alle konfigurierten Rollen
+                  {t('admin.aiSettings.enableAiDescription')}
                 </p>
               </div>
               <Switch
@@ -367,7 +368,7 @@ export function AiSettingsPanel({ onBack }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Modell</Label>
+              <Label>{t('admin.aiSettings.model')}</Label>
               <Select
                 value={settings.model}
                 onValueChange={(v) => update({ model: v })}
@@ -379,14 +380,14 @@ export function AiSettingsPanel({ onBack }: Props) {
                   {GWDG_MODELS.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       <span>{m.name}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">({m.note})</span>
+                      <span className="ml-2 text-xs text-muted-foreground">({t(`admin.aiSettings.${m.noteKey}`)})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {data?.envModel && (
                 <p className="text-xs text-muted-foreground">
-                  Env-Override aktiv: <code className="font-mono">{data.envModel}</code>
+                  {t('admin.aiSettings.envOverride')} <code className="font-mono">{data.envModel}</code>
                 </p>
               )}
             </div>
@@ -399,7 +400,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                   <XCircle className="w-4 h-4 text-red-500" />
                 )}
                 <span className="text-muted-foreground">
-                  API-Key: {apiOk ? "Konfiguriert" : "Nicht gesetzt"}
+                  {t('admin.aiSettings.apiKey')}: {apiOk ? t('admin.aiSettings.apiKeyConfigured') : t('admin.aiSettings.apiKeyNotSet')}
                 </span>
                 {apiOk && data?.apiKeyViaEnv && (
                   <span className="text-xs text-muted-foreground">(ENV)</span>
@@ -411,7 +412,7 @@ export function AiSettingsPanel({ onBack }: Props) {
               {data?.fallbackConfigured && (
                 <div className="flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-muted-foreground">Fallback-Key: Konfiguriert</span>
+                  <span className="text-muted-foreground">{t('admin.aiSettings.fallbackKeyConfigured')}</span>
                 </div>
               )}
             </div>
@@ -420,14 +421,14 @@ export function AiSettingsPanel({ onBack }: Props) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Rate-Limiting pro Rolle</CardTitle>
+            <CardTitle className="text-base">{t('admin.aiSettings.rateLimiting')}</CardTitle>
             <CardDescription>
-              Kontingente pro Stunde. Unbegrenzt = keine Begrenzung, 0 = deaktiviert.
+              {t('admin.aiSettings.rateLimitingDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <RoleLimitControl
-              label="Gäste (nicht angemeldet)"
+              label={t('admin.aiSettings.guests')}
               enabled={settings.guestLimits.enabled}
               requestsPerHour={settings.guestLimits.requestsPerHour}
               onEnabledChange={(v) =>
@@ -436,9 +437,10 @@ export function AiSettingsPanel({ onBack }: Props) {
               onLimitChange={(v) =>
                 update({ guestLimits: { ...settings.guestLimits, requestsPerHour: v } })
               }
+              t={t}
             />
             <RoleLimitControl
-              label="Angemeldete Nutzer"
+              label={t('admin.aiSettings.authenticatedUsers')}
               enabled={settings.userLimits.enabled}
               requestsPerHour={settings.userLimits.requestsPerHour}
               onEnabledChange={(v) =>
@@ -447,9 +449,10 @@ export function AiSettingsPanel({ onBack }: Props) {
               onLimitChange={(v) =>
                 update({ userLimits: { ...settings.userLimits, requestsPerHour: v } })
               }
+              t={t}
             />
             <RoleLimitControl
-              label="Administratoren"
+              label={t('admin.aiSettings.administrators')}
               enabled={settings.adminLimits.enabled}
               requestsPerHour={settings.adminLimits.requestsPerHour}
               onEnabledChange={(v) =>
@@ -458,6 +461,7 @@ export function AiSettingsPanel({ onBack }: Props) {
               onLimitChange={(v) =>
                 update({ adminLimits: { ...settings.adminLimits, requestsPerHour: v } })
               }
+              t={t}
             />
           </CardContent>
         </Card>
@@ -465,10 +469,10 @@ export function AiSettingsPanel({ onBack }: Props) {
 
       <div className="flex gap-2">
         <Button onClick={handleSave} disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? "Speichert..." : "Einstellungen speichern"}
+          {saveMutation.isPending ? t('admin.aiSettings.saving') : t('admin.aiSettings.saveSettings')}
         </Button>
         <Button variant="outline" onClick={onBack}>
-          Abbrechen
+          {t('admin.aiSettings.cancel')}
         </Button>
       </div>
     </div>

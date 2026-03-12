@@ -6,3 +6,9 @@ id = "OQ6_BDrejb-HuZQVwzvnR"
 uri = "file://.local/stack-analyse-polly.md"
 type = "text"
 title = "Stack-Analyse & Migrationsbericht: Polly → Canonical Stack"
+
+[[outputs]]
+id = "32j2umQnmIB66UTjwerbv"
+uri = "file://.local/polly-canonical-stack-abgleich.md"
+type = "text"
+title = "Polly vs. Canonical Stack — Release-Risikobewertung"

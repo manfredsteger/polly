@@ -293,13 +293,9 @@ e2e-tests:
     max: 2
     when: unknown_failure
   before_script:
-    - rm -rf /tmp/polly-src 2>/dev/null || true
-    - git clone --depth=1 "${GITHUB_REPO_URL}" /tmp/polly-src
-    - rm -rf /tmp/polly-src/.git
-    - cp -r /tmp/polly-src/. .
-    - rm -rf /tmp/polly-src
+    - apt-get update && apt-get install -y git postgresql-client curl
+    - *github_clone
     - mkdir -p playwright-report test-results
-    - apt-get update && apt-get install -y postgresql-client curl
   services:
     - postgres:15
   variables:

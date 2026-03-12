@@ -104,8 +104,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     if (currentRunError && isRunning) {
       setIsRunning(false);
       toast({
-        title: t('admin.tests.error', 'Verbindungsfehler'),
-        description: t('admin.tests.pollingStoppedError', 'Statusabfrage wurde gestoppt. Bitte Seite neu laden.'),
+        title: t('admin.tests.error'),
+        description: t('admin.tests.pollingStoppedError'),
         variant: 'destructive',
       });
     }

@@ -20,11 +20,11 @@ export default function NotFound() {
             
             <h1 className="text-6xl font-bold text-foreground mb-2">404</h1>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              {t('notFound.title', 'Seite nicht gefunden')}
+              {t('notFound.title')}
             </h2>
 
             <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
-              {t('notFound.description', 'Die gesuchte Seite existiert nicht oder wurde verschoben.')}
+              {t('notFound.description')}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -35,12 +35,12 @@ export default function NotFound() {
                 data-testid="button-go-back"
               >
                 <ArrowLeft className="h-4 w-4" />
-                {t('notFound.goBack', 'Zurück')}
+                {t('notFound.goBack')}
               </Button>
               <Button asChild className="gap-2 polly-button-primary w-full sm:w-auto" data-testid="button-go-home">
                 <Link href="/">
                   <Home className="h-4 w-4" />
-                  {t('notFound.goHome', 'Zur Startseite')}
+                  {t('notFound.goHome')}
                 </Link>
               </Button>
             </div>

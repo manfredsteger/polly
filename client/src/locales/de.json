@@ -1947,7 +1947,9 @@
         "notConnected": "Nicht verbunden",
         "configuredViaEnv": "Via Env konfiguriert",
         "openSettings": "Einstellungen öffnen"
-      }
+      },
+      "error": "Verbindungsfehler",
+      "pollingStoppedError": "Statusabfrage wurde gestoppt. Bitte Seite neu laden."
     },
     "oidc": {
       "backToSettings": "Zurück zu Einstellungen",
@@ -3411,7 +3413,8 @@
     "suggestionTitle": "Titel",
     "suggestionDescription": "Beschreibung",
     "suggestionOptions": "Optionen ({{count}})",
-    "apply": "Vorschlag übernehmen"
+    "apply": "Vorschlag übernehmen",
+    "requestsRemaining": "{{count}} Anfragen verbleibend"
   },
   "forcePassword": {
     "title": "Passwort ändern erforderlich",

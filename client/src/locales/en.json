@@ -1841,7 +1841,9 @@
         "notConnected": "Not connected",
         "configuredViaEnv": "Configured via Env",
         "openSettings": "Open Settings"
-      }
+      },
+      "error": "Connection error",
+      "pollingStoppedError": "Status polling stopped. Please reload the page."
     },
     "deprovision": {
       "title": "External Deprovisioning",
@@ -3411,7 +3413,8 @@
     "suggestionTitle": "Title",
     "suggestionDescription": "Description",
     "suggestionOptions": "Options ({{count}})",
-    "apply": "Apply suggestion"
+    "apply": "Apply suggestion",
+    "requestsRemaining": "{{count}} requests remaining"
   },
   "forcePassword": {
     "title": "Password change required",

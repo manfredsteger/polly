@@ -47,7 +47,7 @@ interface PollFormData {
 export default function CreatePoll() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAuthenticated } = useAuth();
   
   const [title, setTitle] = useState("");
@@ -116,7 +116,7 @@ export default function CreatePoll() {
             const [, day, month, year, startH, endH] = match;
             const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             parsed.push({
-              text: `${dateObj.toLocaleDateString("de-DE")} ${startH} - ${endH}`,
+              text: `${dateObj.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} ${startH} - ${endH}`,
               startTime: new Date(dateObj.toDateString() + " " + startH).toISOString(),
               endTime: new Date(dateObj.toDateString() + " " + endH).toISOString(),
               order: i,
@@ -235,7 +235,7 @@ export default function CreatePoll() {
   const addTimeSlot = (date: Date, startTime: string, endTime: string) => {
     setOptions((prevOptions) => {
       const option: PollOption = {
-        text: `${date.toLocaleDateString('de-DE')} ${startTime} - ${endTime}`,
+        text: `${date.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} ${startTime} - ${endTime}`,
         startTime: new Date(date.toDateString() + ' ' + startTime).toISOString(),
         endTime: new Date(date.toDateString() + ' ' + endTime).toISOString(),
         order: prevOptions.length,
@@ -277,7 +277,7 @@ export default function CreatePoll() {
         if (i === editIndex) {
           return {
             ...opt,
-            text: `${editDate.toLocaleDateString('de-DE')} ${editStartTime} - ${editEndTime}`,
+            text: `${editDate.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} ${editStartTime} - ${editEndTime}`,
             startTime: new Date(editDate.toDateString() + ' ' + editStartTime).toISOString(),
             endTime: new Date(editDate.toDateString() + ' ' + editEndTime).toISOString(),
           };
@@ -689,7 +689,7 @@ export default function CreatePoll() {
             <DialogDescription>
               {editDate && (
                 <span className="font-medium text-foreground">
-                  {editDate.toLocaleDateString('de-DE', { 
+                  {editDate.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
                     month: 'long', 

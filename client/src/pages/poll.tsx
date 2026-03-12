@@ -108,7 +108,7 @@ const generateOptionText = (startTime: string | undefined, endTime: string | und
   const startDate = new Date(startTime);
   const endDate = new Date(endTime);
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '';
-  const dateStr = startDate.toLocaleDateString('de-DE');
+  const dateStr = startDate.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US');
   const startTimeStr = extractTimeFromISO(startTime);
   const endTimeStr = extractTimeFromISO(endTime);
   return `${dateStr} ${startTimeStr} - ${endTimeStr}`;
@@ -670,12 +670,12 @@ export default function Poll() {
           )}
           <span className="flex items-center">
             <Clock className="w-4 h-4 mr-1" />
-            {t('pollView.created')}: {new Date(poll.createdAt).toLocaleDateString('de-DE')}
+            {t('pollView.created')}: {new Date(poll.createdAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
           </span>
           {poll.expiresAt && (
             <span className="flex items-center">
               <Calendar className="w-4 h-4 mr-1" />
-              {t('pollView.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString('de-DE')}
+              {t('pollView.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
             </span>
           )}
           {results && (

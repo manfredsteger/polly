@@ -6,6 +6,9 @@ const CLIENT_SRC = path.resolve(__dirname, '../../../client/src');
 const LOCALES_DIR = path.join(CLIENT_SRC, 'locales');
 
 function readJson(filePath: string) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Locale file not found: ${filePath}. Ensure client/src/locales/ is available.`);
+  }
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 

@@ -118,10 +118,8 @@ COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/vite.config.ts ./
 COPY vitest.config.ts ./
 
-# Copy client source files needed by UI consistency tests (alertConsistency.test.ts)
-COPY --from=builder /app/client/src/components ./client/src/components
-COPY --from=builder /app/client/src/pages ./client/src/pages
-COPY --from=builder /app/client/src/index.css ./client/src/index.css
+# Copy client source files needed by UI tests (alertConsistency, i18n-hardcoded-strings)
+COPY --from=builder /app/client/src ./client/src
 
 # Copy migrations for schema setup
 COPY migrations ./migrations

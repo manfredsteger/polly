@@ -865,7 +865,7 @@ export function AiChatWidget() {
                     isRefining ||
                     !status?.canUse
                   }
-                  className="h-8 px-3 shrink-0 gap-1.5 rounded-lg mr-1"
+                  className="h-9 px-3.5 shrink-0 gap-1.5 rounded-lg mr-1"
                 >
                   {isRefining ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -362,7 +362,7 @@ export function AiChatWidget() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const followUpRef = useRef<HTMLTextAreaElement>(null);
+  const followUpRef = useRef<HTMLInputElement>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
   const originalInputRef = useRef<string>("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -401,16 +401,21 @@ export function AiChatWidget() {
     };
   }, []);
 
+  const voiceTargetRef = useRef<"main" | "followup">("main");
+  const activeRecordingTargetRef = useRef<"main" | "followup">("main");
+
   const transcribeVoice = useCallback(async (audioBlob: Blob) => {
     if (audioBlob.size < 1024) return;
     setIsTranscribing(true);
+    const target = activeRecordingTargetRef.current;
     try {
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
       const response = await fetch("/api/v1/ai/transcribe", { method: "POST", body: formData });
       const result = await response.json();
       if (result.success && result.text) {
-        setInputValue((prev) => {
+        const setter = target === "followup" ? setFollowUpValue : setInputValue;
+        setter((prev) => {
           const trimmed = prev.trim();
           return trimmed ? `${trimmed} ${result.text.trim()}` : result.text.trim();
         });
@@ -423,6 +428,7 @@ export function AiChatWidget() {
   }, []);
 
   const startRecording = useCallback(async () => {
+    activeRecordingTargetRef.current = voiceTargetRef.current;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       toast({ title: t("home.aiMicError"), variant: "destructive" });
       return;
@@ -587,12 +593,18 @@ export function AiChatWidget() {
     }
   };
 
-  const handleFollowUpKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleFollowUpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleRefine();
     }
   };
+
+  const toggleFollowUpListening = useCallback(() => {
+    voiceTargetRef.current = "followup";
+    if (isListening) stopRecording();
+    else startRecording();
+  }, [isListening, startRecording, stopRecording]);
 
   if (statusLoading || statusError || (status && (!status.enabled || !status.apiConfigured))) return null;
 
@@ -653,7 +665,7 @@ export function AiChatWidget() {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={toggleListening}
+                    onClick={() => { voiceTargetRef.current = "main"; toggleListening(); }}
                     disabled={isTranscribing || mutation.isPending}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors select-none disabled:opacity-40 disabled:cursor-not-allowed ${
                       isListening
@@ -792,7 +804,7 @@ export function AiChatWidget() {
 
           {/* Follow-up refinement box */}
           <div className="border-t border-border/60 bg-muted/10">
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-4 pt-4 pb-3">
               <p className="text-base font-semibold text-foreground">
                 {t("aiWidget.followUpTitle")}
               </p>
@@ -801,53 +813,68 @@ export function AiChatWidget() {
               </p>
             </div>
 
-            {/* Free-text input + Anpassen button — directly after explanation */}
-            <div className="flex items-end gap-2 px-4 pb-4 pt-1">
-              <textarea
-                ref={followUpRef}
-                value={followUpValue}
-                onChange={(e) => setFollowUpValue(e.target.value)}
-                onKeyDown={handleFollowUpKeyDown}
-                rows={2}
-                placeholder={
-                  selectedChips.length > 0
-                    ? t("aiWidget.followUpPlaceholderOptional")
-                    : t("aiWidget.followUpPlaceholder")
-                }
-                disabled={isRefining}
-                className="flex-1 resize-none bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors disabled:opacity-50"
-              />
-              <Button
-                type="button"
-                onClick={handleRefine}
-                disabled={
-                  (selectedChips.length === 0 && followUpValue.trim().length < 3) ||
-                  isRefining ||
-                  !status?.canUse
-                }
-                className="h-[52px] px-4 shrink-0 gap-2"
-              >
-                {isRefining ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
+            {/* Slim chat input — single line with voice + send */}
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-0 border border-border rounded-xl bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/50 transition-colors">
+                <button
+                  type="button"
+                  onClick={toggleFollowUpListening}
+                  disabled={isTranscribing || isRefining}
+                  className={`flex items-center justify-center w-10 h-10 shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isListening && voiceTargetRef.current === "followup"
+                      ? "text-primary animate-pulse"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title={t("home.aiMicTooltip")}
+                >
+                  {isTranscribing && voiceTargetRef.current === "followup" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </button>
+                <input
+                  ref={followUpRef}
+                  type="text"
+                  value={followUpValue}
+                  onChange={(e) => setFollowUpValue(e.target.value)}
+                  onKeyDown={handleFollowUpKeyDown}
+                  placeholder={
+                    selectedChips.length > 0
+                      ? t("aiWidget.followUpPlaceholderOptional")
+                      : t("aiWidget.followUpPlaceholder")
+                  }
+                  disabled={isRefining}
+                  className="flex-1 min-w-0 bg-transparent px-0 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-50"
+                />
+                {followUpValue.length > 0 && (
+                  <span className={`text-xs tabular-nums px-1 shrink-0 ${
+                    followUpValue.length > 2800 ? "text-red-500" :
+                    followUpValue.length > 2500 ? "text-amber-500" :
+                    "text-muted-foreground/40"
+                  }`}>
+                    {followUpValue.length.toLocaleString()}/3000
+                  </span>
                 )}
-                <span>
-                  {isRefining ? t("aiWidget.followUpLoading") : t("aiWidget.followUpSubmit")}
-                </span>
-              </Button>
-            </div>
-            {followUpValue.length > 0 && (
-              <div className="px-4 -mt-3 pb-2 flex justify-end">
-                <span className={`text-xs tabular-nums transition-colors ${
-                  followUpValue.length > 2800 ? "text-red-500" :
-                  followUpValue.length > 2500 ? "text-amber-500" :
-                  "text-muted-foreground/40"
-                }`}>
-                  {followUpValue.length.toLocaleString()} / 3 000
-                </span>
+                <button
+                  type="button"
+                  onClick={handleRefine}
+                  disabled={
+                    (selectedChips.length === 0 && followUpValue.trim().length < 3) ||
+                    isRefining ||
+                    !status?.canUse
+                  }
+                  className="flex items-center gap-1.5 h-10 px-3 shrink-0 text-sm font-medium text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isRefining ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{isRefining ? t("aiWidget.followUpLoading") : t("aiWidget.followUpSubmit")}</span>
+                </button>
               </div>
-            )}
+            </div>
             {refineError && (
               <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -862,7 +889,8 @@ export function AiChatWidget() {
               const visibleChips = chips.filter((c) => !selectedChips.includes(c));
               return (
                 <div className="px-4 pb-3">
-                  <p className="text-sm font-semibold text-foreground mb-2">{t("aiWidget.quickSuggestionsLabel")}</p>
+                  <p className="text-sm font-semibold text-foreground">{t("aiWidget.quickSuggestionsLabel")}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5 mb-2">{t("aiWidget.quickSuggestionsHint")}</p>
                   {visibleChips.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {visibleChips.map((chip) => (
@@ -870,7 +898,7 @@ export function AiChatWidget() {
                           key={chip}
                           type="button"
                           onClick={() => setSelectedChips((prev) => [...prev, chip])}
-                          className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-border bg-background hover:bg-primary/10 hover:border-primary/40 hover:border-solid text-foreground/80 hover:text-foreground transition-all cursor-pointer"
+                          className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-foreground/30 bg-transparent hover:bg-primary/10 hover:border-primary/40 hover:border-solid text-foreground hover:text-foreground transition-all cursor-pointer"
                         >
                           {chip}
                         </button>

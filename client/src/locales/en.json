@@ -2812,6 +2812,7 @@
     "followUpSubmit": "Refine",
     "followUpLoading": "Refining...",
     "quickSuggestionsLabel": "Common refinements",
+    "quickSuggestionsHint": "Click a refinement to apply it.",
     "followUpPlaceholderOptional": "Add something else (optional)...",
     "applyLoading": "Creating...",
     "applyError": "Failed to create the poll. Please try again.",

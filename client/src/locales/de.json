@@ -2812,6 +2812,7 @@
     "followUpSubmit": "Anpassen",
     "followUpLoading": "Wird angepasst...",
     "quickSuggestionsLabel": "Häufige Anpassungen",
+    "quickSuggestionsHint": "Klicke auf eine Anpassung, um sie zu übernehmen.",
     "followUpPlaceholderOptional": "Noch etwas ergänzen (optional)...",
     "applyLoading": "Wird erstellt...",
     "applyError": "Fehler beim Erstellen der Umfrage. Bitte versuche es erneut.",

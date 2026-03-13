@@ -6,6 +6,12 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ## User Preferences
 - **Communication**: Simple, everyday language (German).
 - **Git Commits**: Aussagekräftige, beschreibende Commit-Nachrichten auf Englisch (kein "saved progress"). Format: Kurzer Titel + optionale Details zu den Änderungen.
+- **i18n Discipline (MANDATORY)**: Every user-visible string in the frontend MUST use `t()` from react-i18next. When adding, changing, or removing any UI text:
+  1. Always add/update the key in BOTH `client/src/locales/de.json` AND `client/src/locales/en.json`.
+  2. If a text is modified, update the translation in both locale files immediately.
+  3. If a new key is added, both German and English translations must be provided — never leave one language empty or missing.
+  4. Run `node scripts/validate-translations.cjs` after locale changes to verify key parity, no duplicates, and no empty values.
+  5. The i18n regression test suite (`server/tests/ui/i18n-hardcoded-strings.test.ts`, 152 tests) must pass before any PR or deployment.
 
 ## System Architecture
 

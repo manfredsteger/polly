@@ -856,23 +856,24 @@ export function AiChatWidget() {
                     {followUpValue.length.toLocaleString()}/3000
                   </span>
                 )}
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={handleRefine}
                   disabled={
                     (selectedChips.length === 0 && followUpValue.trim().length < 3) ||
                     isRefining ||
                     !status?.canUse
                   }
-                  className="flex items-center gap-1.5 h-10 px-3 shrink-0 text-sm font-medium text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="h-8 px-3 shrink-0 gap-1.5 rounded-lg mr-1"
                 >
                   {isRefining ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
-                    <Send className="w-4 h-4" />
+                    <Send className="w-3.5 h-3.5" />
                   )}
                   <span>{isRefining ? t("aiWidget.followUpLoading") : t("aiWidget.followUpSubmit")}</span>
-                </button>
+                </Button>
               </div>
             </div>
             {refineError && (

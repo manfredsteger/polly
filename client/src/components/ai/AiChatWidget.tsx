@@ -792,11 +792,11 @@ export function AiChatWidget() {
 
           {/* Follow-up refinement box */}
           <div className="border-t border-border/60 bg-muted/10">
-            <div className="px-4 pt-3 pb-1">
-              <p className="text-sm font-semibold text-foreground/80">
+            <div className="px-4 pt-4 pb-2">
+              <p className="text-base font-semibold text-foreground">
                 {t("aiWidget.followUpTitle")}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-sm text-muted-foreground mt-1">
                 {t("aiWidget.followUpHint")}
               </p>
             </div>
@@ -807,27 +807,23 @@ export function AiChatWidget() {
               if (chips.length === 0) return null;
               const visibleChips = chips.filter((c) => !selectedChips.includes(c));
               return (
-                <div className="px-3 pb-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-px flex-1 bg-border/50" />
-                    <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">{t("aiWidget.quickSuggestionsLabel")}</span>
-                    <div className="h-px flex-1 bg-border/50" />
-                  </div>
+                <div className="px-4 pb-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t("aiWidget.quickSuggestionsLabel")}</p>
                   {visibleChips.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {visibleChips.map((chip) => (
                         <button
                           key={chip}
                           type="button"
                           onClick={() => setSelectedChips((prev) => [...prev, chip])}
-                          className="text-xs px-2.5 py-1 rounded-lg border border-transparent bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          className="text-sm px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-primary/10 hover:border-primary/40 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                         >
                           {chip}
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground/60 italic">{t("aiWidget.allOptionsSelected")}</p>
+                    <p className="text-sm text-muted-foreground/60 italic">{t("aiWidget.allOptionsSelected")}</p>
                   )}
                 </div>
               );
@@ -835,13 +831,13 @@ export function AiChatWidget() {
 
             {/* Selected chips as removable tags */}
             {selectedChips.length > 0 && (
-              <div className="mx-3 mb-2 bg-primary/5 rounded-xl p-2.5">
-                <p className="text-[10px] text-primary/60 mb-1.5 font-medium">{t("aiWidget.beingAdjusted")}</p>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="mx-4 mb-3 bg-primary/5 rounded-xl p-3">
+                <p className="text-xs font-medium text-primary/70 mb-2 uppercase tracking-wide">{t("aiWidget.beingAdjusted")}</p>
+                <div className="flex flex-wrap gap-2">
                   {selectedChips.map((chip) => (
                     <span
                       key={chip}
-                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary font-medium"
+                      className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/30 text-primary font-medium"
                     >
                       {chip}
                       <button
@@ -850,7 +846,7 @@ export function AiChatWidget() {
                         className="ml-0.5 rounded-full hover:bg-primary/20 transition-colors p-0.5"
                         aria-label={t("aiWidget.remove")}
                       >
-                        <X className="w-2.5 h-2.5" />
+                        <X className="w-3 h-3" />
                       </button>
                     </span>
                   ))}
@@ -858,7 +854,7 @@ export function AiChatWidget() {
               </div>
             )}
 
-            <div className="flex items-end gap-2 px-3 pb-3 pt-1">
+            <div className="flex items-end gap-2 px-4 pb-4 pt-1">
               <textarea
                 ref={followUpRef}
                 value={followUpValue}
@@ -871,25 +867,24 @@ export function AiChatWidget() {
                     : t("aiWidget.followUpPlaceholder")
                 }
                 disabled={isRefining}
-                className="flex-1 resize-none bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors disabled:opacity-50"
+                className="flex-1 resize-none bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors disabled:opacity-50"
               />
               <Button
                 type="button"
-                size="sm"
                 onClick={handleRefine}
                 disabled={
                   (selectedChips.length === 0 && followUpValue.trim().length < 3) ||
                   isRefining ||
                   !status?.canUse
                 }
-                className="h-[52px] px-3 shrink-0 gap-1.5"
+                className="h-[52px] px-4 shrink-0 gap-2"
               >
                 {isRefining ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
-                <span className="hidden sm:inline">
+                <span>
                   {isRefining ? t("aiWidget.followUpLoading") : t("aiWidget.followUpSubmit")}
                 </span>
               </Button>

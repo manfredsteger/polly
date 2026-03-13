@@ -779,13 +779,13 @@ export function AiChatWidget() {
             </div>
           </div>
 
-          {/* Apply button section */}
-          <div className="px-4 pb-4 pt-3 bg-primary/5 border-t-2 border-primary/20">
+          {/* Apply button section — prominent CTA */}
+          <div className="px-4 pb-4 pt-3 border-t-2 border-primary/30">
             <Button
               onClick={handleApply}
-              className="w-full h-12 text-base font-semibold gap-2.5 shadow-md hover:shadow-lg transition-shadow"
+              className="w-full h-14 text-lg font-bold gap-3 shadow-lg hover:shadow-xl transition-all bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
             >
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-6 h-6" />
               {`${t("home.aiApply")} → ${pollTypeLabel}`}
             </Button>
           </div>
@@ -801,59 +801,7 @@ export function AiChatWidget() {
               </p>
             </div>
 
-            {/* Quick suggestion chips — dynamic, always opposite of current settings */}
-            {(() => {
-              const chips = getQuickSuggestions(t, suggestion.pollType, localSettings);
-              if (chips.length === 0) return null;
-              const visibleChips = chips.filter((c) => !selectedChips.includes(c));
-              return (
-                <div className="px-4 pb-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t("aiWidget.quickSuggestionsLabel")}</p>
-                  {visibleChips.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {visibleChips.map((chip) => (
-                        <button
-                          key={chip}
-                          type="button"
-                          onClick={() => setSelectedChips((prev) => [...prev, chip])}
-                          className="text-sm px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-primary/10 hover:border-primary/40 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                        >
-                          {chip}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground/60 italic">{t("aiWidget.allOptionsSelected")}</p>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Selected chips as removable tags */}
-            {selectedChips.length > 0 && (
-              <div className="mx-4 mb-3 bg-primary/5 rounded-xl p-3">
-                <p className="text-xs font-medium text-primary/70 mb-2 uppercase tracking-wide">{t("aiWidget.beingAdjusted")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedChips.map((chip) => (
-                    <span
-                      key={chip}
-                      className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/30 text-primary font-medium"
-                    >
-                      {chip}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedChips((prev) => prev.filter((c) => c !== chip))}
-                        className="ml-0.5 rounded-full hover:bg-primary/20 transition-colors p-0.5"
-                        aria-label={t("aiWidget.remove")}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
+            {/* Free-text input + Anpassen button — directly after explanation */}
             <div className="flex items-end gap-2 px-4 pb-4 pt-1">
               <textarea
                 ref={followUpRef}
@@ -890,7 +838,7 @@ export function AiChatWidget() {
               </Button>
             </div>
             {followUpValue.length > 0 && (
-              <div className="px-3 pb-1 flex justify-end">
+              <div className="px-4 -mt-3 pb-2 flex justify-end">
                 <span className={`text-xs tabular-nums transition-colors ${
                   followUpValue.length > 2800 ? "text-red-500" :
                   followUpValue.length > 2500 ? "text-amber-500" :
@@ -901,9 +849,62 @@ export function AiChatWidget() {
               </div>
             )}
             {refineError && (
-              <div className="mx-3 mb-3 flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
+              <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-red-600 dark:text-red-400">{refineError}</p>
+              </div>
+            )}
+
+            {/* Quick suggestion chips — dynamic, always opposite of current settings */}
+            {(() => {
+              const chips = getQuickSuggestions(t, suggestion.pollType, localSettings);
+              if (chips.length === 0) return null;
+              const visibleChips = chips.filter((c) => !selectedChips.includes(c));
+              return (
+                <div className="px-4 pb-3">
+                  <p className="text-sm font-semibold text-foreground mb-2">{t("aiWidget.quickSuggestionsLabel")}</p>
+                  {visibleChips.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {visibleChips.map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setSelectedChips((prev) => [...prev, chip])}
+                          className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-border bg-background hover:bg-primary/10 hover:border-primary/40 hover:border-solid text-foreground/80 hover:text-foreground transition-all cursor-pointer"
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground/60 italic">{t("aiWidget.allOptionsSelected")}</p>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Selected chips as removable tags */}
+            {selectedChips.length > 0 && (
+              <div className="px-4 pb-4">
+                <p className="text-sm font-semibold text-foreground mb-2">{t("aiWidget.beingAdjusted")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedChips.map((chip) => (
+                    <span
+                      key={chip}
+                      className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-primary border border-primary text-primary-foreground font-medium"
+                    >
+                      {chip}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedChips((prev) => prev.filter((c) => c !== chip))}
+                        className="ml-0.5 rounded-full hover:bg-primary-foreground/20 transition-colors p-0.5"
+                        aria-label={t("aiWidget.remove")}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>

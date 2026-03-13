@@ -307,8 +307,11 @@ export default function CreateOrganization() {
 
         type RawSlot = { id: string; text: string; startTime?: string; endTime?: string; maxCapacity?: number; order: number; _isoDate?: string };
 
+        const optionTexts: string[] = suggestion.options.map((opt: any) =>
+          typeof opt === "string" ? opt : opt.text || ""
+        );
         const aiBaseId = nextSlotIdRef.current;
-        nextSlotIdRef.current += (suggestion.options as string[]).length;
+        nextSlotIdRef.current += optionTexts.length;
 
         const toIso = (date: string, time: string): string | undefined => {
           if (!date || !time) return undefined;
@@ -319,7 +322,7 @@ export default function CreateOrganization() {
           } catch { return undefined; }
         };
 
-        const rawParsed: RawSlot[] = (suggestion.options as string[]).map((text: string, i: number) => {
+        const rawParsed: RawSlot[] = optionTexts.map((text: string, i: number) => {
           const dateMatch = text.match(DATE_PREFIX_RE);
           const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
           const capMatch = text.match(/\(max\.?\s*(\d+)/i);

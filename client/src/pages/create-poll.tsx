@@ -110,7 +110,8 @@ export default function CreatePoll() {
       if (suggestion.description) setDescription(suggestion.description);
       if (Array.isArray(suggestion.options) && suggestion.options.length > 0) {
         const parsed: PollOption[] = [];
-        suggestion.options.forEach((opt: string, i: number) => {
+        suggestion.options.forEach((rawOpt: any, i: number) => {
+          const opt = typeof rawOpt === "string" ? rawOpt : rawOpt.text || "";
           const match = opt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
           if (match) {
             const [, day, month, year, startH, endH] = match;

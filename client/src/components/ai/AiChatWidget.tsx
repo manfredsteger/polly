@@ -44,12 +44,18 @@ export interface AiSuggestionSettings {
   allowMultipleSlots?: boolean;
 }
 
+export type AiOptionItem = string | { text: string; isFreeText?: boolean };
+
 export interface AiSuggestion {
   pollType: "schedule" | "survey" | "organization";
   title: string;
   description: string;
-  options: string[];
+  options: AiOptionItem[];
   settings?: AiSuggestionSettings;
+}
+
+function getOptionText(opt: AiOptionItem): string {
+  return typeof opt === "string" ? opt : opt.text;
 }
 
 const POLL_TYPE_ROUTES: Record<AiSuggestion["pollType"], string> = {
@@ -150,9 +156,11 @@ function getQuickSuggestions(
   return chips;
 }
 
-function SortableOptionItem({ id, index, text }: { id: string; index: number; text: string }) {
+function SortableOptionItem({ id, index, option }: { id: string; index: number; option: AiOptionItem }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const displayText = getOptionText(option);
+  const isFreeText = typeof option === "object" && option.isFreeText;
   return (
     <li
       ref={setNodeRef}
@@ -174,7 +182,12 @@ function SortableOptionItem({ id, index, text }: { id: string; index: number; te
       <span className="bg-primary/10 text-primary text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 font-medium">
         {index + 1}
       </span>
-      <span className="text-sm">{text}</span>
+      <span className="text-sm">{displayText}</span>
+      {isFreeText && (
+        <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full shrink-0">
+          {t("aiWidget.freeText")}
+        </span>
+      )}
     </li>
   );
 }
@@ -343,7 +356,7 @@ export function AiChatWidget() {
   const [localSettings, setLocalSettings] = useState<AiSuggestionSettings>({});
   const [followUpValue, setFollowUpValue] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
-  const [orderedOptions, setOrderedOptions] = useState<string[]>([]);
+  const [orderedOptions, setOrderedOptions] = useState<AiOptionItem[]>([]);
   const [refineError, setRefineError] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -750,7 +763,7 @@ export function AiChatWidget() {
                   >
                     <ul className="space-y-1.5">
                       {orderedOptions.map((opt, i) => (
-                        <SortableOptionItem key={`opt-${i}`} id={`opt-${i}`} index={i} text={opt} />
+                        <SortableOptionItem key={`opt-${i}`} id={`opt-${i}`} index={i} option={opt} />
                       ))}
                     </ul>
                   </SortableContext>

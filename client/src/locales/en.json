@@ -2821,6 +2821,7 @@
     "beingAdjusted": "Being adjusted:",
     "remove": "Remove",
     "dragToSort": "Drag to sort",
+    "freeText": "Free text",
     "refineFailed": "Refinement failed. Please try again.",
     "pollTypeSchedule": "Schedule poll",
     "pollTypeSurvey": "Survey",

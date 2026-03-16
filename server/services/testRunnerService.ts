@@ -1023,9 +1023,11 @@ export function parseTestCases(content: string): ParsedTest[] {
   const lines = content.split('\n');
   
   let inBlockComment = false;
+  let insideForEach = false;
+  let forEachDepth = 0;
   
-  for (const line of lines) {
-    const trimmed = line.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
     
     if (inBlockComment) {
       if (trimmed.includes('*/')) {
@@ -1045,28 +1047,41 @@ export function parseTestCases(content: string): ParsedTest[] {
       continue;
     }
     
-    const testMatch = trimmed.match(/(?:it|test)(?:\.skip|\.todo|\.only)?\s*\(\s*(?:'([^']+)'|"([^"]+)"|`([^`]+)`)/);
-    if (testMatch) {
-      const name = testMatch[1] || testMatch[2] || testMatch[3];
-      if (name) {
-        tests.push({ name });
+    if (insideForEach) {
+      forEachDepth += (trimmed.match(/\{/g) || []).length;
+      forEachDepth -= (trimmed.match(/\}/g) || []).length;
+      if (forEachDepth <= 0) {
+        insideForEach = false;
+        forEachDepth = 0;
       }
+      continue;
+    }
+    
+    const forEachMatch = trimmed.match(/\.forEach\s*\(\s*(?:\(?[^)]*\)?\s*=>\s*\{?|function)/);
+    if (forEachMatch) {
+      insideForEach = true;
+      forEachDepth = (trimmed.match(/\{/g) || []).length - (trimmed.match(/\}/g) || []).length;
+      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+        const nextTrimmed = lines[j].trim();
+        if (nextTrimmed.match(/(?:it|test)(?:\.skip|\.todo|\.only)?\s*\(\s*(?:'|"|`)/)) {
+          tests.push({ name: `[dynamic/forEach] ${nextTrimmed.substring(0, 60)}` });
+          break;
+        }
+      }
+      continue;
     }
     
     const eachMatch = trimmed.match(/(?:it|test)\.each\s*[\[(]/);
     if (eachMatch) {
       tests.push({ name: `[dynamic] ${trimmed.substring(0, 60)}` });
+      continue;
     }
     
-    const forEachMatch = trimmed.match(/\.forEach\s*\(\s*(?:\(?[^)]*\)?\s*=>\s*\{?|function)/);
-    if (forEachMatch) {
-      const nextLines = lines.slice(lines.indexOf(line) + 1, lines.indexOf(line) + 10);
-      for (const nextLine of nextLines) {
-        const innerTest = nextLine.trim().match(/(?:it|test)(?:\.skip|\.todo|\.only)?\s*\(\s*(?:'|"|`)/);
-        if (innerTest) {
-          tests.push({ name: `[dynamic/forEach] ${nextLine.trim().substring(0, 60)}` });
-          break;
-        }
+    const testMatch = trimmed.match(/(?:it|test)(?:\.skip|\.todo|\.only)?\s*\(\s*(?:'([^']+)'|"([^"]+)"|`([^`]+)`)/);
+    if (testMatch) {
+      const name = testMatch[1] || testMatch[2] || testMatch[3];
+      if (name) {
+        tests.push({ name });
       }
     }
   }

@@ -150,7 +150,7 @@ describe('parseTestCases', () => {
     expect(result[1].name).toBe('after comment');
   });
 
-  it('should detect forEach-generated tests', () => {
+  it('should detect forEach-generated tests without double counting', () => {
     const content = `
       const cases = ['a', 'b', 'c'];
       cases.forEach((c) => {
@@ -158,19 +158,19 @@ describe('parseTestCases', () => {
       });
     `;
     const result = parseTestCases(content);
-    const forEachTests = result.filter(t => t.name.includes('[dynamic/forEach]'));
-    expect(forEachTests.length).toBeGreaterThanOrEqual(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toContain('[dynamic/forEach]');
   });
 
-  it('should detect forEach with arrow function', () => {
+  it('should detect forEach with arrow function without double counting', () => {
     const content = `
       [1, 2, 3].forEach(num => {
         test('test case for ' + num, () => {});
       });
     `;
     const result = parseTestCases(content);
-    const forEachTests = result.filter(t => t.name.includes('[dynamic/forEach]'));
-    expect(forEachTests.length).toBeGreaterThanOrEqual(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toContain('[dynamic/forEach]');
   });
 
   it('should handle forEach with destructured params', () => {
@@ -182,7 +182,22 @@ describe('parseTestCases', () => {
       });
     `;
     const result = parseTestCases(content);
-    const forEachTests = result.filter(t => t.name.includes('[dynamic/forEach]'));
-    expect(forEachTests.length).toBeGreaterThanOrEqual(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toContain('[dynamic/forEach]');
+  });
+
+  it('should not double count forEach inner tests with outer tests', () => {
+    const content = `
+      it('standalone test', () => {});
+      items.forEach((item) => {
+        it('test for ' + item, () => {});
+      });
+      it('another standalone', () => {});
+    `;
+    const result = parseTestCases(content);
+    expect(result).toHaveLength(3);
+    expect(result[0].name).toBe('standalone test');
+    expect(result[1].name).toContain('[dynamic/forEach]');
+    expect(result[2].name).toBe('another standalone');
   });
 });

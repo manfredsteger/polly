@@ -880,7 +880,7 @@ export function AiChatWidget() {
               const visibleChips = chips.filter((c) => !selectedChips.includes(c));
               return (
                 <div className="px-4 pb-3">
-                  <p className="text-sm font-semibold text-foreground mb-2">{t("aiWidget.quickSuggestionsLabel")}</p>
+                  <p className="text-base font-semibold text-foreground mb-2">{t("aiWidget.quickSuggestionsLabel")}</p>
                   {visibleChips.length > 0 ? (
                     <div className="flex flex-col gap-2">
                       {visibleChips.map((chip) => (
@@ -904,7 +904,7 @@ export function AiChatWidget() {
             {/* Selected chips as removable tags */}
             {selectedChips.length > 0 && (
               <div className="px-4 pb-3">
-                <p className="text-sm font-semibold text-foreground mb-2">{t("aiWidget.beingAdjusted")}</p>
+                <p className="text-base font-semibold text-foreground mb-2">{t("aiWidget.beingAdjusted")}</p>
                 <div className="flex flex-col gap-2">
                   {selectedChips.map((chip) => (
                     <span
@@ -926,15 +926,16 @@ export function AiChatWidget() {
               </div>
             )}
 
-            {/* Apply button — prominent CTA at the bottom */}
-            <div className="px-4 pb-4 pt-2">
-              <Button
+            {/* Apply button — pill style like settings toggles, but much larger */}
+            <div className="px-4 pb-4 pt-2 flex justify-center">
+              <button
+                type="button"
                 onClick={handleApply}
-                className="w-full h-12 text-base font-bold gap-2 shadow-md hover:shadow-lg transition-all rounded-xl"
+                className="inline-flex items-center gap-2.5 text-lg font-bold px-8 py-3 rounded-full border-2 bg-green-500/15 border-green-500/30 text-green-600 dark:text-green-400 cursor-pointer transition-all hover:bg-green-500/25 hover:border-green-500/50 select-none"
               >
                 <ArrowRight className="w-5 h-5" />
                 {`${t("home.aiApply")} → ${pollTypeLabel}`}
-              </Button>
+              </button>
             </div>
           </div>
         </div>

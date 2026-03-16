@@ -228,6 +228,16 @@ function container(
   };
 }
 
+function img(id: string, srcVar: string, alt: string, width: string = '150px'): [string, EmailBuilderBlock] {
+  return [id, {
+    type: 'Image',
+    data: {
+      props: { src: `{{${srcVar}}}`, alt },
+      style: { width, padding: { top: 16, right: 0, bottom: 16, left: 0 } },
+    },
+  }];
+}
+
 function divider(id: string): [string, EmailBuilderBlock] {
   return [id, {
     type: 'Divider',
@@ -339,6 +349,41 @@ function buildPollCreatedTemplate(): TemplateDefinition {
   return { name: 'Umfrage erstellt', subject: '[{{siteName}}] Ihre {{pollType}} wurde erstellt: {{pollTitle}}', jsonContent: tpl(allBlocks, topIds), textContent };
 }
 
+// ---- invitation with QR code ----
+function buildInvitationTemplate(): TemplateDefinition {
+  const defs: [string, EmailBuilderBlock][] = [];
+  defs.push(heading('h1', 'Einladung zur Abstimmung'));
+  defs.push(txt('t0', 'Hallo,'));
+  defs.push(txt('t1', '{{inviterName}} lädt Sie ein, an der Umfrage <strong>"{{pollTitle}}"</strong> teilzunehmen.'));
+  defs.push(txt('t2', '{{message}}'));
+  defs.push(btn('b1', 'Jetzt abstimmen', 'publicLink', 'primary'));
+  defs.push(img('qr', 'qrCodeUrl', 'QR-Code zur Umfrage', '150px'));
+  defs.push(divider('d1'));
+  defs.push(footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'));
+
+  const textContent = `Einladung zur Abstimmung\n\nHallo,\n\n{{inviterName}} lädt Sie ein, an der Umfrage "{{pollTitle}}" teilzunehmen.\n\n{{message}}\n\nJetzt abstimmen: {{publicLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
+
+  return buildTemplate('Einladung zur Umfrage', '[{{siteName}}] {{inviterName}} lädt Sie ein: {{pollTitle}}', defs, [], textContent);
+}
+
+// ---- reminder with QR code ----
+function buildReminderTemplate(): TemplateDefinition {
+  const defs: [string, EmailBuilderBlock][] = [];
+  defs.push(heading('h1', 'Erinnerung zur Abstimmung'));
+  defs.push(txt('t0', 'Hallo,'));
+  defs.push(txt('t1', '{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage <strong>"{{pollTitle}}"</strong>.'));
+  defs.push(txt('t2', 'Ihre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.'));
+  defs.push(txt('t3', '{{expiresAt}}'));
+  defs.push(btn('b1', 'Jetzt abstimmen', 'pollLink', 'primary'));
+  defs.push(img('qr', 'qrCodeUrl', 'QR-Code zur Umfrage', '150px'));
+  defs.push(divider('d1'));
+  defs.push(footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'));
+
+  const textContent = `Erinnerung zur Abstimmung\n\nHallo,\n\n{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage "{{pollTitle}}".\n\nIhre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.\n\n{{expiresAt}}\n\nJetzt abstimmen: {{pollLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
+
+  return buildTemplate('Erinnerung', '[{{siteName}}] Erinnerung: {{pollTitle}}', defs, [], textContent);
+}
+
 // ---- vote_confirmation with container ----
 function buildVoteConfirmationTemplate(): TemplateDefinition {
   const linkBox = container('link-box', '#e8f4f8', '#1e3a4a', [
@@ -445,38 +490,11 @@ function buildWelcomeTemplate(): TemplateDefinition {
 const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
   poll_created: buildPollCreatedTemplate(),
 
-  invitation: buildSimpleTemplate(
-    'Einladung zur Umfrage',
-    '[{{siteName}}] {{inviterName}} lädt Sie ein: {{pollTitle}}',
-    'Einladung zur Abstimmung',
-    [
-      'Hallo,',
-      '{{inviterName}} lädt Sie ein, an der Umfrage <strong>"{{pollTitle}}"</strong> teilzunehmen.',
-      '{{message}}',
-    ],
-    'Jetzt abstimmen',
-    'publicLink',
-    'primary',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
-  ),
+  invitation: buildInvitationTemplate(),
 
   vote_confirmation: buildVoteConfirmationTemplate(),
 
-  reminder: buildSimpleTemplate(
-    'Erinnerung',
-    '[{{siteName}}] Erinnerung: {{pollTitle}}',
-    'Erinnerung zur Abstimmung',
-    [
-      'Hallo,',
-      '{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage <strong>"{{pollTitle}}"</strong>.',
-      'Ihre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.',
-      '{{expiresAt}}',
-    ],
-    'Jetzt abstimmen',
-    'pollLink',
-    'primary',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
-  ),
+  reminder: buildReminderTemplate(),
 
   password_reset: buildPasswordResetTemplate(),
 
@@ -678,7 +696,9 @@ ${childHtml}</div>\n`;
         const src = props.src || '';
         const alt = props.alt || '';
         const width = style.width || '100%';
-        html += `<div style="text-align: center;"><img src="${src}" alt="${alt}" style="max-width: ${width}; height: auto;"></div>\n`;
+        if (src) {
+          html += `<div style="text-align: center;"><img src="${src}" alt="${alt}" style="max-width: ${width}; height: auto;"></div>\n`;
+        }
         break;
       }
     }

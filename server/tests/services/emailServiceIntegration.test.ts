@@ -94,7 +94,7 @@ describe('EmailService Integration — Template System', () => {
       expect(capturedHtml).toContain('prefers-color-scheme: dark');
     });
 
-    it('sendInvitationEmail calls renderEmail with invitation', async () => {
+    it('sendInvitationEmail calls renderEmail with invitation and qrCodeUrl', async () => {
       await emailService.sendInvitationEmail(
         'user@test.com', 'Max Mustermann', 'Sommerfeier',
         'https://polly.example.com/poll/summer', 'Bitte abstimmen!'
@@ -103,6 +103,7 @@ describe('EmailService Integration — Template System', () => {
         inviterName: 'Max Mustermann',
         pollTitle: 'Sommerfeier',
         publicLink: expect.stringContaining('polly.example.com/poll/summer'),
+        qrCodeUrl: expect.any(String),
       }));
       expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(capturedHtml).toContain('<!DOCTYPE html>');
@@ -130,6 +131,7 @@ describe('EmailService Integration — Template System', () => {
         senderName: 'Chef',
         pollTitle: 'Wichtige Umfrage',
         pollLink: 'https://polly.example.com/poll/urgent',
+        qrCodeUrl: expect.any(String),
       }));
       expect(mockSendMail).toHaveBeenCalledTimes(1);
     });

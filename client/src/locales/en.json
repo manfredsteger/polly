@@ -1728,6 +1728,7 @@
       "linkLabel": "Link Label",
       "logo": "Logo",
       "deleteLogo": "Delete logo",
+      "uploadLogo": "Upload logo",
       "resetDefaults": "Reset to Defaults",
       "saveBranding": "Save Branding",
       "saveFooter": "Save Footer",

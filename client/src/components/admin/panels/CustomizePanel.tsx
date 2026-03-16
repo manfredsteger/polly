@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -71,6 +71,7 @@ export function CustomizePanel() {
   });
 
   const [isUploading, setIsUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (customization && !initialDataLoaded) {
@@ -271,15 +272,29 @@ export function CustomizePanel() {
                 </div>
               )}
               <div>
-                <Input
+                <input
+                  ref={logoInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleLogoUpload}
                   disabled={isUploading}
-                  className="max-w-xs"
+                  className="hidden"
                   data-testid="input-logo-upload"
                 />
-                {isUploading && <p className="text-xs text-muted-foreground mt-1">{t('common.uploading')}</p>}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={isUploading}
+                  data-testid="button-logo-upload"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  {isUploading ? t('common.uploading') : t('admin.customize.uploadLogo')}
+                </Button>
               </div>
             </div>
           </div>

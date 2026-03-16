@@ -495,7 +495,7 @@ export class EmailService {
     }
 
     try {
-      const themed = await emailTemplateService.wrapWithEmailTheme(html, text);
+      const themed = await emailTemplateService.wrapWithEmailTheme(subject, html, text);
       await this.transporter.sendMail({
         from: this.getFromAddress(),
         to: recipientEmail,

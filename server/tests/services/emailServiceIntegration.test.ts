@@ -158,6 +158,18 @@ describe('EmailService Integration — Template System', () => {
     });
   });
 
+  describe('sendCustomEmail uses themed wrapper', () => {
+    it('should render custom email with themed HTML structure', async () => {
+      const sent = await sendAndCapture(() =>
+        emailService.sendCustomEmail('user@test.com', 'Custom Subject', '<p>Custom body</p>', 'Custom body')
+      );
+      if (!sent) return;
+      expect(capturedHtml).toContain('<!DOCTYPE html>');
+      expect(capturedHtml).toContain('prefers-color-scheme: dark');
+      expect(capturedHtml).toContain('Custom body');
+    });
+  });
+
   describe('sendVirusDetectionAlert uses themed wrapper', () => {
     it('should render with themed HTML structure', async () => {
       const sent = await sendAndCapture(() =>

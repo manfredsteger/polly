@@ -42,15 +42,6 @@ export class ImageService {
         fileSize: 5 * 1024 * 1024, // 5MB limit
       },
       fileFilter: (req, file, cb) => {
-        const blockedMimeTypes = ['image/svg+xml'];
-        const blockedExtensions = ['.svg'];
-        const ext = path.extname(file.originalname).toLowerCase();
-        
-        if (blockedMimeTypes.includes(file.mimetype) || blockedExtensions.includes(ext)) {
-          cb(new Error('SVG-Dateien sind aus Sicherheitsgründen nicht erlaubt'));
-          return;
-        }
-        
         if (file.mimetype.startsWith('image/')) {
           cb(null, true);
         } else {

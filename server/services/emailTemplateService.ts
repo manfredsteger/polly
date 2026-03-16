@@ -8,15 +8,21 @@ import {
 
 // Email theme settings that can be imported from emailbuilder.js
 export interface EmailTheme {
-  backdropColor: string;      // Background color behind the email
-  canvasColor: string;        // Email content box background
-  textColor: string;          // Body text color
-  headingColor: string;       // Heading color
-  linkColor: string;          // Link color
+  backdropColor: string;
+  canvasColor: string;
+  textColor: string;
+  headingColor: string;
+  linkColor: string;
   buttonBackgroundColor: string;
   buttonTextColor: string;
   buttonBorderRadius: number;
   fontFamily: string;
+  secondaryButtonBackgroundColor: string;
+  secondaryButtonTextColor: string;
+  darkBackdropColor: string;
+  darkCanvasColor: string;
+  darkTextColor: string;
+  darkHeadingColor: string;
 }
 
 // Default email theme
@@ -29,7 +35,13 @@ const DEFAULT_EMAIL_THEME: EmailTheme = {
   buttonBackgroundColor: '#FF6B35',
   buttonTextColor: '#FFFFFF',
   buttonBorderRadius: 6,
-  fontFamily: 'Arial, sans-serif'
+  fontFamily: 'Arial, sans-serif',
+  secondaryButtonBackgroundColor: '#4A90A4',
+  secondaryButtonTextColor: '#FFFFFF',
+  darkBackdropColor: '#1a1a2e',
+  darkCanvasColor: '#16213e',
+  darkTextColor: '#e0e0e0',
+  darkHeadingColor: '#FF8C5A',
 };
 
 // Validate and sanitize CSS color values (hex, rgb, rgba, named colors)
@@ -85,6 +97,22 @@ function sanitizeBorderRadius(value: unknown): number | null {
   return null;
 }
 
+function lightenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, ((num >> 16) & 0xFF) + Math.round(255 * percent / 100));
+  const g = Math.min(255, ((num >> 8) & 0xFF) + Math.round(255 * percent / 100));
+  const b = Math.min(255, (num & 0xFF) + Math.round(255 * percent / 100));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+function darkenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, ((num >> 16) & 0xFF) - Math.round(255 * percent / 100));
+  const g = Math.max(0, ((num >> 8) & 0xFF) - Math.round(255 * percent / 100));
+  const b = Math.max(0, (num & 0xFF) - Math.round(255 * percent / 100));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
 // Default email template JSON structures for email-builder-js
 // These follow the email-builder-js format with blocks
 
@@ -107,108 +135,18 @@ interface EmailBuilderDocument {
   [blockId: string]: EmailBuilderBlock;
 }
 
-// Helper to create a simple email template structure
-function createDefaultTemplate(
-  type: EmailTemplateType,
-  name: string,
-  subject: string,
-  heading: string,
-  bodyParagraphs: string[],
-  buttonText?: string,
-  buttonVariable?: string,
-  footerText?: string
-): { name: string; subject: string; jsonContent: EmailBuilderDocument; textContent: string } {
-  const blockIds: string[] = [];
-  const blocks: Record<string, EmailBuilderBlock> = {};
-  
-  // Header block
-  const headerId = 'header-1';
-  blockIds.push(headerId);
-  blocks[headerId] = {
-    type: 'Heading',
-    data: {
-      props: {
-        text: heading,
-        level: 'h2',
-      },
-      style: {
-        color: '#FF6B35',
-        fontWeight: 'bold',
-        textAlign: 'left',
-        padding: { top: 16, bottom: 8, left: 24, right: 24 },
-      },
-    },
-  };
+interface TemplateDefinition {
+  name: string;
+  subject: string;
+  jsonContent: EmailBuilderDocument;
+  textContent: string;
+}
 
-  // Body paragraphs
-  bodyParagraphs.forEach((para, index) => {
-    const paraId = `text-${index + 1}`;
-    blockIds.push(paraId);
-    blocks[paraId] = {
-      type: 'Text',
-      data: {
-        props: { text: para },
-        style: {
-          color: '#333333',
-          fontSize: 16,
-          padding: { top: 8, bottom: 8, left: 24, right: 24 },
-        },
-      },
-    };
-  });
-
-  // Button block if provided
-  if (buttonText && buttonVariable) {
-    const buttonId = 'button-1';
-    blockIds.push(buttonId);
-    blocks[buttonId] = {
-      type: 'Button',
-      data: {
-        props: {
-          text: buttonText,
-          url: `{{${buttonVariable}}}`,
-        },
-        style: {
-          backgroundColor: '#FF6B35',
-          color: '#FFFFFF',
-          padding: { top: 12, bottom: 12, left: 24, right: 24 },
-          borderRadius: 6,
-          textAlign: 'center',
-          fontWeight: 'bold',
-          margin: { top: 16, bottom: 16 },
-        },
-      },
-    };
-  }
-
-  // Divider
-  const dividerId = 'divider-1';
-  blockIds.push(dividerId);
-  blocks[dividerId] = {
-    type: 'Divider',
-    data: {
-      style: {
-        padding: { top: 24, bottom: 24, left: 24, right: 24 },
-      },
-    },
-  };
-
-  // Footer
-  const footerId = 'footer-1';
-  blockIds.push(footerId);
-  blocks[footerId] = {
-    type: 'Text',
-    data: {
-      props: { text: footerText || 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.' },
-      style: {
-        color: '#6c757d',
-        fontSize: 14,
-        padding: { top: 8, bottom: 16, left: 24, right: 24 },
-      },
-    },
-  };
-
-  const jsonContent: EmailBuilderDocument = {
+function tpl(
+  blocks: Record<string, EmailBuilderBlock>,
+  childrenIds: string[]
+): EmailBuilderDocument {
+  return {
     root: {
       type: 'EmailLayout',
       data: {
@@ -216,150 +154,371 @@ function createDefaultTemplate(
         canvasColor: '#FFFFFF',
         textColor: '#333333',
         fontFamily: 'Arial, sans-serif',
-        childrenIds: blockIds,
+        childrenIds,
       },
     },
     ...blocks,
   };
-
-  // Generate plain text version
-  let textContent = `${heading}\n\n`;
-  textContent += bodyParagraphs.join('\n\n');
-  if (buttonText && buttonVariable) {
-    textContent += `\n\n${buttonText}: {{${buttonVariable}}}`;
-  }
-  textContent += `\n\n---\n${footerText || 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'}`;
-
-  return { name, subject, jsonContent, textContent };
 }
 
-// Default templates for each type
-const DEFAULT_TEMPLATES: Record<EmailTemplateType, ReturnType<typeof createDefaultTemplate>> = {
-  poll_created: createDefaultTemplate(
-    'poll_created',
-    'Umfrage erstellt',
-    '[{{siteName}}] Ihre {{pollType}} wurde erstellt: {{pollTitle}}',
-    '{{pollType}} erfolgreich erstellt!',
-    [
-      'Ihre {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.',
-      'Teilen Sie den folgenden Link mit Ihren Teilnehmern:',
-      '{{publicLink}}',
-      'Als Administrator können Sie die Umfrage über diesen Link verwalten:',
-      '{{adminLink}}',
-    ],
-    'Umfrage öffnen',
-    'publicLink',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.\nOpen-Source Abstimmungsplattform für Teams'
-  ),
+function heading(id: string, text: string, level: string = 'h2'): [string, EmailBuilderBlock] {
+  return [id, {
+    type: 'Heading',
+    data: {
+      props: { text, level },
+      style: { fontWeight: 'bold', padding: { top: 16, bottom: 8, left: 24, right: 24 } },
+    },
+  }];
+}
+
+function txt(id: string, text: string, opts?: { bold?: boolean; color?: string; fontSize?: number }): [string, EmailBuilderBlock] {
+  return [id, {
+    type: 'Text',
+    data: {
+      props: { text },
+      style: {
+        fontSize: opts?.fontSize || 16,
+        padding: { top: 8, bottom: 8, left: 24, right: 24 },
+        ...(opts?.bold ? { fontWeight: 'bold' } : {}),
+        ...(opts?.color ? { color: opts.color } : {}),
+      },
+    },
+  }];
+}
+
+function btn(id: string, text: string, urlVar: string, type: 'primary' | 'secondary' = 'primary'): [string, EmailBuilderBlock] {
+  return [id, {
+    type: 'Button',
+    data: {
+      props: { text, url: `{{${urlVar}}}`, buttonType: type },
+      style: {
+        padding: { top: 12, bottom: 12, left: 24, right: 24 },
+        margin: { top: 12, bottom: 12, left: 0, right: 0 },
+      },
+    },
+  }];
+}
+
+function container(
+  id: string,
+  bgColor: string,
+  darkBg: string,
+  childDefs: [string, EmailBuilderBlock][]
+): { entry: [string, EmailBuilderBlock]; children: Record<string, EmailBuilderBlock> } {
+  const childIds = childDefs.map(([cid]) => cid);
+  const children: Record<string, EmailBuilderBlock> = {};
+  for (const [cid, cblock] of childDefs) {
+    children[cid] = cblock;
+  }
+  return {
+    entry: [id, {
+      type: 'Container',
+      data: {
+        childrenIds: childIds,
+        style: {
+          backgroundColor: bgColor,
+          darkBackgroundColor: darkBg,
+          borderRadius: 8,
+          padding: { top: 20, right: 24, bottom: 20, left: 24 },
+          margin: { top: 12, right: 24, bottom: 12, left: 24 },
+        },
+      },
+    }],
+    children,
+  };
+}
+
+function divider(id: string): [string, EmailBuilderBlock] {
+  return [id, {
+    type: 'Divider',
+    data: { style: { padding: { top: 16, bottom: 16, left: 24, right: 24 } } },
+  }];
+}
+
+function footerBlock(id: string, text: string): [string, EmailBuilderBlock] {
+  return [id, {
+    type: 'Text',
+    data: {
+      props: { text },
+      style: { color: '#6c757d', fontSize: 14, padding: { top: 8, bottom: 16, left: 24, right: 24 } },
+    },
+  }];
+}
+
+function buildTemplate(
+  name: string,
+  subject: string,
+  defs: [string, EmailBuilderBlock][],
+  containers: { entry: [string, EmailBuilderBlock]; children: Record<string, EmailBuilderBlock> }[],
+  textContent: string
+): TemplateDefinition {
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [bid, block] of defs) {
+    allBlocks[bid] = block;
+    topIds.push(bid);
+  }
+  for (const c of containers) {
+    const [cid, cblock] = c.entry;
+    allBlocks[cid] = cblock;
+    topIds.push(cid);
+    for (const [chid, chblock] of Object.entries(c.children)) {
+      allBlocks[chid] = chblock;
+    }
+  }
+  return { name, subject, jsonContent: tpl(allBlocks, topIds), textContent };
+}
+
+function buildSimpleTemplate(
+  name: string,
+  subject: string,
+  headingText: string,
+  paragraphs: string[],
+  buttonText?: string,
+  buttonVar?: string,
+  buttonType: 'primary' | 'secondary' = 'primary',
+  footerText: string = 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
+): TemplateDefinition {
+  const defs: [string, EmailBuilderBlock][] = [];
+  defs.push(heading('h1', headingText));
+  paragraphs.forEach((p, i) => defs.push(txt(`t${i}`, p)));
+  if (buttonText && buttonVar) defs.push(btn('b1', buttonText, buttonVar, buttonType));
+  defs.push(divider('d1'));
+  defs.push(footerBlock('f1', footerText));
   
-  invitation: createDefaultTemplate(
-    'invitation',
+  let textContent = `${headingText}\n\n${paragraphs.join('\n\n')}`;
+  if (buttonText && buttonVar) textContent += `\n\n${buttonText}: {{${buttonVar}}}`;
+  textContent += `\n\n---\n${footerText}`;
+  
+  return buildTemplate(name, subject, defs, [], textContent);
+}
+
+// ---- poll_created: the showcase template with containers ----
+function buildPollCreatedTemplate(): TemplateDefinition {
+  const adminBox = container('admin-box', '#f8f9fa', '#2a2a3e', [
+    heading('ab-h', 'Administratorlink (nur für Sie)', 'h3'),
+    txt('ab-t', 'Mit diesem Link können Sie Ihre Umfrage verwalten, bearbeiten und die Ergebnisse einsehen.'),
+    btn('ab-btn', 'Umfrage verwalten', 'adminLink', 'primary'),
+  ]);
+
+  const publicBox = container('public-box', '#e8f4f8', '#1e3a4a', [
+    heading('pb-h', 'Öffentlicher Link zum Teilen', 'h3'),
+    txt('pb-t', 'Teilen Sie diesen Link mit Ihren Teilnehmern, damit diese an der Abstimmung teilnehmen können.'),
+    btn('pb-btn', 'Zur Abstimmung', 'publicLink', 'secondary'),
+  ]);
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('h1', '{{pollType}} erfolgreich erstellt!'),
+    txt('t1', 'Hallo,'),
+    txt('t2', 'Ihre {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich erstellt.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    txt('warn', '<strong>⚠️ Wichtig:</strong> Bewahren Sie den Administratorlink sicher auf. Nur mit diesem Link können Sie Ihre Umfrage verwalten.', { bold: true }),
+    divider('d1'),
+    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt. — Open-Source Abstimmungsplattform für Teams'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  
+  const [adminId, adminBlock] = adminBox.entry;
+  allBlocks[adminId] = adminBlock; topIds.push(adminId);
+  for (const [cid, cb] of Object.entries(adminBox.children)) allBlocks[cid] = cb;
+
+  const [pubId, pubBlock] = publicBox.entry;
+  allBlocks[pubId] = pubBlock; topIds.push(pubId);
+  for (const [cid, cb] of Object.entries(publicBox.children)) allBlocks[cid] = cb;
+
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  const textContent = `{{pollType}} erfolgreich erstellt!\n\nHallo,\n\nIhre {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.\n\nAdministratorlink (nur für Sie):\nUmfrage verwalten: {{adminLink}}\n\nÖffentlicher Link zum Teilen:\nZur Abstimmung: {{publicLink}}\n\nWichtig: Bewahren Sie den Administratorlink sicher auf.\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
+
+  return { name: 'Umfrage erstellt', subject: '[{{siteName}}] Ihre {{pollType}} wurde erstellt: {{pollTitle}}', jsonContent: tpl(allBlocks, topIds), textContent };
+}
+
+// ---- vote_confirmation with container ----
+function buildVoteConfirmationTemplate(): TemplateDefinition {
+  const linkBox = container('link-box', '#e8f4f8', '#1e3a4a', [
+    txt('lb-t', 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.'),
+    btn('lb-btn1', 'Ergebnisse anzeigen', 'resultsLink', 'secondary'),
+  ]);
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('h1', 'Vielen Dank für Ihre Teilnahme!'),
+    txt('t1', 'Hallo {{voterName}},'),
+    txt('t2', 'vielen Dank für Ihre Teilnahme an der {{pollType}} <strong>"{{pollTitle}}"</strong>. Ihre Auswahl wurde erfolgreich gespeichert.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    divider('d1'),
+    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = linkBox.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(linkBox.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  return {
+    name: 'Abstimmungsbestätigung',
+    subject: '[{{siteName}}] Vielen Dank für Ihre Teilnahme - {{pollTitle}}',
+    jsonContent: tpl(allBlocks, topIds),
+    textContent: 'Vielen Dank für Ihre Teilnahme!\n\nHallo {{voterName}},\n\nvielen Dank für Ihre Teilnahme an der {{pollType}} "{{pollTitle}}". Ihre Auswahl wurde erfolgreich gespeichert.\n\nErgebnisse anzeigen: {{resultsLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.',
+  };
+}
+
+// ---- password_reset with container ----
+function buildPasswordResetTemplate(): TemplateDefinition {
+  const actionBox = container('action-box', '#f8f9fa', '#2a2a3e', [
+    txt('ab-t', 'Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben. Dieser Link ist 1 Stunde gültig.'),
+    btn('ab-btn', 'Passwort zurücksetzen', 'resetLink', 'primary'),
+  ]);
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('h1', 'Passwort zurücksetzen'),
+    txt('t1', 'Hallo {{userName}},'),
+    txt('t2', 'Sie haben angefordert, Ihr Passwort für Ihren {{siteName}} Account zurückzusetzen.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    txt('t3', 'Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren. Ihr Passwort bleibt unverändert.', { color: '#6c757d', fontSize: 14 }),
+    divider('d1'),
+    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = actionBox.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(actionBox.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  return {
+    name: 'Passwort zurücksetzen',
+    subject: '[{{siteName}}] Passwort zurücksetzen',
+    jsonContent: tpl(allBlocks, topIds),
+    textContent: 'Passwort zurücksetzen\n\nHallo {{userName}},\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nPasswort zurücksetzen: {{resetLink}}\n\nDieser Link ist 1 Stunde gültig.\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.',
+  };
+}
+
+// ---- welcome with container ----
+function buildWelcomeTemplate(): TemplateDefinition {
+  const actionBox = container('action-box', '#e8f4f8', '#1e3a4a', [
+    txt('ab-t', 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um alle Funktionen von {{siteName}} nutzen zu können.'),
+    btn('ab-btn', 'E-Mail bestätigen', 'verificationLink', 'secondary'),
+  ]);
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('h1', 'Willkommen bei {{siteName}}!'),
+    txt('t1', 'Hallo {{userName}},'),
+    txt('t2', 'vielen Dank für Ihre Registrierung bei {{siteName}}! Ihr Account wurde erfolgreich erstellt.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    divider('d1'),
+    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = actionBox.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(actionBox.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  return {
+    name: 'Willkommen',
+    subject: '[{{siteName}}] Willkommen bei {{siteName}}!',
+    jsonContent: tpl(allBlocks, topIds),
+    textContent: 'Willkommen bei {{siteName}}!\n\nHallo {{userName}},\n\nvielen Dank für Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.\n\nE-Mail bestätigen: {{verificationLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.',
+  };
+}
+
+const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
+  poll_created: buildPollCreatedTemplate(),
+
+  invitation: buildSimpleTemplate(
     'Einladung zur Umfrage',
     '[{{siteName}}] {{inviterName}} lädt Sie ein: {{pollTitle}}',
-    '📣 Einladung zur Abstimmung',
+    'Einladung zur Abstimmung',
     [
       'Hallo,',
-      '{{inviterName}} lädt Sie ein, an der Umfrage "{{pollTitle}}" teilzunehmen.',
+      '{{inviterName}} lädt Sie ein, an der Umfrage <strong>"{{pollTitle}}"</strong> teilzunehmen.',
       '{{message}}',
     ],
     'Jetzt abstimmen',
     'publicLink',
+    'primary',
     'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
   ),
-  
-  vote_confirmation: createDefaultTemplate(
-    'vote_confirmation',
-    'Abstimmungsbestätigung',
-    '[{{siteName}}] Vielen Dank für Ihre Teilnahme - {{pollTitle}}',
-    'Vielen Dank für Ihre Teilnahme!',
-    [
-      'Hallo {{voterName}},',
-      'vielen Dank für Ihre Teilnahme an der {{pollType}} "{{pollTitle}}".',
-      'Ihre Auswahl wurde erfolgreich gespeichert.',
-      'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren:',
-      '{{publicLink}}',
-      'Hier können Sie die aktuellen Ergebnisse einsehen:',
-      '{{resultsLink}}',
-    ],
-    'Ergebnisse anzeigen',
-    'resultsLink',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
-  ),
-  
-  reminder: createDefaultTemplate(
-    'reminder',
+
+  vote_confirmation: buildVoteConfirmationTemplate(),
+
+  reminder: buildSimpleTemplate(
     'Erinnerung',
     '[{{siteName}}] Erinnerung: {{pollTitle}}',
-    '📣 Erinnerung zur Abstimmung',
+    'Erinnerung zur Abstimmung',
     [
       'Hallo,',
-      '{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage "{{pollTitle}}".',
+      '{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage <strong>"{{pollTitle}}"</strong>.',
       'Ihre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.',
       '{{expiresAt}}',
     ],
     'Jetzt abstimmen',
     'pollLink',
+    'primary',
     'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
   ),
-  
-  password_reset: createDefaultTemplate(
-    'password_reset',
-    'Passwort zurücksetzen',
-    '[{{siteName}}] Passwort zurücksetzen',
-    'Passwort zurücksetzen',
-    [
-      'Hallo {{userName}},',
-      'Sie haben angefordert, Ihr Passwort für Ihren {{siteName}} Account zurückzusetzen.',
-      'Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben:',
-      'Dieser Link ist 1 Stunde gültig.',
-      'Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren. Ihr Passwort bleibt unverändert.',
-    ],
-    'Passwort zurücksetzen',
-    'resetLink',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
-  ),
-  
-  email_change: createDefaultTemplate(
-    'email_change',
+
+  password_reset: buildPasswordResetTemplate(),
+
+  email_change: buildSimpleTemplate(
     'E-Mail-Adresse ändern',
     '[{{siteName}}] E-Mail-Adresse bestätigen',
     'E-Mail-Adresse bestätigen',
     [
       'Hallo,',
       'Sie haben angefordert, Ihre E-Mail-Adresse für Ihren {{siteName}} Account zu ändern.',
-      'Alte E-Mail: {{oldEmail}}',
-      'Neue E-Mail: {{newEmail}}',
-      'Klicken Sie auf den folgenden Button, um Ihre neue E-Mail-Adresse zu bestätigen:',
+      '<strong>Alte E-Mail:</strong> {{oldEmail}}',
+      '<strong>Neue E-Mail:</strong> {{newEmail}}',
       'Dieser Link ist 24 Stunden gültig.',
       'Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.',
     ],
     'E-Mail bestätigen',
     'confirmLink',
+    'primary',
     'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
   ),
-  
-  password_changed: createDefaultTemplate(
-    'password_changed',
+
+  password_changed: buildSimpleTemplate(
     'Passwort geändert',
     '[{{siteName}}] Ihr Passwort wurde geändert',
     'Passwort erfolgreich geändert',
     [
       'Hallo {{userName}},',
       'Ihr Passwort für Ihren {{siteName}} Account wurde erfolgreich geändert.',
-      'Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.',
+      '<strong>Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.</strong>',
     ],
     undefined,
     undefined,
+    'primary',
     'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
   ),
-  
-  test_report: createDefaultTemplate(
-    'test_report',
+
+  test_report: buildSimpleTemplate(
     'Testbericht',
     '[{{siteName}}] Testbericht #{{testRunId}}: {{status}}',
-    '{{status}} Automatischer Testbericht',
+    '{{status}} — Automatischer Testbericht',
     [
-      'Der automatische Testlauf #{{testRunId}} wurde abgeschlossen.',
+      'Der automatische Testlauf <strong>#{{testRunId}}</strong> wurde abgeschlossen.',
       'Gesamte Tests: {{totalTests}}',
       'Bestanden: {{passed}}',
       'Fehlgeschlagen: {{failed}}',
@@ -369,25 +528,11 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, ReturnType<typeof createDefau
     ],
     undefined,
     undefined,
+    'primary',
     'Diese E-Mail wurde automatisch vom {{siteName}} Testsystem erstellt.'
   ),
-  
-  welcome: createDefaultTemplate(
-    'welcome',
-    'Willkommen',
-    '[{{siteName}}] Willkommen bei {{siteName}}!',
-    'Willkommen bei {{siteName}}!',
-    [
-      'Hallo {{userName}},',
-      'vielen Dank für Ihre Registrierung bei {{siteName}}!',
-      'Ihr Account wurde erfolgreich erstellt.',
-      'Bitte bestätigen Sie Ihre E-Mail-Adresse, indem Sie auf den folgenden Button klicken:',
-      'Nach der Bestätigung können Sie alle Funktionen von {{siteName}} nutzen.',
-    ],
-    'E-Mail bestätigen',
-    'verificationLink',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
-  ),
+
+  welcome: buildWelcomeTemplate(),
 };
 
 // HTML escape helper to prevent XSS
@@ -437,26 +582,41 @@ export function substituteVariables(
   return result;
 }
 
-// Convert email-builder JSON to HTML
-export function jsonToHtml(jsonContent: EmailBuilderDocument, theme?: EmailTheme): string {
-  const root = jsonContent.root;
-  if (!root || root.type !== 'EmailLayout') {
-    return '<div>Template-Fehler: Ungültiges Format</div>';
-  }
+// Resolve effective theme values for rendering
+// Priority: explicit theme > root.data values > defaults
+function resolveTheme(theme?: EmailTheme, rootData?: Record<string, unknown>) {
+  const rd = (rootData || {}) as Record<string, string>;
+  const t = theme || DEFAULT_EMAIL_THEME;
+  return {
+    textColor: t.textColor || rd.textColor || DEFAULT_EMAIL_THEME.textColor,
+    headingColor: t.headingColor || DEFAULT_EMAIL_THEME.headingColor,
+    buttonBg: t.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor,
+    buttonText: t.buttonTextColor || DEFAULT_EMAIL_THEME.buttonTextColor,
+    buttonRadius: t.buttonBorderRadius ?? DEFAULT_EMAIL_THEME.buttonBorderRadius,
+    secondaryBg: t.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
+    secondaryText: t.secondaryButtonTextColor || DEFAULT_EMAIL_THEME.secondaryButtonTextColor,
+    fontFamily: t.fontFamily || rd.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,
+  };
+}
 
-  const { childrenIds } = root.data;
+function renderPadding(padding: Record<string, number> | undefined): string {
+  if (!padding) return '';
+  return `padding: ${padding.top || 0}px ${padding.right || 0}px ${padding.bottom || 0}px ${padding.left || 0}px;`;
+}
 
-  const effectiveTextColor = theme?.textColor || root.data.textColor || DEFAULT_EMAIL_THEME.textColor;
-  const effectiveHeadingColor = theme?.headingColor || DEFAULT_EMAIL_THEME.headingColor;
-  const effectiveButtonBg = theme?.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor;
-  const effectiveButtonText = theme?.buttonTextColor || DEFAULT_EMAIL_THEME.buttonTextColor;
-  const effectiveButtonRadius = theme?.buttonBorderRadius ?? DEFAULT_EMAIL_THEME.buttonBorderRadius;
-  const effectiveFontFamily = theme?.fontFamily || root.data.fontFamily || DEFAULT_EMAIL_THEME.fontFamily;
+function renderMargin(margin: Record<string, number> | undefined): string {
+  if (!margin) return '';
+  return `margin: ${margin.top || 0}px ${margin.right || 0}px ${margin.bottom || 0}px ${margin.left || 0}px;`;
+}
 
-  let html = `<div style="font-family: ${effectiveFontFamily}; color: ${effectiveTextColor};">`;
-
-  for (const blockId of childrenIds) {
-    const block = jsonContent[blockId];
+function renderBlocksToHtml(
+  blockIds: string[],
+  doc: EmailBuilderDocument,
+  tv: ReturnType<typeof resolveTheme>
+): string {
+  let html = '';
+  for (const blockId of blockIds) {
+    const block = doc[blockId];
     if (!block) continue;
 
     const blockData = block.data as Record<string, unknown>;
@@ -467,50 +627,51 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument, theme?: EmailTheme
       case 'Heading': {
         const level = props.level || 'h2';
         const text = props.text || '';
-        const color = effectiveHeadingColor;
-        const padding = style.padding as Record<string, number> | undefined;
-        const paddingStyle = padding 
-          ? `padding: ${padding.top || 0}px ${padding.right || 0}px ${padding.bottom || 0}px ${padding.left || 0}px;`
-          : '';
-        html += `<${level} style="color: ${color}; ${paddingStyle} margin: 0;">${text}</${level}>\n`;
+        const color = (style.color as string) || tv.headingColor;
+        const fontWeight = (style.fontWeight as string) || 'bold';
+        html += `<${level} class="email-heading" style="color: ${color}; ${renderPadding(style.padding as Record<string, number>)} margin: 0; font-weight: ${fontWeight};">${text}</${level}>\n`;
         break;
       }
       case 'Text': {
         const text = props.text || '';
-        const color = effectiveTextColor;
+        const color = (style.color as string) || tv.textColor;
         const fontSize = style.fontSize || 16;
-        const padding = style.padding as Record<string, number> | undefined;
-        const paddingStyle = padding 
-          ? `padding: ${padding.top || 0}px ${padding.right || 0}px ${padding.bottom || 0}px ${padding.left || 0}px;`
-          : '';
-        html += `<p style="color: ${color}; font-size: ${fontSize}px; ${paddingStyle} margin: 0;">${text}</p>\n`;
+        const fontWeight = (style.fontWeight as string) || 'normal';
+        html += `<p class="email-text" style="color: ${color}; font-size: ${fontSize}px; ${renderPadding(style.padding as Record<string, number>)} margin: 0; line-height: 1.6; font-weight: ${fontWeight};">${text}</p>\n`;
         break;
       }
       case 'Button': {
         const text = props.text || 'Click';
         const url = props.url || '#';
-        const bgColor = effectiveButtonBg;
-        const color = effectiveButtonText;
-        const borderRadius = effectiveButtonRadius;
-        const padding = style.padding as Record<string, number> | undefined;
-        const margin = style.margin as Record<string, number> | undefined;
-        const paddingStyle = padding 
-          ? `padding: ${padding.top || 12}px ${padding.right || 24}px ${padding.bottom || 12}px ${padding.left || 24}px;`
-          : 'padding: 12px 24px;';
-        const marginStyle = margin
-          ? `margin: ${margin.top || 0}px ${margin.right || 0}px ${margin.bottom || 0}px ${margin.left || 0}px;`
-          : '';
+        const buttonType = props.buttonType as string || 'primary';
+        const explicitBg = style.backgroundColor as string | undefined;
+        const bgColor = explicitBg || (buttonType === 'secondary' ? tv.secondaryBg : tv.buttonBg);
+        const color = (style.color as string) || (buttonType === 'secondary' ? tv.secondaryText : tv.buttonText);
+        const borderRadius = tv.buttonRadius;
+        const paddingStyle = renderPadding(style.padding as Record<string, number>) || 'padding: 12px 24px;';
+        const marginStyle = renderMargin(style.margin as Record<string, number>);
+        const cssClass = buttonType === 'secondary' ? 'email-btn-secondary' : 'email-btn-primary';
         html += `<div style="text-align: center; ${marginStyle}">
-          <a href="${url}" style="display: inline-block; text-decoration: none; background-color: ${bgColor}; color: ${color}; ${paddingStyle} border-radius: ${borderRadius}px; font-weight: bold;">${text}</a>
+          <a href="${url}" class="${cssClass}" style="display: inline-block; text-decoration: none; background-color: ${bgColor}; color: ${color}; ${paddingStyle} border-radius: ${borderRadius}px; font-weight: bold;">${text}</a>
         </div>\n`;
         break;
       }
+      case 'Container': {
+        const bgColor = (style.backgroundColor as string) || '#f8f9fa';
+        const borderRadius = (style.borderRadius as number) ?? 8;
+        const borderColor = (style.borderColor as string) || 'transparent';
+        const borderWidth = (style.borderWidth as number) ?? 0;
+        const padding = style.padding as Record<string, number> || { top: 20, right: 24, bottom: 20, left: 24 };
+        const margin = style.margin as Record<string, number> || { top: 12, right: 0, bottom: 12, left: 0 };
+        const childIds = (blockData.childrenIds || []) as string[];
+        const childHtml = renderBlocksToHtml(childIds, doc, tv);
+        html += `<div class="email-container" style="background-color: ${bgColor}; border-radius: ${borderRadius}px; ${renderPadding(padding)} ${renderMargin(margin)}${borderWidth > 0 ? ` border: ${borderWidth}px solid ${borderColor};` : ''}">
+${childHtml}</div>\n`;
+        break;
+      }
       case 'Divider': {
-        const padding = style.padding as Record<string, number> | undefined;
-        const paddingStyle = padding 
-          ? `padding: ${padding.top || 0}px ${padding.right || 0}px ${padding.bottom || 0}px ${padding.left || 0}px;`
-          : '';
-        html += `<div style="${paddingStyle}"><hr style="margin: 0; border: none; border-top: 1px solid #e9ecef;"></div>\n`;
+        const paddingStyle = renderPadding(style.padding as Record<string, number>);
+        html += `<div style="${paddingStyle}"><hr class="email-divider" style="margin: 0; border: none; border-top: 1px solid #e9ecef;"></div>\n`;
         break;
       }
       case 'Image': {
@@ -522,9 +683,48 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument, theme?: EmailTheme
       }
     }
   }
+  return html;
+}
 
+function extractTextRecursive(blockIds: string[], doc: EmailBuilderDocument): string {
+  let text = '';
+  for (const blockId of blockIds) {
+    const block = doc[blockId];
+    if (!block) continue;
+    const blockData = block.data as Record<string, unknown>;
+    const props = (blockData.props || {}) as Record<string, unknown>;
+    if (props.text) {
+      const rawText = (props.text as string).replace(/<[^>]*>/g, '');
+      text += rawText + '\n\n';
+    }
+    if (block.type === 'Container') {
+      const childIds = (blockData.childrenIds || []) as string[];
+      text += extractTextRecursive(childIds, doc);
+    }
+    if (props.url && props.text) {
+      text += `${props.url}\n\n`;
+    }
+  }
+  return text;
+}
+
+function extractTextFromBlocks(doc: EmailBuilderDocument): string {
+  const root = doc.root;
+  if (!root || !root.data.childrenIds) return '';
+  return extractTextRecursive(root.data.childrenIds, doc).trim();
+}
+
+// Convert email-builder JSON to HTML
+export function jsonToHtml(jsonContent: EmailBuilderDocument, theme?: EmailTheme): string {
+  const root = jsonContent.root;
+  if (!root || root.type !== 'EmailLayout') {
+    return '<div>Template-Fehler: Ungültiges Format</div>';
+  }
+
+  const tv = resolveTheme(theme, root.data as unknown as Record<string, unknown>);
+  let html = `<div style="font-family: ${tv.fontFamily}; color: ${tv.textColor};">`;
+  html += renderBlocksToHtml(root.data.childrenIds, jsonContent, tv);
   html += `</div>`;
-
   return html;
 }
 
@@ -746,19 +946,7 @@ export class EmailTemplateService {
       htmlContent = this.textToSimpleHtmlWithTheme(textContent, currentTheme);
     } else {
       htmlContent = jsonToHtml(jsonContent as EmailBuilderDocument, currentTheme);
-      textContent = '';
-      const root = (jsonContent as EmailBuilderDocument).root;
-      if (root && root.data.childrenIds) {
-        for (const blockId of root.data.childrenIds) {
-          const block = (jsonContent as EmailBuilderDocument)[blockId];
-          if (block) {
-            const props = (block.data as Record<string, unknown>).props as Record<string, unknown> | undefined;
-            if (props?.text) {
-              textContent += props.text + '\n\n';
-            }
-          }
-        }
-      }
+      textContent = extractTextFromBlocks(jsonContent as EmailBuilderDocument);
     }
 
     return await storage.upsertEmailTemplate({
@@ -825,13 +1013,13 @@ export class EmailTemplateService {
     return newTheme;
   }
 
-  // Reset email theme to defaults based on system branding settings
   async resetEmailTheme(): Promise<EmailTheme> {
-    // Get primary color from system branding settings
-    const primaryColorSetting = await storage.getSetting('primary_color');
-    const primaryColor = (primaryColorSetting?.value as string) || '#FF6B35';
+    const customization = await storage.getCustomizationSettings();
+    const primaryColor = customization.theme?.primaryColor || '#FF6B35';
+    const secondaryColor = customization.theme?.secondaryColor || '#4A90A4';
     
-    // Create theme based on branding
+    const lighterPrimary = lightenColor(primaryColor, 30);
+    
     const brandedTheme: EmailTheme = {
       backdropColor: '#F5F5F5',
       canvasColor: '#FFFFFF',
@@ -841,7 +1029,13 @@ export class EmailTemplateService {
       buttonBackgroundColor: primaryColor,
       buttonTextColor: '#FFFFFF',
       buttonBorderRadius: 6,
-      fontFamily: 'Arial, sans-serif'
+      fontFamily: 'Arial, sans-serif',
+      secondaryButtonBackgroundColor: secondaryColor,
+      secondaryButtonTextColor: '#FFFFFF',
+      darkBackdropColor: '#1a1a2e',
+      darkCanvasColor: '#16213e',
+      darkTextColor: '#e0e0e0',
+      darkHeadingColor: lighterPrimary,
     };
     
     await storage.setSetting({
@@ -881,48 +1075,56 @@ export class EmailTemplateService {
         if (font) theme.fontFamily = font;
       }
       
-      // Extract styles from blocks with sanitization
-      const childrenIds = (root?.data as Record<string, unknown>)?.childrenIds;
-      const blockIds = Array.isArray(childrenIds) ? childrenIds.filter(id => typeof id === 'string') : [];
-      
-      for (const blockId of blockIds) {
-        const block = doc[blockId] as { type?: string; data?: Record<string, unknown> } | undefined;
-        if (!block || typeof block !== 'object') continue;
-        
-        const blockData = block.data;
-        if (!blockData || typeof blockData !== 'object') continue;
-        
-        const style = blockData.style as Record<string, unknown> | undefined;
-        if (!style || typeof style !== 'object') continue;
-        
-        switch (block.type) {
-          case 'Heading': {
-            const color = sanitizeColor(style.color);
-            if (color) theme.headingColor = color;
-            break;
+      const extractFromBlockIds = (ids: unknown[]) => {
+        const blockIds = ids.filter(id => typeof id === 'string') as string[];
+        for (const blockId of blockIds) {
+          const block = doc[blockId] as { type?: string; data?: Record<string, unknown> } | undefined;
+          if (!block || typeof block !== 'object') continue;
+          
+          const blockData = block.data;
+          if (!blockData || typeof blockData !== 'object') continue;
+          
+          const style = blockData.style as Record<string, unknown> | undefined;
+          
+          if (block.type === 'Container') {
+            const childIds = blockData.childrenIds;
+            if (Array.isArray(childIds)) extractFromBlockIds(childIds);
+            continue;
           }
-          case 'Text': {
-            const color = sanitizeColor(style.color);
-            if (color && !theme.textColor) theme.textColor = color;
-            break;
-          }
-          case 'Button': {
-            const bgColor = sanitizeColor(style.backgroundColor);
-            if (bgColor) {
-              theme.buttonBackgroundColor = bgColor;
-              // Also use button color as link color if not set
-              if (!theme.linkColor) theme.linkColor = bgColor;
+          
+          if (!style || typeof style !== 'object') continue;
+          
+          switch (block.type) {
+            case 'Heading': {
+              const color = sanitizeColor(style.color);
+              if (color) theme.headingColor = color;
+              break;
             }
-            
-            const textColor = sanitizeColor(style.color);
-            if (textColor) theme.buttonTextColor = textColor;
-            
-            const radius = sanitizeBorderRadius(style.borderRadius);
-            if (radius !== null) theme.buttonBorderRadius = radius;
-            break;
+            case 'Text': {
+              const color = sanitizeColor(style.color);
+              if (color && !theme.textColor) theme.textColor = color;
+              break;
+            }
+            case 'Button': {
+              const bgColor = sanitizeColor(style.backgroundColor);
+              if (bgColor) {
+                theme.buttonBackgroundColor = bgColor;
+                if (!theme.linkColor) theme.linkColor = bgColor;
+              }
+              
+              const textColor = sanitizeColor(style.color);
+              if (textColor) theme.buttonTextColor = textColor;
+              
+              const radius = sanitizeBorderRadius(style.borderRadius);
+              if (radius !== null) theme.buttonBorderRadius = radius;
+              break;
+            }
           }
         }
-      }
+      };
+
+      const childrenIds = (root?.data as Record<string, unknown>)?.childrenIds;
+      if (Array.isArray(childrenIds)) extractFromBlockIds(childrenIds);
     } catch (error) {
       console.error('Error extracting theme from emailbuilder JSON:', error);
     }
@@ -948,7 +1150,7 @@ export class EmailTemplateService {
     
     let logoHtml = '';
     if (branding.logoUrl) {
-      logoHtml = `<img src="${branding.logoUrl}" alt="${fullName}" style="max-height: 40px; max-width: 40px; vertical-align: middle;" />`;
+      logoHtml = `<img src="${branding.logoUrl}" alt="${htmlEscape(fullName)}" style="max-height: 50px; max-width: 200px; width: auto; height: auto; vertical-align: middle;" />`;
     }
     
     return `
@@ -982,13 +1184,12 @@ export class EmailTemplateService {
     return html;
   }
 
-  // Generate email footer HTML (with theme support)
   private generateFooterHtmlWithTheme(footerText: string, theme: EmailTheme): string {
     return `
       <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #e0e0e0; margin-top: 24px;">
         <tr>
           <td style="padding: 16px 24px; text-align: center;">
-            <p style="color: #6c757d; font-size: 12px; margin: 0; font-family: ${theme.fontFamily};">
+            <p class="email-footer-text" style="color: #6c757d; font-size: 12px; margin: 0; font-family: ${theme.fontFamily};">
               ${footerText}
             </p>
           </td>
@@ -1048,20 +1249,46 @@ export class EmailTemplateService {
     const footerHtmlRendered = renderTemplate(footer.html, allVariables);
     const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
     
-    // Compose full HTML email with theme colors
+    const darkBackdrop = emailTheme.darkBackdropColor || DEFAULT_EMAIL_THEME.darkBackdropColor;
+    const darkCanvas = emailTheme.darkCanvasColor || DEFAULT_EMAIL_THEME.darkCanvasColor;
+    const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
+    const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
+
+    const darkModeStyles = `
+      @media (prefers-color-scheme: dark) {
+        body, .email-backdrop { background-color: ${darkBackdrop} !important; }
+        .email-canvas { background-color: ${darkCanvas} !important; }
+        .email-heading { color: ${darkHeading} !important; }
+        .email-text { color: ${darkText} !important; }
+        .email-container { filter: brightness(0.85) !important; }
+        .email-footer-text { color: #999999 !important; }
+        .email-divider { border-top-color: #3a3a5c !important; }
+      }
+    `;
+
     const html = `
       <!DOCTYPE html>
       <html lang="de">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="color-scheme" content="light dark">
+        <meta name="supported-color-schemes" content="light dark">
         <title>${htmlEscape(subject)}</title>
+        <style type="text/css">
+          ${darkModeStyles}
+        </style>
+        <!--[if mso]>
+        <style type="text/css">
+          body, table, td { font-family: Arial, sans-serif !important; }
+        </style>
+        <![endif]-->
       </head>
-      <body style="margin: 0; padding: 0; background-color: ${emailTheme.backdropColor}; font-family: ${emailTheme.fontFamily};">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${emailTheme.backdropColor}; padding: 20px 0;">
+      <body class="email-backdrop" style="margin: 0; padding: 0; background-color: ${emailTheme.backdropColor}; font-family: ${emailTheme.fontFamily};">
+        <table width="100%" cellpadding="0" cellspacing="0" class="email-backdrop" style="background-color: ${emailTheme.backdropColor}; padding: 20px 0;">
           <tr>
             <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" style="background-color: ${emailTheme.canvasColor}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <table width="600" cellpadding="0" cellspacing="0" class="email-canvas" style="max-width: 600px; width: 100%; background-color: ${emailTheme.canvasColor}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                 <tr>
                   <td>
                     ${headerHtml}

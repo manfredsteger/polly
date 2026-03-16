@@ -45,7 +45,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ### Technical Implementations
 - **Timezone Handling**: Schedule poll times stored in UTC, frontend converts to local time.
 - **PDF Export**: Utilizes Puppeteer for HTML/CSS-based PDF generation.
-- **Email Templates**: JSON-based, customizable templates with variable substitution.
+- **Email Templates**: JSON-based, customizable templates with variable substitution. Container block type for grouped content (colored boxes), primary/secondary button types, dark mode support via `@media (prefers-color-scheme: dark)`, and auto-sizing logo integration.
 - **Internationalization (i18n)**: React-i18next for localization, covering all UI components and pages, with language preference stored in the database.
 - **WCAG 2.1 AA Color Contrast**: Admin panel audits theme colors against accessibility standards, with separate corrections for light and dark modes.
 - **Security Scanning**: ClamAV for file uploads, npm audit for dependencies, and Pentest-Tools.com integration for vulnerability scanning.

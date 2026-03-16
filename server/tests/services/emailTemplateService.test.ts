@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import { EmailTemplateService } from '../../services/emailTemplateService';
+import { EmailTemplateService, jsonToHtml } from '../../services/emailTemplateService';
+import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
 
 export const testMeta = {
@@ -11,7 +12,7 @@ export const testMeta = {
 
 describe('EmailTemplateService', () => {
   describe('Default Templates', () => {
-    it('should have all 8 template types defined', () => {
+    it('should have all 9 template types defined', () => {
       const expectedTypes = [
         'poll_created',
         'invitation',
@@ -20,7 +21,8 @@ describe('EmailTemplateService', () => {
         'password_reset',
         'email_change',
         'password_changed',
-        'test_report'
+        'test_report',
+        'welcome'
       ];
 
       for (const type of expectedTypes) {
@@ -615,9 +617,8 @@ describe('EmailTemplateService', () => {
     it('should reset theme using primary color from branding settings', async () => {
       const service = new EmailTemplateService();
       
-      await storage.setSetting({
-        key: 'primary_color',
-        value: '#123456'
+      await storage.setCustomizationSettings({
+        theme: { primaryColor: '#123456', secondaryColor: '#654321' }
       });
       
       const resetTheme = await service.resetEmailTheme();
@@ -625,22 +626,257 @@ describe('EmailTemplateService', () => {
       expect(resetTheme.headingColor).toBe('#123456');
       expect(resetTheme.linkColor).toBe('#123456');
       expect(resetTheme.buttonBackgroundColor).toBe('#123456');
+      expect(resetTheme.secondaryButtonBackgroundColor).toBe('#654321');
       expect(resetTheme.backdropColor).toBe('#F5F5F5');
       expect(resetTheme.canvasColor).toBe('#FFFFFF');
     });
 
-    it('should use default orange when primary color is empty string', async () => {
+    it('should use default orange when primary color not set', async () => {
       const service = new EmailTemplateService();
       
-      await storage.setSetting({
-        key: 'primary_color',
-        value: ''
-      });
+      await storage.setCustomizationSettings({ theme: { primaryColor: '', secondaryColor: '' } });
       
       const resetTheme = await service.resetEmailTheme();
       
       expect(resetTheme.headingColor).toBe('#FF6B35');
       expect(resetTheme.buttonBackgroundColor).toBe('#FF6B35');
+      expect(resetTheme.secondaryButtonBackgroundColor).toBe('#4A90A4');
+    });
+
+    it('should include dark mode colors in reset theme', async () => {
+      const service = new EmailTemplateService();
+      
+      const resetTheme = await service.resetEmailTheme();
+      
+      expect(resetTheme.darkBackdropColor).toBeDefined();
+      expect(resetTheme.darkCanvasColor).toBeDefined();
+      expect(resetTheme.darkTextColor).toBeDefined();
+      expect(resetTheme.darkHeadingColor).toBeDefined();
+    });
+  });
+
+  describe('Container Block Rendering', () => {
+    it('should render Container block with background color', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: {
+            backdropColor: '#F5F5F5',
+            canvasColor: '#FFFFFF',
+            textColor: '#333333',
+            fontFamily: 'Arial, sans-serif',
+            childrenIds: ['container-1'],
+          },
+        },
+        'container-1': {
+          type: 'Container',
+          data: {
+            childrenIds: ['text-1'],
+            style: {
+              backgroundColor: '#f8f9fa',
+              borderRadius: 8,
+              padding: { top: 20, right: 24, bottom: 20, left: 24 },
+              margin: { top: 12, right: 0, bottom: 12, left: 0 },
+            },
+          },
+        },
+        'text-1': {
+          type: 'Text',
+          data: {
+            props: { text: 'Container content' },
+            style: { fontSize: 16 },
+          },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      
+      expect(html).toContain('email-container');
+      expect(html).toContain('#f8f9fa');
+      expect(html).toContain('Container content');
+      expect(html).toContain('border-radius: 8px');
+    });
+
+    it('should render nested children inside Container', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: {
+            backdropColor: '#F5F5F5',
+            canvasColor: '#FFFFFF',
+            textColor: '#333333',
+            fontFamily: 'Arial',
+            childrenIds: ['c1'],
+          },
+        },
+        'c1': {
+          type: 'Container',
+          data: {
+            childrenIds: ['h1', 'b1'],
+            style: { backgroundColor: '#e8f4f8' },
+          },
+        },
+        'h1': {
+          type: 'Heading',
+          data: { props: { text: 'Box Heading', level: 'h3' }, style: {} },
+        },
+        'b1': {
+          type: 'Button',
+          data: {
+            props: { text: 'Click me', url: 'https://example.com', buttonType: 'secondary' },
+            style: {},
+          },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      
+      expect(html).toContain('Box Heading');
+      expect(html).toContain('Click me');
+      expect(html).toContain('email-btn-secondary');
+      expect(html).toContain('#e8f4f8');
+    });
+  });
+
+  describe('Button Types', () => {
+    it('should use primary button color by default', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: { backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333', fontFamily: 'Arial', childrenIds: ['btn'] },
+        },
+        'btn': {
+          type: 'Button',
+          data: { props: { text: 'Primary', url: '#' }, style: {} },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      expect(html).toContain('email-btn-primary');
+      expect(html).toContain('#FF6B35');
+    });
+
+    it('should use secondary button color for secondary type', () => {
+      const theme: EmailTheme = {
+        backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333',
+        headingColor: '#000', linkColor: '#000', buttonBackgroundColor: '#FF0000',
+        buttonTextColor: '#FFF', buttonBorderRadius: 6, fontFamily: 'Arial',
+        secondaryButtonBackgroundColor: '#00FF00', secondaryButtonTextColor: '#000',
+        darkBackdropColor: '#111', darkCanvasColor: '#222', darkTextColor: '#EEE', darkHeadingColor: '#FFF',
+      };
+
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: { backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333', fontFamily: 'Arial', childrenIds: ['btn'] },
+        },
+        'btn': {
+          type: 'Button',
+          data: { props: { text: 'Secondary', url: '#', buttonType: 'secondary' }, style: {} },
+        },
+      };
+
+      const html = jsonToHtml(doc, theme);
+      expect(html).toContain('email-btn-secondary');
+      expect(html).toContain('#00FF00');
+    });
+
+    it('should allow explicit style.backgroundColor override', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: { backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333', fontFamily: 'Arial', childrenIds: ['btn'] },
+        },
+        'btn': {
+          type: 'Button',
+          data: { props: { text: 'Custom', url: '#' }, style: { backgroundColor: '#ABCDEF' } },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      expect(html).toContain('#ABCDEF');
+    });
+  });
+
+  describe('Dark Mode Support', () => {
+    it('should include dark mode CSS in rendered email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('prefers-color-scheme: dark');
+      expect(result.html).toContain('color-scheme');
+      expect(result.html).toContain('email-backdrop');
+      expect(result.html).toContain('email-canvas');
+    });
+
+    it('should include MSO conditional comments for Outlook', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('[if mso]');
+    });
+  });
+
+  describe('Logo Sizing', () => {
+    it('should use proper logo sizing constraints', async () => {
+      const service = new EmailTemplateService();
+      
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Test',
+          siteNameAccent: '',
+          logoUrl: 'https://example.com/logo.png',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('max-height: 50px');
+      expect(result.html).toContain('max-width: 200px');
+      expect(result.html).not.toContain('max-width: 40px');
+    });
+  });
+
+  describe('poll_created Template Structure', () => {
+    it('should have admin and public containers', () => {
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      const json = template.jsonContent as Record<string, unknown>;
+      
+      expect(json['admin-box']).toBeDefined();
+      expect(json['public-box']).toBeDefined();
+      
+      const adminBox = json['admin-box'] as { type: string; data: Record<string, unknown> };
+      expect(adminBox.type).toBe('Container');
+      
+      const publicBox = json['public-box'] as { type: string; data: Record<string, unknown> };
+      expect(publicBox.type).toBe('Container');
+    });
+
+    it('should have primary button in admin box and secondary in public box', () => {
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      const json = template.jsonContent as Record<string, unknown>;
+      
+      const adminBtn = json['ab-btn'] as { type: string; data: { props: Record<string, unknown> } };
+      expect(adminBtn.type).toBe('Button');
+      
+      const publicBtn = json['pb-btn'] as { type: string; data: { props: Record<string, unknown> } };
+      expect(publicBtn.type).toBe('Button');
+      expect(publicBtn.data.props.buttonType).toBe('secondary');
     });
   });
 });

@@ -2217,7 +2217,13 @@
       "defaults": {
         "tentativePrefix": "Vorläufig",
         "confirmedPrefix": "Bestätigt",
-        "myChoicePrefix": "[Meine Wahl]"
+        "myChoicePrefix": "[Meine Wahl]",
+        "deTentative": "Vorläufig",
+        "deConfirmed": "Bestätigt",
+        "deMyChoice": "[Meine Wahl]",
+        "enTentative": "Tentative",
+        "enConfirmed": "Confirmed",
+        "enMyChoice": "[My Choice]"
       },
       "placeholders": {
         "deTentative": "Vorläufig",

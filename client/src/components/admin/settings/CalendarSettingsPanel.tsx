@@ -44,8 +44,8 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
     markOwnChoices: false,
     highlightFinalDate: true,
     prefixesLocalized: {
-      de: { tentative: 'Vorläufig', confirmed: 'Bestätigt', myChoice: '[Meine Wahl]' },
-      en: { tentative: 'Tentative', confirmed: 'Confirmed', myChoice: '[My Choice]' },
+      de: { tentative: t('admin.calendar.defaults.deTentative'), confirmed: t('admin.calendar.defaults.deConfirmed'), myChoice: t('admin.calendar.defaults.deMyChoice') },
+      en: { tentative: t('admin.calendar.defaults.enTentative'), confirmed: t('admin.calendar.defaults.enConfirmed'), myChoice: t('admin.calendar.defaults.enMyChoice') },
     },
   });
 

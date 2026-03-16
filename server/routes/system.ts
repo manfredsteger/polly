@@ -74,9 +74,9 @@ router.get('/customization/mobile', async (req, res) => {
     const settings = await storage.getCustomizationSettings();
     const baseUrl = getBaseUrl();
     
-    const siteName = settings.branding?.siteName || 'Polly';
-    const siteNameAccent = settings.branding?.siteNameAccent || 'y';
-    const siteNameFirst = siteName.replace(siteNameAccent, '').trim();
+    const siteName = settings.branding?.siteName || '';
+    const siteNameAccent = settings.branding?.siteNameAccent || '';
+    const siteNameFirst = siteNameAccent ? siteName.replace(siteNameAccent, '').trim() : siteName;
     
     const mobileTheme = {
       branding: {

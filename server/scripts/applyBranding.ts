@@ -160,8 +160,26 @@ async function isDatabaseEmpty(storage: any): Promise<boolean> {
 }
 
 /**
+ * Build branding overrides from environment variables.
+ * Supported: SITE_NAME, SITE_NAME_ACCENT
+ */
+function getEnvBrandingOverrides(): Partial<BrandingConfig> {
+  const overrides: Partial<BrandingConfig> = {};
+  const envSiteName = process.env.SITE_NAME;
+  const envSiteNameAccent = process.env.SITE_NAME_ACCENT;
+
+  if (envSiteName !== undefined || envSiteNameAccent !== undefined) {
+    overrides.branding = {};
+    if (envSiteName !== undefined) overrides.branding.siteName = envSiteName;
+    if (envSiteNameAccent !== undefined) overrides.branding.siteNameAccent = envSiteNameAccent;
+  }
+  return overrides;
+}
+
+/**
  * Bootstrap branding on server startup
  * Only applies file-based config if database is empty (fresh install or reset)
+ * Environment variables (SITE_NAME, SITE_NAME_ACCENT) override file-based defaults on fresh install.
  */
 export async function bootstrapBranding(storage: any): Promise<void> {
   const dbEmpty = await isDatabaseEmpty(storage);
@@ -181,6 +199,15 @@ export async function bootstrapBranding(storage: any): Promise<void> {
   
   // No local config - use defaults
   const defaultConfig = loadDefaultBrandingConfig();
+  const envOverrides = getEnvBrandingOverrides();
+
+  if (Object.keys(envOverrides).length > 0) {
+    console.log('[Branding] Applying environment variable overrides (SITE_NAME / SITE_NAME_ACCENT)');
+    if (envOverrides.branding) {
+      defaultConfig.branding = { ...defaultConfig.branding, ...envOverrides.branding };
+    }
+  }
+
   if (Object.keys(defaultConfig).length > 0) {
     console.log('[Branding] Bootstrapping from branding.default.json (fresh install)');
     await applyConfigToDatabase(storage, defaultConfig, false);

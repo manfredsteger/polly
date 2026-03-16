@@ -62,10 +62,9 @@ export default function Layout({ children }: LayoutProps) {
     return <Moon className="w-4 h-4" />;
   };
 
-  const rawSiteName = settings?.branding?.siteName ?? '';
-  const rawSiteNameAccent = settings?.branding?.siteNameAccent ?? '';
-  const siteName = (rawSiteName || rawSiteNameAccent) ? rawSiteName : 'Poll';
-  const siteNameAccent = (rawSiteName || rawSiteNameAccent) ? rawSiteNameAccent : 'y';
+  const siteName = settings?.branding?.siteName ?? '';
+  const siteNameAccent = settings?.branding?.siteNameAccent ?? '';
+  const hasSiteTitle = !!(siteName || siteNameAccent);
   const logoUrl = settings?.branding?.logoUrl;
   const footerDescription = settings?.footer?.description || t('footer.defaultDescription');
   const footerCopyright = settings?.footer?.copyrightText || t('footer.defaultCopyright');
@@ -83,11 +82,13 @@ export default function Layout({ children }: LayoutProps) {
               <Link href="/" aria-label={t('nav.home')}>
                 <div className="flex items-center cursor-pointer" data-testid="logo">
                   {logoUrl ? (
-                    <img src={logoUrl} alt={siteName} className="h-10 mr-2" />
+                    <img src={logoUrl} alt={siteName || 'Logo'} className="h-10 mr-2" />
                   ) : null}
-                  <h1 className="text-2xl font-bold text-foreground">
-                    {siteName}<span className="text-polly-orange">{siteNameAccent}</span>
-                  </h1>
+                  {hasSiteTitle && (
+                    <h1 className="text-2xl font-bold text-foreground">
+                      {siteName}<span className="text-polly-orange">{siteNameAccent}</span>
+                    </h1>
+                  )}
                 </div>
               </Link>
             </div>
@@ -203,11 +204,13 @@ export default function Layout({ children }: LayoutProps) {
             <div className="md:col-span-2">
               <div className="flex items-center mb-4">
                 {logoUrl ? (
-                  <img src={logoUrl} alt={siteName} className="h-10 mr-2" />
+                  <img src={logoUrl} alt={siteName || 'Logo'} className="h-10 mr-2" />
                 ) : null}
-                <h3 className="text-2xl font-bold">
-                  {siteName}<span className="text-polly-orange">{siteNameAccent}</span>
-                </h3>
+                {hasSiteTitle && (
+                  <h3 className="text-2xl font-bold">
+                    {siteName}<span className="text-polly-orange">{siteNameAccent}</span>
+                  </h3>
+                )}
               </div>
               <p className="text-gray-300 mb-6 max-w-md">
                 {footerDescription}

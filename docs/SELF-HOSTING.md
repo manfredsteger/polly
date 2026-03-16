@@ -220,6 +220,8 @@ When running via Docker, the admin account is automatically created or updated o
 | `ADMIN_USERNAME` | Admin username | `admin` |
 | `ADMIN_EMAIL` | Admin email address | `admin@polly.local` |
 | `ADMIN_PASSWORD` | Admin password | `Admin123!` |
+| `SITE_NAME` | Website name (main part) | `Poll` |
+| `SITE_NAME_ACCENT` | Accented part of the site name | `y` |
 
 > **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
 

@@ -168,8 +168,68 @@ export async function getAvailableTests(): Promise<TestCategory[]> {
   return Array.from(categories.values());
 }
 
-async function countAllTests(): Promise<number> {
+async function countAllTests(testFiles?: string[]): Promise<number> {
+  try {
+    const localVitest = path.join(process.cwd(), 'node_modules', '.bin', 'vitest');
+    if (!fs.existsSync(localVitest)) {
+      return countAllTestsFallback(testFiles);
+    }
+    
+    const args = ['list'];
+    if (testFiles && testFiles.length > 0) {
+      args.push(...testFiles);
+    }
+    
+    const count = await new Promise<number>((resolve) => {
+      const proc = spawn(localVitest, args, {
+        cwd: process.cwd(),
+        env: { ...process.env, NODE_ENV: 'test' },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      
+      let output = '';
+      proc.stdout?.on('data', (data: Buffer) => { output += data.toString(); });
+      
+      const timeout = setTimeout(() => {
+        proc.kill('SIGKILL');
+        resolve(0);
+      }, 30000);
+      
+      proc.on('close', () => {
+        clearTimeout(timeout);
+        const lines = output.split('\n').filter(l => l.trim().length > 0);
+        resolve(lines.length);
+      });
+      
+      proc.on('error', () => {
+        clearTimeout(timeout);
+        resolve(0);
+      });
+    });
+    
+    if (count > 0) return count;
+    return countAllTestsFallback(testFiles);
+  } catch {
+    return countAllTestsFallback(testFiles);
+  }
+}
+
+function countAllTestsFallback(testFiles?: string[]): number {
   let count = 0;
+  
+  if (testFiles && testFiles.length > 0) {
+    for (const f of testFiles) {
+      try {
+        const fullPath = path.resolve(process.cwd(), f);
+        if (fs.existsSync(fullPath)) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          count += parseTestCases(content).length;
+        }
+      } catch {}
+    }
+    return count;
+  }
+  
   const serverTestDir = path.join(process.cwd(), 'server', 'tests');
   
   function scanDir(dir: string) {
@@ -188,16 +248,6 @@ async function countAllTests(): Promise<number> {
   }
   
   scanDir(serverTestDir);
-  
-  const e2eDir = path.join(process.cwd(), 'e2e');
-  try {
-    const e2eFiles = fs.readdirSync(e2eDir).filter(f => f.endsWith('.spec.ts') || f.endsWith('.test.ts'));
-    for (const f of e2eFiles) {
-      const content = fs.readFileSync(path.join(e2eDir, f), 'utf-8');
-      count += parseTestCases(content).length;
-    }
-  } catch {}
-  
   return count;
 }
 
@@ -302,6 +352,14 @@ async function runTestsInBackground(runId: number): Promise<void> {
         // e2e directory might not exist
       }
       console.log(`[TestRunner] Running in auto mode (server tests only, ${e2eTestsToSkip.length} E2E tests skipped)`);
+    }
+    
+    const accurateCount = await countAllTests(testFiles);
+    if (accurateCount > 0) {
+      const newTotal = accurateCount + e2eTestsToSkip.length;
+      await db.update(testRuns)
+        .set({ totalTests: newTotal })
+        .where(eq(testRuns.id, runId));
     }
     
     const vitestOutput = await executeVitest(testFiles, testNamePattern);
@@ -965,7 +1023,7 @@ interface ParsedTest {
   description?: string;
 }
 
-function parseTestCases(content: string): ParsedTest[] {
+export function parseTestCases(content: string): ParsedTest[] {
   const tests: ParsedTest[] = [];
   const lines = content.split('\n');
   

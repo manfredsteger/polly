@@ -9,7 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
 import { bootstrapBranding } from "./scripts/applyBranding";
 import { errorHandler } from "./lib/errorHandler";
-import { getBaseUrl } from "./utils/baseUrl";
+import { getBaseUrl, warnIfLocalhostInProduction } from "./utils/baseUrl";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -22,6 +22,7 @@ app.disable('x-powered-by');
 // Trust proxy - required for secure cookies behind reverse proxy (Replit, Heroku, etc.)
 // Enable always when running behind a proxy (detected via common proxy headers or explicit config)
 const resolvedAppUrl = getBaseUrl();
+warnIfLocalhostInProduction();
 const isProxied = process.env.NODE_ENV === 'production' || 
                   resolvedAppUrl.includes('replit') ||
                   process.env.REPLIT_DEV_DOMAIN ||

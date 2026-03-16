@@ -80,3 +80,8 @@ export function warnIfLocalhostInProduction(): void {
     _warnedLocalhostOnce = true;
   }
 }
+
+export function resetWarningFlags(): void {
+  _warnedOnce = false;
+  _warnedLocalhostOnce = false;
+}

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getBaseUrl, validateEmailUrl, warnIfLocalhostInProduction } from '../../utils/baseUrl';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { getBaseUrl, validateEmailUrl, warnIfLocalhostInProduction, resetWarningFlags } from '../../utils/baseUrl';
 
 describe('getBaseUrl', () => {
   const originalEnv = { ...process.env };
@@ -90,5 +90,28 @@ describe('validateEmailUrl', () => {
   it('should reject malformed absolute URLs', () => {
     const result = validateEmailUrl('https://');
     expect(result).toContain('poll.example.com');
+  });
+});
+
+describe('warnIfLocalhostInProduction', () => {
+  const originalEnv = { ...process.env };
+
+  afterEach(() => {
+    Object.assign(process.env, originalEnv);
+  });
+
+  it('should warn when APP_URL is localhost in production', () => {
+    delete process.env.APP_URL;
+    delete process.env.REPLIT_DOMAINS;
+    delete process.env.REPLIT_DEV_DOMAIN;
+    process.env.NODE_ENV = 'production';
+    resetWarningFlags();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    warnIfLocalhostInProduction();
+    const localhostWarnings = warnSpy.mock.calls.filter(
+      (args) => typeof args[0] === 'string' && args[0].includes('localhost') && args[0].includes('production')
+    );
+    expect(localhostWarnings.length).toBeGreaterThanOrEqual(1);
+    warnSpy.mockRestore();
   });
 });

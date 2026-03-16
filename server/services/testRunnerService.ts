@@ -168,7 +168,7 @@ export async function getAvailableTests(): Promise<TestCategory[]> {
   return Array.from(categories.values());
 }
 
-async function countAllTests(testFiles?: string[]): Promise<number> {
+async function countAllTests(testFiles?: string[], testNamePattern?: string): Promise<number> {
   try {
     const localVitest = path.join(process.cwd(), 'node_modules', '.bin', 'vitest');
     if (!fs.existsSync(localVitest)) {
@@ -176,6 +176,9 @@ async function countAllTests(testFiles?: string[]): Promise<number> {
     }
     
     const args = ['list'];
+    if (testNamePattern) {
+      args.push('--testNamePattern', testNamePattern);
+    }
     if (testFiles && testFiles.length > 0) {
       args.push(...testFiles);
     }
@@ -293,7 +296,7 @@ async function resolveTestConfig(): Promise<ResolvedTestConfig> {
     console.log(`[TestRunner] Auto mode: all server tests, ${e2eTestsToSkip.length} E2E skipped`);
   }
   
-  const vitestCount = await countAllTests(testFiles);
+  const vitestCount = await countAllTests(testFiles, testNamePattern);
   const totalTests = vitestCount + e2eTestsToSkip.length;
   
   return { testFiles, testNamePattern, e2eTestsToSkip, totalTests };
@@ -411,15 +414,12 @@ async function runTestsInBackground(runId: number, config: ResolvedTestConfig): 
       }
     }
     
-    // Calculate totals: add manually-skipped E2E tests only if in manual mode
-    const totalTests = parsed.numTotalTests + e2eTestsToSkip.length;
     const totalSkipped = (parsed.numSkippedTests || 0) + e2eTestsToSkip.length;
     
     const completedAt = new Date();
     await db.update(testRuns)
       .set({
         status: parsed.success ? 'completed' : 'failed',
-        totalTests,
         passed: parsed.numPassedTests,
         failed: parsed.numFailedTests,
         skipped: totalSkipped,
@@ -428,10 +428,12 @@ async function runTestsInBackground(runId: number, config: ResolvedTestConfig): 
       })
       .where(eq(testRuns.id, runId));
     
-    // Send email notification if configured
+    const finalRun = await db.select().from(testRuns).where(eq(testRuns.id, runId)).limit(1);
+    const finalTotal = finalRun[0]?.totalTests || (parsed.numTotalTests + e2eTestsToSkip.length);
+    
     await sendTestReportNotification(runId, {
       status: parsed.success ? 'completed' : 'failed',
-      totalTests,
+      totalTests: finalTotal,
       passed: parsed.numPassedTests,
       failed: parsed.numFailedTests,
       skipped: totalSkipped,

@@ -300,7 +300,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 <span className="text-green-500">✓ {currentRun.summary.passed}</span>
                 <span className="text-red-500">✗ {currentRun.summary.failed}</span>
                 <span className="text-amber-500">○ {currentRun.summary.skipped}</span>
-                <span>/ {currentRun.summary.total || '...'}</span>
+                <span>/ {currentRun.summary.total > 0 ? currentRun.summary.total : t('common.loading')}</span>
               </div>
               {currentRun.liveProgress?.currentTest && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">

@@ -31,6 +31,11 @@ export class EmailService {
     return this.isConfigured;
   }
 
+  configureForTesting(transporter: nodemailer.Transporter): void {
+    this.transporter = transporter;
+    this.isConfigured = true;
+  }
+
   getDisplayConfig(): {
     configured: boolean;
     host: string;
@@ -490,12 +495,13 @@ export class EmailService {
     }
 
     try {
+      const themed = await emailTemplateService.wrapWithEmailTheme(html, text);
       await this.transporter.sendMail({
         from: this.getFromAddress(),
         to: recipientEmail,
         subject,
-        html,
-        text,
+        html: themed.html,
+        text: themed.text,
         headers: {
           'X-Mailer': 'Polly System',
         },

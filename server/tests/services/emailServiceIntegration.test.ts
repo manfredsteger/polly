@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import nodemailer from 'nodemailer';
 import { EmailService } from '../../services/emailService';
 
 export const testMeta = {
@@ -8,30 +9,36 @@ export const testMeta = {
   severity: 'high' as const,
 };
 
+interface CapturedMailOptions {
+  html: string;
+  text: string;
+  subject: string;
+  attachments?: Array<{ filename: string; contentType: string; content: Buffer }>;
+}
+
 let capturedHtml: string;
 let capturedText: string;
 let capturedSubject: string;
 
-const mockTransporter = {
-  sendMail: vi.fn(async (options: any) => {
-    capturedHtml = options.html;
-    capturedText = options.text;
-    capturedSubject = options.subject;
-    return { messageId: 'test-id' };
-  }),
-};
+const mockSendMail = vi.fn(async (options: CapturedMailOptions) => {
+  capturedHtml = options.html;
+  capturedText = options.text;
+  capturedSubject = options.subject;
+  return { messageId: 'test-id' };
+});
+
+const mockTransporter = { sendMail: mockSendMail } as unknown as nodemailer.Transporter;
 
 function createConfiguredEmailService(): EmailService {
   const svc = new EmailService();
-  (svc as any).isConfigured = true;
-  (svc as any).transporter = mockTransporter;
+  svc.configureForTesting(mockTransporter);
   return svc;
 }
 
 async function sendAndCapture(fn: () => Promise<void>): Promise<boolean> {
   try {
     await fn();
-    return mockTransporter.sendMail.mock.calls.length > 0;
+    return mockSendMail.mock.calls.length > 0;
   } catch {
     return false;
   }
@@ -45,7 +52,7 @@ describe('EmailService Integration — Template System', () => {
     process.env.SMTP_PORT = '587';
     process.env.SMTP_USER = 'test';
     process.env.SMTP_PASSWORD = 'test';
-    mockTransporter.sendMail.mockClear();
+    mockSendMail.mockClear();
     capturedHtml = '';
     capturedText = '';
     capturedSubject = '';
@@ -136,7 +143,7 @@ describe('EmailService Integration — Template System', () => {
         }, pdfBuffer)
       );
       if (!sent) return;
-      const lastCall = mockTransporter.sendMail.mock.lastCall?.[0];
+      const lastCall = mockSendMail.mock.lastCall?.[0];
       expect(lastCall.attachments).toBeDefined();
       expect(lastCall.attachments[0].filename).toContain('testbericht');
       expect(lastCall.attachments[0].contentType).toBe('application/pdf');
@@ -199,7 +206,7 @@ describe('EmailService Integration — Template System', () => {
       ];
 
       for (const method of methods) {
-        mockTransporter.sendMail.mockClear();
+        mockSendMail.mockClear();
         const sent = await sendAndCapture(method);
         if (sent && capturedHtml && capturedHtml.length > 0) {
           expect(capturedHtml).toContain('<!DOCTYPE html>');

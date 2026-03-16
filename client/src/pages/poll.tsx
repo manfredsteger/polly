@@ -1519,7 +1519,7 @@ export default function Poll() {
                     id="invite-emails"
                     value={inviteEmails}
                     onChange={(e) => setInviteEmails(e.target.value)}
-                    placeholder="max@example.de, anna@example.de"
+                    placeholder={t('pollView.inviteEmailsPlaceholder')}
                     rows={4}
                     data-testid="input-invite-emails"
                   />
@@ -1655,7 +1655,7 @@ export default function Poll() {
                   id="invite-emails"
                   value={inviteEmails}
                   onChange={(e) => setInviteEmails(e.target.value)}
-                  placeholder="max@example.de, anna@example.de"
+                  placeholder={t('pollView.inviteEmailsPlaceholder')}
                   rows={4}
                   data-testid="input-invite-emails"
                 />

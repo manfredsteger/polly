@@ -298,7 +298,7 @@ export default function Login() {
                       type="text"
                       value={loginForm.usernameOrEmail}
                       onChange={(e) => setLoginForm({ ...loginForm, usernameOrEmail: e.target.value })}
-                      placeholder="max@example.de"
+                      placeholder={t('auth.placeholders.email')}
                       required
                       data-testid="input-login-email"
                     />
@@ -353,7 +353,7 @@ export default function Login() {
                       type="text"
                       value={registerForm.name}
                       onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
-                      placeholder="Max Mustermann"
+                      placeholder={t('auth.placeholders.name')}
                       required
                       data-testid="input-register-name"
                     />
@@ -365,7 +365,7 @@ export default function Login() {
                       type="text"
                       value={registerForm.username}
                       onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                      placeholder="max123"
+                      placeholder={t('auth.placeholders.username')}
                       required
                       minLength={3}
                       data-testid="input-register-username"
@@ -378,7 +378,7 @@ export default function Login() {
                       type="email"
                       value={registerForm.email}
                       onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                      placeholder="max@example.de"
+                      placeholder={t('auth.placeholders.email')}
                       required
                       data-testid="input-register-email"
                       className={registerForm.email.length > 0 && !emailValid ? "border-red-500" : ""}
@@ -466,7 +466,7 @@ export default function Login() {
                   type="text"
                   value={loginForm.usernameOrEmail}
                   onChange={(e) => setLoginForm({ ...loginForm, usernameOrEmail: e.target.value })}
-                  placeholder="max@example.de"
+                  placeholder={t('auth.placeholders.email')}
                   required
                   data-testid="input-login-email"
                 />

@@ -76,35 +76,9 @@ const SETTINGS_DEFAULTS: Record<AiSuggestion["pollType"], AiSuggestionSettings> 
   organization: { resultsPublic: true,  allowVoteEdit: true,  allowVoteWithdrawal: true,  allowMultipleSlots: true },
 };
 
-const PROMPTS_DE = [
-  "Möchtest du ein Sommerfest planen und die Organisation für Helfer bereitstellen?",
-  "Soll ich dir helfen, einen Elternabend-Termin zu koordinieren?",
-  "Planst du eine Teambesprechung und suchst den besten Termin für alle?",
-  "Möchtest du eine Zufriedenheitsumfrage für dein Team erstellen?",
-  "Soll ich eine Mittagspausen-Einteilung für deine Gruppe organisieren?",
-  "Planst du einen Workshop und brauchst eine Anmeldeliste mit Zeitslots?",
-  "Möchtest du einen Fußballabend mit Freunden terminlich abstimmen?",
-  "Suchst du nach dem besten Wochentag für ein regelmäßiges Meeting?",
-  "Brauchst du eine Feedback-Umfrage nach eurer letzten Veranstaltung?",
-  "Soll ich einen Reinigungsplan mit Schichten für dein Büro erstellen?",
-  "Möchtest du eine Umfrage zu Essensvorlieben für euer Teamlunch machen?",
-  "Planst du ein Abteilungstreffen und brauchst Terminvorschläge?",
-];
-
-const PROMPTS_EN = [
-  "Do you want to plan a summer party and organize helpers with sign-up slots?",
-  "Shall I help you coordinate a parent-teacher meeting time?",
-  "Planning a team meeting and looking for the best time slot for everyone?",
-  "Would you like to create a satisfaction survey for your team?",
-  "Shall I set up a lunch break schedule with time slots for your group?",
-  "Planning a workshop and need a sign-up sheet with time options?",
-  "Want to schedule a movie night with friends — which date works best?",
-  "Looking for the best weekday for a recurring standup meeting?",
-  "Need a feedback survey after your last company event?",
-  "Shall I create a cleaning rota with shifts for your office?",
-  "Want to survey your team's food preferences for the next team lunch?",
-  "Planning a department offsite and need to find a date that works?",
-];
+function getPrompts(t: (key: string) => string): string[] {
+  return Array.from({ length: 12 }, (_, i) => t(`aiWidget.prompts.${i}`));
+}
 
 function getQuickSuggestions(
   t: (key: string) => string,
@@ -375,8 +349,7 @@ export function AiChatWidget() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const lang = i18n.language?.startsWith("de") ? "de" : "en";
-  const prompts = lang === "de" ? PROMPTS_DE : PROMPTS_EN;
+  const prompts = getPrompts(t);
 
   const { display: placeholderDisplay, currentFull } = useTypewriter(prompts, isFilled);
 

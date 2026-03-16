@@ -114,7 +114,7 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       const res = await apiRequest('POST', '/api/v1/admin/settings', {
         key: 'oidc_button_label',
         value: label,
-        description: 'Custom SSO button label for login page'
+        description: t('admin.oidc.ssoButtonLabelSettingDescription')
       });
       return res.json();
     },

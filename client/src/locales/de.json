@@ -619,6 +619,12 @@
       "serverError": "Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
       "passwordRequirements": "Bitte erfüllen Sie alle Passwort-Anforderungen",
       "pleaseEnterValidEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein."
+    },
+    "placeholders": {
+      "email": "max@example.de",
+      "name": "Max Mustermann",
+      "username": "max123",
+      "emailList": "max@example.de, anna@example.de"
     }
   },
   "polls": {
@@ -1349,7 +1355,8 @@
       "days": "Tage",
       "day": "Tag",
       "settingsSaved": "Sicherheitseinstellungen wurden gespeichert.",
-      "saveSettings": "Einstellungen speichern"
+      "saveSettings": "Einstellungen speichern",
+      "clamavHost": "ClamAV Host"
     },
     "securityScan": "Sicherheitsscan",
     "vulnerabilities": "Schwachstellen",
@@ -2004,7 +2011,8 @@
       "saveError": "Einstellung konnte nicht gespeichert werden.",
       "saved": "Gespeichert",
       "oidcSaved": "OIDC-Einstellungen wurden gespeichert.",
-      "registrationSettingDescription": "Ob die lokale Registrierung aktiviert ist"
+      "registrationSettingDescription": "Ob die lokale Registrierung aktiviert ist",
+      "ssoButtonLabelSettingDescription": "Benutzerdefiniertes SSO-Button-Label für die Login-Seite"
     },
     "database": {
       "backToSettings": "Zurück zu Einstellungen",
@@ -2205,7 +2213,20 @@
       "highlightFinal": "Finalen Termin hervorheben",
       "highlightFinalDescription": "Der vom Ersteller gewählte Endtermin wird besonders gekennzeichnet",
       "syncInfo": "Automatische Synchronisation",
-      "syncInfoDescription": "Kalender-Apps aktualisieren abonnierte Feeds regelmäßig automatisch. Änderungen an Präfixen werden bei der nächsten Synchronisation sichtbar."
+      "syncInfoDescription": "Kalender-Apps aktualisieren abonnierte Feeds regelmäßig automatisch. Änderungen an Präfixen werden bei der nächsten Synchronisation sichtbar.",
+      "defaults": {
+        "tentativePrefix": "Vorläufig",
+        "confirmedPrefix": "Bestätigt",
+        "myChoicePrefix": "[Meine Wahl]"
+      },
+      "placeholders": {
+        "deTentative": "Vorläufig",
+        "deConfirmed": "Bestätigt",
+        "deMyChoice": "[Meine Wahl]",
+        "enTentative": "Tentative",
+        "enConfirmed": "Confirmed",
+        "enMyChoice": "[My Choice]"
+      }
     },
     "wcag": {
       "title": "WCAG Barrierefreiheit",
@@ -2844,7 +2865,21 @@
       "addMoreDates": "Füge weitere Terminoptionen hinzu",
       "weekdaysOnly": "Beschränke die Termine auf Werktage",
       "addMoreOptions": "Füge weitere Antwortmöglichkeiten hinzu"
-    }
+    },
+    "prompts": [
+      "Möchtest du ein Sommerfest planen und die Organisation für Helfer bereitstellen?",
+      "Soll ich dir helfen, einen Elternabend-Termin zu koordinieren?",
+      "Planst du eine Teambesprechung und suchst den besten Termin für alle?",
+      "Möchtest du eine Zufriedenheitsumfrage für dein Team erstellen?",
+      "Soll ich eine Mittagspausen-Einteilung für deine Gruppe organisieren?",
+      "Planst du einen Workshop und brauchst eine Anmeldeliste mit Zeitslots?",
+      "Möchtest du einen Fußballabend mit Freunden terminlich abstimmen?",
+      "Suchst du nach dem besten Wochentag für ein regelmäßiges Meeting?",
+      "Brauchst du eine Feedback-Umfrage nach eurer letzten Veranstaltung?",
+      "Soll ich einen Reinigungsplan mit Schichten für dein Büro erstellen?",
+      "Möchtest du eine Umfrage zu Essensvorlieben für euer Teamlunch machen?",
+      "Planst du ein Abteilungstreffen und brauchst Terminvorschläge?"
+    ]
   },
   "pollCreation": {
     "welcomeBack": "Willkommen zurück!",
@@ -3140,7 +3175,8 @@
       "linkCopied": "Link wurde in die Zwischenablage kopiert.",
       "linkNotCopied": "Link konnte nicht kopiert werden.",
       "enterValidEmail": "Bitte geben Sie mindestens eine gültige E-Mail-Adresse ein."
-    }
+    },
+    "inviteEmailsPlaceholder": "max@example.de, anna@example.de"
   },
   "myPolls": {
     "title": "Meine Umfragen",

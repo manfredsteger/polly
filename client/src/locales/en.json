@@ -619,6 +619,12 @@
       "serverError": "A server error occurred. Please try again later.",
       "passwordRequirements": "Please meet all password requirements",
       "pleaseEnterValidEmail": "Please enter valid email id."
+    },
+    "placeholders": {
+      "email": "john@example.com",
+      "name": "John Doe",
+      "username": "john123",
+      "emailList": "john@example.com, anna@example.com"
     }
   },
   "polls": {
@@ -1349,7 +1355,8 @@
       "days": "days",
       "day": "day",
       "settingsSaved": "Security settings have been saved.",
-      "saveSettings": "Save settings"
+      "saveSettings": "Save settings",
+      "clamavHost": "ClamAV Host"
     },
     "securityScan": "Security Scan",
     "vulnerabilities": "Vulnerabilities",
@@ -2023,7 +2030,8 @@
       "saveError": "Setting could not be saved.",
       "saved": "Saved",
       "oidcSaved": "OIDC settings have been saved.",
-      "registrationSettingDescription": "Whether local registration is enabled"
+      "registrationSettingDescription": "Whether local registration is enabled",
+      "ssoButtonLabelSettingDescription": "Custom SSO button label for login page"
     },
     "database": {
       "backToSettings": "Back to Settings",
@@ -2224,7 +2232,20 @@
       "highlightFinal": "Highlight final event",
       "highlightFinalDescription": "The final event chosen by the creator is specially marked",
       "syncInfo": "Automatic Synchronization",
-      "syncInfoDescription": "Calendar apps automatically update subscribed feeds regularly. Changes to prefixes will be visible at the next sync."
+      "syncInfoDescription": "Calendar apps automatically update subscribed feeds regularly. Changes to prefixes will be visible at the next sync.",
+      "defaults": {
+        "tentativePrefix": "Tentative",
+        "confirmedPrefix": "Confirmed",
+        "myChoicePrefix": "[My Choice]"
+      },
+      "placeholders": {
+        "deTentative": "Vorläufig",
+        "deConfirmed": "Bestätigt",
+        "deMyChoice": "[Meine Wahl]",
+        "enTentative": "Tentative",
+        "enConfirmed": "Confirmed",
+        "enMyChoice": "[My Choice]"
+      }
     },
     "wcag": {
       "title": "WCAG Accessibility",
@@ -2844,7 +2865,21 @@
       "addMoreDates": "Add more date and time options",
       "weekdaysOnly": "Restrict the options to weekdays only",
       "addMoreOptions": "Add more answer options"
-    }
+    },
+    "prompts": [
+      "Do you want to plan a summer party and organize helpers with sign-up slots?",
+      "Shall I help you coordinate a parent-teacher meeting time?",
+      "Planning a team meeting and looking for the best time slot for everyone?",
+      "Would you like to create a satisfaction survey for your team?",
+      "Shall I set up a lunch break schedule with time slots for your group?",
+      "Planning a workshop and need a sign-up sheet with time options?",
+      "Want to schedule a movie night with friends — which date works best?",
+      "Looking for the best weekday for a recurring standup meeting?",
+      "Need a feedback survey after your last company event?",
+      "Shall I create a cleaning rota with shifts for your office?",
+      "Want to survey your team's food preferences for the next team lunch?",
+      "Planning a department offsite and need to find a date that works?"
+    ]
   },
   "pollCreation": {
     "welcomeBack": "Welcome back!",
@@ -3140,7 +3175,8 @@
       "linkCopied": "Link copied to clipboard.",
       "linkNotCopied": "Link could not be copied.",
       "enterValidEmail": "Please enter at least one valid email address."
-    }
+    },
+    "inviteEmailsPlaceholder": "john@example.com, anna@example.com"
   },
   "myPolls": {
     "title": "My Polls",

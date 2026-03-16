@@ -304,7 +304,7 @@ export function CustomizePanel() {
                 id="siteName"
                 value={brandingSettings.siteName}
                 onChange={(e) => setBrandingSettings({ ...brandingSettings, siteName: e.target.value })}
-                placeholder="Polly"
+                placeholder="Poll"
                 data-testid="input-site-name"
               />
             </div>
@@ -314,7 +314,7 @@ export function CustomizePanel() {
                 id="siteNameAccent"
                 value={brandingSettings.siteNameAccent}
                 onChange={(e) => setBrandingSettings({ ...brandingSettings, siteNameAccent: e.target.value })}
-                placeholder="Poll"
+                placeholder="y"
                 data-testid="input-site-name-accent"
               />
             </div>

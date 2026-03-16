@@ -15,7 +15,7 @@ import type { User } from "@shared/schema";
 import { apiRateLimitsSettingsSchema } from "@shared/schema";
 import { db } from "../db";
 import { testRuns } from "@shared/schema";
-import { eq, ne, or, and, desc } from "drizzle-orm";
+import { eq, or, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -1902,21 +1902,7 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
     // For running tests, get live progress
     const liveProgress = testRunnerService.getLiveProgress();
     
-    // For running tests, use estimated total from last completed run if no results yet
     let estimatedTotal = currentRun.totalTests || 0;
-    if (currentRun.status === 'running' && estimatedTotal === 0) {
-      // Get last completed test run's total as estimate
-      const [lastRun] = await db
-        .select({ totalTests: testRuns.totalTests })
-        .from(testRuns)
-        .where(and(
-          ne(testRuns.id, currentRun.id),
-          or(eq(testRuns.status, 'completed'), eq(testRuns.status, 'failed'))
-        ))
-        .orderBy(desc(testRuns.id))
-        .limit(1);
-      estimatedTotal = lastRun?.totalTests || 320; // fallback estimate
-    }
     
     // Use live progress if test is running
     const passed = liveProgress ? liveProgress.passed : (currentRun.passed || 0);
@@ -1941,7 +1927,7 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
         failed,
         skipped
       },
-      isEstimated: currentRun.status === 'running' && (currentRun.totalTests || 0) === 0,
+      isEstimated: false,
       liveProgress: liveProgress ? {
         currentTest: liveProgress.currentTest,
         currentFile: liveProgress.currentFile

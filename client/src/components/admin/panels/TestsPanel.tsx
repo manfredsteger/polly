@@ -218,8 +218,10 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
   };
 
   const calculateProgress = (run: TestRun) => {
-    if (run.summary.total === 0) return 0;
-    return ((run.summary.passed + run.summary.failed + run.summary.skipped) / run.summary.total) * 100;
+    const processed = run.summary.passed + run.summary.failed + run.summary.skipped;
+    const total = Math.max(run.summary.total, processed);
+    if (total === 0) return 0;
+    return Math.min((processed / total) * 100, 100);
   };
 
   return (
@@ -298,7 +300,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 <span className="text-green-500">✓ {currentRun.summary.passed}</span>
                 <span className="text-red-500">✗ {currentRun.summary.failed}</span>
                 <span className="text-amber-500">○ {currentRun.summary.skipped}</span>
-                <span>/ {currentRun.summary.total}</span>
+                <span>/ {Math.max(currentRun.summary.total, currentRun.summary.passed + currentRun.summary.failed + currentRun.summary.skipped)}</span>
               </div>
               {currentRun.liveProgress?.currentTest && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">

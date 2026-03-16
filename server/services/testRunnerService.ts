@@ -168,11 +168,46 @@ export async function getAvailableTests(): Promise<TestCategory[]> {
   return Array.from(categories.values());
 }
 
+async function countAllTests(): Promise<number> {
+  let count = 0;
+  const serverTestDir = path.join(process.cwd(), 'server', 'tests');
+  
+  function scanDir(dir: string) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          scanDir(fullPath);
+        } else if (entry.name.endsWith('.test.ts')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          count += parseTestCases(content).length;
+        }
+      }
+    } catch {}
+  }
+  
+  scanDir(serverTestDir);
+  
+  const e2eDir = path.join(process.cwd(), 'e2e');
+  try {
+    const e2eFiles = fs.readdirSync(e2eDir).filter(f => f.endsWith('.spec.ts') || f.endsWith('.test.ts'));
+    for (const f of e2eFiles) {
+      const content = fs.readFileSync(path.join(e2eDir, f), 'utf-8');
+      count += parseTestCases(content).length;
+    }
+  } catch {}
+  
+  return count;
+}
+
 export async function runAllTests(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<number> {
+  const preCount = await countAllTests();
+  
   const [testRun] = await db.insert(testRuns).values({
     status: 'running',
     triggeredBy,
-    totalTests: 0,
+    totalTests: preCount,
     passed: 0,
     failed: 0,
     skipped: 0,
@@ -932,15 +967,43 @@ interface ParsedTest {
 
 function parseTestCases(content: string): ParsedTest[] {
   const tests: ParsedTest[] = [];
+  const lines = content.split('\n');
   
-  // Match it() or test() calls
-  const testRegex = /(?:it|test)\s*\(\s*['"`]([^'"`]+)['"`]/g;
-  let match;
+  let inBlockComment = false;
   
-  while ((match = testRegex.exec(content)) !== null) {
-    tests.push({
-      name: match[1],
-    });
+  for (const line of lines) {
+    const trimmed = line.trim();
+    
+    if (inBlockComment) {
+      if (trimmed.includes('*/')) {
+        inBlockComment = false;
+      }
+      continue;
+    }
+    
+    if (trimmed.startsWith('/*')) {
+      if (!trimmed.includes('*/')) {
+        inBlockComment = true;
+      }
+      continue;
+    }
+    
+    if (trimmed.startsWith('//')) {
+      continue;
+    }
+    
+    const testMatch = trimmed.match(/(?:it|test)(?:\.skip|\.todo|\.only)?\s*\(\s*(?:'([^']+)'|"([^"]+)"|`([^`]+)`)/);
+    if (testMatch) {
+      const name = testMatch[1] || testMatch[2] || testMatch[3];
+      if (name) {
+        tests.push({ name });
+      }
+    }
+    
+    const eachMatch = trimmed.match(/(?:it|test)\.each\s*[\[(]/);
+    if (eachMatch) {
+      tests.push({ name: `[dynamic] ${trimmed.substring(0, 60)}` });
+    }
   }
   
   return tests;

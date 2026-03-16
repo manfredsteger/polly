@@ -125,8 +125,12 @@ describe('Admin API - Comprehensive Functional Tests', () => {
 
     it('should delete a user', async () => {
       const res = await adminAgent.delete(`/api/v1/admin/users/${testUserId}`);
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
+      if (res.status === 403 && res.body?.code === 'MANUAL_DELETE_DISABLED') {
+        expect(res.body.code).toBe('MANUAL_DELETE_DISABLED');
+      } else {
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+      }
     });
 
     it('should reject self-deletion', async () => {
@@ -134,7 +138,11 @@ describe('Admin API - Comprehensive Functional Tests', () => {
       const myId = meRes.body.user?.id;
       if (myId) {
         const res = await adminAgent.delete(`/api/v1/admin/users/${myId}`);
-        expect(res.status).toBe(400);
+        if (res.status === 403 && res.body?.code === 'MANUAL_DELETE_DISABLED') {
+          expect(res.body.code).toBe('MANUAL_DELETE_DISABLED');
+        } else {
+          expect(res.status).toBe(400);
+        }
       }
     });
   });

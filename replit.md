@@ -6,6 +6,12 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ## User Preferences
 - **Communication**: Simple, everyday language (German).
 - **Git Commits**: Aussagekräftige, beschreibende Commit-Nachrichten auf Englisch (kein "saved progress"). Format: Kurzer Titel + optionale Details zu den Änderungen.
+- **Test Discipline (MANDATORY)**: When adding a new feature, fixing a bug, or changing existing functionality:
+  1. First check if tests already exist for the affected code (search `server/tests/`).
+  2. If no tests exist, always create or extend tests to cover the change.
+  3. If tests exist but don't cover the new behavior, extend them.
+  4. Ask the user for confirmation only if the test scope is unclear — by default, tests should be written.
+  5. All existing tests must still pass after changes (`npx vitest run`).
 - **i18n Discipline (MANDATORY)**: Every user-visible string in the frontend MUST use `t()` from react-i18next. When adding, changing, or removing any UI text:
   1. Always add/update the key in BOTH `client/src/locales/de.json` AND `client/src/locales/en.json`.
   2. If a text is modified, update the translation in both locale files immediately.
@@ -71,7 +77,7 @@ Token tables (`password_reset_tokens`, `email_verification_tokens`, `email_chang
 - **Polls**: 30 tests (CRUD, voting, finalize, types)
 - **Data/Storage**: 40 tests (settings, branding, storage, test data)
 - **Unit**: 34 tests (validation, token service, QR service)
-- **Services**: 68+ tests (email templates, ClamAV, ICS, PDF, WCAG audit)
+- **Services**: 84+ tests (email templates 47, image upload file types 16, ClamAV, ICS, PDF, WCAG audit)
 - **Security**: 31 tests (WebSocket presenter escalation, poll token validation, email HTML escaping/XSS, deprovision Basic Auth, timing attack resistance)
 - **E2E/Integration**: 49 tests (poll flow, multi-voter, Docker build, deployment readiness, DB migration)
 

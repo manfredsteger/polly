@@ -323,6 +323,7 @@ function SettingsToggles({
 
 export function AiChatWidget() {
   const { t, i18n } = useTranslation();
+  const lang = i18n.language?.startsWith("de") ? "de" : "en";
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [inputValue, setInputValue] = useState("");

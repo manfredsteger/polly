@@ -149,4 +149,40 @@ describe('parseTestCases', () => {
     expect(result[0].name).toBe('before comment');
     expect(result[1].name).toBe('after comment');
   });
+
+  it('should detect forEach-generated tests', () => {
+    const content = `
+      const cases = ['a', 'b', 'c'];
+      cases.forEach((c) => {
+        it('should handle ' + c, () => {});
+      });
+    `;
+    const result = parseTestCases(content);
+    const forEachTests = result.filter(t => t.name.includes('[dynamic/forEach]'));
+    expect(forEachTests.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should detect forEach with arrow function', () => {
+    const content = `
+      [1, 2, 3].forEach(num => {
+        test('test case for ' + num, () => {});
+      });
+    `;
+    const result = parseTestCases(content);
+    const forEachTests = result.filter(t => t.name.includes('[dynamic/forEach]'));
+    expect(forEachTests.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should handle forEach with destructured params', () => {
+    const content = `
+      testCases.forEach(({ input, expected }) => {
+        it('validates input correctly', () => {
+          expect(validate(input)).toBe(expected);
+        });
+      });
+    `;
+    const result = parseTestCases(content);
+    const forEachTests = result.filter(t => t.name.includes('[dynamic/forEach]'));
+    expect(forEachTests.length).toBeGreaterThanOrEqual(1);
+  });
 });

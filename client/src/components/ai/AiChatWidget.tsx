@@ -379,8 +379,10 @@ export function AiChatWidget() {
   const activeRecordingTargetRef = useRef<"main" | "followup">("main");
 
   const transcribeVoice = useCallback(async (audioBlob: Blob) => {
-    if (audioBlob.size < 1024) return;
-    setIsTranscribing(true);
+    if (audioBlob.size < 1024) {
+      setIsTranscribing(false);
+      return;
+    }
     const target = activeRecordingTargetRef.current;
     try {
       const formData = new FormData();
@@ -434,8 +436,14 @@ export function AiChatWidget() {
           setAudioStream(null);
         }
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        if (audioBlob.size > 0) await transcribeVoice(audioBlob);
         audioChunksRef.current = [];
+        if (audioBlob.size > 0) {
+          setIsTranscribing(true);
+          setIsListening(false);
+          await transcribeVoice(audioBlob);
+        } else {
+          setIsListening(false);
+        }
       };
 
       mediaRecorder.start(100);
@@ -454,8 +462,9 @@ export function AiChatWidget() {
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
+    } else {
+      setIsListening(false);
     }
-    setIsListening(false);
   }, []);
 
   const toggleListening = useCallback(() => {

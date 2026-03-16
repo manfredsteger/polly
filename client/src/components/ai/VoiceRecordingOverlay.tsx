@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { Mic, Send, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -22,6 +22,7 @@ export function VoiceRecordingOverlay({
   const animationRef = useRef<number | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const [visualizationActive, setVisualizationActive] = useState(false);
 
   const getPrimaryColor = useCallback(() => {
     const rawValue = getComputedStyle(document.documentElement)
@@ -74,26 +75,60 @@ export function VoiceRecordingOverlay({
   useEffect(() => {
     if (!isVisible || !audioStream) {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      setVisualizationActive(false);
       return;
     }
-    try {
-      const audioContext = new AudioContext();
-      audioContextRef.current = audioContext;
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.8;
-      analyserRef.current = analyser;
-      audioContext.createMediaStreamSource(audioStream).connect(analyser);
-      drawWaveform();
-    } catch (error) {
-      console.error("[VoiceOverlay] Audio visualization error:", error);
-    }
+
+    let cancelled = false;
+
+    const setupAudio = async () => {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContextClass) {
+          console.warn("[VoiceOverlay] AudioContext not supported");
+          return;
+        }
+
+        const audioContext = new AudioContextClass();
+        audioContextRef.current = audioContext;
+
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+
+        if (cancelled) {
+          audioContext.close();
+          return;
+        }
+
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.8;
+        analyserRef.current = analyser;
+
+        const source = audioContext.createMediaStreamSource(audioStream);
+        source.connect(analyser);
+
+        if (!cancelled) {
+          setVisualizationActive(true);
+          drawWaveform();
+        }
+      } catch (error: any) {
+        console.error("[VoiceOverlay] Audio visualization error:", error?.message || error);
+        setVisualizationActive(false);
+      }
+    };
+
+    setupAudio();
+
     return () => {
+      cancelled = true;
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       if (audioContextRef.current) {
         audioContextRef.current.close();
         audioContextRef.current = null;
       }
+      analyserRef.current = null;
     };
   }, [isVisible, audioStream, drawWaveform]);
 
@@ -113,6 +148,8 @@ export function VoiceRecordingOverlay({
   }, [isVisible]);
 
   if (!isVisible) return null;
+
+  const showFallbackAnimation = isListening && !visualizationActive;
 
   return (
     <div
@@ -140,8 +177,26 @@ export function VoiceRecordingOverlay({
 
         <div className="relative h-20 mb-4 rounded-xl overflow-hidden bg-muted/30 border border-border">
           <canvas ref={canvasRef} className="w-full h-full" />
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <div className="absolute left-7 top-1/2 -translate-y-1/2 text-xs text-red-400 font-medium">REC</div>
+
+          {showFallbackAnimation && (
+            <div className="absolute inset-0 flex items-center justify-center gap-[3px]">
+              {Array.from({ length: 24 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-primary rounded-full"
+                  style={{
+                    width: "3px",
+                    animation: `voiceBar 1.2s ease-in-out ${i * 0.05}s infinite`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-xs text-red-400 font-semibold tracking-wider">REC</span>
+          </div>
         </div>
 
         <div className="flex justify-center">
@@ -162,6 +217,13 @@ export function VoiceRecordingOverlay({
           {isTranscribing ? t("home.aiProcessingHint") : t("home.aiSendRecord")}
         </p>
       </div>
+
+      <style>{`
+        @keyframes voiceBar {
+          0%, 100% { height: 4px; }
+          50% { height: ${isListening ? '32px' : '4px'}; }
+        }
+      `}</style>
     </div>
   );
 }

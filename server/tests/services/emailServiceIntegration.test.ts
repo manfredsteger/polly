@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import nodemailer from 'nodemailer';
 import { EmailService } from '../../services/emailService';
+import { emailTemplateService } from '../../services/emailTemplateService';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -14,6 +15,12 @@ interface CapturedMailOptions {
   text: string;
   subject: string;
   attachments?: Array<{ filename: string; contentType: string; content: Buffer }>;
+}
+
+const THEMED_HTML = '<!DOCTYPE html><html lang="de"><head><meta name="color-scheme" content="light dark"><style>@media (prefers-color-scheme: dark){}</style></head><body>{{BODY}}</body></html>';
+
+function themedHtml(body: string): string {
+  return THEMED_HTML.replace('{{BODY}}', body);
 }
 
 let capturedHtml: string;
@@ -35,199 +42,249 @@ function createConfiguredEmailService(): EmailService {
   return svc;
 }
 
-async function sendAndCapture(fn: () => Promise<void>): Promise<boolean> {
-  try {
-    await fn();
-    return mockSendMail.mock.calls.length > 0;
-  } catch {
-    return false;
-  }
-}
-
 describe('EmailService Integration — Template System', () => {
   let emailService: EmailService;
+  let renderEmailSpy: ReturnType<typeof vi.spyOn>;
+  let wrapWithEmailThemeSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     process.env.SMTP_HOST = 'localhost';
     process.env.SMTP_PORT = '587';
     process.env.SMTP_USER = 'test';
     process.env.SMTP_PASSWORD = 'test';
+    process.env.APP_URL = 'https://polly.example.com';
     mockSendMail.mockClear();
     capturedHtml = '';
     capturedText = '';
     capturedSubject = '';
     emailService = createConfiguredEmailService();
+
+    renderEmailSpy = vi.spyOn(emailTemplateService, 'renderEmail').mockResolvedValue({
+      subject: 'Mocked Subject',
+      html: themedHtml('<p>Mocked body</p>'),
+      text: 'Mocked body',
+    });
+
+    wrapWithEmailThemeSpy = vi.spyOn(emailTemplateService, 'wrapWithEmailTheme').mockResolvedValue({
+      subject: 'Wrapped Subject',
+      html: themedHtml('<p>Wrapped body</p>'),
+      text: 'Wrapped body',
+    });
   });
 
-  describe('All template-based emails render properly', () => {
-    it('sendPollCreationEmails renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendPollCreationEmails('admin@test.com', 'Teammeeting', 'https://polly.example.com/poll/abc', 'https://polly.example.com/admin/xyz', 'schedule')
+  afterEach(() => {
+    renderEmailSpy.mockRestore();
+    wrapWithEmailThemeSpy.mockRestore();
+    delete process.env.APP_URL;
+  });
+
+  describe('Template-based emails call renderEmail with correct type', () => {
+    it('sendPollCreationEmails calls renderEmail with poll_created', async () => {
+      await emailService.sendPollCreationEmails(
+        'admin@test.com', 'Teammeeting',
+        'https://polly.example.com/poll/abc', 'https://polly.example.com/admin/xyz', 'schedule'
       );
-      if (!sent) return;
+      expect(renderEmailSpy).toHaveBeenCalledWith('poll_created', expect.objectContaining({
+        pollTitle: 'Teammeeting',
+        publicLink: 'https://polly.example.com/poll/abc',
+        adminLink: 'https://polly.example.com/admin/xyz',
+      }));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(capturedHtml).toContain('<!DOCTYPE html>');
       expect(capturedHtml).toContain('prefers-color-scheme: dark');
     });
 
-    it('sendInvitationEmail renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendInvitationEmail('user@test.com', 'Max Mustermann', 'Sommerfeier', 'https://polly.example.com/poll/summer', 'Bitte abstimmen!')
+    it('sendInvitationEmail calls renderEmail with invitation', async () => {
+      await emailService.sendInvitationEmail(
+        'user@test.com', 'Max Mustermann', 'Sommerfeier',
+        'https://polly.example.com/poll/summer', 'Bitte abstimmen!'
       );
-      if (!sent) return;
+      expect(renderEmailSpy).toHaveBeenCalledWith('invitation', expect.objectContaining({
+        inviterName: 'Max Mustermann',
+        pollTitle: 'Sommerfeier',
+        publicLink: expect.stringContaining('polly.example.com/poll/summer'),
+      }));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(capturedHtml).toContain('<!DOCTYPE html>');
     });
 
-    it('sendVotingConfirmationEmail renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendVotingConfirmationEmail('voter@test.com', 'Anna', 'Weihnachtsfeier', 'schedule', 'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results')
+    it('sendVotingConfirmationEmail calls renderEmail with vote_confirmation', async () => {
+      await emailService.sendVotingConfirmationEmail(
+        'voter@test.com', 'Anna', 'Weihnachtsfeier', 'schedule',
+        'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results'
       );
-      if (!sent) return;
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
+      expect(renderEmailSpy).toHaveBeenCalledWith('vote_confirmation', expect.objectContaining({
+        voterName: 'Anna',
+        pollTitle: 'Weihnachtsfeier',
+      }));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
-    it('sendReminderEmail renders with template system', async () => {
+    it('sendReminderEmail calls renderEmail with reminder', async () => {
       const expiryDate = new Date('2025-12-31T23:59:00');
-      const sent = await sendAndCapture(() =>
-        emailService.sendReminderEmail('user@test.com', 'Chef', 'Wichtige Umfrage', 'https://polly.example.com/poll/urgent', expiryDate)
+      await emailService.sendReminderEmail(
+        'user@test.com', 'Chef', 'Wichtige Umfrage',
+        'https://polly.example.com/poll/urgent', expiryDate
       );
-      if (!sent) return;
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
+      expect(renderEmailSpy).toHaveBeenCalledWith('reminder', expect.objectContaining({
+        senderName: 'Chef',
+        pollTitle: 'Wichtige Umfrage',
+        pollLink: 'https://polly.example.com/poll/urgent',
+      }));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
-    it('sendPasswordResetEmail renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendPasswordResetEmail('user@test.com', 'https://polly.example.com/reset/token123', 'Max')
+    it('sendPasswordResetEmail calls renderEmail with password_reset', async () => {
+      await emailService.sendPasswordResetEmail(
+        'user@test.com', 'https://polly.example.com/reset/token123', 'Max'
       );
-      if (!sent) return;
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
+      expect(renderEmailSpy).toHaveBeenCalledWith('password_reset', expect.objectContaining({
+        resetLink: 'https://polly.example.com/reset/token123',
+      }));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(capturedText).toBeDefined();
+      expect(capturedText.length).toBeGreaterThan(0);
     });
 
-    it('sendEmailChangeConfirmation renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendEmailChangeConfirmation('old@test.com', 'new@test.com', 'https://polly.example.com/confirm/abc')
+    it('sendEmailChangeConfirmation calls renderEmail with email_change', async () => {
+      await emailService.sendEmailChangeConfirmation(
+        'old@test.com', 'new@test.com', 'https://polly.example.com/confirm/abc'
       );
-      if (!sent) return;
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
+      expect(renderEmailSpy).toHaveBeenCalledWith('email_change', expect.objectContaining({
+        confirmLink: 'https://polly.example.com/confirm/abc',
+      }));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
-    it('sendPasswordChangedEmail renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendPasswordChangedEmail('user@test.com', 'Max Mustermann')
-      );
-      if (!sent) return;
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
+    it('sendPasswordChangedEmail calls renderEmail with password_changed', async () => {
+      await emailService.sendPasswordChangedEmail('user@test.com', 'Max Mustermann');
+      expect(renderEmailSpy).toHaveBeenCalledWith('password_changed', expect.any(Object));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
-    it('sendTestReportEmail renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendTestReportEmail('admin@test.com', {
-          id: 42, status: 'completed', triggeredBy: 'manual',
-          totalTests: 25, passed: 24, failed: 1, skipped: 0,
-          duration: 12500,
-          startedAt: new Date('2025-03-15T14:30:00'),
-          completedAt: new Date('2025-03-15T14:30:12'),
-        })
-      );
-      if (!sent) return;
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
+    it('sendTestReportEmail calls renderEmail with test_report', async () => {
+      await emailService.sendTestReportEmail('admin@test.com', {
+        id: 42, status: 'completed', triggeredBy: 'manual',
+        totalTests: 25, passed: 24, failed: 1, skipped: 0,
+        duration: 12500,
+        startedAt: new Date('2025-03-15T14:30:00'),
+        completedAt: new Date('2025-03-15T14:30:12'),
+      });
+      expect(renderEmailSpy).toHaveBeenCalledWith('test_report', expect.any(Object));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
     it('sendTestReportEmail attaches PDF when provided', async () => {
       const pdfBuffer = Buffer.from('fake-pdf');
-      const sent = await sendAndCapture(() =>
-        emailService.sendTestReportEmail('admin@test.com', {
-          id: 1, status: 'completed', triggeredBy: 'manual',
-          totalTests: 10, passed: 10, failed: 0, skipped: 0,
-          duration: 5000, startedAt: new Date(), completedAt: new Date(),
-        }, pdfBuffer)
-      );
-      if (!sent) return;
+      await emailService.sendTestReportEmail('admin@test.com', {
+        id: 1, status: 'completed', triggeredBy: 'manual',
+        totalTests: 10, passed: 10, failed: 0, skipped: 0,
+        duration: 5000, startedAt: new Date(), completedAt: new Date(),
+      }, pdfBuffer);
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
       const lastCall = mockSendMail.mock.lastCall?.[0];
+      expect(lastCall).toBeDefined();
       expect(lastCall.attachments).toBeDefined();
       expect(lastCall.attachments[0].filename).toContain('testbericht');
       expect(lastCall.attachments[0].contentType).toBe('application/pdf');
     });
 
-    it('sendWelcomeEmail renders with template system', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendWelcomeEmail('new@test.com', 'Neuer User', 'https://polly.example.com/verify/abc123')
+    it('sendWelcomeEmail calls renderEmail with welcome', async () => {
+      await emailService.sendWelcomeEmail(
+        'new@test.com', 'Neuer User', 'https://polly.example.com/verify/abc123'
       );
-      if (!sent) return;
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
+      expect(renderEmailSpy).toHaveBeenCalledWith('welcome', expect.objectContaining({
+        verificationLink: expect.stringContaining('polly.example.com/verify/abc123'),
+      }));
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('sendCustomEmail uses themed wrapper', () => {
-    it('should render custom email with themed HTML structure', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendCustomEmail('user@test.com', 'Custom Subject', '<p>Custom body</p>', 'Custom body')
+  describe('Themed wrapper methods call wrapWithEmailTheme', () => {
+    it('sendCustomEmail calls wrapWithEmailTheme', async () => {
+      await emailService.sendCustomEmail(
+        'user@test.com', 'Custom Subject', '<p>Custom body</p>', 'Custom body'
       );
-      if (!sent) return;
+      expect(wrapWithEmailThemeSpy).toHaveBeenCalledWith(
+        'Custom Subject', '<p>Custom body</p>', 'Custom body'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(capturedHtml).toContain('<!DOCTYPE html>');
-      expect(capturedHtml).toContain('prefers-color-scheme: dark');
-      expect(capturedHtml).toContain('Custom body');
     });
-  });
 
-  describe('sendVirusDetectionAlert uses themed wrapper', () => {
-    it('should render with themed HTML structure', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendVirusDetectionAlert(['admin@test.com'], {
-          filename: 'evil.exe', fileSize: 1024, virusName: 'Eicar-Test',
-          uploaderEmail: 'user@test.com', requestIp: '127.0.0.1',
-          scannedAt: new Date('2025-03-15T12:00:00'),
-        })
-      );
-      if (!sent) return;
+    it('sendVirusDetectionAlert calls wrapWithEmailTheme', async () => {
+      await emailService.sendVirusDetectionAlert(['admin@test.com'], {
+        filename: 'evil.exe', fileSize: 1024, virusName: 'Eicar-Test',
+        uploaderEmail: 'user@test.com', requestIp: '127.0.0.1',
+        scannedAt: new Date('2025-03-15T12:00:00'),
+      });
+      expect(wrapWithEmailThemeSpy).toHaveBeenCalledTimes(1);
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(capturedHtml).toContain('<!DOCTYPE html>');
-      expect(capturedHtml).toContain('prefers-color-scheme: dark');
-      expect(capturedHtml).toContain('Virus erkannt');
     });
-  });
 
-  describe('sendDeletionRequestNotification uses themed wrapper', () => {
-    it('should render with themed HTML structure', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendDeletionRequestNotification(['admin@test.com'], 'Max Mustermann', 'max@test.com', 'https://polly.example.com/admin/users')
+    it('sendDeletionRequestNotification calls wrapWithEmailTheme', async () => {
+      await emailService.sendDeletionRequestNotification(
+        ['admin@test.com'], 'Max Mustermann', 'max@test.com',
+        'https://polly.example.com/admin/users'
       );
-      if (!sent) return;
+      expect(wrapWithEmailThemeSpy).toHaveBeenCalledTimes(1);
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(capturedHtml).toContain('<!DOCTYPE html>');
-      expect(capturedHtml).toContain('prefers-color-scheme: dark');
-      expect(capturedHtml).toContain('https://polly.example.com/admin/users');
     });
   });
 
   describe('Email structure and safety', () => {
     it('should not contain x-webdoc:// protocol in any email', async () => {
-      const sent = await sendAndCapture(() =>
-        emailService.sendPollCreationEmails('admin@test.com', 'Test', 'https://polly.example.com/poll/abc', 'https://polly.example.com/admin/xyz', 'schedule')
+      await emailService.sendPollCreationEmails(
+        'admin@test.com', 'Test',
+        'https://polly.example.com/poll/abc', 'https://polly.example.com/admin/xyz', 'schedule'
       );
-      if (!sent) return;
       expect(capturedHtml).not.toContain('x-webdoc://');
     });
 
-    it('all template emails have proper HTML structure', async () => {
-      const methods: Array<() => Promise<void>> = [
-        () => emailService.sendPollCreationEmails('a@b.com', 'T', 'https://e.com/p', 'https://e.com/a', 'schedule'),
-        () => emailService.sendVotingConfirmationEmail('a@b.com', 'N', 'T', 'survey', 'https://e.com/p', 'https://e.com/r'),
-        () => emailService.sendPasswordResetEmail('a@b.com', 'https://e.com/r'),
-        () => emailService.sendEmailChangeConfirmation('a@b.com', 'b@c.com', 'https://e.com/c'),
-        () => emailService.sendPasswordChangedEmail('a@b.com'),
-        () => emailService.sendWelcomeEmail('a@b.com', 'N', 'https://e.com/v'),
+    it('all template emails include both HTML and plain text', async () => {
+      const methods: Array<{ name: string; fn: () => Promise<void> }> = [
+        { name: 'poll_created', fn: () => emailService.sendPollCreationEmails('a@b.com', 'T', 'https://e.com/p', 'https://e.com/a', 'schedule') },
+        { name: 'vote_confirmation', fn: () => emailService.sendVotingConfirmationEmail('a@b.com', 'N', 'T', 'survey', 'https://e.com/p', 'https://e.com/r') },
+        { name: 'password_reset', fn: () => emailService.sendPasswordResetEmail('a@b.com', 'https://e.com/r') },
+        { name: 'email_change', fn: () => emailService.sendEmailChangeConfirmation('a@b.com', 'b@c.com', 'https://e.com/c') },
+        { name: 'password_changed', fn: () => emailService.sendPasswordChangedEmail('a@b.com') },
+        { name: 'welcome', fn: () => emailService.sendWelcomeEmail('a@b.com', 'N', 'https://e.com/v') },
       ];
 
-      for (const method of methods) {
+      for (const { fn } of methods) {
         mockSendMail.mockClear();
-        const sent = await sendAndCapture(method);
-        if (sent && capturedHtml && capturedHtml.length > 0) {
-          expect(capturedHtml).toContain('<!DOCTYPE html>');
-          expect(capturedHtml).toContain('<html');
-          expect(capturedHtml).toContain('</html>');
-          expect(capturedText).toBeDefined();
-          expect(capturedText.length).toBeGreaterThan(0);
-        }
+        await fn();
+        expect(mockSendMail).toHaveBeenCalledTimes(1);
+        expect(capturedHtml).toContain('<!DOCTYPE html>');
+        expect(capturedText).toBeDefined();
+        expect(capturedText.length).toBeGreaterThan(0);
       }
+    });
+  });
+
+  describe('URL validation in email context', () => {
+    it('renderEmail is called with absolute https URLs for links', async () => {
+      await emailService.sendPollCreationEmails(
+        'admin@test.com', 'T',
+        'https://polly.example.com/poll/abc', 'https://polly.example.com/admin/xyz', 'schedule'
+      );
+      const callArgs = renderEmailSpy.mock.calls[0][1] as Record<string, string>;
+      expect(callArgs.publicLink).toMatch(/^https?:\/\//);
+      expect(callArgs.adminLink).toMatch(/^https?:\/\//);
+    });
+
+    it('password reset link is passed as absolute URL', async () => {
+      await emailService.sendPasswordResetEmail('a@b.com', 'https://polly.example.com/reset/tok');
+      const callArgs = renderEmailSpy.mock.calls[0][1] as Record<string, string>;
+      expect(callArgs.resetLink).toMatch(/^https?:\/\//);
+    });
+
+    it('email change confirm link is passed as absolute URL', async () => {
+      await emailService.sendEmailChangeConfirmation('a@b.com', 'b@c.com', 'https://polly.example.com/confirm/abc');
+      const callArgs = renderEmailSpy.mock.calls[0][1] as Record<string, string>;
+      expect(callArgs.confirmLink).toMatch(/^https?:\/\//);
     });
   });
 });

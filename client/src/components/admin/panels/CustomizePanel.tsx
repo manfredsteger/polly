@@ -142,6 +142,7 @@ export function CustomizePanel() {
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = '';
 
     setIsUploading(true);
     const formData = new FormData();
@@ -173,14 +174,14 @@ export function CustomizePanel() {
           });
           return;
         }
-        throw new Error('Upload failed');
+        throw new Error(errorData.error || 'Upload failed');
       }
       
       const data = await response.json();
       setBrandingSettings({ ...brandingSettings, logoUrl: data.logoUrl });
       toast({ title: t('admin.toasts.logoUploaded'), description: t('admin.toasts.logoUploadedDescription') });
-    } catch (error) {
-      toast({ title: t('errors.generic'), description: t('admin.toasts.logoUploadError'), variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: t('errors.generic'), description: error?.message || t('admin.toasts.logoUploadError'), variant: "destructive" });
     } finally {
       setIsUploading(false);
     }

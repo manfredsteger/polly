@@ -1965,7 +1965,18 @@ router.post('/test-runs/stop', requireAdmin, async (req, res) => {
 
 // ============== LOGO UPLOAD (admin) ==============
 
-router.post('/customization/logo', requireAdmin, imageService.getUploadMiddleware().single('logo'), async (req, res) => {
+router.post('/customization/logo', requireAdmin, (req, res, next) => {
+  const upload = imageService.getUploadMiddleware().single('logo');
+  upload(req, res, (err: any) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Datei ist zu groß (max. 5 MB)' });
+      }
+      return res.status(400).json({ error: err.message || 'Upload fehlgeschlagen' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No logo file provided' });

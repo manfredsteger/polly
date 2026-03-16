@@ -25,11 +25,25 @@ export function getBaseUrl(): string {
 
 export function validateEmailUrl(url: string): string {
   if (!url) return url;
-  if (url.startsWith('https://') || url.startsWith('http://')) {
-    return url;
+
+  const trimmed = url.trim();
+
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        console.warn(`[Email URL] Rejected non-http(s) protocol: ${parsed.protocol}`);
+        return getBaseUrl();
+      }
+      return parsed.href;
+    } catch {
+      console.warn(`[Email URL] Malformed URL rejected: ${trimmed.slice(0, 80)}`);
+      return getBaseUrl();
+    }
   }
+
   const base = getBaseUrl();
-  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+  return `${base}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
 }
 
 export function warnIfLocalhostInProduction(): void {

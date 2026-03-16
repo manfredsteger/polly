@@ -399,10 +399,6 @@ export class EmailService {
     }
   }
 
-  async sendPasswordChangedNotification(email: string): Promise<void> {
-    return this.sendPasswordChangedEmail(email);
-  }
-
   async sendTestReportEmail(
     recipientEmail: string,
     testRun: {
@@ -539,15 +535,15 @@ export class EmailService {
         ? `${(details.fileSize / 1024).toFixed(2)} KB`
         : `${(details.fileSize / 1024 / 1024).toFixed(2)} MB`;
 
-    const subject = `[Polly Security Alert] Virus erkannt: ${details.virusName}`;
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    const subject = `[Polly Security Alert] Virus erkannt: ${escapeHtml(details.virusName)}`;
+    const bodyHtml = `
+      <div style="padding: 16px 24px;">
         <div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-          <h2 style="margin: 0; font-size: 24px;">⚠️ Sicherheitswarnung: Virus erkannt</h2>
+          <h2 class="email-heading" style="margin: 0; font-size: 24px; color: white;">⚠️ Sicherheitswarnung: Virus erkannt</h2>
         </div>
         
         <div style="background-color: #fff5f5; border: 1px solid #dc3545; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
-          <p style="font-size: 16px; margin-bottom: 20px;">
+          <p class="email-text" style="font-size: 16px; margin-bottom: 20px;">
             ClamAV hat einen Virus in einer hochgeladenen Datei erkannt. <strong>Die Datei wurde automatisch blockiert und nicht gespeichert.</strong>
           </p>
           
@@ -583,44 +579,22 @@ export class EmailService {
               <strong>✓ Automatische Maßnahme:</strong> Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
             </p>
           </div>
-          
-          <p style="margin-top: 20px; font-size: 14px; color: #6c757d;">
-            Diese Benachrichtigung können Sie im Admin-Panel unter Sicherheit → ClamAV → Scan-Protokoll einsehen.
-          </p>
         </div>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
-        <p style="color: #6c757d; font-size: 12px; text-align: center;">
-          Automatische Sicherheitsbenachrichtigung von Polly<br>
-          Open-Source Abstimmungsplattform für Teams
-        </p>
       </div>
     `;
 
-    const text = `
-POLLY SECURITY ALERT - Virus erkannt!
-
-ClamAV hat einen Virus in einer hochgeladenen Datei erkannt.
-Die Datei wurde automatisch blockiert und nicht gespeichert.
-
-Erkannter Virus: ${details.virusName}
-Dateiname: ${details.filename}
-Dateigröße: ${fileSizeFormatted}
-Uploader: ${details.uploaderEmail || 'Anonym / Unbekannt'}
-IP-Adresse: ${details.requestIp || 'Nicht verfügbar'}
-Zeitpunkt: ${details.scannedAt.toLocaleString('de-DE')}
-
-Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
-    `.trim();
+    const plainText = `POLLY SECURITY ALERT - Virus erkannt!\n\nClamAV hat einen Virus in einer hochgeladenen Datei erkannt.\nDie Datei wurde automatisch blockiert und nicht gespeichert.\n\nErkannter Virus: ${details.virusName}\nDateiname: ${details.filename}\nDateigröße: ${fileSizeFormatted}\nUploader: ${details.uploaderEmail || 'Anonym / Unbekannt'}\nIP-Adresse: ${details.requestIp || 'Nicht verfügbar'}\nZeitpunkt: ${details.scannedAt.toLocaleString('de-DE')}\n\nDie infizierte Datei wurde abgelehnt und nicht im System gespeichert.`;
 
     try {
+      const rendered = await emailTemplateService.wrapWithEmailTheme(subject, bodyHtml, plainText);
+
       for (const adminEmail of adminEmails) {
         await this.transporter.sendMail({
           from: this.getFromAddress('Security'),
           to: adminEmail,
-          subject,
-          html,
-          text,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
           headers: {
             'X-Mailer': 'Polly System',
             'X-Priority': '1',
@@ -676,41 +650,38 @@ Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
     try {
       const requestDate = new Date().toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
       const subject = '[Polly] Neuer Löschantrag eingegangen';
-      const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #FF6B35;">Neuer Löschantrag</h2>
+      const validatedUrl = validateEmailUrl(adminPanelUrl);
+      const bodyHtml = `
+        <div style="padding: 16px 24px;">
+          <h2 class="email-heading" style="margin: 0 0 16px 0;">Neuer Löschantrag</h2>
           
-          <p>Ein Benutzer hat die Löschung seines Kontos beantragt (DSGVO Art. 17).</p>
+          <p class="email-text" style="font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">Ein Benutzer hat die Löschung seines Kontos beantragt (DSGVO Art. 17).</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Benutzer:</strong> ${escapeHtml(userName || 'Unbekannt')}</p>
-            <p><strong>E-Mail:</strong> ${escapeHtml(userEmail)}</p>
-            <p><strong>Zeitpunkt:</strong> ${requestDate}</p>
+            <p class="email-text" style="margin: 0 0 8px 0;"><strong>Benutzer:</strong> ${escapeHtml(userName || 'Unbekannt')}</p>
+            <p class="email-text" style="margin: 0 0 8px 0;"><strong>E-Mail:</strong> ${escapeHtml(userEmail)}</p>
+            <p class="email-text" style="margin: 0;"><strong>Zeitpunkt:</strong> ${requestDate}</p>
           </div>
           
-          <p>Bitte bearbeiten Sie den Löschantrag innerhalb eines Monats gemäß DSGVO.</p>
+          <p class="email-text" style="font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">Bitte bearbeiten Sie den Löschantrag innerhalb eines Monats gemäß DSGVO.</p>
           
-          <div style="margin: 20px 0;">
-            <a href="${validateEmailUrl(adminPanelUrl)}" style="background-color: #FF6B35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Löschanträge verwalten</a>
+          <div style="margin: 20px 0; text-align: center;">
+            <a href="${validatedUrl}" style="background-color: #FF6B35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Löschanträge verwalten</a>
           </div>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e9ecef;">
-          <p style="color: #6c757d; font-size: 14px;">
-            Diese E-Mail wurde automatisch von Polly erstellt.<br>
-            Open-Source Abstimmungsplattform für Teams
-          </p>
         </div>
       `;
-      const text = `Neuer Löschantrag\n\nEin Benutzer hat die Löschung seines Kontos beantragt.\n\nBenutzer: ${userName || 'Unbekannt'}\nE-Mail: ${userEmail}\nZeitpunkt: ${requestDate}\n\nBitte bearbeiten Sie den Löschantrag: ${validateEmailUrl(adminPanelUrl)}`;
+      const plainText = `Neuer Löschantrag\n\nEin Benutzer hat die Löschung seines Kontos beantragt.\n\nBenutzer: ${userName || 'Unbekannt'}\nE-Mail: ${userEmail}\nZeitpunkt: ${requestDate}\n\nBitte bearbeiten Sie den Löschantrag: ${validatedUrl}`;
+
+      const rendered = await emailTemplateService.wrapWithEmailTheme(subject, bodyHtml, plainText);
 
       for (const adminEmail of adminEmails) {
         try {
           await this.transporter.sendMail({
             from: this.getFromAddress(),
             to: adminEmail,
-            subject,
-            html,
-            text,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
             headers: {
               'X-Mailer': 'Polly System',
               'X-Priority': '1',

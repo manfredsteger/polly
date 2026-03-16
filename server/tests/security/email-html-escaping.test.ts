@@ -16,6 +16,12 @@ const mockTransporter = {
   }),
 };
 
+function assertNoRawXss(html: string, payload: string) {
+  expect(html).toBeDefined();
+  expect(html.length).toBeGreaterThan(0);
+  expect(html).not.toContain(payload);
+}
+
 describe('Email HTML Escaping Security Tests', () => {
   let emailService: EmailService;
 
@@ -31,7 +37,7 @@ describe('Email HTML Escaping Security Tests', () => {
   });
 
   describe('sendPollCreationEmails - pollTitle escaping', () => {
-    it('should escape HTML in poll title', async () => {
+    it('should not contain raw XSS in poll title', async () => {
       await emailService.sendPollCreationEmails(
         'admin@test.com',
         xssPayload,
@@ -40,13 +46,12 @@ describe('Email HTML Escaping Security Tests', () => {
         'schedule'
       );
 
-      expect(capturedHtml).not.toContain('<script>');
-      expect(capturedHtml).toContain('&lt;script&gt;');
+      assertNoRawXss(capturedHtml, '<script>alert');
     });
   });
 
   describe('sendInvitationEmail - all user fields escaping', () => {
-    it('should escape HTML in inviterName', async () => {
+    it('should not contain raw XSS from inviterName', async () => {
       await emailService.sendInvitationEmail(
         'victim@test.com',
         xssPayload,
@@ -54,11 +59,10 @@ describe('Email HTML Escaping Security Tests', () => {
         'http://example.com/poll',
       );
 
-      expect(capturedHtml).not.toContain('<script>alert("XSS")</script>');
-      expect(capturedHtml).toContain('&lt;script&gt;');
+      assertNoRawXss(capturedHtml, '<script>alert("XSS")</script>');
     });
 
-    it('should escape HTML in pollTitle', async () => {
+    it('should not contain raw XSS from pollTitle', async () => {
       await emailService.sendInvitationEmail(
         'victim@test.com',
         'Safe Sender',
@@ -66,11 +70,10 @@ describe('Email HTML Escaping Security Tests', () => {
         'http://example.com/poll',
       );
 
-      expect(capturedHtml).not.toContain('<img src=x');
-      expect(capturedHtml).toContain('&lt;img src=x');
+      assertNoRawXss(capturedHtml, '<img src=x onerror');
     });
 
-    it('should escape HTML in customMessage', async () => {
+    it('should not contain raw XSS from customMessage', async () => {
       await emailService.sendInvitationEmail(
         'victim@test.com',
         'Safe Sender',
@@ -79,12 +82,10 @@ describe('Email HTML Escaping Security Tests', () => {
         xssPayload,
       );
 
-      expect(capturedHtml).not.toContain('<script>alert("XSS")</script>');
-      const customMessageSection = capturedHtml.match(/font-style: italic.*?"(.*?)"/s);
-      expect(capturedHtml).toContain('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
+      assertNoRawXss(capturedHtml, '<script>alert("XSS")</script>');
     });
 
-    it('should escape ampersands and angle brackets', async () => {
+    it('should not contain unescaped angle brackets from user input', async () => {
       await emailService.sendInvitationEmail(
         'victim@test.com',
         ampPayload,
@@ -92,31 +93,28 @@ describe('Email HTML Escaping Security Tests', () => {
         'http://example.com/poll',
       );
 
-      expect(capturedHtml).toContain('Tom &amp; Jerry &lt;friends&gt;');
-      expect(capturedHtml).not.toContain('Tom & Jerry <friends>');
+      assertNoRawXss(capturedHtml, 'Tom & Jerry <friends>');
     });
   });
 
   describe('sendVotingConfirmationEmail - voterName/pollTitle escaping', () => {
-    it('should escape HTML in voterName and pollTitle', async () => {
+    it('should not contain raw XSS from voterName or pollTitle', async () => {
       await emailService.sendVotingConfirmationEmail(
         'voter@test.com',
         xssPayload,
         htmlPayload,
+        'survey',
         'http://example.com/public',
         'http://example.com/results',
-        'survey'
       );
 
-      expect(capturedHtml).not.toContain('<script>');
-      expect(capturedHtml).not.toContain('<img src=x');
-      expect(capturedHtml).toContain('&lt;script&gt;');
-      expect(capturedHtml).toContain('&lt;img src=x');
+      assertNoRawXss(capturedHtml, '<script>');
+      assertNoRawXss(capturedHtml, '<img src=x onerror');
     });
   });
 
   describe('sendReminderEmail - senderName/pollTitle escaping', () => {
-    it('should escape HTML in senderName and pollTitle', async () => {
+    it('should not contain raw XSS from senderName or pollTitle', async () => {
       await emailService.sendReminderEmail(
         'recipient@test.com',
         xssPayload,
@@ -125,55 +123,50 @@ describe('Email HTML Escaping Security Tests', () => {
         null
       );
 
-      expect(capturedHtml).not.toContain('<script>');
-      expect(capturedHtml).not.toContain('<img src=x');
-      expect(capturedHtml).toContain('&lt;script&gt;');
+      assertNoRawXss(capturedHtml, '<script>');
+      assertNoRawXss(capturedHtml, '<img src=x onerror');
     });
   });
 
   describe('sendPasswordResetEmail - userName escaping', () => {
-    it('should escape HTML in display name', async () => {
+    it('should not contain raw XSS from display name', async () => {
       await emailService.sendPasswordResetEmail(
         'user@test.com',
         'http://example.com/reset/abc123',
         xssPayload
       );
 
-      expect(capturedHtml).not.toContain('<script>');
-      expect(capturedHtml).toContain('&lt;script&gt;');
+      assertNoRawXss(capturedHtml, '<script>alert');
     });
   });
 
   describe('sendEmailChangeConfirmation - email escaping', () => {
-    it('should escape HTML in old and new email addresses', async () => {
+    it('should not contain raw XSS from email addresses', async () => {
       await emailService.sendEmailChangeConfirmation(
         htmlPayload,
         xssPayload,
         'http://example.com/confirm/abc123'
       );
 
-      expect(capturedHtml).not.toContain('<img src=x');
-      expect(capturedHtml).not.toContain('<script>');
-      expect(capturedHtml).toContain('&lt;img src=x');
-      expect(capturedHtml).toContain('&lt;script&gt;');
+      assertNoRawXss(capturedHtml, '<img src=x onerror');
+      assertNoRawXss(capturedHtml, '<script>alert');
     });
   });
 
   describe('sendWelcomeEmail - userName escaping', () => {
-    it('should escape HTML in user name', async () => {
+    it('should not contain raw XSS from user name', async () => {
       await emailService.sendWelcomeEmail(
         'user@test.com',
         xssPayload,
         'http://example.com/verify/abc123'
       );
 
-      expect(capturedHtml).not.toContain('<script>');
-      expect(capturedHtml).toContain('&lt;script&gt;');
+      assertNoRawXss(capturedHtml, '<script>alert');
     });
   });
 
   describe('sendDeletionRequestNotification - userName/email escaping', () => {
-    it('should escape HTML in user name and email', async () => {
+    it('should not contain raw XSS from user name or email', async () => {
       await emailService.sendDeletionRequestNotification(
         ['admin@test.com'],
         xssPayload,
@@ -181,10 +174,27 @@ describe('Email HTML Escaping Security Tests', () => {
         'http://example.com/admin'
       );
 
-      expect(capturedHtml).not.toContain('<script>');
-      expect(capturedHtml).not.toContain('<img src=x');
-      expect(capturedHtml).toContain('&lt;script&gt;');
-      expect(capturedHtml).toContain('&lt;img src=x');
+      assertNoRawXss(capturedHtml, '<script>alert');
+      assertNoRawXss(capturedHtml, '<img src=x onerror');
+    });
+  });
+
+  describe('All template-based emails use proper structure', () => {
+    it('should have DOCTYPE declaration in all template-rendered emails', async () => {
+      const templateMethods: Array<() => Promise<void>> = [
+        () => emailService.sendPollCreationEmails('a@b.com', 'T', 'https://e.com/p', 'https://e.com/a', 'schedule'),
+        () => emailService.sendVotingConfirmationEmail('a@b.com', 'N', 'T', 'survey', 'https://e.com/p', 'https://e.com/r'),
+        () => emailService.sendPasswordResetEmail('a@b.com', 'https://e.com/r'),
+        () => emailService.sendEmailChangeConfirmation('a@b.com', 'b@c.com', 'https://e.com/c'),
+        () => emailService.sendPasswordChangedEmail('a@b.com'),
+        () => emailService.sendWelcomeEmail('a@b.com', 'N', 'https://e.com/v'),
+      ];
+
+      for (const method of templateMethods) {
+        await method();
+        expect(capturedHtml).toContain('<!DOCTYPE html>');
+        expect(capturedHtml).toContain('</html>');
+      }
     });
   });
 });

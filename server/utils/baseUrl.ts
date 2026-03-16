@@ -22,3 +22,20 @@ export function getBaseUrl(): string {
   const port = process.env.PORT || 5000;
   return `http://localhost:${port}`;
 }
+
+export function validateEmailUrl(url: string): string {
+  if (!url) return url;
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    return url;
+  }
+  const base = getBaseUrl();
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+export function warnIfLocalhostInProduction(): void {
+  const base = getBaseUrl();
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.DOCKER === 'true';
+  if (isProduction && (base.includes('localhost') || base.includes('127.0.0.1'))) {
+    console.warn('[Config] WARNING: APP_URL points to localhost in production! Email links will be broken. Set APP_URL to your public URL (e.g. https://poll.example.com).');
+  }
+}

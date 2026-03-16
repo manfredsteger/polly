@@ -1219,20 +1219,29 @@ export class EmailTemplateService {
     // Add siteName to variables if not provided
     const allVariables = { siteName, ...variables };
     
-    // Render subject
+    // Render subject (plain text — no escaping needed)
     const subject = renderTemplate(template.subject, allVariables);
     
     let bodyHtml: string;
     if (!template.isDefault && template.textContent) {
-      const renderedText = renderTemplate(template.textContent, allVariables);
+      const renderedText = substituteVariables(template.textContent, allVariables, false);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.jsonContent && Object.keys(template.jsonContent).length > 0) {
+      // For JSON templates: HTML-escape values first (for XSS safety),
+      // then JSON-escape to survive JSON.parse()
+      const jsonSafeVars: Record<string, string | undefined> = {};
+      for (const [key, value] of Object.entries(allVariables)) {
+        if (value !== undefined) {
+          const htmlSafe = htmlEscape(value);
+          jsonSafeVars[key] = JSON.stringify(htmlSafe).slice(1, -1);
+        }
+      }
       const renderedJson = JSON.parse(
-        renderTemplate(JSON.stringify(template.jsonContent), allVariables)
+        renderTemplate(JSON.stringify(template.jsonContent), jsonSafeVars)
       ) as EmailBuilderDocument;
       bodyHtml = jsonToHtml(renderedJson, emailTheme);
     } else if (template.htmlContent) {
-      bodyHtml = renderTemplate(template.htmlContent, allVariables);
+      bodyHtml = substituteVariables(template.htmlContent, allVariables, true);
     } else {
       bodyHtml = '<p>Template-Fehler: Kein Inhalt verfügbar</p>';
     }

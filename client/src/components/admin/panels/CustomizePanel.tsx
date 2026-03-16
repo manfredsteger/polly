@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -71,7 +71,6 @@ export function CustomizePanel() {
   });
 
   const [isUploading, setIsUploading] = useState(false);
-  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (customization && !initialDataLoaded) {
@@ -273,28 +272,26 @@ export function CustomizePanel() {
               )}
               <div>
                 <input
-                  ref={logoInputRef}
+                  id="logo-upload-input"
                   type="file"
                   accept="image/*"
                   onChange={handleLogoUpload}
                   disabled={isUploading}
-                  className="hidden"
+                  className="sr-only"
                   data-testid="input-logo-upload"
                 />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={isUploading}
+                <label
+                  htmlFor="logo-upload-input"
+                  className={`inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground cursor-pointer ${isUploading ? 'pointer-events-none opacity-50' : ''}`}
                   data-testid="button-logo-upload"
                 >
                   {isUploading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="h-4 w-4" />
                   )}
                   {isUploading ? t('common.uploading') : t('admin.customize.uploadLogo')}
-                </Button>
+                </label>
               </div>
             </div>
           </div>

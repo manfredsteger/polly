@@ -882,8 +882,8 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toContain('max-height: 40px');
-      expect(result.html).toContain('max-width: 180px');
+      expect(result.html).toContain('max-height: 56px');
+      expect(result.html).toContain('max-width: 220px');
     });
   });
 

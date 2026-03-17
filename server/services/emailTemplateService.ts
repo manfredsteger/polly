@@ -97,7 +97,7 @@ function sanitizeBorderRadius(value: unknown): number | null {
   return null;
 }
 
-function lightenColor(hex: string, percent: number): string {
+function lightenColorByPercent(hex: string, percent: number): string {
   const num = parseInt(hex.replace('#', ''), 16);
   const r = Math.min(255, ((num >> 16) & 0xFF) + Math.round(255 * percent / 100));
   const g = Math.min(255, ((num >> 8) & 0xFF) + Math.round(255 * percent / 100));
@@ -113,29 +113,42 @@ function darkenColor(hex: string, percent: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
-function normalizeHex(color: string): string {
-  let hex = color.trim();
-  if (hex.startsWith('#')) hex = hex.slice(1);
-  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+const NAMED_COLORS: Record<string, string> = {
+  white: '#FFFFFF', black: '#000000', red: '#FF0000', green: '#008000',
+  blue: '#0000FF', yellow: '#FFFF00', orange: '#FFA500', gray: '#808080',
+  grey: '#808080', transparent: '#000000',
+};
+
+function colorToRgb(color: string): { r: number; g: number; b: number } {
+  const c = color.trim().toLowerCase();
+
+  const namedHex = NAMED_COLORS[c];
+  if (namedHex) {
+    const num = parseInt(namedHex.slice(1), 16);
+    return { r: (num >> 16) & 0xFF, g: (num >> 8) & 0xFF, b: num & 0xFF };
+  }
+
+  const rgbMatch = c.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/);
+  if (rgbMatch) {
+    return { r: parseInt(rgbMatch[1]), g: parseInt(rgbMatch[2]), b: parseInt(rgbMatch[3]) };
+  }
+
+  let hex = c.startsWith('#') ? c.slice(1) : c;
+  if (/^[0-9a-f]{3}$/.test(hex)) {
     hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
   }
-  if (/^[0-9a-fA-F]{8}$/.test(hex)) {
+  if (/^[0-9a-f]{8}$/.test(hex)) {
     hex = hex.slice(0, 6);
   }
-  if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
-    throw new Error(`Invalid hex color: ${color}`);
+  if (!/^[0-9a-f]{6}$/.test(hex)) {
+    throw new Error(`Invalid color: ${color}`);
   }
-  return '#' + hex;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const normalized = normalizeHex(hex);
-  const num = parseInt(normalized.slice(1), 16);
+  const num = parseInt(hex, 16);
   return { r: (num >> 16) & 0xFF, g: (num >> 8) & 0xFF, b: num & 0xFF };
 }
 
-function getRelativeLuminance(hex: string): number {
-  const { r, g, b } = hexToRgb(hex);
+function getRelativeLuminance(color: string): number {
+  const { r, g, b } = colorToRgb(color);
   const [rs, gs, bs] = [r / 255, g / 255, b / 255].map(c =>
     c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
   );
@@ -150,13 +163,13 @@ function getContrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-export function ensureButtonTextContrast(bgColor: string, preferredTextColor: string, fallbackDark: string = '#333333'): string {
+export function ensureButtonTextContrast(bgColor: string, preferredTextColor: string, fallbackDark: string = '#1a1a1a'): string {
   try {
     const ratio = getContrastRatio(bgColor, preferredTextColor);
-    if (ratio >= 2.5) return preferredTextColor;
-    const bgLum = getRelativeLuminance(bgColor);
-    if (bgLum > 0.5) return fallbackDark;
-    return '#FFFFFF';
+    if (ratio >= 4.5) return preferredTextColor;
+    const whiteRatio = getContrastRatio(bgColor, '#FFFFFF');
+    const darkRatio = getContrastRatio(bgColor, fallbackDark);
+    return darkRatio > whiteRatio ? fallbackDark : '#FFFFFF';
   } catch {
     return preferredTextColor;
   }
@@ -286,11 +299,36 @@ function btn(id: string, text: string, urlVar: string, type: 'primary' | 'second
   }];
 }
 
+function lightenColor(hex: string, amount: number): string {
+  try {
+    const { r, g, b } = colorToRgb(hex);
+    const lr = Math.round(r + (255 - r) * amount);
+    const lg = Math.round(g + (255 - g) * amount);
+    const lb = Math.round(b + (255 - b) * amount);
+    return `#${((lr << 16) | (lg << 8) | lb).toString(16).padStart(6, '0').toUpperCase()}`;
+  } catch {
+    return '#f8f9fa';
+  }
+}
+
+function darkenColorForDarkMode(hex: string): string {
+  try {
+    const { r, g, b } = colorToRgb(hex);
+    const dr = Math.round(r * 0.15 + 20);
+    const dg = Math.round(g * 0.15 + 20);
+    const db = Math.round(b * 0.15 + 30);
+    return `#${((dr << 16) | (dg << 8) | db).toString(16).padStart(6, '0')}`;
+  } catch {
+    return '#2a2a3e';
+  }
+}
+
 function container(
   id: string,
-  bgColor: string,
-  darkBg: string,
-  childDefs: [string, EmailBuilderBlock][]
+  fallbackBg: string,
+  fallbackDarkBg: string,
+  childDefs: [string, EmailBuilderBlock][],
+  variant: 'primary' | 'secondary' = 'primary'
 ): { entry: [string, EmailBuilderBlock]; children: Record<string, EmailBuilderBlock> } {
   const childIds = childDefs.map(([cid]) => cid);
   const children: Record<string, EmailBuilderBlock> = {};
@@ -302,9 +340,10 @@ function container(
       type: 'Container',
       data: {
         childrenIds: childIds,
+        props: { containerVariant: variant },
         style: {
-          backgroundColor: bgColor,
-          darkBackgroundColor: darkBg,
+          backgroundColor: fallbackBg,
+          darkBackgroundColor: fallbackDarkBg,
           borderRadius: 8,
           padding: { top: 20, right: 24, bottom: 20, left: 24 },
           margin: { top: 12, right: 24, bottom: 12, left: 24 },
@@ -402,7 +441,7 @@ function buildPollCreatedTemplate(): TemplateDefinition {
     heading('pb-h', 'Öffentlicher Link zum Teilen', 'h3'),
     txt('pb-t', 'Teilen Sie diesen Link mit Ihren Teilnehmern, damit diese an der Abstimmung teilnehmen können.'),
     btn('pb-btn', 'Zur Abstimmung', 'publicLink', 'secondary'),
-  ]);
+  ], 'secondary');
 
   const topDefs: [string, EmailBuilderBlock][] = [
     heading('h1', '{{pollType}} erfolgreich erstellt!', 'h1'),
@@ -476,7 +515,7 @@ function buildVoteConfirmationTemplate(): TemplateDefinition {
   const linkBox = container('link-box', '#e8f4f8', '#1e3a4a', [
     txt('lb-t', 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.'),
     btn('lb-btn1', 'Ergebnisse anzeigen', 'resultsLink', 'secondary'),
-  ]);
+  ], 'secondary');
 
   const topDefs: [string, EmailBuilderBlock][] = [
     heading('h1', 'Vielen Dank für Ihre Teilnahme!', 'h1'),
@@ -545,7 +584,7 @@ function buildWelcomeTemplate(): TemplateDefinition {
   const actionBox = container('action-box', '#e8f4f8', '#1e3a4a', [
     txt('ab-t', 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um alle Funktionen von {{siteName}} nutzen zu können.'),
     btn('ab-btn', 'E-Mail bestätigen', 'verificationLink', 'secondary'),
-  ]);
+  ], 'secondary');
 
   const topDefs: [string, EmailBuilderBlock][] = [
     heading('h1', 'Willkommen bei {{siteName}}!', 'h1'),
@@ -767,7 +806,15 @@ function renderBlocksToHtml(
         break;
       }
       case 'Container': {
-        const bgColor = (style.backgroundColor as string) || '#f8f9fa';
+        const variant = props.containerVariant as string | undefined;
+        let bgColor: string;
+        if (variant === 'secondary' && tv.secondaryBg) {
+          bgColor = lightenColor(tv.secondaryBg, 0.85);
+        } else if (variant === 'primary' && tv.buttonBg) {
+          bgColor = lightenColor(tv.buttonBg, 0.92);
+        } else {
+          bgColor = (style.backgroundColor as string) || '#f8f9fa';
+        }
         const borderRadius = (style.borderRadius as number) ?? 8;
         const borderColor = (style.borderColor as string) || 'transparent';
         const borderWidth = (style.borderWidth as number) ?? 0;
@@ -1131,7 +1178,7 @@ export class EmailTemplateService {
     const primaryColor = customization.theme?.primaryColor || '#FF6B35';
     const secondaryColor = customization.theme?.secondaryColor || '#4A90A4';
     
-    const lighterPrimary = lightenColor(primaryColor, 30);
+    const lighterPrimary = lightenColorByPercent(primaryColor, 30);
     
     const primaryTextColor = ensureButtonTextContrast(primaryColor, '#FFFFFF');
     const secondaryTextColor = ensureButtonTextContrast(secondaryColor, '#FFFFFF');
@@ -1390,7 +1437,7 @@ export class EmailTemplateService {
     const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
     const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
 
-    const containerDarkColors = this.extractContainerDarkColors(jsonDoc);
+    const containerDarkColors = this.extractContainerDarkColors(jsonDoc, emailTheme);
     const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText, containerDarkColors);
 
     const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
@@ -1426,7 +1473,7 @@ export class EmailTemplateService {
     const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
     const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
 
-    const containerDarkColors = this.extractContainerDarkColors(null);
+    const containerDarkColors = this.extractContainerDarkColors(null, emailTheme);
     const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText, containerDarkColors);
 
     const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
@@ -1437,13 +1484,20 @@ export class EmailTemplateService {
     return { subject, html, text };
   }
 
-  private extractContainerDarkColors(doc: Record<string, unknown> | null): Map<string, string> {
+  private extractContainerDarkColors(doc: Record<string, unknown> | null, emailTheme?: EmailTheme): Map<string, string> {
     const colors = new Map<string, string>();
     if (!doc) return colors;
     for (const [blockId, block] of Object.entries(doc)) {
       if (blockId === 'root') continue;
-      const b = block as { type?: string; data?: { style?: Record<string, unknown> } };
-      if (b.type === 'Container' && b.data?.style?.darkBackgroundColor) {
+      const b = block as { type?: string; data?: { props?: Record<string, unknown>; style?: Record<string, unknown> } };
+      if (b.type !== 'Container') continue;
+      const variant = b.data?.props?.containerVariant as string | undefined;
+      if (variant && emailTheme) {
+        const themeColor = variant === 'secondary'
+          ? (emailTheme.secondaryButtonBackgroundColor || '#4A90A4')
+          : (emailTheme.buttonBackgroundColor || '#FF6B35');
+        colors.set(blockId, darkenColorForDarkMode(themeColor));
+      } else if (b.data?.style?.darkBackgroundColor) {
         colors.set(blockId, b.data.style.darkBackgroundColor as string);
       }
     }

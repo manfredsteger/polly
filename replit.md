@@ -82,7 +82,7 @@ Token tables (`password_reset_tokens`, `email_verification_tokens`, `email_chang
 - **Polls**: 30 tests (CRUD, voting, finalize, types)
 - **Data/Storage**: 40 tests (settings, branding, storage, test data)
 - **Unit**: 34 tests (validation, token service, QR service)
-- **Services**: 127+ tests (email templates 58, email integration 13, live voting WebSocket multi-user 19, image upload file types 16, ClamAV, ICS, PDF, WCAG audit)
+- **Services**: 130+ tests (email templates 61, email integration 13, live voting WebSocket multi-user 19, image upload file types 16, ClamAV, ICS, PDF, WCAG audit)
 - **Security**: 31 tests (WebSocket presenter escalation, poll token validation, email HTML escaping/XSS, deprovision Basic Auth, timing attack resistance)
 - **E2E/Integration**: 49 tests (poll flow, multi-voter, Docker build, deployment readiness, DB migration)
 

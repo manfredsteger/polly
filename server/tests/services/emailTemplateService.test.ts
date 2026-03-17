@@ -1013,26 +1013,40 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Button Text Contrast Auto-Correction', () => {
-    it('should keep white text on dark backgrounds', () => {
+    it('should keep white text on sufficiently dark backgrounds', () => {
       expect(ensureButtonTextContrast('#7A3800', '#FFFFFF')).toBe('#FFFFFF');
       expect(ensureButtonTextContrast('#123456', '#FFFFFF')).toBe('#FFFFFF');
-      expect(ensureButtonTextContrast('#FF6B35', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('#000000', '#FFFFFF')).toBe('#FFFFFF');
+    });
+
+    it('should pick best contrast for medium-luminance backgrounds', () => {
+      expect(ensureButtonTextContrast('#FF6B35', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('#4A90A4', '#FFFFFF')).toBe('#1a1a1a');
     });
 
     it('should switch to dark text on light backgrounds', () => {
-      expect(ensureButtonTextContrast('#FDE4D2', '#FFFFFF')).toBe('#333333');
-      expect(ensureButtonTextContrast('#FFFFFF', '#FFFFFF')).toBe('#333333');
-      expect(ensureButtonTextContrast('#F0F0F0', '#FFFFFF')).toBe('#333333');
+      expect(ensureButtonTextContrast('#FDE4D2', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('#FFFFFF', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('#F0F0F0', '#FFFFFF')).toBe('#1a1a1a');
     });
 
     it('should handle shorthand hex colors (#fff)', () => {
-      expect(ensureButtonTextContrast('#fff', '#FFFFFF')).toBe('#333333');
+      expect(ensureButtonTextContrast('#fff', '#FFFFFF')).toBe('#1a1a1a');
       expect(ensureButtonTextContrast('#000', '#FFFFFF')).toBe('#FFFFFF');
     });
 
-    it('should return preferred color for invalid hex input', () => {
-      expect(ensureButtonTextContrast('rgb(255,0,0)', '#FFFFFF')).toBe('#FFFFFF');
+    it('should handle rgb() and named colors', () => {
+      expect(ensureButtonTextContrast('rgb(253, 228, 210)', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('white', '#000000')).toBe('#000000');
+    });
+
+    it('should auto-correct rgb() colors', () => {
+      expect(ensureButtonTextContrast('rgb(255,0,0)', '#FFFFFF')).toBe('#1a1a1a');
+    });
+
+    it('should return preferred color for truly invalid input', () => {
       expect(ensureButtonTextContrast('invalid', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('', '#FFFFFF')).toBe('#FFFFFF');
     });
 
     it('should auto-correct secondary button text in rendered email', async () => {
@@ -1052,7 +1066,7 @@ describe('EmailTemplateService', () => {
       });
 
       expect(result.html).toContain('email-btn-secondary');
-      expect(result.html).toContain('color: #333333');
+      expect(result.html).toContain('color: #1a1a1a');
     });
   });
 

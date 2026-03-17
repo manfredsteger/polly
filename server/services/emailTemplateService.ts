@@ -290,7 +290,7 @@ function buildSimpleTemplate(
   footerText: string = 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
 ): TemplateDefinition {
   const defs: [string, EmailBuilderBlock][] = [];
-  defs.push(heading('h1', headingText));
+  defs.push(heading('h1', headingText, 'h1'));
   paragraphs.forEach((p, i) => defs.push(txt(`t${i}`, p)));
   if (buttonText && buttonVar) defs.push(btn('b1', buttonText, buttonVar, buttonType));
   defs.push(divider('d1'));
@@ -318,7 +318,7 @@ function buildPollCreatedTemplate(): TemplateDefinition {
   ]);
 
   const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', '{{pollType}} erfolgreich erstellt!'),
+    heading('h1', '{{pollType}} erfolgreich erstellt!', 'h1'),
     txt('t1', 'Hallo,'),
     txt('t2', 'Ihre {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich erstellt.'),
   ];
@@ -352,7 +352,7 @@ function buildPollCreatedTemplate(): TemplateDefinition {
 // ---- invitation with QR code ----
 function buildInvitationTemplate(): TemplateDefinition {
   const defs: [string, EmailBuilderBlock][] = [];
-  defs.push(heading('h1', 'Einladung zur Abstimmung'));
+  defs.push(heading('h1', 'Einladung zur Abstimmung', 'h1'));
   defs.push(txt('t0', 'Hallo,'));
   defs.push(txt('t1', '{{inviterName}} lädt Sie ein, an der Umfrage <strong>"{{pollTitle}}"</strong> teilzunehmen.'));
   defs.push(txt('t2', '{{message}}'));
@@ -369,7 +369,7 @@ function buildInvitationTemplate(): TemplateDefinition {
 // ---- reminder with QR code ----
 function buildReminderTemplate(): TemplateDefinition {
   const defs: [string, EmailBuilderBlock][] = [];
-  defs.push(heading('h1', 'Erinnerung zur Abstimmung'));
+  defs.push(heading('h1', 'Erinnerung zur Abstimmung', 'h1'));
   defs.push(txt('t0', 'Hallo,'));
   defs.push(txt('t1', '{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage <strong>"{{pollTitle}}"</strong>.'));
   defs.push(txt('t2', 'Ihre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.'));
@@ -392,7 +392,7 @@ function buildVoteConfirmationTemplate(): TemplateDefinition {
   ]);
 
   const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', 'Vielen Dank für Ihre Teilnahme!'),
+    heading('h1', 'Vielen Dank für Ihre Teilnahme!', 'h1'),
     txt('t1', 'Hallo {{voterName}},'),
     txt('t2', 'vielen Dank für Ihre Teilnahme an der {{pollType}} <strong>"{{pollTitle}}"</strong>. Ihre Auswahl wurde erfolgreich gespeichert.'),
   ];
@@ -426,7 +426,7 @@ function buildPasswordResetTemplate(): TemplateDefinition {
   ]);
 
   const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', 'Passwort zurücksetzen'),
+    heading('h1', 'Passwort zurücksetzen', 'h1'),
     txt('t1', 'Hallo {{userName}},'),
     txt('t2', 'Sie haben angefordert, Ihr Passwort für Ihren {{siteName}} Account zurückzusetzen.'),
   ];
@@ -461,7 +461,7 @@ function buildWelcomeTemplate(): TemplateDefinition {
   ]);
 
   const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', 'Willkommen bei {{siteName}}!'),
+    heading('h1', 'Willkommen bei {{siteName}}!', 'h1'),
     txt('t1', 'Hallo {{userName}},'),
     txt('t2', 'vielen Dank für Ihre Registrierung bei {{siteName}}! Ihr Account wurde erfolgreich erstellt.'),
   ];
@@ -647,7 +647,10 @@ function renderBlocksToHtml(
         const text = props.text || '';
         const color = (style.color as string) || tv.headingColor;
         const fontWeight = (style.fontWeight as string) || 'bold';
-        html += `<${level} class="email-heading" style="color: ${color}; ${renderPadding(style.padding as Record<string, number>)} margin: 0; font-weight: ${fontWeight};">${text}</${level}>\n`;
+        const fontSizeMap: Record<string, string> = { h1: '26px', h2: '22px', h3: '18px', h4: '16px' };
+        const fontSize = fontSizeMap[level as string] || '22px';
+        const lineHeight = level === 'h1' ? '1.3' : '1.4';
+        html += `<${level} class="email-heading" style="color: ${color}; font-size: ${fontSize}; line-height: ${lineHeight}; ${renderPadding(style.padding as Record<string, number>)} margin: 0; font-weight: ${fontWeight};">${text}</${level}>\n`;
         break;
       }
       case 'Text': {
@@ -666,11 +669,11 @@ function renderBlocksToHtml(
         const bgColor = explicitBg || (buttonType === 'secondary' ? tv.secondaryBg : tv.buttonBg);
         const color = (style.color as string) || (buttonType === 'secondary' ? tv.secondaryText : tv.buttonText);
         const borderRadius = tv.buttonRadius;
-        const paddingStyle = renderPadding(style.padding as Record<string, number>) || 'padding: 12px 24px;';
+        const paddingStyle = renderPadding(style.padding as Record<string, number>) || 'padding: 14px 28px;';
         const marginStyle = renderMargin(style.margin as Record<string, number>);
         const cssClass = buttonType === 'secondary' ? 'email-btn-secondary' : 'email-btn-primary';
         html += `<div style="text-align: center; ${marginStyle}">
-          <a href="${url}" class="${cssClass}" style="display: inline-block; text-decoration: none; background-color: ${bgColor}; color: ${color}; ${paddingStyle} border-radius: ${borderRadius}px; font-weight: bold;">${text}</a>
+          <a href="${url}" class="${cssClass}" style="display: inline-block; text-decoration: none; background-color: ${bgColor}; color: ${color}; ${paddingStyle} border-radius: ${borderRadius}px; font-weight: 600; font-size: 15px; min-width: 160px; text-align: center;">${text}</a>
         </div>\n`;
         break;
       }
@@ -1158,27 +1161,29 @@ export class EmailTemplateService {
     return await this.setEmailTheme(extractedTheme);
   }
 
-  // Generate email header HTML with branding
   private generateHeaderHtml(branding: {
     siteName: string;
     siteNameAccent: string;
     logoUrl?: string;
-  }): string {
+  }, theme?: EmailTheme): string {
     const fullName = `${branding.siteName}${branding.siteNameAccent}`;
+    const accentColor = theme?.headingColor || '#FF6B35';
 
     let logoHtml = '';
     if (branding.logoUrl) {
-      logoHtml = `<img src="${branding.logoUrl}" alt="${htmlEscape(fullName)}" style="max-height: 40px; max-width: 180px; width: auto; height: auto;" />`;
+      logoHtml = `<img src="${branding.logoUrl}" alt="${htmlEscape(fullName)}" style="max-height: 56px; max-width: 220px; width: auto; height: auto; display: block; margin: 0 auto;" />`;
     }
 
     const hasLogo = !!branding.logoUrl;
-    const siteNameHtml = `<span class="email-header-text" style="color: #6c757d; font-size: 13px; font-family: Arial, sans-serif;">${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span></span>`;
+    const siteNameHtml = hasLogo
+      ? `<span class="email-header-text" style="color: #6c757d; font-size: 12px; font-family: Arial, sans-serif; letter-spacing: 0.5px;">${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span></span>`
+      : `<span class="email-header-text" style="font-size: 22px; font-weight: 700; font-family: Arial, sans-serif; color: #333333; letter-spacing: 0.3px;">${htmlEscape(branding.siteName)}<span style="font-weight: 700; color: ${accentColor};">${htmlEscape(branding.siteNameAccent)}</span></span>`;
 
     return `
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <td style="padding: 20px 24px 8px 24px; text-align: center;">
-            ${hasLogo ? `<div style="margin-bottom: 4px;">${logoHtml}</div>` : ''}
+          <td style="padding: ${hasLogo ? '24px 24px 12px' : '28px 24px 16px'} 24px; text-align: center; border-bottom: 1px solid #f0f0f0;">
+            ${hasLogo ? `<div style="margin-bottom: 6px;">${logoHtml}</div>` : ''}
             ${siteNameHtml}
           </td>
         </tr>
@@ -1205,10 +1210,15 @@ export class EmailTemplateService {
 
   private generateFooterHtmlWithTheme(footerText: string, theme: EmailTheme): string {
     return `
-      <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #e0e0e0; margin-top: 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px;">
         <tr>
-          <td style="padding: 16px 24px; text-align: center;">
-            <p class="email-footer-text" style="color: #6c757d; font-size: 12px; margin: 0; font-family: ${theme.fontFamily};">
+          <td style="padding: 0 24px;">
+            <div style="border-top: 1px solid #e9ecef;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 24px 24px; text-align: center;">
+            <p class="email-footer-text" style="color: #999999; font-size: 12px; margin: 0; line-height: 1.5; font-family: ${theme.fontFamily};">
               ${footerText}
             </p>
           </td>
@@ -1264,14 +1274,12 @@ export class EmailTemplateService {
       bodyHtml = '<p>Template-Fehler: Kein Inhalt verfügbar</p>';
     }
     
-    // Generate header with branding
     const headerHtml = this.generateHeaderHtml({
       siteName: customization.branding.siteName,
       siteNameAccent: customization.branding.siteNameAccent,
       logoUrl: customization.branding.logoUrl || undefined,
-    });
+    }, emailTheme);
     
-    // Render footer with variables
     const footerHtmlRendered = renderTemplate(footer.html, allVariables);
     const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
     
@@ -1306,7 +1314,7 @@ export class EmailTemplateService {
       siteName: customization.branding.siteName,
       siteNameAccent: customization.branding.siteNameAccent,
       logoUrl: customization.branding.logoUrl || undefined,
-    });
+    }, emailTheme);
     const footerHtmlRendered = renderTemplate(footer.html, allVariables);
     const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
 
@@ -1370,7 +1378,7 @@ export class EmailTemplateService {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 8px 0 0 0;">
+                  <td style="padding: 16px 0 8px 0;">
                     ${bodyHtml}
                   </td>
                 </tr>

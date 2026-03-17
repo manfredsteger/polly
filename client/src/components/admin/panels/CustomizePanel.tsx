@@ -113,6 +113,7 @@ export function CustomizePanel() {
     onSuccess: () => {
       toast({ title: t('admin.toasts.saved'), description: t('admin.toasts.customizationSaved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
     },
     onError: () => {
       toast({ title: t('errors.generic'), description: t('admin.toasts.customizationSaveError'), variant: "destructive" });
@@ -179,6 +180,8 @@ export function CustomizePanel() {
       
       const data = await response.json();
       setBrandingSettings({ ...brandingSettings, logoUrl: data.logoUrl });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
       toast({ title: t('admin.toasts.logoUploaded'), description: t('admin.toasts.logoUploadedDescription') });
     } catch (error: any) {
       toast({ title: t('errors.generic'), description: error?.message || t('admin.toasts.logoUploadError'), variant: "destructive" });
@@ -195,6 +198,8 @@ export function CustomizePanel() {
       });
       if (!response.ok) throw new Error('Delete failed');
       setBrandingSettings({ ...brandingSettings, logoUrl: null });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
       toast({ title: t('admin.toasts.logoDeleted'), description: t('admin.toasts.logoDeletedDescription') });
     } catch (error) {
       toast({ title: t('errors.generic'), description: t('admin.toasts.logoDeleteError'), variant: "destructive" });

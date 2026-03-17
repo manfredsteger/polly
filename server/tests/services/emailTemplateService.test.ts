@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { EmailTemplateService, jsonToHtml } from '../../services/emailTemplateService';
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
@@ -11,6 +11,23 @@ export const testMeta = {
 };
 
 describe('EmailTemplateService', () => {
+  let origCustomization: any;
+
+  beforeAll(async () => {
+    origCustomization = await storage.getCustomizationSettings();
+  });
+
+  afterAll(async () => {
+    await storage.setCustomizationSettings(origCustomization);
+    const service = new EmailTemplateService();
+    const templateTypes = [
+      'poll_created', 'invitation', 'vote_confirmation',
+      'reminder', 'password_reset',
+    ];
+    for (const type of templateTypes) {
+      await service.resetTemplate(type);
+    }
+  });
   describe('Default Templates', () => {
     it('should have all 9 template types defined', () => {
       const expectedTypes = [

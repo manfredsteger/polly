@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
@@ -31,8 +31,10 @@ const DARK_BG = '#0f172a';
 describe('WCAG Color Contrast Audit', () => {
   let app: Express;
   let adminAgent: any;
+  let origCustomization: any;
 
   beforeAll(async () => {
+    origCustomization = await storage.getCustomizationSettings();
     app = await createTestApp();
 
     adminAgent = request.agent(app);
@@ -43,6 +45,10 @@ describe('WCAG Color Contrast Audit', () => {
     if (loginRes.status !== 200) {
       console.warn('Admin login failed, some tests may fail:', loginRes.status);
     }
+  });
+
+  afterAll(async () => {
+    await storage.setCustomizationSettings(origCustomization);
   });
 
   describe('Per-mode audit (separate light/dark issues)', () => {

@@ -12,6 +12,11 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
   3. If tests exist but don't cover the new behavior, extend them.
   4. Ask the user for confirmation only if the test scope is unclear — by default, tests should be written.
   5. All existing tests must still pass after changes (`npx vitest run`).
+- **Test-Cleanup (MANDATORY)**: When a test modifies database settings (`storage.setCustomizationSettings()`, `storage.setSetting()`, `service.saveTemplate()` etc.), it MUST save and restore the original state:
+  1. `beforeAll`: Read the current state into a variable (e.g. `origCustomization = await storage.getCustomizationSettings();`)
+  2. `afterAll`: Restore the saved state (e.g. `await storage.setCustomizationSettings(origCustomization);`). `afterAll` runs even when tests fail.
+  3. Tests must NOT pollute production DB — after a test run, all settings must be identical to before.
+  4. Pattern: `const orig = await storage.getCustomizationSettings(); ... afterAll: await storage.setCustomizationSettings(orig);`
 - **i18n Discipline (MANDATORY)**: Every user-visible string in the frontend MUST use `t()` from react-i18next. When adding, changing, or removing any UI text:
   1. Always add/update the key in BOTH `client/src/locales/de.json` AND `client/src/locales/en.json`.
   2. If a text is modified, update the translation in both locale files immediately.

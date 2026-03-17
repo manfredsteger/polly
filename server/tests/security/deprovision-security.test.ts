@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
 import { createTestApp } from '../testApp';
@@ -7,6 +7,7 @@ import type { Express } from 'express';
 
 let app: Express;
 let adminAgent: ReturnType<typeof request.agent>;
+let origDeprovisionConfig: any;
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'manfredsteger';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'test';
@@ -20,6 +21,9 @@ function basicAuth(user: string, pass: string): string {
 
 describe('Deprovision Endpoint Security Tests', () => {
   beforeAll(async () => {
+    const setting = await storage.getSetting('deprovision_config');
+    origDeprovisionConfig = setting?.value || null;
+
     app = await createTestApp();
     adminAgent = request.agent(app);
 
@@ -36,6 +40,14 @@ describe('Deprovision Endpoint Security Tests', () => {
         passwordHash,
       },
     });
+  });
+
+  afterAll(async () => {
+    if (origDeprovisionConfig) {
+      await storage.setSetting({ key: 'deprovision_config', value: origDeprovisionConfig });
+    } else {
+      await storage.setSetting({ key: 'deprovision_config', value: { enabled: false, username: '', passwordHash: '' } });
+    }
   });
 
   describe('Authentication enforcement', () => {

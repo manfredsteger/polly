@@ -13,26 +13,23 @@ export const testMeta = {
 
 describe('ClamAV Security - Fail-Secure Behavior', () => {
   let app: Express;
+  let originalConfig: any;
 
   beforeAll(async () => {
+    const setting = await storage.getSetting('clamav_config');
+    originalConfig = setting?.value || null;
     app = await createTestApp();
   });
 
+  afterAll(async () => {
+    if (originalConfig) {
+      await storage.setSetting({ key: 'clamav_config', value: originalConfig });
+    } else {
+      await storage.setSetting({ key: 'clamav_config', value: { enabled: false, host: 'localhost', port: 3310, timeout: 5000, maxFileSize: 25 * 1024 * 1024 } });
+    }
+  });
+
   describe('Fail-Secure: Scanner enabled but unreachable', () => {
-    let originalConfig: any;
-
-    beforeEach(async () => {
-      const setting = await storage.getSetting('clamav_config');
-      originalConfig = setting?.value || null;
-    });
-
-    afterAll(async () => {
-      if (originalConfig) {
-        await storage.setSetting({ key: 'clamav_config', value: originalConfig });
-      } else {
-        await storage.setSetting({ key: 'clamav_config', value: { enabled: false, host: 'localhost', port: 3310, timeout: 5000, maxFileSize: 25 * 1024 * 1024 } });
-      }
-    });
 
     it('should BLOCK uploads when ClamAV is enabled but daemon is unreachable (ECONNREFUSED)', async () => {
       await storage.setSetting({

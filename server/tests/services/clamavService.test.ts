@@ -22,10 +22,10 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
   });
 
   afterAll(async () => {
-    if (originalConfig) {
+    if (originalConfig !== null) {
       await storage.setSetting({ key: 'clamav_config', value: originalConfig });
     } else {
-      await storage.setSetting({ key: 'clamav_config', value: { enabled: false, host: 'localhost', port: 3310, timeout: 5000, maxFileSize: 25 * 1024 * 1024 } });
+      await storage.deleteSetting('clamav_config');
     }
   });
 

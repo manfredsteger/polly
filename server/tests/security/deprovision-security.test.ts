@@ -43,10 +43,10 @@ describe('Deprovision Endpoint Security Tests', () => {
   });
 
   afterAll(async () => {
-    if (origDeprovisionConfig) {
+    if (origDeprovisionConfig !== null) {
       await storage.setSetting({ key: 'deprovision_config', value: origDeprovisionConfig });
     } else {
-      await storage.setSetting({ key: 'deprovision_config', value: { enabled: false, username: '', passwordHash: '' } });
+      await storage.deleteSetting('deprovision_config');
     }
   });
 

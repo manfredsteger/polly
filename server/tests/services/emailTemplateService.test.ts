@@ -12,20 +12,39 @@ export const testMeta = {
 
 describe('EmailTemplateService', () => {
   let origCustomization: any;
+  let origTheme: any;
+  const modifiedTemplateTypes = [
+    'poll_created', 'invitation', 'vote_confirmation',
+    'reminder', 'password_reset',
+  ] as const;
+  const origTemplates: Record<string, any> = {};
 
   beforeAll(async () => {
     origCustomization = await storage.getCustomizationSettings();
+    const service = new EmailTemplateService();
+    origTheme = await service.getEmailTheme();
+    for (const type of modifiedTemplateTypes) {
+      origTemplates[type] = await service.getTemplate(type);
+    }
   });
 
   afterAll(async () => {
     await storage.setCustomizationSettings(origCustomization);
     const service = new EmailTemplateService();
-    const templateTypes = [
-      'poll_created', 'invitation', 'vote_confirmation',
-      'reminder', 'password_reset',
-    ];
-    for (const type of templateTypes) {
-      await service.resetTemplate(type);
+    await service.setEmailTheme(origTheme);
+    for (const type of modifiedTemplateTypes) {
+      const orig = origTemplates[type];
+      if (orig && !orig.isDefault) {
+        await service.saveTemplate(
+          type,
+          orig.jsonContent,
+          orig.subject,
+          orig.name,
+          orig.textContent
+        );
+      } else {
+        await service.resetTemplate(type);
+      }
     }
   });
   describe('Default Templates', () => {

@@ -1068,6 +1068,50 @@ describe('EmailTemplateService', () => {
       expect(headerMatch).toBeTruthy();
       expect(headerMatch![0]).not.toContain('<span');
     });
+
+    it('should not render empty accent span when siteNameAccent is empty', async () => {
+      const service = new EmailTemplateService();
+
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: '',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('alt="Polly"');
+      const headerMatch = result.html.match(/padding: 24px 24px 12px[\s\S]*?<\/table>/);
+      expect(headerMatch).toBeTruthy();
+      const innerSpans = headerMatch![0].match(/<span[^>]*>/g) || [];
+      expect(innerSpans.length).toBe(1);
+    });
+
+    it('should preserve branding after full test cycle', async () => {
+      const before = await storage.getCustomizationSettings();
+
+      const service = new EmailTemplateService();
+      await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      const after = await storage.getCustomizationSettings();
+      expect(after.branding.logoUrl).toBe(before.branding.logoUrl);
+      expect(after.branding.siteName).toBe(before.branding.siteName);
+      expect(after.branding.siteNameAccent).toBe(before.branding.siteNameAccent);
+      expect(after.theme.primaryColor).toBe(before.theme.primaryColor);
+      expect(after.theme.secondaryColor).toBe(before.theme.secondaryColor);
+    });
   });
 
   describe('poll_created Template Structure', () => {

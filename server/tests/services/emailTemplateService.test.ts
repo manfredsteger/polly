@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../../services/emailTemplateService';
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
@@ -463,6 +463,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Email Theme Import and Validation', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should extract valid theme colors from emailbuilder.js JSON', () => {
       const service = new EmailTemplateService();
       const emailBuilderJson = {
@@ -864,6 +872,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Logo Sizing', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should use proper logo sizing constraints', async () => {
       const service = new EmailTemplateService();
       
@@ -888,6 +904,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Header Design (no colored header bar)', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should NOT have a colored header bar background', async () => {
       const service = new EmailTemplateService();
 
@@ -1050,6 +1074,19 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Button Text Contrast Auto-Correction', () => {
+    let savedCustomization: any;
+    let savedEmailTheme: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+      const svc = new EmailTemplateService();
+      savedEmailTheme = await svc.getEmailTheme();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+      const svc = new EmailTemplateService();
+      await svc.setEmailTheme(savedEmailTheme);
+    });
+
     it('should keep white text on sufficiently dark backgrounds', () => {
       expect(ensureButtonTextContrast('#7A3800', '#FFFFFF')).toBe('#FFFFFF');
       expect(ensureButtonTextContrast('#123456', '#FFFFFF')).toBe('#FFFFFF');

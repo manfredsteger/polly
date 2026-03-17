@@ -1370,7 +1370,7 @@ export class EmailTemplateService {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 0;">
+                  <td style="padding: 8px 0 0 0;">
                     ${bodyHtml}
                   </td>
                 </tr>

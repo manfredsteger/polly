@@ -947,6 +947,43 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('PollyVote');
     });
 
+    it('should embed logo from /uploads/ relative path as base64', async () => {
+      const service = new EmailTemplateService();
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      try { await fs.mkdir(uploadsDir, { recursive: true }); } catch {}
+      const testLogoPath = path.join(uploadsDir, 'test-logo-email.png');
+      const pngHeader = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        0x00, 0x00, 0x00, 0x01, 0x49, 0x48, 0x44, 0x52
+      ]);
+      await fs.writeFile(testLogoPath, pngHeader);
+
+      try {
+        await storage.setCustomizationSettings({
+          branding: {
+            siteName: 'Polly',
+            siteNameAccent: 'Vote',
+            logoUrl: '/uploads/test-logo-email.png',
+          }
+        });
+
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
+
+        expect(result.html).toContain('data:image/png;base64,');
+        expect(result.html).toContain('<img');
+      } finally {
+        await fs.unlink(testLogoPath).catch(() => {});
+      }
+    });
+
     it('should fall back to text header when logo URL is unreachable', async () => {
       const service = new EmailTemplateService();
       

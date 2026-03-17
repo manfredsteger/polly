@@ -213,6 +213,30 @@ async function fetchLogoAsBase64(url: string): Promise<string | null> {
   }
 }
 
+async function readLocalLogoAsBase64(relativePath: string): Promise<string | null> {
+  try {
+    const cached = logoBase64Cache.get(relativePath);
+    if (cached && Date.now() - cached.fetchedAt < LOGO_CACHE_TTL) {
+      return cached.data;
+    }
+    const filename = relativePath.replace(/^\/uploads\//, '');
+    if (filename.includes('..') || filename.includes('/')) return null;
+    const { readFile } = await import('fs/promises');
+    const { join } = await import('path');
+    const filePath = join(process.cwd(), 'uploads', filename);
+    const buffer = await readFile(filePath);
+    if (buffer.byteLength === 0 || buffer.byteLength > 500_000) return null;
+    const ext = filename.split('.').pop()?.toLowerCase() || 'png';
+    const mimeMap: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml', webp: 'image/webp' };
+    const mime = mimeMap[ext] || 'image/png';
+    const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
+    logoBase64Cache.set(relativePath, { data: dataUri, fetchedAt: Date.now() });
+    return dataUri;
+  } catch {
+    return null;
+  }
+}
+
 // Default email template JSON structures for email-builder-js
 // These follow the email-builder-js format with blocks
 
@@ -1315,6 +1339,8 @@ export class EmailTemplateService {
       let logoSrc: string | null = null;
       if (branding.logoUrl.startsWith('data:')) {
         logoSrc = branding.logoUrl;
+      } else if (branding.logoUrl.startsWith('/uploads/')) {
+        logoSrc = await readLocalLogoAsBase64(branding.logoUrl);
       } else {
         logoSrc = await fetchLogoAsBase64(branding.logoUrl);
       }

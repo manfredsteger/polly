@@ -1330,7 +1330,9 @@ export class EmailTemplateService {
     siteNameAccent: string;
     logoUrl?: string;
   }, theme?: EmailTheme): Promise<string> {
-    const fullName = `${branding.siteName}${branding.siteNameAccent}`;
+    const fullName = `${branding.siteName}${branding.siteNameAccent}`.trim();
+    const hasName = fullName.length > 0;
+    const logoAlt = hasName ? htmlEscape(fullName) : 'Logo';
     const accentColor = theme?.headingColor || '#FF6B35';
 
     let logoHtml = '';
@@ -1345,20 +1347,28 @@ export class EmailTemplateService {
         logoSrc = await fetchLogoAsBase64(branding.logoUrl);
       }
       if (logoSrc) {
-        logoHtml = `<img src="${logoSrc}" alt="${htmlEscape(fullName)}" style="max-height: 56px; max-width: 220px; width: auto; height: auto; display: block; margin: 0 auto;" />`;
+        logoHtml = `<img src="${logoSrc}" alt="${logoAlt}" style="max-height: 56px; max-width: 220px; width: auto; height: auto; display: block; margin: 0 auto;" />`;
         hasLogo = true;
       }
     }
 
-    const siteNameHtml = hasLogo
-      ? `<span class="email-header-text" style="color: #6c757d; font-size: 12px; font-family: Arial, sans-serif; letter-spacing: 0.5px;">${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span></span>`
-      : `<span class="email-header-text" style="font-size: 22px; font-weight: 700; font-family: Arial, sans-serif; color: #333333; letter-spacing: 0.3px;">${htmlEscape(branding.siteName)}<span style="font-weight: 700; color: ${accentColor};">${htmlEscape(branding.siteNameAccent)}</span></span>`;
+    let siteNameHtml = '';
+    if (hasName) {
+      const accentSpan = branding.siteNameAccent.trim()
+        ? (hasLogo
+          ? `<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span>`
+          : `<span style="font-weight: 700; color: ${accentColor};">${htmlEscape(branding.siteNameAccent)}</span>`)
+        : '';
+      siteNameHtml = hasLogo
+        ? `<span class="email-header-text" style="color: #6c757d; font-size: 12px; font-family: Arial, sans-serif; letter-spacing: 0.5px;">${htmlEscape(branding.siteName)}${accentSpan}</span>`
+        : `<span class="email-header-text" style="font-size: 22px; font-weight: 700; font-family: Arial, sans-serif; color: #333333; letter-spacing: 0.3px;">${htmlEscape(branding.siteName)}${accentSpan}</span>`;
+    }
 
     return `
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="padding: ${hasLogo ? '24px 24px 12px' : '28px 24px 16px'} 24px; text-align: center; border-bottom: 1px solid #f0f0f0;">
-            ${hasLogo ? `<div style="margin-bottom: 6px;">${logoHtml}</div>` : ''}
+            ${hasLogo ? `<div style="${siteNameHtml ? 'margin-bottom: 6px;' : ''}">${logoHtml}</div>` : ''}
             ${siteNameHtml}
           </td>
         </tr>

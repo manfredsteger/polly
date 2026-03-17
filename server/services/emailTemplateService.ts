@@ -1517,14 +1517,16 @@ export class EmailTemplateService {
       if (blockId === 'root') continue;
       const b = block as { type?: string; data?: { props?: Record<string, unknown>; style?: Record<string, unknown> } };
       if (b.type !== 'Container') continue;
-      const variant = b.data?.props?.containerVariant as string | undefined;
-      if (variant && emailTheme) {
-        const themeColor = variant === 'secondary'
-          ? (emailTheme.secondaryButtonBackgroundColor || '#4A90A4')
-          : (emailTheme.buttonBackgroundColor || '#FF6B35');
-        colors.set(blockId, darkenColorForDarkMode(themeColor));
-      } else if (b.data?.style?.darkBackgroundColor) {
+      if (b.data?.style?.darkBackgroundColor) {
         colors.set(blockId, b.data.style.darkBackgroundColor as string);
+      } else {
+        const variant = b.data?.props?.containerVariant as string | undefined;
+        if (variant && emailTheme) {
+          const themeColor = variant === 'secondary'
+            ? (emailTheme.secondaryButtonBackgroundColor || '#4A90A4')
+            : (emailTheme.buttonBackgroundColor || '#FF6B35');
+          colors.set(blockId, darkenColorForDarkMode(themeColor));
+        }
       }
     }
     return colors;

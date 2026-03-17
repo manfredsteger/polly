@@ -1108,6 +1108,21 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Dark Mode Container Styles', () => {
+    it('should prefer explicit darkBackgroundColor from JSON over variant-derived color', async () => {
+      const service = new EmailTemplateService();
+      await service.resetTemplate('poll_created');
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toMatch(/\.email-container-admin-box\s*\{[^}]*background-color:\s*#2a2a3e/);
+      expect(result.html).toMatch(/\.email-container-public-box\s*\{[^}]*background-color:\s*#1e3a4a/);
+    });
+
     it('should use per-container dark mode colors from template JSON', async () => {
       const service = new EmailTemplateService();
 

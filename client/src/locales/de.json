@@ -1772,9 +1772,6 @@
       "logoUploaded": "Logo hochgeladen",
       "logoUploadedDescription": "Das Logo wurde erfolgreich hochgeladen.",
       "logoUploadError": "Logo konnte nicht hochgeladen werden.",
-      "logoDeleted": "Logo gelöscht",
-      "logoDeletedDescription": "Das Logo wurde erfolgreich entfernt.",
-      "logoDeleteError": "Logo konnte nicht gelöscht werden.",
       "uploadFailed": "Upload fehlgeschlagen",
       "deprovisionSaved": "Deprovisionierungs-Einstellungen wurden gespeichert.",
       "settingsSaveError": "Einstellungen konnten nicht gespeichert werden.",
@@ -2418,6 +2415,9 @@
       "logoUploaded": "Logo hochgeladen",
       "logoUploadedDescription": "Das Logo wurde erfolgreich hochgeladen.",
       "logoUploadError": "Logo konnte nicht hochgeladen werden.",
+      "logoDeleted": "Logo gelöscht",
+      "logoDeletedDescription": "Das Logo wurde erfolgreich entfernt.",
+      "logoDeleteError": "Logo konnte nicht gelöscht werden.",
       "uploadFailed": "Upload fehlgeschlagen"
     },
     "time": {

@@ -1905,9 +1905,6 @@
       "logoUploaded": "Logo Uploaded",
       "logoUploadedDescription": "The logo has been successfully uploaded.",
       "logoUploadError": "Logo could not be uploaded.",
-      "logoDeleted": "Logo Deleted",
-      "logoDeletedDescription": "The logo has been successfully removed.",
-      "logoDeleteError": "Logo could not be deleted.",
       "uploadFailed": "Upload failed",
       "deprovisionSaved": "Deprovisioning settings have been saved.",
       "settingsSaveError": "Settings could not be saved.",
@@ -2418,6 +2415,9 @@
       "logoUploaded": "Logo uploaded",
       "logoUploadedDescription": "The logo has been uploaded successfully.",
       "logoUploadError": "Logo could not be uploaded.",
+      "logoDeleted": "Logo Deleted",
+      "logoDeletedDescription": "The logo has been successfully removed.",
+      "logoDeleteError": "Logo could not be deleted.",
       "uploadFailed": "Upload failed"
     },
     "time": {

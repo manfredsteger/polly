@@ -846,9 +846,73 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toContain('max-height: 50px');
-      expect(result.html).toContain('max-width: 200px');
-      expect(result.html).not.toContain('max-width: 40px');
+      expect(result.html).toContain('max-height: 40px');
+      expect(result.html).toContain('max-width: 180px');
+    });
+  });
+
+  describe('Header Design (no colored header bar)', () => {
+    it('should NOT have a colored header bar background', async () => {
+      const service = new EmailTemplateService();
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).not.toMatch(/background-color:\s*#FF6B35/i);
+      expect(result.html).not.toContain('color: #FFFFFF; font-size: 22px');
+    });
+
+    it('should show siteName as subtle muted text', async () => {
+      const service = new EmailTemplateService();
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('email-header-text');
+      expect(result.html).toContain('color: #6c757d');
+    });
+
+    it('should include logo when logoUrl is set in branding', async () => {
+      const service = new EmailTemplateService();
+      
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: 'https://example.com/my-logo.png',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('https://example.com/my-logo.png');
+      expect(result.html).toContain('PollyVote');
+    });
+
+    it('should have dark mode class for header text', async () => {
+      const service = new EmailTemplateService();
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('.email-header-text');
     });
   });
 

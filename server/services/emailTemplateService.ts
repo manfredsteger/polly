@@ -1163,24 +1163,23 @@ export class EmailTemplateService {
     siteName: string;
     siteNameAccent: string;
     logoUrl?: string;
-    primaryColor?: string;
   }): string {
     const fullName = `${branding.siteName}${branding.siteNameAccent}`;
-    const primaryColor = branding.primaryColor || '#FF6B35';
-    
+
     let logoHtml = '';
     if (branding.logoUrl) {
-      logoHtml = `<img src="${branding.logoUrl}" alt="${htmlEscape(fullName)}" style="max-height: 50px; max-width: 200px; width: auto; height: auto; vertical-align: middle;" />`;
+      logoHtml = `<img src="${branding.logoUrl}" alt="${htmlEscape(fullName)}" style="max-height: 40px; max-width: 180px; width: auto; height: auto;" />`;
     }
-    
+
+    const hasLogo = !!branding.logoUrl;
+    const siteNameHtml = `<span class="email-header-text" style="color: #6c757d; font-size: 13px; font-family: Arial, sans-serif;">${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span></span>`;
+
     return `
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${primaryColor}; padding: 12px 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <td style="text-align: left; vertical-align: middle;">
-            ${logoHtml ? `<span style="display: inline-block; margin-right: 12px; vertical-align: middle;">${logoHtml}</span>` : ''}
-            <h1 style="color: #FFFFFF; font-size: 22px; font-weight: bold; margin: 0; font-family: Arial, sans-serif; display: inline-block; vertical-align: middle;">
-              ${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span>
-            </h1>
+          <td style="padding: 20px 24px 8px 24px; text-align: center;">
+            ${hasLogo ? `<div style="margin-bottom: 4px;">${logoHtml}</div>` : ''}
+            ${siteNameHtml}
           </td>
         </tr>
       </table>
@@ -1228,7 +1227,6 @@ export class EmailTemplateService {
     // Get branding settings
     const customization = await storage.getCustomizationSettings();
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
-    const primaryColor = customization.theme?.primaryColor || '#FF6B35';
     
     // Get email theme settings
     const emailTheme = await this.getEmailTheme();
@@ -1271,7 +1269,6 @@ export class EmailTemplateService {
       siteName: customization.branding.siteName,
       siteNameAccent: customization.branding.siteNameAccent,
       logoUrl: customization.branding.logoUrl || undefined,
-      primaryColor
     });
     
     // Render footer with variables
@@ -1283,7 +1280,53 @@ export class EmailTemplateService {
     const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
     const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
 
-    const darkModeStyles = `
+    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText);
+
+    const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
+    
+    // Render text with footer
+    const footerTextRendered = renderTemplate(footer.text, allVariables);
+    const text = `${renderTemplate(template.textContent || '', allVariables)}\n\n---\n${footerTextRendered}`;
+    
+    return { subject, html, text };
+  }
+
+  async wrapWithEmailTheme(
+    subject: string,
+    bodyHtml: string,
+    plainText: string
+  ): Promise<{ subject: string; html: string; text: string }> {
+    const customization = await storage.getCustomizationSettings();
+    const emailTheme = await this.getEmailTheme();
+    const footer = await this.getEmailFooter();
+    const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
+    const allVariables = { siteName };
+
+    const headerHtml = this.generateHeaderHtml({
+      siteName: customization.branding.siteName,
+      siteNameAccent: customization.branding.siteNameAccent,
+      logoUrl: customization.branding.logoUrl || undefined,
+    });
+    const footerHtmlRendered = renderTemplate(footer.html, allVariables);
+    const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
+
+    const darkBackdrop = emailTheme.darkBackdropColor || DEFAULT_EMAIL_THEME.darkBackdropColor;
+    const darkCanvas = emailTheme.darkCanvasColor || DEFAULT_EMAIL_THEME.darkCanvasColor;
+    const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
+    const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
+
+    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText);
+
+    const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
+
+    const footerTextRendered = renderTemplate(footer.text, allVariables);
+    const text = `${plainText}\n\n---\n${footerTextRendered}`;
+
+    return { subject, html, text };
+  }
+
+  private generateDarkModeStyles(darkBackdrop: string, darkCanvas: string, darkHeading: string, darkText: string): string {
+    return `
       @media (prefers-color-scheme: dark) {
         body, .email-backdrop { background-color: ${darkBackdrop} !important; }
         .email-canvas { background-color: ${darkCanvas} !important; }
@@ -1291,11 +1334,14 @@ export class EmailTemplateService {
         .email-text { color: ${darkText} !important; }
         .email-container { filter: brightness(0.85) !important; }
         .email-footer-text { color: #999999 !important; }
+        .email-header-text { color: #999999 !important; }
         .email-divider { border-top-color: #3a3a5c !important; }
       }
     `;
+  }
 
-    const html = `
+  private buildEmailHtml(subject: string, emailTheme: EmailTheme, darkModeStyles: string, headerHtml: string, bodyHtml: string, footerHtml: string): string {
+    return `
       <!DOCTYPE html>
       <html lang="de">
       <head>
@@ -1340,96 +1386,6 @@ export class EmailTemplateService {
       </body>
       </html>
     `;
-    
-    // Render text with footer
-    const footerTextRendered = renderTemplate(footer.text, allVariables);
-    const text = `${renderTemplate(template.textContent || '', allVariables)}\n\n---\n${footerTextRendered}`;
-    
-    return { subject, html, text };
-  }
-
-  async wrapWithEmailTheme(
-    subject: string,
-    bodyHtml: string,
-    plainText: string
-  ): Promise<{ subject: string; html: string; text: string }> {
-    const customization = await storage.getCustomizationSettings();
-    const emailTheme = await this.getEmailTheme();
-    const footer = await this.getEmailFooter();
-    const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
-    const allVariables = { siteName };
-
-    const headerHtml = this.generateHeaderHtml({
-      siteName: customization.branding.siteName,
-      siteNameAccent: customization.branding.siteNameAccent,
-      logoUrl: customization.branding.logoUrl || undefined,
-      primaryColor: customization.theme?.primaryColor,
-    });
-    const footerHtmlRendered = renderTemplate(footer.html, allVariables);
-    const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
-
-    const darkBackdrop = emailTheme.darkBackdropColor || DEFAULT_EMAIL_THEME.darkBackdropColor;
-    const darkCanvas = emailTheme.darkCanvasColor || DEFAULT_EMAIL_THEME.darkCanvasColor;
-    const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
-    const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
-
-    const darkModeStyles = `
-      @media (prefers-color-scheme: dark) {
-        body, .email-backdrop { background-color: ${darkBackdrop} !important; }
-        .email-canvas { background-color: ${darkCanvas} !important; }
-        .email-heading { color: ${darkHeading} !important; }
-        .email-text { color: ${darkText} !important; }
-        .email-container { filter: brightness(0.85) !important; }
-        .email-footer-text { color: #999999 !important; }
-        .email-divider { border-top-color: #3a3a5c !important; }
-      }
-    `;
-
-    const html = `
-      <!DOCTYPE html>
-      <html lang="de">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="color-scheme" content="light dark">
-        <meta name="supported-color-schemes" content="light dark">
-        <title>${htmlEscape(subject)}</title>
-        <style type="text/css">
-          ${darkModeStyles}
-        </style>
-      </head>
-      <body class="email-backdrop" style="margin: 0; padding: 0; background-color: ${emailTheme.backdropColor}; font-family: ${emailTheme.fontFamily};">
-        <table width="100%" cellpadding="0" cellspacing="0" class="email-backdrop" style="background-color: ${emailTheme.backdropColor}; padding: 20px 0;">
-          <tr>
-            <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" class="email-canvas" style="max-width: 600px; width: 100%; background-color: ${emailTheme.canvasColor}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <tr>
-                  <td>
-                    ${headerHtml}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 0;">
-                    ${bodyHtml}
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    ${footerHtml}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
-      </html>
-    `;
-
-    const footerTextRendered = renderTemplate(footer.text, allVariables);
-    const text = `${plainText}\n\n---\n${footerTextRendered}`;
-
-    return { subject, html, text };
   }
 
   // Get available variables for a template type

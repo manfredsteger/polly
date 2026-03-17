@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { EmailTemplateService, jsonToHtml } from '../../services/emailTemplateService';
+import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../../services/emailTemplateService';
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
 
@@ -871,7 +871,7 @@ describe('EmailTemplateService', () => {
         branding: {
           siteName: 'Test',
           siteNameAccent: '',
-          logoUrl: 'https://example.com/logo.png',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
         }
       });
 
@@ -902,8 +902,16 @@ describe('EmailTemplateService', () => {
       expect(result.html).not.toContain('color: #FFFFFF; font-size: 22px');
     });
 
-    it('should show siteName as subtle muted text', async () => {
+    it('should show siteName as subtle muted text when logo is set', async () => {
       const service = new EmailTemplateService();
+
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Poll',
+          siteNameAccent: 'y',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        }
+      });
 
       const result = await service.renderEmail('poll_created', {
         pollType: 'Umfrage',
@@ -916,14 +924,15 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('color: #6c757d');
     });
 
-    it('should include logo when logoUrl is set in branding', async () => {
+    it('should include logo as base64 data URI when logoUrl is set', async () => {
       const service = new EmailTemplateService();
+      const testDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
       
       await storage.setCustomizationSettings({
         branding: {
           siteName: 'Polly',
           siteNameAccent: 'Vote',
-          logoUrl: 'https://example.com/my-logo.png',
+          logoUrl: testDataUri,
         }
       });
 
@@ -934,8 +943,31 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toContain('https://example.com/my-logo.png');
+      expect(result.html).toContain(testDataUri);
       expect(result.html).toContain('PollyVote');
+    });
+
+    it('should fall back to text header when logo URL is unreachable', async () => {
+      const service = new EmailTemplateService();
+      
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: 'https://nonexistent.invalid/logo.png',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).not.toContain('<img');
+      expect(result.html).toContain('font-size: 22px');
+      expect(result.html).toContain('Polly');
     });
 
     it('should have dark mode class for header text', async () => {
@@ -977,6 +1009,71 @@ describe('EmailTemplateService', () => {
       const publicBtn = json['pb-btn'] as { type: string; data: { props: Record<string, unknown> } };
       expect(publicBtn.type).toBe('Button');
       expect(publicBtn.data.props.buttonType).toBe('secondary');
+    });
+  });
+
+  describe('Button Text Contrast Auto-Correction', () => {
+    it('should keep white text on dark backgrounds', () => {
+      expect(ensureButtonTextContrast('#7A3800', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('#123456', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('#FF6B35', '#FFFFFF')).toBe('#FFFFFF');
+    });
+
+    it('should switch to dark text on light backgrounds', () => {
+      expect(ensureButtonTextContrast('#FDE4D2', '#FFFFFF')).toBe('#333333');
+      expect(ensureButtonTextContrast('#FFFFFF', '#FFFFFF')).toBe('#333333');
+      expect(ensureButtonTextContrast('#F0F0F0', '#FFFFFF')).toBe('#333333');
+    });
+
+    it('should handle shorthand hex colors (#fff)', () => {
+      expect(ensureButtonTextContrast('#fff', '#FFFFFF')).toBe('#333333');
+      expect(ensureButtonTextContrast('#000', '#FFFFFF')).toBe('#FFFFFF');
+    });
+
+    it('should return preferred color for invalid hex input', () => {
+      expect(ensureButtonTextContrast('rgb(255,0,0)', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('invalid', '#FFFFFF')).toBe('#FFFFFF');
+    });
+
+    it('should auto-correct secondary button text in rendered email', async () => {
+      const service = new EmailTemplateService();
+
+      await service.resetTemplate('poll_created');
+      await storage.setCustomizationSettings({
+        theme: { primaryColor: '#7A3800', secondaryColor: '#FDE4D2' }
+      });
+      await service.resetEmailTheme();
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('email-btn-secondary');
+      expect(result.html).toContain('color: #333333');
+    });
+  });
+
+  describe('Dark Mode Container Styles', () => {
+    it('should use per-container dark mode colors from template JSON', async () => {
+      const service = new EmailTemplateService();
+
+      await service.resetTemplate('poll_created');
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).not.toContain('filter: brightness');
+      expect(result.html).toContain('email-container-admin-box');
+      expect(result.html).toContain('email-container-public-box');
+      expect(result.html).toMatch(/\.email-container-admin-box\s*\{[^}]*background-color:/);
+      expect(result.html).toMatch(/\.email-container-public-box\s*\{[^}]*background-color:/);
     });
   });
 });

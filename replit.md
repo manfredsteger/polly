@@ -56,7 +56,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ### Technical Implementations
 - **Timezone Handling**: Schedule poll times stored in UTC, frontend converts to local time.
 - **PDF Export**: Utilizes Puppeteer for HTML/CSS-based PDF generation.
-- **Email Templates**: JSON-based, customizable templates with variable substitution. All 9 email types (poll_created, invitation, vote_confirmation, reminder, password_reset, email_change, password_changed, welcome, test_report) render via `emailTemplateService.renderEmail()`. Container block type for grouped content (colored boxes), primary/secondary button types, dark mode support via `@media (prefers-color-scheme: dark)`, and auto-sizing logo integration. URL validation via `validateEmailUrl()` ensures absolute URLs in emails. XSS protection: user-supplied variables are HTML-escaped before JSON substitution into templates.
+- **Email Templates**: JSON-based, customizable templates with variable substitution. All 9 email types (poll_created, invitation, vote_confirmation, reminder, password_reset, email_change, password_changed, welcome, test_report) render via `emailTemplateService.renderEmail()`. Container block type for grouped content (colored boxes), primary/secondary button types. **Dark mode**: Per-container dark background colors read from template JSON `darkBackgroundColor`, no filter:brightness hack. **Logo embedding**: Logos fetched and converted to base64 data URIs at render time (5-min cache, SSRF-safe URL validation, fallback to text header). **Button contrast**: `ensureButtonTextContrast()` auto-selects dark/light text based on background luminance using `normalizeHex()` (handles 3/6/8-digit hex, rejects non-hex). URL validation via `validateEmailUrl()` ensures absolute URLs. XSS protection: user-supplied variables are HTML-escaped before JSON substitution.
 - **Internationalization (i18n)**: React-i18next for localization, covering all UI components and pages, with language preference stored in the database.
 - **WCAG 2.1 AA Color Contrast**: Admin panel audits theme colors against accessibility standards, with separate corrections for light and dark modes.
 - **Security Scanning**: ClamAV for file uploads, npm audit for dependencies, and Pentest-Tools.com integration for vulnerability scanning.
@@ -82,7 +82,7 @@ Token tables (`password_reset_tokens`, `email_verification_tokens`, `email_chang
 - **Polls**: 30 tests (CRUD, voting, finalize, types)
 - **Data/Storage**: 40 tests (settings, branding, storage, test data)
 - **Unit**: 34 tests (validation, token service, QR service)
-- **Services**: 116+ tests (email templates 47, email integration 13, live voting WebSocket multi-user 19, image upload file types 16, ClamAV, ICS, PDF, WCAG audit)
+- **Services**: 127+ tests (email templates 58, email integration 13, live voting WebSocket multi-user 19, image upload file types 16, ClamAV, ICS, PDF, WCAG audit)
 - **Security**: 31 tests (WebSocket presenter escalation, poll token validation, email HTML escaping/XSS, deprovision Basic Auth, timing attack resistance)
 - **E2E/Integration**: 49 tests (poll flow, multi-voter, Docker build, deployment readiness, DB migration)
 

@@ -113,6 +113,93 @@ function darkenColor(hex: string, percent: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
+function normalizeHex(color: string): string {
+  let hex = color.trim();
+  if (hex.startsWith('#')) hex = hex.slice(1);
+  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  }
+  if (/^[0-9a-fA-F]{8}$/.test(hex)) {
+    hex = hex.slice(0, 6);
+  }
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+    throw new Error(`Invalid hex color: ${color}`);
+  }
+  return '#' + hex;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const normalized = normalizeHex(hex);
+  const num = parseInt(normalized.slice(1), 16);
+  return { r: (num >> 16) & 0xFF, g: (num >> 8) & 0xFF, b: num & 0xFF };
+}
+
+function getRelativeLuminance(hex: string): number {
+  const { r, g, b } = hexToRgb(hex);
+  const [rs, gs, bs] = [r / 255, g / 255, b / 255].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  );
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+function getContrastRatio(hex1: string, hex2: string): number {
+  const l1 = getRelativeLuminance(hex1);
+  const l2 = getRelativeLuminance(hex2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+export function ensureButtonTextContrast(bgColor: string, preferredTextColor: string, fallbackDark: string = '#333333'): string {
+  try {
+    const ratio = getContrastRatio(bgColor, preferredTextColor);
+    if (ratio >= 2.5) return preferredTextColor;
+    const bgLum = getRelativeLuminance(bgColor);
+    if (bgLum > 0.5) return fallbackDark;
+    return '#FFFFFF';
+  } catch {
+    return preferredTextColor;
+  }
+}
+
+const logoBase64Cache = new Map<string, { data: string; fetchedAt: number }>();
+const LOGO_CACHE_TTL = 5 * 60 * 1000;
+
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return false;
+    if (hostname === '0.0.0.0' || hostname.endsWith('.local') || hostname.endsWith('.internal')) return false;
+    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/.test(hostname)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchLogoAsBase64(url: string): Promise<string | null> {
+  try {
+    if (!isSafeUrl(url)) return null;
+    const cached = logoBase64Cache.get(url);
+    if (cached && Date.now() - cached.fetchedAt < LOGO_CACHE_TTL) {
+      return cached.data;
+    }
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000), redirect: 'error' });
+    if (!response.ok) return null;
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength === 0 || buffer.byteLength > 500_000) return null;
+    const base64 = Buffer.from(buffer).toString('base64');
+    const dataUri = `data:${contentType};base64,${base64}`;
+    logoBase64Cache.set(url, { data: dataUri, fetchedAt: Date.now() });
+    return dataUri;
+  } catch {
+    return null;
+  }
+}
+
 // Default email template JSON structures for email-builder-js
 // These follow the email-builder-js format with blocks
 
@@ -600,19 +687,21 @@ export function substituteVariables(
   return result;
 }
 
-// Resolve effective theme values for rendering
-// Priority: explicit theme > root.data values > defaults
 function resolveTheme(theme?: EmailTheme, rootData?: Record<string, unknown>) {
   const rd = (rootData || {}) as Record<string, string>;
   const t = theme || DEFAULT_EMAIL_THEME;
+  const buttonBg = t.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor;
+  const secondaryBg = t.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor;
+  const rawButtonText = t.buttonTextColor || DEFAULT_EMAIL_THEME.buttonTextColor;
+  const rawSecondaryText = t.secondaryButtonTextColor || DEFAULT_EMAIL_THEME.secondaryButtonTextColor;
   return {
     textColor: t.textColor || rd.textColor || DEFAULT_EMAIL_THEME.textColor,
     headingColor: t.headingColor || DEFAULT_EMAIL_THEME.headingColor,
-    buttonBg: t.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor,
-    buttonText: t.buttonTextColor || DEFAULT_EMAIL_THEME.buttonTextColor,
+    buttonBg,
+    buttonText: ensureButtonTextContrast(buttonBg, rawButtonText),
     buttonRadius: t.buttonBorderRadius ?? DEFAULT_EMAIL_THEME.buttonBorderRadius,
-    secondaryBg: t.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
-    secondaryText: t.secondaryButtonTextColor || DEFAULT_EMAIL_THEME.secondaryButtonTextColor,
+    secondaryBg,
+    secondaryText: ensureButtonTextContrast(secondaryBg, rawSecondaryText),
     fontFamily: t.fontFamily || rd.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,
   };
 }
@@ -686,7 +775,8 @@ function renderBlocksToHtml(
         const margin = style.margin as Record<string, number> || { top: 12, right: 0, bottom: 12, left: 0 };
         const childIds = (blockData.childrenIds || []) as string[];
         const childHtml = renderBlocksToHtml(childIds, doc, tv);
-        html += `<div class="email-container" style="background-color: ${bgColor}; border-radius: ${borderRadius}px; ${renderPadding(padding)} ${renderMargin(margin)}${borderWidth > 0 ? ` border: ${borderWidth}px solid ${borderColor};` : ''}">
+        const containerClass = `email-container email-container-${blockId}`;
+        html += `<div class="${containerClass}" style="background-color: ${bgColor}; border-radius: ${borderRadius}px; ${renderPadding(padding)} ${renderMargin(margin)}${borderWidth > 0 ? ` border: ${borderWidth}px solid ${borderColor};` : ''}">
 ${childHtml}</div>\n`;
         break;
       }
@@ -1043,6 +1133,9 @@ export class EmailTemplateService {
     
     const lighterPrimary = lightenColor(primaryColor, 30);
     
+    const primaryTextColor = ensureButtonTextContrast(primaryColor, '#FFFFFF');
+    const secondaryTextColor = ensureButtonTextContrast(secondaryColor, '#FFFFFF');
+    
     const brandedTheme: EmailTheme = {
       backdropColor: '#F5F5F5',
       canvasColor: '#FFFFFF',
@@ -1050,11 +1143,11 @@ export class EmailTemplateService {
       headingColor: primaryColor,
       linkColor: primaryColor,
       buttonBackgroundColor: primaryColor,
-      buttonTextColor: '#FFFFFF',
+      buttonTextColor: primaryTextColor,
       buttonBorderRadius: 6,
       fontFamily: 'Arial, sans-serif',
       secondaryButtonBackgroundColor: secondaryColor,
-      secondaryButtonTextColor: '#FFFFFF',
+      secondaryButtonTextColor: secondaryTextColor,
       darkBackdropColor: '#1a1a2e',
       darkCanvasColor: '#16213e',
       darkTextColor: '#e0e0e0',
@@ -1161,20 +1254,29 @@ export class EmailTemplateService {
     return await this.setEmailTheme(extractedTheme);
   }
 
-  private generateHeaderHtml(branding: {
+  private async generateHeaderHtml(branding: {
     siteName: string;
     siteNameAccent: string;
     logoUrl?: string;
-  }, theme?: EmailTheme): string {
+  }, theme?: EmailTheme): Promise<string> {
     const fullName = `${branding.siteName}${branding.siteNameAccent}`;
     const accentColor = theme?.headingColor || '#FF6B35';
 
     let logoHtml = '';
+    let hasLogo = false;
     if (branding.logoUrl) {
-      logoHtml = `<img src="${branding.logoUrl}" alt="${htmlEscape(fullName)}" style="max-height: 56px; max-width: 220px; width: auto; height: auto; display: block; margin: 0 auto;" />`;
+      let logoSrc: string | null = null;
+      if (branding.logoUrl.startsWith('data:')) {
+        logoSrc = branding.logoUrl;
+      } else {
+        logoSrc = await fetchLogoAsBase64(branding.logoUrl);
+      }
+      if (logoSrc) {
+        logoHtml = `<img src="${logoSrc}" alt="${htmlEscape(fullName)}" style="max-height: 56px; max-width: 220px; width: auto; height: auto; display: block; margin: 0 auto;" />`;
+        hasLogo = true;
+      }
     }
 
-    const hasLogo = !!branding.logoUrl;
     const siteNameHtml = hasLogo
       ? `<span class="email-header-text" style="color: #6c757d; font-size: 12px; font-family: Arial, sans-serif; letter-spacing: 0.5px;">${htmlEscape(branding.siteName)}<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span></span>`
       : `<span class="email-header-text" style="font-size: 22px; font-weight: 700; font-family: Arial, sans-serif; color: #333333; letter-spacing: 0.3px;">${htmlEscape(branding.siteName)}<span style="font-weight: 700; color: ${accentColor};">${htmlEscape(branding.siteNameAccent)}</span></span>`;
@@ -1251,12 +1353,11 @@ export class EmailTemplateService {
     const subject = renderTemplate(template.subject, allVariables);
     
     let bodyHtml: string;
+    let jsonDoc: Record<string, unknown> | null = null;
     if (!template.isDefault && template.textContent) {
       const renderedText = substituteVariables(template.textContent, allVariables, false);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.jsonContent && Object.keys(template.jsonContent).length > 0) {
-      // For JSON templates: HTML-escape values first (for XSS safety),
-      // then JSON-escape to survive JSON.parse()
       const jsonSafeVars: Record<string, string | undefined> = {};
       for (const [key, value] of Object.entries(allVariables)) {
         if (value !== undefined) {
@@ -1267,6 +1368,7 @@ export class EmailTemplateService {
       const renderedJson = JSON.parse(
         renderTemplate(JSON.stringify(template.jsonContent), jsonSafeVars)
       ) as EmailBuilderDocument;
+      jsonDoc = renderedJson as unknown as Record<string, unknown>;
       bodyHtml = jsonToHtml(renderedJson, emailTheme);
     } else if (template.htmlContent) {
       bodyHtml = substituteVariables(template.htmlContent, allVariables, true);
@@ -1274,7 +1376,7 @@ export class EmailTemplateService {
       bodyHtml = '<p>Template-Fehler: Kein Inhalt verfügbar</p>';
     }
     
-    const headerHtml = this.generateHeaderHtml({
+    const headerHtml = await this.generateHeaderHtml({
       siteName: customization.branding.siteName,
       siteNameAccent: customization.branding.siteNameAccent,
       logoUrl: customization.branding.logoUrl || undefined,
@@ -1288,7 +1390,8 @@ export class EmailTemplateService {
     const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
     const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
 
-    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText);
+    const containerDarkColors = this.extractContainerDarkColors(jsonDoc);
+    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText, containerDarkColors);
 
     const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
     
@@ -1310,7 +1413,7 @@ export class EmailTemplateService {
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
     const allVariables = { siteName };
 
-    const headerHtml = this.generateHeaderHtml({
+    const headerHtml = await this.generateHeaderHtml({
       siteName: customization.branding.siteName,
       siteNameAccent: customization.branding.siteNameAccent,
       logoUrl: customization.branding.logoUrl || undefined,
@@ -1323,7 +1426,8 @@ export class EmailTemplateService {
     const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
     const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
 
-    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText);
+    const containerDarkColors = this.extractContainerDarkColors(null);
+    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText, containerDarkColors);
 
     const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
 
@@ -1333,15 +1437,33 @@ export class EmailTemplateService {
     return { subject, html, text };
   }
 
-  private generateDarkModeStyles(darkBackdrop: string, darkCanvas: string, darkHeading: string, darkText: string): string {
+  private extractContainerDarkColors(doc: Record<string, unknown> | null): Map<string, string> {
+    const colors = new Map<string, string>();
+    if (!doc) return colors;
+    for (const [blockId, block] of Object.entries(doc)) {
+      if (blockId === 'root') continue;
+      const b = block as { type?: string; data?: { style?: Record<string, unknown> } };
+      if (b.type === 'Container' && b.data?.style?.darkBackgroundColor) {
+        colors.set(blockId, b.data.style.darkBackgroundColor as string);
+      }
+    }
+    return colors;
+  }
+
+  private generateDarkModeStyles(darkBackdrop: string, darkCanvas: string, darkHeading: string, darkText: string, containerDarkColors?: Map<string, string>): string {
+    let containerStyles = '';
+    if (containerDarkColors && containerDarkColors.size > 0) {
+      for (const [id, color] of containerDarkColors) {
+        containerStyles += `        .email-container-${id} { background-color: ${color} !important; }\n`;
+      }
+    }
     return `
       @media (prefers-color-scheme: dark) {
         body, .email-backdrop { background-color: ${darkBackdrop} !important; }
         .email-canvas { background-color: ${darkCanvas} !important; }
         .email-heading { color: ${darkHeading} !important; }
         .email-text { color: ${darkText} !important; }
-        .email-container { filter: brightness(0.85) !important; }
-        .email-footer-text { color: #999999 !important; }
+${containerStyles}        .email-footer-text { color: #999999 !important; }
         .email-header-text { color: #999999 !important; }
         .email-divider { border-top-color: #3a3a5c !important; }
       }

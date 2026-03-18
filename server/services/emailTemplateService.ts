@@ -978,6 +978,362 @@ const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
   },
 };
 
+// ═══════════════════════════════════════════════════════════════
+// V3 TEMPLATE SYSTEM
+// Single-HTML-template approach with {{VARIABLE}} substitution
+// Replaces the old JSON-block + header/footer/dark-mode pipeline
+// ═══════════════════════════════════════════════════════════════
+
+interface V3TemplateData {
+  logoDataUri: string;
+  siteName: string;
+  siteAccent: string;
+  primaryColor: string;
+  secondaryColor: string;
+  siteUrl: string;
+  privacyUrl: string;
+  fontFamily: string;
+  subject: string;
+}
+
+function v3DarkModeCSS(): string {
+  return `@media (prefers-color-scheme: dark) {
+      body             { background-color: #0c111d !important; }
+      .shell           { background-color: #111827 !important; }
+      .email-header    { background-color: #0f1623 !important; border-bottom-color: rgba(255,255,255,0.07) !important; }
+      .hdr-sep         { background-color: rgba(255,255,255,0.08) !important; }
+      .hdr-site        { color: #7a8fa8 !important; }
+      .hdr-accent      { color: #e8994a !important; }
+      .survey-tag      { color: #e8994a !important; }
+      .headline        { color: #dde3ef !important; }
+      .headline-em     { color: #e8994a !important; }
+      .subline         { color: #7a8fa8 !important; }
+      .sec-divider     { border-top-color: rgba(255,255,255,0.07) !important; }
+      .link-label      { color: #7a8fa8 !important; }
+      .link-title      { color: #dde3ef !important; }
+      .link-desc       { color: #7a8fa8 !important; }
+      .btn-primary     { background-color: #c97b2e !important; color: #ffffff !important; }
+      .btn-secondary   { background-color: rgba(201,123,46,0.12) !important; color: #e8994a !important; }
+      .notice          { border-left-color: #c97b2e !important; color: #7a8fa8 !important; }
+      .notice-bold     { color: #dde3ef !important; }
+      .email-footer    { border-top-color: rgba(255,255,255,0.07) !important; }
+      .footer-text     { color: #3d5070 !important; }
+      .footer-link     { color: #7a8fa8 !important; border-bottom-color: #3d5070 !important; }
+    }`;
+}
+
+function v3Shell(data: V3TemplateData, bodyHtml: string): string {
+  const hdrFont = data.fontFamily;
+  const sysFont = 'system-ui, -apple-system, Arial, sans-serif';
+
+  const logoBlock = data.logoDataUri
+    ? `<td style="width: 1px; white-space: nowrap;">
+            <img src="${data.logoDataUri}" alt="${htmlEscape(data.siteName + data.siteAccent) || 'Logo'}" width="100" style="display: block; height: 36px; width: auto; max-width: 100px;" />
+          </td>
+          <td style="width: 1px; padding: 0 14px;">
+            <div class="hdr-sep" style="width: 1px; height: 22px; background-color: rgba(0,0,0,0.1);"></div>
+          </td>`
+    : '';
+
+  const wordmark = (data.siteName || data.siteAccent)
+    ? `<td>
+            <span class="hdr-site" style="font-family: ${hdrFont}; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; color: #6b7280; line-height: 1;">${htmlEscape(data.siteName)}</span>${data.siteAccent ? `<span class="hdr-accent" style="font-family: ${hdrFont}; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; color: ${data.primaryColor}; line-height: 1;">${htmlEscape(data.siteAccent)}</span>` : ''}
+          </td>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>${htmlEscape(data.subject)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: #f0ede8; font-family: ${hdrFont}; -webkit-font-smoothing: antialiased; }
+    ${v3DarkModeCSS()}
+  </style>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Arial, sans-serif !important; }
+  </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 28px 16px; background-color: #f0ede8; font-family: ${hdrFont};">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 580px; margin: 0 auto;">
+<tr><td>
+<table class="shell" width="100%" cellpadding="0" cellspacing="0" role="presentation"
+  style="background-color: #ffffff; border-radius: 10px; overflow: hidden;">
+  <tr>
+    <td class="email-header"
+      style="background-color: #ffffff; padding: 14px 40px; border-bottom: 1px solid rgba(0,0,0,0.06);">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          ${logoBlock}
+          ${wordmark}
+        </tr>
+      </table>
+    </td>
+  </tr>
+  ${bodyHtml}
+  <tr>
+    <td class="email-footer"
+      style="padding: 16px 40px 22px; border-top: 1px solid rgba(0,0,0,0.06); text-align: center;">
+      <p class="footer-text"
+        style="font-family: ${sysFont}; font-size: 12px; color: #b0bcd0; line-height: 1.7;">
+        Automatisch gesendet von
+        <a href="${htmlEscape(data.siteUrl)}" class="footer-link"
+          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteName + data.siteAccent)}</a>
+        <br>
+        <a href="${htmlEscape(data.privacyUrl)}" class="footer-link"
+          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">Datenschutz</a>
+      </p>
+    </td>
+  </tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+function v3Tag(text: string): string {
+  return `<p class="survey-tag" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #7a3800; margin-bottom: 14px;">${htmlEscape(text)}</p>`;
+}
+
+function v3Headline(beforeEm: string, emText: string, afterEm: string, fontFamily: string): string {
+  return `<h1 class="headline" style="font-family: ${fontFamily}; font-size: 25px; font-weight: 400; line-height: 1.35; color: #1a202c; margin-bottom: 12px;">${beforeEm}${emText ? `<br><em class="headline-em" style="font-style: italic; color: #7a3800;">${emText}</em>` : ''}${afterEm ? `<br>${afterEm}` : ''}</h1>`;
+}
+
+function v3SimpleHeadline(text: string, fontFamily: string): string {
+  return `<h1 class="headline" style="font-family: ${fontFamily}; font-size: 25px; font-weight: 400; line-height: 1.35; color: #1a202c; margin-bottom: 12px;">${text}</h1>`;
+}
+
+function v3Subline(text: string): string {
+  return `<p class="subline" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; line-height: 1.7; margin-bottom: 30px;">${text}</p>`;
+}
+
+function v3Divider(): string {
+  return `<tr><td style="padding: 0 40px;"><div class="sec-divider" style="border-top: 1px solid rgba(0,0,0,0.06);"></div></td></tr>`;
+}
+
+function v3LinkSection(label: string, title: string, desc: string, buttonText: string, buttonUrl: string, buttonType: 'primary' | 'secondary', primaryColor: string, secondaryColor: string, fontFamily: string): string {
+  const bgColor = buttonType === 'primary' ? primaryColor : secondaryColor;
+  const textColor = ensureButtonTextContrast(bgColor, '#ffffff');
+  const cssClass = buttonType === 'primary' ? 'btn-primary' : 'btn-secondary';
+  return `<tr><td style="padding: 24px 40px 24px;">
+      <p class="link-label" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px;">${label}</p>
+      <p class="link-title" style="font-family: ${fontFamily}; font-size: 17px; color: #1a202c; margin-bottom: 5px;">${title}</p>
+      <p class="link-desc" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; line-height: 1.6; margin-bottom: 18px;">${desc}</p>
+      <table cellpadding="0" cellspacing="0" role="presentation"><tr><td>
+        <a href="${htmlEscape(buttonUrl)}" class="${cssClass}" style="display: inline-block; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; color: ${textColor}; background-color: ${bgColor}; padding: 10px 22px; border-radius: 6px; text-decoration: none;">${buttonText}</a>
+      </td></tr></table>
+    </td></tr>`;
+}
+
+function v3SingleButtonSection(text: string, buttonText: string, buttonUrl: string, buttonType: 'primary' | 'secondary', primaryColor: string, secondaryColor: string): string {
+  const bgColor = buttonType === 'primary' ? primaryColor : secondaryColor;
+  const textColor = ensureButtonTextContrast(bgColor, '#ffffff');
+  const cssClass = buttonType === 'primary' ? 'btn-primary' : 'btn-secondary';
+  return `<tr><td style="padding: 24px 40px 24px;">
+      <p class="link-desc" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; line-height: 1.6; margin-bottom: 18px;">${text}</p>
+      <table cellpadding="0" cellspacing="0" role="presentation"><tr><td>
+        <a href="${htmlEscape(buttonUrl)}" class="${cssClass}" style="display: inline-block; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; color: ${textColor}; background-color: ${bgColor}; padding: 10px 22px; border-radius: 6px; text-decoration: none;">${buttonText}</a>
+      </td></tr></table>
+    </td></tr>`;
+}
+
+function v3Notice(boldText: string, text: string, primaryColor: string): string {
+  return `<tr><td style="padding: 0 40px 34px;">
+      <div class="notice" style="border-left: 2px solid ${primaryColor}; padding: 12px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; line-height: 1.65;">
+        <span class="notice-bold" style="color: #1a202c; font-weight: 500;">${boldText}</span> ${text}
+      </div>
+    </td></tr>`;
+}
+
+function v3TextBlock(html: string): string {
+  return `<tr><td style="padding: 12px 40px;">
+      <p class="link-desc" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; line-height: 1.6;">${html}</p>
+    </td></tr>`;
+}
+
+function v3BodyStart(): string {
+  return `<tr><td style="padding: 36px 40px 12px;">`;
+}
+
+function v3BodyEnd(): string {
+  return `</td></tr>`;
+}
+
+interface V3BodyContext {
+  primaryColor: string;
+  secondaryColor: string;
+  fontFamily: string;
+}
+
+function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const pollType = vars.pollType || 'Umfrage';
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const creatorName = htmlEscape(vars.creatorName || '');
+  const adminLink = vars.adminLink || '#';
+  const publicLink = vars.publicLink || '#';
+  const greeting = creatorName ? `Hallo ${creatorName}` : 'Hallo';
+
+  return `${v3BodyStart()}
+      ${v3Tag(pollType)}
+      ${v3Headline('Ihre Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily)}
+      ${v3Subline(`${greeting} \u2014 Sie finden unten Ihren pers\u00F6nlichen Administratorlink sowie den Abstimmungslink f\u00FCr Ihre Teilnehmer.`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3LinkSection('F\u00FCr Sie \u00B7 Administratorlink', 'Umfrage verwalten', 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nur f\u00FCr Sie \u2014 nicht weitergeben.', 'Zur Verwaltung \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3Divider()}
+    ${v3LinkSection('F\u00FCr Teilnehmer \u00B7 \u00D6ffentlicher Link', 'Abstimmung \u00F6ffnen', 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.', 'Zur Abstimmung \u2192', publicLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3Notice('Bewahren Sie diese E-Mail auf.', 'Sie enth\u00E4lt Ihren pers\u00F6nlichen Administratorlink \u2014 nur damit k\u00F6nnen Sie Ihre Umfrage verwalten, bearbeiten und schlie\u00DFen. Au\u00DFerdem finden Sie hier den Abstimmungslink f\u00FCr Ihre Teilnehmer.', ctx.primaryColor)}`;
+}
+
+function buildV3InvitationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const inviterName = htmlEscape(vars.inviterName || '');
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const message = vars.message ? htmlEscape(vars.message) : '';
+  const publicLink = vars.publicLink || '#';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Einladung')}
+      ${v3Headline('Einladung zur Abstimmung', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily)}
+      ${v3Subline(`${inviterName} l\u00E4dt Sie ein, an dieser Umfrage teilzunehmen.${message ? ` ${message}` : ''}`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Klicken Sie auf den Button, um zur Abstimmung zu gelangen.', 'Jetzt abstimmen \u2192', publicLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+}
+
+function buildV3ReminderBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const senderName = htmlEscape(vars.senderName || '');
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const expiresAt = vars.expiresAt ? htmlEscape(vars.expiresAt) : '';
+  const pollLink = vars.pollLink || '#';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Erinnerung')}
+      ${v3Headline('Erinnerung an', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily)}
+      ${v3Subline(`${senderName} erinnert Sie freundlich an die Teilnahme. Ihre Stimme ist wichtig!${expiresAt ? ` ${expiresAt}` : ''}`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Bitte nehmen Sie sich kurz Zeit, um abzustimmen.', 'Jetzt abstimmen \u2192', pollLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+}
+
+function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const voterName = htmlEscape(vars.voterName || '');
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const pollType = vars.pollType || 'Umfrage';
+  const resultsLink = vars.resultsLink || '#';
+  const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Best\u00E4tigung')}
+      ${v3SimpleHeadline('Vielen Dank f\u00FCr Ihre Teilnahme!', ctx.fontFamily)}
+      ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Teilnahme an der ${htmlEscape(pollType)} \u201E${pollTitle}\u201C. Ihre Auswahl wurde erfolgreich gespeichert.`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
+}
+
+function buildV3PasswordResetBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const userName = htmlEscape(vars.userName || '');
+  const resetLink = vars.resetLink || '#';
+  const greeting = userName ? `Hallo ${userName}` : 'Hallo';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Sicherheit')}
+      ${v3SimpleHeadline('Passwort zur\u00FCcksetzen', ctx.fontFamily)}
+      ${v3Subline(`${greeting} \u2014 Sie haben angefordert, Ihr Passwort zur\u00FCckzusetzen.`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben. Dieser Link ist 1 Stunde g\u00FCltig.', 'Passwort zur\u00FCcksetzen \u2192', resetLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}
+    ${v3Notice('Falls Sie diese Anfrage nicht gestellt haben,', 'k\u00F6nnen Sie diese E-Mail ignorieren. Ihr Passwort bleibt unver\u00E4ndert.', ctx.primaryColor)}`;
+}
+
+function buildV3EmailChangeBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const oldEmail = htmlEscape(vars.oldEmail || '');
+  const newEmail = htmlEscape(vars.newEmail || '');
+  const confirmLink = vars.confirmLink || '#';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Sicherheit')}
+      ${v3SimpleHeadline('E-Mail-Adresse best\u00E4tigen', ctx.fontFamily)}
+      ${v3Subline('Sie haben angefordert, Ihre E-Mail-Adresse zu \u00E4ndern.')}
+    ${v3BodyEnd()}
+    ${v3TextBlock(`<strong>Alte E-Mail:</strong> ${oldEmail}<br><strong>Neue E-Mail:</strong> ${newEmail}`)}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Dieser Link ist 24 Stunden g\u00FCltig.', 'E-Mail best\u00E4tigen \u2192', confirmLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}
+    ${v3Notice('Falls Sie diese Anfrage nicht gestellt haben,', 'k\u00F6nnen Sie diese E-Mail ignorieren.', ctx.primaryColor)}`;
+}
+
+function buildV3PasswordChangedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const userName = htmlEscape(vars.userName || '');
+  const greeting = userName ? `Hallo ${userName}` : 'Hallo';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Sicherheit')}
+      ${v3SimpleHeadline('Passwort erfolgreich ge\u00E4ndert', ctx.fontFamily)}
+      ${v3Subline(`${greeting} \u2014 Ihr Passwort wurde erfolgreich ge\u00E4ndert.`)}
+    ${v3BodyEnd()}
+    ${v3Notice('Falls Sie diese \u00C4nderung nicht vorgenommen haben,', 'kontaktieren Sie bitte umgehend den Administrator.', ctx.primaryColor)}`;
+}
+
+function buildV3TestReportBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const status = htmlEscape(vars.status || '');
+  const testRunId = htmlEscape(vars.testRunId || '');
+  const totalTests = htmlEscape(vars.totalTests || '0');
+  const passed = htmlEscape(vars.passed || '0');
+  const failed = htmlEscape(vars.failed || '0');
+  const skipped = htmlEscape(vars.skipped || '0');
+  const duration = htmlEscape(vars.duration || '');
+  const startedAt = htmlEscape(vars.startedAt || '');
+
+  return `${v3BodyStart()}
+      ${v3Tag('Testbericht')}
+      ${v3SimpleHeadline(`${status} \u2014 Testlauf #${testRunId}`, ctx.fontFamily)}
+      ${v3Subline('Der automatische Testlauf wurde abgeschlossen.')}
+    ${v3BodyEnd()}
+    ${v3TextBlock(`Gesamte Tests: <strong>${totalTests}</strong><br>Bestanden: <strong>${passed}</strong><br>Fehlgeschlagen: <strong>${failed}</strong><br>\u00DCbersprungen: <strong>${skipped}</strong><br>Dauer: <strong>${duration}</strong><br>Gestartet: <strong>${startedAt}</strong>`)}`;
+}
+
+function buildV3WelcomeBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const userName = htmlEscape(vars.userName || '');
+  const verificationLink = vars.verificationLink || '#';
+  const siteName = htmlEscape(vars.siteName || '');
+  const greeting = userName ? `Hallo ${userName}` : 'Hallo';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Willkommen')}
+      ${v3SimpleHeadline(`Willkommen bei ${siteName}!`, ctx.fontFamily)}
+      ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Bitte best\u00E4tigen Sie Ihre E-Mail-Adresse, um alle Funktionen nutzen zu k\u00F6nnen.', 'E-Mail best\u00E4tigen \u2192', verificationLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
+}
+
+function buildV3GenericBody(bodyHtml: string, fontFamily: string): string {
+  return `${v3BodyStart()}
+      <div style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; line-height: 1.7;">
+        ${bodyHtml}
+      </div>
+    ${v3BodyEnd()}`;
+}
+
+const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>, ctx: V3BodyContext) => string> = {
+  poll_created: buildV3PollCreatedBody,
+  invitation: buildV3InvitationBody,
+  reminder: buildV3ReminderBody,
+  vote_confirmation: buildV3VoteConfirmationBody,
+  password_reset: buildV3PasswordResetBody,
+  email_change: buildV3EmailChangeBody,
+  password_changed: buildV3PasswordChangedBody,
+  test_report: buildV3TestReportBody,
+  welcome: buildV3WelcomeBody,
+};
+
 export class EmailTemplateService {
   // Static method: Get default template by type
   static getDefaultTemplate(type: EmailTemplateType): {
@@ -1412,76 +1768,98 @@ export class EmailTemplateService {
     `;
   }
 
-  // Render a template with variables
+  private async resolveLogoDataUri(logoUrl?: string): Promise<string> {
+    if (!logoUrl) return '';
+    if (logoUrl.startsWith('data:')) {
+      if (/^data:image\/(png|jpeg|jpg|gif|svg\+xml|webp);base64,[A-Za-z0-9+/=]+$/.test(logoUrl)) {
+        return logoUrl;
+      }
+      return '';
+    }
+    if (logoUrl.startsWith('/uploads/')) {
+      return (await readLocalLogoAsBase64(logoUrl)) || '';
+    }
+    return (await fetchLogoAsBase64(logoUrl)) || '';
+  }
+
+  private resolvePrivacyUrl(customization: any, siteUrl: string): string {
+    try {
+      const footer = customization?.footer;
+      if (footer?.supportLinks && Array.isArray(footer.supportLinks)) {
+        const privacyLink = footer.supportLinks.find(
+          (link: { label?: string; url?: string }) =>
+            link.label?.toLowerCase().includes('datenschutz') ||
+            link.label?.toLowerCase().includes('privacy')
+        );
+        if (privacyLink?.url && privacyLink.url !== '#') return privacyLink.url;
+      }
+    } catch {}
+    return `${siteUrl}/datenschutz`;
+  }
+
+  private async buildV3TemplateData(
+    customization: any,
+    emailTheme: EmailTheme,
+    subject: string
+  ): Promise<V3TemplateData> {
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const siteUrl = getBaseUrl();
+    const logoDataUri = await this.resolveLogoDataUri(customization.branding.logoUrl || undefined);
+
+    return {
+      logoDataUri,
+      siteName: customization.branding.siteName || '',
+      siteAccent: customization.branding.siteNameAccent || '',
+      primaryColor: emailTheme.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor,
+      secondaryColor: emailTheme.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
+      siteUrl,
+      privacyUrl: this.resolvePrivacyUrl(customization, siteUrl),
+      fontFamily: emailTheme.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,
+      subject,
+    };
+  }
+
+  // Render a template with variables — V3 template system
   async renderEmail(
     type: EmailTemplateType,
     variables: Record<string, string | undefined>
   ): Promise<{ subject: string; html: string; text: string }> {
     const template = await this.getTemplate(type);
-    
-    // Get branding settings
     const customization = await storage.getCustomizationSettings();
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
-    
-    // Get email theme settings
     const emailTheme = await this.getEmailTheme();
-    
-    // Get centralized footer
-    const footer = await this.getEmailFooter();
-    
-    // Add siteName to variables if not provided
     const allVariables = { siteName, ...variables };
-    
-    // Render subject (plain text — no escaping needed)
+
     const subject = renderTemplate(template.subject, allVariables);
-    
+
+    const v3Builder = V3_BODY_BUILDERS[type];
+    if (template.isDefault && v3Builder) {
+      const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
+      const ctx: V3BodyContext = {
+        primaryColor: v3Data.primaryColor,
+        secondaryColor: v3Data.secondaryColor,
+        fontFamily: v3Data.fontFamily,
+      };
+      const bodyHtml = v3Builder(allVariables, ctx);
+      const html = v3Shell(v3Data, bodyHtml);
+      const text = renderTemplate(template.textContent || '', allVariables);
+      return { subject, html, text };
+    }
+
     let bodyHtml: string;
-    let jsonDoc: Record<string, unknown> | null = null;
     if (!template.isDefault && template.textContent) {
       const renderedText = substituteVariables(template.textContent, allVariables, false);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
-    } else if (template.jsonContent && Object.keys(template.jsonContent).length > 0) {
-      const jsonSafeVars: Record<string, string | undefined> = {};
-      for (const [key, value] of Object.entries(allVariables)) {
-        if (value !== undefined) {
-          const htmlSafe = htmlEscape(value);
-          jsonSafeVars[key] = JSON.stringify(htmlSafe).slice(1, -1);
-        }
-      }
-      const renderedJson = JSON.parse(
-        renderTemplate(JSON.stringify(template.jsonContent), jsonSafeVars)
-      ) as EmailBuilderDocument;
-      jsonDoc = renderedJson as unknown as Record<string, unknown>;
-      bodyHtml = jsonToHtml(renderedJson, emailTheme);
     } else if (template.htmlContent) {
       bodyHtml = substituteVariables(template.htmlContent, allVariables, true);
     } else {
-      bodyHtml = '<p>Template-Fehler: Kein Inhalt verfügbar</p>';
+      bodyHtml = '<p>Template-Fehler: Kein Inhalt verf\u00FCgbar</p>';
     }
-    
-    const headerHtml = await this.generateHeaderHtml({
-      siteName: customization.branding.siteName,
-      siteNameAccent: customization.branding.siteNameAccent,
-      logoUrl: customization.branding.logoUrl || undefined,
-    }, emailTheme);
-    
-    const footerHtmlRendered = renderTemplate(footer.html, allVariables);
-    const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
-    
-    const darkBackdrop = emailTheme.darkBackdropColor || DEFAULT_EMAIL_THEME.darkBackdropColor;
-    const darkCanvas = emailTheme.darkCanvasColor || DEFAULT_EMAIL_THEME.darkCanvasColor;
-    const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
-    const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
 
-    const containerDarkColors = this.extractContainerDarkColors(jsonDoc, emailTheme);
-    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText, containerDarkColors);
-
-    const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
-    
-    // Render text with footer
-    const footerTextRendered = renderTemplate(footer.text, allVariables);
-    const text = `${renderTemplate(template.textContent || '', allVariables)}\n\n---\n${footerTextRendered}`;
-    
+    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
+    const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
+    const html = v3Shell(v3Data, wrappedBody);
+    const text = renderTemplate(template.textContent || '', allVariables);
     return { subject, html, text };
   }
 
@@ -1492,32 +1870,12 @@ export class EmailTemplateService {
   ): Promise<{ subject: string; html: string; text: string }> {
     const customization = await storage.getCustomizationSettings();
     const emailTheme = await this.getEmailTheme();
-    const footer = await this.getEmailFooter();
-    const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
-    const allVariables = { siteName };
 
-    const headerHtml = await this.generateHeaderHtml({
-      siteName: customization.branding.siteName,
-      siteNameAccent: customization.branding.siteNameAccent,
-      logoUrl: customization.branding.logoUrl || undefined,
-    }, emailTheme);
-    const footerHtmlRendered = renderTemplate(footer.html, allVariables);
-    const footerHtml = this.generateFooterHtmlWithTheme(footerHtmlRendered, emailTheme);
+    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
+    const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
+    const html = v3Shell(v3Data, wrappedBody);
 
-    const darkBackdrop = emailTheme.darkBackdropColor || DEFAULT_EMAIL_THEME.darkBackdropColor;
-    const darkCanvas = emailTheme.darkCanvasColor || DEFAULT_EMAIL_THEME.darkCanvasColor;
-    const darkText = emailTheme.darkTextColor || DEFAULT_EMAIL_THEME.darkTextColor;
-    const darkHeading = emailTheme.darkHeadingColor || DEFAULT_EMAIL_THEME.darkHeadingColor;
-
-    const containerDarkColors = this.extractContainerDarkColors(null, emailTheme);
-    const darkModeStyles = this.generateDarkModeStyles(darkBackdrop, darkCanvas, darkHeading, darkText, containerDarkColors);
-
-    const html = this.buildEmailHtml(subject, emailTheme, darkModeStyles, headerHtml, bodyHtml, footerHtml);
-
-    const footerTextRendered = renderTemplate(footer.text, allVariables);
-    const text = `${plainText}\n\n---\n${footerTextRendered}`;
-
-    return { subject, html, text };
+    return { subject, html, text: plainText };
   }
 
   private extractContainerDarkColors(doc: Record<string, unknown> | null, emailTheme?: EmailTheme): Map<string, string> {

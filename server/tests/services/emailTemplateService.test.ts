@@ -307,9 +307,9 @@ describe('EmailTemplateService', () => {
         siteName: 'Test-Instance'
       });
       
-      // Should have header table structure
       expect(result.html).toContain('<table');
-      expect(result.html).toContain('Test-Instance');
+      expect(result.html).toContain('email-header');
+      expect(result.html).toContain('email-footer');
     });
 
     it('should include footer in rendered email', async () => {
@@ -322,10 +322,9 @@ describe('EmailTemplateService', () => {
         siteName: 'MeineApp'
       });
       
-      // Footer should have footer styling with border-top
       expect(result.html).toContain('border-top');
-      // Text version should include siteName
-      expect(result.text).toContain('MeineApp');
+      expect(result.html).toContain('email-footer');
+      expect(result.html).toContain('Datenschutz');
     });
   });
 
@@ -854,8 +853,8 @@ describe('EmailTemplateService', () => {
 
       expect(result.html).toContain('prefers-color-scheme: dark');
       expect(result.html).toContain('color-scheme');
-      expect(result.html).toContain('email-backdrop');
-      expect(result.html).toContain('email-canvas');
+      expect(result.html).toContain('class="shell"');
+      expect(result.html).toContain('.shell');
     });
 
     it('should include MSO conditional comments for Outlook', async () => {
@@ -898,8 +897,8 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toContain('max-height: 56px');
-      expect(result.html).toContain('max-width: 220px');
+      expect(result.html).toContain('height: 36px');
+      expect(result.html).toContain('max-width: 100px');
     });
   });
 
@@ -944,8 +943,8 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toContain('email-header-text');
-      expect(result.html).toContain('color: #6c757d');
+      expect(result.html).toContain('hdr-site');
+      expect(result.html).toContain('color: #6b7280');
     });
 
     it('should include logo as base64 data URI when logoUrl is set', async () => {
@@ -1027,7 +1026,7 @@ describe('EmailTemplateService', () => {
       });
 
       expect(result.html).not.toContain('<img');
-      expect(result.html).toContain('font-size: 22px');
+      expect(result.html).toContain('font-size: 18px');
       expect(result.html).toContain('Polly');
     });
 
@@ -1041,7 +1040,7 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toContain('.email-header-text');
+      expect(result.html).toContain('.hdr-site');
     });
 
     it('should render only logo without text span when siteName is empty', async () => {
@@ -1064,9 +1063,8 @@ describe('EmailTemplateService', () => {
 
       expect(result.html).toContain('<img');
       expect(result.html).toContain('alt="Logo"');
-      const headerMatch = result.html.match(/padding: 24px 24px 12px[\s\S]*?<\/table>/);
-      expect(headerMatch).toBeTruthy();
-      expect(headerMatch![0]).not.toContain('<span');
+      expect(result.html).not.toContain('class="hdr-site"');
+      expect(result.html).not.toContain('class="hdr-accent"');
     });
 
     it('should not render empty accent span when siteNameAccent is empty', async () => {
@@ -1088,10 +1086,8 @@ describe('EmailTemplateService', () => {
       });
 
       expect(result.html).toContain('alt="Polly"');
-      const headerMatch = result.html.match(/padding: 24px 24px 12px[\s\S]*?<\/table>/);
-      expect(headerMatch).toBeTruthy();
-      const innerSpans = headerMatch![0].match(/<span[^>]*>/g) || [];
-      expect(innerSpans.length).toBe(1);
+      expect(result.html).toContain('class="hdr-site"');
+      expect(result.html).not.toContain('class="hdr-accent"');
     });
 
     it('should preserve branding after full test cycle', async () => {
@@ -1208,13 +1204,13 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toContain('email-btn-secondary');
-      expect(result.html).toContain('color: #1a1a1a');
+      expect(result.html).toContain('btn-secondary');
+      expect(result.html).toContain('#FDE4D2');
     });
   });
 
-  describe('Dark Mode Container Styles', () => {
-    it('should prefer explicit darkBackgroundColor from JSON over variant-derived color', async () => {
+  describe('V3 Dark Mode Shell', () => {
+    it('should include V3 dark mode CSS with shell and header classes', async () => {
       const service = new EmailTemplateService();
       await service.resetTemplate('poll_created');
 
@@ -1225,13 +1221,15 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).toMatch(/\.email-container-admin-box\s*\{[^}]*background-color:\s*#2a2a3e/);
-      expect(result.html).toMatch(/\.email-container-public-box\s*\{[^}]*background-color:\s*#1e3a4a/);
+      expect(result.html).toContain('.shell');
+      expect(result.html).toContain('.email-header');
+      expect(result.html).toContain('.btn-primary');
+      expect(result.html).toContain('.btn-secondary');
+      expect(result.html).toContain('.email-footer');
     });
 
-    it('should use per-container dark mode colors from template JSON', async () => {
+    it('should include V3 body structure with tag, headline and sections', async () => {
       const service = new EmailTemplateService();
-
       await service.resetTemplate('poll_created');
 
       const result = await service.renderEmail('poll_created', {
@@ -1241,11 +1239,11 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin',
       });
 
-      expect(result.html).not.toContain('filter: brightness');
-      expect(result.html).toContain('email-container-admin-box');
-      expect(result.html).toContain('email-container-public-box');
-      expect(result.html).toMatch(/\.email-container-admin-box\s*\{[^}]*background-color:/);
-      expect(result.html).toMatch(/\.email-container-public-box\s*\{[^}]*background-color:/);
+      expect(result.html).toContain('survey-tag');
+      expect(result.html).toContain('headline');
+      expect(result.html).toContain('link-label');
+      expect(result.html).toContain('sec-divider');
+      expect(result.html).toContain('notice');
     });
   });
 });

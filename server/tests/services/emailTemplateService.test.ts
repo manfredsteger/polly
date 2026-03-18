@@ -271,6 +271,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Customized Template Rendering (renderEmail)', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should use stored htmlContent for customized templates', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('invitation');
@@ -329,6 +337,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Template Reset', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should reset customized template to default', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('vote_confirmation');
@@ -351,6 +367,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('End-to-End: Customized Template Email Sending', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should render customized template content when preparing email for sending', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('reminder');
@@ -1210,6 +1234,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('V3 Dark Mode Shell', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should include V3 dark mode CSS with shell and header classes', async () => {
       const service = new EmailTemplateService();
       await service.resetTemplate('poll_created');

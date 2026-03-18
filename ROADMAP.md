@@ -81,7 +81,7 @@ The 1.0 release will focus on meeting the needs of European data centers and sim
 
 #### Mobile & Integrations
 - [ ] Mobile app (React Native or Flutter)
-- [ ] **Matrix / Element Chatbot** - Create and manage polls via Matrix messenger
+- [ ] 🚧 **Matrix / Element Chatbot** *(Coming Soon)* - Create and manage polls via Matrix messenger
   - [ ] Bot account for self-hosted Matrix/Synapse servers
   - [ ] Poll creation via chat commands (e.g. `!poll create Terminumfrage ...`)
   - [ ] Vote notifications and reminders in Matrix rooms

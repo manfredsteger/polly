@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Matrix Chat Integration admin panel with "Coming Soon" placeholder (planned for v1.0)
 - AI-powered poll creation assistant with natural language input (GWDG SAIA integration)
 - Voice input (speech-to-text) for AI chat using GWDG Whisper API with real-time waveform visualization
 - Drag-and-drop reordering for organization poll slots and AI suggestion options

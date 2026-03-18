@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { storage } from '../../storage';
+import { ADMIN_EMAIL, ADMIN_PASSWORD } from '../testCredentials';
 
 export const testMeta = {
   category: 'accessibility' as const,
@@ -40,7 +41,7 @@ describe('WCAG Color Contrast Audit', () => {
     adminAgent = request.agent(app);
     const loginRes = await adminAgent
       .post('/api/v1/auth/login')
-      .send({ email: 'admin@polly.local', password: 'Polly2024!' });
+      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
 
     if (loginRes.status !== 200) {
       console.warn('Admin login failed, some tests may fail:', loginRes.status);

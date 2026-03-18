@@ -4,13 +4,11 @@ import bcrypt from 'bcryptjs';
 import { createTestApp } from '../testApp';
 import { storage } from '../../storage';
 import type { Express } from 'express';
+import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 
 let app: Express;
 let adminAgent: ReturnType<typeof request.agent>;
 let origDeprovisionConfig: any;
-
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'manfredsteger';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'test';
 
 const DEPROVISION_USER = 'deprovision-service';
 const DEPROVISION_PASS = 'super-secret-deprovision-pw!';

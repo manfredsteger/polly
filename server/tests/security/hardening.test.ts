@@ -3,16 +3,15 @@ import request from 'supertest';
 import type { Express } from 'express';
 import { createTestApp, closeTestApp } from '../testApp';
 import { storage } from '../../storage';
+import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 
 let app: Express;
 const suffix = Date.now();
 
 async function loginAsAdmin(agent: request.SuperTest<request.Test>) {
-  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
   const res = await agent.post('/api/v1/auth/login').send({
-    usernameOrEmail: adminUsername,
-    password: adminPassword,
+    usernameOrEmail: ADMIN_USERNAME,
+    password: ADMIN_PASSWORD,
   });
   return res;
 }
@@ -108,8 +107,7 @@ describe('Security Hardening Tests', () => {
   describe('T003: Registration Enumeration Prevention', () => {
     it('should return generic message when registering with existing username', async () => {
       const agent = request.agent(app);
-      const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-      const res = await registerUser(agent, adminUsername, `unique-${suffix}@test.de`, 'TestPass123!');
+      const res = await registerUser(agent, ADMIN_USERNAME, `unique-${suffix}@test.de`, 'TestPass123!');
       if (res.status >= 400) {
         const errorMsg = res.body.error || res.body.message || '';
         expect(errorMsg).not.toMatch(/bereits vergeben/i);

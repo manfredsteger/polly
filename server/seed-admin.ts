@@ -8,6 +8,11 @@
  *   ADMIN_PASSWORD  (default: Admin123!)
  * 
  * Can be used standalone (npx tsx server/seed-admin.ts) or imported.
+ * 
+ * NOTE: This is the ONLY file allowed to have hardcoded credential defaults.
+ * When defaults are used, isInitialAdmin=true forces a password change on
+ * first login. All other code (tests, scripts) MUST read credentials from
+ * environment variables without fallbacks.
  */
 
 import { db } from "./db";

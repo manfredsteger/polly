@@ -5,14 +5,12 @@ import { createTestApp, getTestServer } from '../testApp';
 import { liveVotingService } from '../../services/liveVotingService';
 import type { Express } from 'express';
 import type { Server } from 'http';
+import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 
 let app: Express;
 let agent: ReturnType<typeof request.agent>;
 let server: Server;
 let wsBaseUrl: string;
-
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'manfredsteger';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'test';
 
 async function loginAsAdmin(ag: ReturnType<typeof request.agent>) {
   await ag

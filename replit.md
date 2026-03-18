@@ -6,6 +6,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ## User Preferences
 - **Communication**: Simple, everyday language (German).
 - **Git Commits**: Aussagekräftige, beschreibende Commit-Nachrichten auf Englisch (kein "saved progress"). Format: Kurzer Titel + optionale Details zu den Änderungen.
+- **Admin Credentials (MANDATORY)**: All admin credentials come exclusively from environment variables (`ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`). **No hardcoded fallbacks anywhere in tests or scripts.** Tests import from `server/tests/testCredentials.ts` which throws a clear error if any variable is missing. The only exception is `server/seed-admin.ts` (Docker initial setup) where defaults are allowed because `isInitialAdmin` forces a password change on first login.
 - **Test Discipline (MANDATORY)**: When adding a new feature, fixing a bug, or changing existing functionality:
   1. First check if tests already exist for the affected code (search `server/tests/`).
   2. If no tests exist, always create or extend tests to cover the change.

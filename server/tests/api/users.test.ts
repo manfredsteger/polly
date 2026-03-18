@@ -2,12 +2,10 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
+import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 
 let app: Express;
 let agent: ReturnType<typeof request.agent>;
-
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'manfredsteger';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'test';
 
 async function loginAsAdmin(ag: ReturnType<typeof request.agent>) {
   const res = await ag

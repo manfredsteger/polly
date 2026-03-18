@@ -9,10 +9,11 @@
  * 
  * Can be used standalone (npx tsx server/seed-admin.ts) or imported.
  * 
- * NOTE: This is the ONLY file allowed to have hardcoded credential defaults.
- * When defaults are used, isInitialAdmin=true forces a password change on
- * first login. All other code (tests, scripts) MUST read credentials from
- * environment variables without fallbacks.
+ * Credential policy: Two files share the same fallback defaults:
+ *   - This file (seed-admin.ts) for Docker/production seeding
+ *   - server/tests/testCredentials.ts for test imports
+ * When defaults are used here, isInitialAdmin=true forces a password change
+ * on first login. No other file may hardcode its own admin credentials.
  */
 
 import { db } from "./db";

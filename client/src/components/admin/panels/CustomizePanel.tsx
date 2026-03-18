@@ -296,7 +296,7 @@ export function CustomizePanel() {
                   ) : (
                     <Upload className="h-4 w-4" />
                   )}
-                  {isUploading ? t('common.uploading') : t('admin.customize.uploadLogo')}
+                  {isUploading ? t('admin.customization.uploading') : t('admin.customize.uploadLogo')}
                 </label>
               </div>
             </div>

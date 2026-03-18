@@ -1954,7 +1954,15 @@
         "openSettings": "Einstellungen öffnen"
       },
       "error": "Verbindungsfehler",
-      "pollingStoppedError": "Statusabfrage wurde gestoppt. Bitte Seite neu laden."
+      "pollingStoppedError": "Statusabfrage wurde gestoppt. Bitte Seite neu laden.",
+      "notificationEmailPlaceholder": "E-Mail-Adresse für Testberichte",
+      "notificationEmailHint": "Nach jedem Testlauf wird ein Bericht an diese Adresse gesendet.",
+      "notificationEmailSaved": "E-Mail-Adresse gespeichert",
+      "notificationEmailCleared": "E-Mail-Adresse entfernt",
+      "smtpNotConfigured": "SMTP nicht konfiguriert — E-Mails können derzeit nicht versendet werden.",
+      "noEmailConfigured": "Keine E-Mail-Adresse hinterlegt — kein automatischer Versand von Testberichten.",
+      "saveEmail": "Speichern",
+      "clearEmail": "Entfernen"
     },
     "oidc": {
       "backToSettings": "Zurück zu Einstellungen",

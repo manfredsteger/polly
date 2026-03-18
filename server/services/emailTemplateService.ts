@@ -914,69 +914,71 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument, theme?: EmailTheme
 
 // Sample data generators for each template type (for preview and testing)
 // NOTE: Variable names MUST match exactly with the placeholders in DEFAULT_TEMPLATES
-const SAMPLE_DATA: Record<EmailTemplateType, Record<string, string>> = {
-  poll_created: {
-    pollType: 'Terminumfrage',
-    pollTitle: 'Teammeeting Q1 2025',
-    publicLink: 'https://polly.example.com/poll/abc123',
-    adminLink: 'https://polly.example.com/admin/abc123',
-    siteName: 'Polly',
-  },
-  invitation: {
-    inviterName: 'Max Mustermann',
-    pollTitle: 'Teammeeting Q1 2025',
-    message: 'Bitte wähle die Termine aus, an denen du Zeit hast.',
-    publicLink: 'https://polly.example.com/poll/abc123',
-    siteName: 'Polly',
-  },
-  vote_confirmation: {
-    voterName: 'Anna Schmidt',
-    pollType: 'Terminumfrage',
-    pollTitle: 'Teammeeting Q1 2025',
-    publicLink: 'https://polly.example.com/poll/abc123',
-    resultsLink: 'https://polly.example.com/poll/abc123/results',
-    siteName: 'Polly',
-  },
-  reminder: {
-    senderName: 'Max Mustermann',
-    pollTitle: 'Teammeeting Q1 2025',
-    expiresAt: 'Die Umfrage endet am 31.12.2025 um 23:59 Uhr.',
-    pollLink: 'https://polly.example.com/poll/abc123',
-    siteName: 'Polly',
-  },
-  password_reset: {
-    userName: 'Max Mustermann',
-    resetLink: 'https://polly.example.com/auth/reset-password?token=xyz789',
-    siteName: 'Polly',
-  },
-  email_change: {
-    oldEmail: 'alte-email@example.com',
-    newEmail: 'neue-email@example.com',
-    confirmLink: 'https://polly.example.com/auth/confirm-email?token=xyz789',
-    siteName: 'Polly',
-  },
-  password_changed: {
-    userName: 'Max Mustermann',
-    siteName: 'Polly',
-  },
-  test_report: {
-    testRunId: '42',
-    status: 'Bestanden',
-    totalTests: '24',
-    passed: '22',
-    failed: '1',
-    skipped: '1',
-    duration: '12.5 Sekunden',
-    startedAt: new Date().toLocaleString('de-DE'),
-    siteName: 'Polly',
-  },
-  welcome: {
-    userName: 'Max Mustermann',
-    userEmail: 'max.mustermann@example.com',
-    verificationLink: 'https://polly.example.com/email-bestaetigen/abc123xyz789',
-    siteName: 'Polly',
-  },
-};
+function getSampleData(siteName: string): Record<EmailTemplateType, Record<string, string>> {
+  return {
+    poll_created: {
+      pollType: 'Terminumfrage',
+      pollTitle: 'Teammeeting Q1 2025',
+      publicLink: 'https://polly.example.com/poll/abc123',
+      adminLink: 'https://polly.example.com/admin/abc123',
+      siteName,
+    },
+    invitation: {
+      inviterName: 'Max Mustermann',
+      pollTitle: 'Teammeeting Q1 2025',
+      message: 'Bitte wähle die Termine aus, an denen du Zeit hast.',
+      publicLink: 'https://polly.example.com/poll/abc123',
+      siteName,
+    },
+    vote_confirmation: {
+      voterName: 'Anna Schmidt',
+      pollType: 'Terminumfrage',
+      pollTitle: 'Teammeeting Q1 2025',
+      publicLink: 'https://polly.example.com/poll/abc123',
+      resultsLink: 'https://polly.example.com/poll/abc123/results',
+      siteName,
+    },
+    reminder: {
+      senderName: 'Max Mustermann',
+      pollTitle: 'Teammeeting Q1 2025',
+      expiresAt: 'Die Umfrage endet am 31.12.2025 um 23:59 Uhr.',
+      pollLink: 'https://polly.example.com/poll/abc123',
+      siteName,
+    },
+    password_reset: {
+      userName: 'Max Mustermann',
+      resetLink: 'https://polly.example.com/auth/reset-password?token=xyz789',
+      siteName,
+    },
+    email_change: {
+      oldEmail: 'alte-email@example.com',
+      newEmail: 'neue-email@example.com',
+      confirmLink: 'https://polly.example.com/auth/confirm-email?token=xyz789',
+      siteName,
+    },
+    password_changed: {
+      userName: 'Max Mustermann',
+      siteName,
+    },
+    test_report: {
+      testRunId: '42',
+      status: 'Bestanden',
+      totalTests: '24',
+      passed: '22',
+      failed: '1',
+      skipped: '1',
+      duration: '12.5 Sekunden',
+      startedAt: new Date().toLocaleString('de-DE'),
+      siteName,
+    },
+    welcome: {
+      userName: 'Max Mustermann',
+      userEmail: 'max.mustermann@example.com',
+      verificationLink: 'https://polly.example.com/email-bestaetigen/abc123xyz789',
+      siteName,
+    },
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════
 // V3 TEMPLATE SYSTEM
@@ -996,25 +998,26 @@ interface V3TemplateData {
   subject: string;
 }
 
-function v3DarkModeCSS(): string {
+function v3DarkModeCSS(accentColor: string): string {
+  const darkAccent = accentColor || '#e8994a';
   return `@media (prefers-color-scheme: dark) {
       body             { background-color: #0c111d !important; }
       .shell           { background-color: #111827 !important; }
       .email-header    { background-color: #0f1623 !important; border-bottom-color: rgba(255,255,255,0.07) !important; }
       .hdr-sep         { background-color: rgba(255,255,255,0.08) !important; }
       .hdr-site        { color: #7a8fa8 !important; }
-      .hdr-accent      { color: #e8994a !important; }
-      .survey-tag      { color: #e8994a !important; }
+      .hdr-accent      { color: ${darkAccent} !important; }
+      .survey-tag      { color: ${darkAccent} !important; }
       .headline        { color: #dde3ef !important; }
-      .headline-em     { color: #e8994a !important; }
+      .headline-em     { color: ${darkAccent} !important; }
       .subline         { color: #7a8fa8 !important; }
       .sec-divider     { border-top-color: rgba(255,255,255,0.07) !important; }
       .link-label      { color: #7a8fa8 !important; }
       .link-title      { color: #dde3ef !important; }
       .link-desc       { color: #7a8fa8 !important; }
-      .btn-primary     { background-color: #c97b2e !important; color: #ffffff !important; }
-      .btn-secondary   { background-color: rgba(201,123,46,0.12) !important; color: #e8994a !important; }
-      .notice          { border-left-color: #c97b2e !important; color: #7a8fa8 !important; }
+      .btn-primary     { background-color: ${darkAccent} !important; color: #ffffff !important; }
+      .btn-secondary   { background-color: rgba(201,123,46,0.12) !important; color: ${darkAccent} !important; }
+      .notice          { border-left-color: ${darkAccent} !important; color: #7a8fa8 !important; }
       .notice-bold     { color: #dde3ef !important; }
       .email-footer    { border-top-color: rgba(255,255,255,0.07) !important; }
       .footer-text     { color: #3d5070 !important; }
@@ -1026,16 +1029,20 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
   const hdrFont = data.fontFamily;
   const sysFont = 'system-ui, -apple-system, Arial, sans-serif';
 
-  const logoBlock = data.logoDataUri
+  const hasLogo = !!data.logoDataUri;
+  const hasName = !!(data.siteName || data.siteAccent);
+  const hasHeader = hasLogo || hasName;
+
+  const logoBlock = hasLogo
     ? `<td style="width: 1px; white-space: nowrap;">
             <img src="${data.logoDataUri}" alt="${htmlEscape(data.siteName + data.siteAccent) || 'Logo'}" width="100" style="display: block; height: 36px; width: auto; max-width: 100px;" />
-          </td>
+          </td>${hasName ? `
           <td style="width: 1px; padding: 0 14px;">
             <div class="hdr-sep" style="width: 1px; height: 22px; background-color: rgba(0,0,0,0.1);"></div>
-          </td>`
+          </td>` : ''}`
     : '';
 
-  const wordmark = (data.siteName || data.siteAccent)
+  const wordmark = hasName
     ? `<td>
             <span class="hdr-site" style="font-family: ${hdrFont}; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; color: #6b7280; line-height: 1;">${htmlEscape(data.siteName)}</span>${data.siteAccent ? `<span class="hdr-accent" style="font-family: ${hdrFont}; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; color: ${data.primaryColor}; line-height: 1;">${htmlEscape(data.siteAccent)}</span>` : ''}
           </td>`
@@ -1052,7 +1059,7 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background-color: #f0ede8; font-family: ${hdrFont}; -webkit-font-smoothing: antialiased; }
-    ${v3DarkModeCSS()}
+    ${v3DarkModeCSS(data.primaryColor)}
   </style>
   <!--[if mso]>
   <style type="text/css">
@@ -1065,7 +1072,7 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
 <tr><td>
 <table class="shell" width="100%" cellpadding="0" cellspacing="0" role="presentation"
   style="background-color: #ffffff; border-radius: 10px; overflow: hidden;">
-  <tr>
+  ${hasHeader ? `<tr>
     <td class="email-header"
       style="background-color: #ffffff; padding: 14px 40px; border-bottom: 1px solid rgba(0,0,0,0.06);">
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
@@ -1075,16 +1082,17 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
         </tr>
       </table>
     </td>
-  </tr>
+  </tr>` : ''}
   ${bodyHtml}
   <tr>
     <td class="email-footer"
       style="padding: 16px 40px 22px; border-top: 1px solid rgba(0,0,0,0.06); text-align: center;">
       <p class="footer-text"
         style="font-family: ${sysFont}; font-size: 12px; color: #b0bcd0; line-height: 1.7;">
-        Automatisch gesendet von
+        ${hasName ? `Automatisch gesendet von
         <a href="${htmlEscape(data.siteUrl)}" class="footer-link"
-          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteName + data.siteAccent)}</a>
+          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteName + data.siteAccent)}</a>` : `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
+          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteUrl)}</a>`}
         <br>
         <a href="${htmlEscape(data.privacyUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">Datenschutz</a>
@@ -1098,12 +1106,14 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
 </html>`;
 }
 
-function v3Tag(text: string): string {
-  return `<p class="survey-tag" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #7a3800; margin-bottom: 14px;">${htmlEscape(text)}</p>`;
+function v3Tag(text: string, accentColor?: string): string {
+  const color = accentColor || '#7a3800';
+  return `<p class="survey-tag" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: ${color}; margin-bottom: 14px;">${htmlEscape(text)}</p>`;
 }
 
-function v3Headline(beforeEm: string, emText: string, afterEm: string, fontFamily: string): string {
-  return `<h1 class="headline" style="font-family: ${fontFamily}; font-size: 25px; font-weight: 400; line-height: 1.35; color: #1a202c; margin-bottom: 12px;">${beforeEm}${emText ? `<br><em class="headline-em" style="font-style: italic; color: #7a3800;">${emText}</em>` : ''}${afterEm ? `<br>${afterEm}` : ''}</h1>`;
+function v3Headline(beforeEm: string, emText: string, afterEm: string, fontFamily: string, accentColor?: string): string {
+  const color = accentColor || '#7a3800';
+  return `<h1 class="headline" style="font-family: ${fontFamily}; font-size: 25px; font-weight: 400; line-height: 1.35; color: #1a202c; margin-bottom: 12px;">${beforeEm}${emText ? `<br><em class="headline-em" style="font-style: italic; color: ${color};">${emText}</em>` : ''}${afterEm ? `<br>${afterEm}` : ''}</h1>`;
 }
 
 function v3SimpleHeadline(text: string, fontFamily: string): string {
@@ -1181,8 +1191,8 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
   const greeting = creatorName ? `Hallo ${creatorName}` : 'Hallo';
 
   return `${v3BodyStart()}
-      ${v3Tag(pollType)}
-      ${v3Headline('Ihre Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily)}
+      ${v3Tag(pollType, ctx.primaryColor)}
+      ${v3Headline('Ihre Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(`${greeting} \u2014 Sie finden unten Ihren pers\u00F6nlichen Administratorlink sowie den Abstimmungslink f\u00FCr Ihre Teilnehmer.`)}
     ${v3BodyEnd()}
     ${v3Divider()}
@@ -1199,8 +1209,8 @@ function buildV3InvitationBody(vars: Record<string, string | undefined>, ctx: V3
   const publicLink = vars.publicLink || '#';
 
   return `${v3BodyStart()}
-      ${v3Tag('Einladung')}
-      ${v3Headline('Einladung zur Abstimmung', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily)}
+      ${v3Tag('Einladung', ctx.primaryColor)}
+      ${v3Headline('Einladung zur Abstimmung', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(`${inviterName} l\u00E4dt Sie ein, an dieser Umfrage teilzunehmen.${message ? ` ${message}` : ''}`)}
     ${v3BodyEnd()}
     ${v3Divider()}
@@ -1214,8 +1224,8 @@ function buildV3ReminderBody(vars: Record<string, string | undefined>, ctx: V3Bo
   const pollLink = vars.pollLink || '#';
 
   return `${v3BodyStart()}
-      ${v3Tag('Erinnerung')}
-      ${v3Headline('Erinnerung an', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily)}
+      ${v3Tag('Erinnerung', ctx.primaryColor)}
+      ${v3Headline('Erinnerung an', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(`${senderName} erinnert Sie freundlich an die Teilnahme. Ihre Stimme ist wichtig!${expiresAt ? ` ${expiresAt}` : ''}`)}
     ${v3BodyEnd()}
     ${v3Divider()}
@@ -1230,7 +1240,7 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
   const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
 
   return `${v3BodyStart()}
-      ${v3Tag('Best\u00E4tigung')}
+      ${v3Tag('Best\u00E4tigung', ctx.primaryColor)}
       ${v3SimpleHeadline('Vielen Dank f\u00FCr Ihre Teilnahme!', ctx.fontFamily)}
       ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Teilnahme an der ${htmlEscape(pollType)} \u201E${pollTitle}\u201C. Ihre Auswahl wurde erfolgreich gespeichert.`)}
     ${v3BodyEnd()}
@@ -1244,7 +1254,7 @@ function buildV3PasswordResetBody(vars: Record<string, string | undefined>, ctx:
   const greeting = userName ? `Hallo ${userName}` : 'Hallo';
 
   return `${v3BodyStart()}
-      ${v3Tag('Sicherheit')}
+      ${v3Tag('Sicherheit', ctx.primaryColor)}
       ${v3SimpleHeadline('Passwort zur\u00FCcksetzen', ctx.fontFamily)}
       ${v3Subline(`${greeting} \u2014 Sie haben angefordert, Ihr Passwort zur\u00FCckzusetzen.`)}
     ${v3BodyEnd()}
@@ -1259,7 +1269,7 @@ function buildV3EmailChangeBody(vars: Record<string, string | undefined>, ctx: V
   const confirmLink = vars.confirmLink || '#';
 
   return `${v3BodyStart()}
-      ${v3Tag('Sicherheit')}
+      ${v3Tag('Sicherheit', ctx.primaryColor)}
       ${v3SimpleHeadline('E-Mail-Adresse best\u00E4tigen', ctx.fontFamily)}
       ${v3Subline('Sie haben angefordert, Ihre E-Mail-Adresse zu \u00E4ndern.')}
     ${v3BodyEnd()}
@@ -1274,7 +1284,7 @@ function buildV3PasswordChangedBody(vars: Record<string, string | undefined>, ct
   const greeting = userName ? `Hallo ${userName}` : 'Hallo';
 
   return `${v3BodyStart()}
-      ${v3Tag('Sicherheit')}
+      ${v3Tag('Sicherheit', ctx.primaryColor)}
       ${v3SimpleHeadline('Passwort erfolgreich ge\u00E4ndert', ctx.fontFamily)}
       ${v3Subline(`${greeting} \u2014 Ihr Passwort wurde erfolgreich ge\u00E4ndert.`)}
     ${v3BodyEnd()}
@@ -1292,7 +1302,7 @@ function buildV3TestReportBody(vars: Record<string, string | undefined>, ctx: V3
   const startedAt = htmlEscape(vars.startedAt || '');
 
   return `${v3BodyStart()}
-      ${v3Tag('Testbericht')}
+      ${v3Tag('Testbericht', ctx.primaryColor)}
       ${v3SimpleHeadline(`${status} \u2014 Testlauf #${testRunId}`, ctx.fontFamily)}
       ${v3Subline('Der automatische Testlauf wurde abgeschlossen.')}
     ${v3BodyEnd()}
@@ -1306,7 +1316,7 @@ function buildV3WelcomeBody(vars: Record<string, string | undefined>, ctx: V3Bod
   const greeting = userName ? `Hallo ${userName}` : 'Hallo';
 
   return `${v3BodyStart()}
-      ${v3Tag('Willkommen')}
+      ${v3Tag('Willkommen', ctx.primaryColor)}
       ${v3SimpleHeadline(`Willkommen bei ${siteName}!`, ctx.fontFamily)}
       ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.`)}
     ${v3BodyEnd()}
@@ -1379,9 +1389,11 @@ export class EmailTemplateService {
     return substituteVariables(template, variables, escapeHtml);
   }
 
-  // Static method: Get sample data for preview/testing
-  static getSampleDataForType(type: string): Record<string, string> {
-    return SAMPLE_DATA[type as EmailTemplateType] || {};
+  static async getSampleDataForType(type: string): Promise<Record<string, string>> {
+    const customization = await storage.getCustomizationSettings();
+    const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
+    const data = getSampleData(siteName);
+    return data[type as EmailTemplateType] || {};
   }
 
   // Static method: Render template to HTML
@@ -1679,57 +1691,6 @@ export class EmailTemplateService {
   async importThemeFromEmailBuilder(jsonContent: unknown): Promise<EmailTheme> {
     const extractedTheme = this.extractThemeFromEmailBuilder(jsonContent);
     return await this.setEmailTheme(extractedTheme);
-  }
-
-  private async generateHeaderHtml(branding: {
-    siteName: string;
-    siteNameAccent: string;
-    logoUrl?: string;
-  }, theme?: EmailTheme): Promise<string> {
-    const fullName = `${branding.siteName}${branding.siteNameAccent}`.trim();
-    const hasName = fullName.length > 0;
-    const logoAlt = hasName ? htmlEscape(fullName) : 'Logo';
-    const accentColor = theme?.headingColor || '#FF6B35';
-
-    let logoHtml = '';
-    let hasLogo = false;
-    if (branding.logoUrl) {
-      let logoSrc: string | null = null;
-      if (branding.logoUrl.startsWith('data:')) {
-        logoSrc = branding.logoUrl;
-      } else if (branding.logoUrl.startsWith('/uploads/')) {
-        logoSrc = await readLocalLogoAsBase64(branding.logoUrl);
-      } else {
-        logoSrc = await fetchLogoAsBase64(branding.logoUrl);
-      }
-      if (logoSrc) {
-        logoHtml = `<img src="${logoSrc}" alt="${logoAlt}" style="max-height: 56px; max-width: 220px; width: auto; height: auto; display: block; margin: 0 auto;" />`;
-        hasLogo = true;
-      }
-    }
-
-    let siteNameHtml = '';
-    if (hasName) {
-      const accentSpan = branding.siteNameAccent.trim()
-        ? (hasLogo
-          ? `<span style="font-weight: normal;">${htmlEscape(branding.siteNameAccent)}</span>`
-          : `<span style="font-weight: 700; color: ${accentColor};">${htmlEscape(branding.siteNameAccent)}</span>`)
-        : '';
-      siteNameHtml = hasLogo
-        ? `<span class="email-header-text" style="color: #6c757d; font-size: 12px; font-family: Arial, sans-serif; letter-spacing: 0.5px;">${htmlEscape(branding.siteName)}${accentSpan}</span>`
-        : `<span class="email-header-text" style="font-size: 22px; font-weight: 700; font-family: Arial, sans-serif; color: #333333; letter-spacing: 0.3px;">${htmlEscape(branding.siteName)}${accentSpan}</span>`;
-    }
-
-    return `
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="padding: ${hasLogo ? '24px 24px 12px' : '28px 24px 16px'} 24px; text-align: center; border-bottom: 1px solid #f0f0f0;">
-            ${hasLogo ? `<div style="${siteNameHtml ? 'margin-bottom: 6px;' : ''}">${logoHtml}</div>` : ''}
-            ${siteNameHtml}
-          </td>
-        </tr>
-      </table>
-    `;
   }
 
   // Convert plain text to simple HTML for email body (with theme support)

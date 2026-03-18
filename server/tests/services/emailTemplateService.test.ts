@@ -177,8 +177,8 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Sample Data Generation', () => {
-    it('should generate sample data for poll_created template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('poll_created');
+    it('should generate sample data for poll_created template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('poll_created');
       
       expect(sampleData.pollTitle).toBeDefined();
       expect(sampleData.publicLink).toBeDefined();
@@ -186,31 +186,31 @@ describe('EmailTemplateService', () => {
       expect(sampleData.siteName).toBeDefined();
     });
 
-    it('should generate sample data for invitation template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('invitation');
+    it('should generate sample data for invitation template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('invitation');
       
       expect(sampleData.pollTitle).toBeDefined();
       expect(sampleData.inviterName).toBeDefined();
       expect(sampleData.publicLink).toBeDefined();
     });
 
-    it('should generate sample data for password_reset template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('password_reset');
+    it('should generate sample data for password_reset template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('password_reset');
       
       expect(sampleData.resetLink).toBeDefined();
       expect(sampleData.siteName).toBeDefined();
     });
 
-    it('should generate sample data for email_change template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('email_change');
+    it('should generate sample data for email_change template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('email_change');
       
       expect(sampleData.oldEmail).toBeDefined();
       expect(sampleData.newEmail).toBeDefined();
       expect(sampleData.confirmLink).toBeDefined();
     });
 
-    it('should return empty object for unknown template type', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('unknown_type');
+    it('should return empty object for unknown template type', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('unknown_type');
       
       expect(sampleData).toEqual({});
     });

@@ -1851,7 +1851,15 @@
         "openSettings": "Open Settings"
       },
       "error": "Connection error",
-      "pollingStoppedError": "Status polling stopped. Please reload the page."
+      "pollingStoppedError": "Status polling stopped. Please reload the page.",
+      "notificationEmailPlaceholder": "Email address for test reports",
+      "notificationEmailHint": "A report will be sent to this address after each test run.",
+      "notificationEmailSaved": "Email address saved",
+      "notificationEmailCleared": "Email address removed",
+      "smtpNotConfigured": "SMTP not configured — emails cannot currently be sent.",
+      "noEmailConfigured": "No email address configured — no automatic test report delivery.",
+      "saveEmail": "Save",
+      "clearEmail": "Remove"
     },
     "deprovision": {
       "title": "External Deprovisioning",

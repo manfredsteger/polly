@@ -31,7 +31,7 @@ export function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
           {t('admin.matrix.backToSettings')}
         </Button>
         <ChevronRight className="w-4 h-4" />
-        <span className="font-medium text-foreground">Matrix Chat</span>
+        <span className="font-medium text-foreground">{t('admin.matrix.title')}</span>
       </div>
 
       <div className="flex items-center justify-between">

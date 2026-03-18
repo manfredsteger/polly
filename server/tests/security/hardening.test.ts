@@ -238,7 +238,7 @@ describe('Security Hardening Tests', () => {
       const initialAdmin = await storage.getUserByUsername(`initadmin-${suffix}`);
       if (!initialAdmin) {
         const bcrypt = await import('bcryptjs');
-        const hash = await bcrypt.hash('Admin123!', 10);
+        const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
         await storage.createUser({
           username: `initadmin-${suffix}`,
           email: `initadmin-${suffix}@test.de`,
@@ -254,7 +254,7 @@ describe('Security Hardening Tests', () => {
       const agent = request.agent(app);
       const loginRes = await agent.post('/api/v1/auth/login').send({
         usernameOrEmail: `initadmin-${suffix}`,
-        password: 'Admin123!',
+        password: ADMIN_PASSWORD,
       });
 
       if (loginRes.status === 200) {

@@ -395,15 +395,6 @@ function divider(id: string): [string, EmailBuilderBlock] {
   }];
 }
 
-function footerBlock(id: string, text: string): [string, EmailBuilderBlock] {
-  return [id, {
-    type: 'Text',
-    data: {
-      props: { text },
-      style: { color: '#6c757d', fontSize: 14, padding: { top: 8, bottom: 16, left: 24, right: 24 } },
-    },
-  }];
-}
 
 function buildTemplate(
   name: string,
@@ -437,18 +428,15 @@ function buildSimpleTemplate(
   buttonText?: string,
   buttonVar?: string,
   buttonType: 'primary' | 'secondary' = 'primary',
-  footerText: string = 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
 ): TemplateDefinition {
   const defs: [string, EmailBuilderBlock][] = [];
   defs.push(heading('h1', headingText, 'h1'));
   paragraphs.forEach((p, i) => defs.push(txt(`t${i}`, p)));
   if (buttonText && buttonVar) defs.push(btn('b1', buttonText, buttonVar, buttonType));
   defs.push(divider('d1'));
-  defs.push(footerBlock('f1', footerText));
   
   let textContent = `${headingText}\n\n${paragraphs.join('\n\n')}`;
   if (buttonText && buttonVar) textContent += `\n\n${buttonText}: {{${buttonVar}}}`;
-  textContent += `\n\n---\n${footerText}`;
   
   return buildTemplate(name, subject, defs, [], textContent);
 }
@@ -476,7 +464,6 @@ function buildPollCreatedTemplate(): TemplateDefinition {
   const bottomDefs: [string, EmailBuilderBlock][] = [
     txt('warn', '<strong>\u26A0\uFE0F Wichtig:</strong> Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.', { bold: true }),
     divider('d1'),
-    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt. — Open-Source Abstimmungsplattform für Teams'),
   ];
 
   const allBlocks: Record<string, EmailBuilderBlock> = {};
@@ -494,7 +481,7 @@ function buildPollCreatedTemplate(): TemplateDefinition {
 
   for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
 
-  const textContent = `{{pollType}} erfolgreich erstellt!\n\nHallo,\n\nDie {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.\n\nAdministratorlink:\nUmfrage verwalten: {{adminLink}}\n\n\u00D6ffentlicher Link zum Teilen:\nZur Abstimmung: {{publicLink}}\n\nWichtig: Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
+  const textContent = `{{pollType}} erfolgreich erstellt!\n\nHallo,\n\nDie {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.\n\nAdministratorlink:\nUmfrage verwalten: {{adminLink}}\n\n\u00D6ffentlicher Link zum Teilen:\nZur Abstimmung: {{publicLink}}\n\nWichtig: Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.`;
 
   return { name: 'Umfrage erstellt', subject: '[{{siteName}}] {{pollType}} wurde erstellt: {{pollTitle}}', jsonContent: tpl(allBlocks, topIds), textContent };
 }
@@ -509,9 +496,8 @@ function buildInvitationTemplate(): TemplateDefinition {
   defs.push(btn('b1', 'Jetzt abstimmen', 'publicLink', 'primary'));
   defs.push(img('qr', 'qrCodeUrl', 'QR-Code zur Umfrage', '150px'));
   defs.push(divider('d1'));
-  defs.push(footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'));
 
-  const textContent = `Einladung zur Abstimmung\n\nHallo,\n\n{{inviterName}} lädt Sie ein, an der Umfrage "{{pollTitle}}" teilzunehmen.\n\n{{message}}\n\nJetzt abstimmen: {{publicLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
+  const textContent = `Einladung zur Abstimmung\n\nHallo,\n\n{{inviterName}} lädt Sie ein, an der Umfrage "{{pollTitle}}" teilzunehmen.\n\n{{message}}\n\nJetzt abstimmen: {{publicLink}}`;
 
   return buildTemplate('Einladung zur Umfrage', '[{{siteName}}] {{inviterName}} lädt Sie ein: {{pollTitle}}', defs, [], textContent);
 }
@@ -527,9 +513,8 @@ function buildReminderTemplate(): TemplateDefinition {
   defs.push(btn('b1', 'Jetzt abstimmen', 'pollLink', 'primary'));
   defs.push(img('qr', 'qrCodeUrl', 'QR-Code zur Umfrage', '150px'));
   defs.push(divider('d1'));
-  defs.push(footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'));
 
-  const textContent = `Erinnerung zur Abstimmung\n\nHallo,\n\n{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage "{{pollTitle}}".\n\nIhre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.\n\n{{expiresAt}}\n\nJetzt abstimmen: {{pollLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
+  const textContent = `Erinnerung zur Abstimmung\n\nHallo,\n\n{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage "{{pollTitle}}".\n\nIhre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.\n\n{{expiresAt}}\n\nJetzt abstimmen: {{pollLink}}`;
 
   return buildTemplate('Erinnerung', '[{{siteName}}] Erinnerung: {{pollTitle}}', defs, [], textContent);
 }
@@ -549,7 +534,6 @@ function buildVoteConfirmationTemplate(): TemplateDefinition {
 
   const bottomDefs: [string, EmailBuilderBlock][] = [
     divider('d1'),
-    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'),
   ];
 
   const allBlocks: Record<string, EmailBuilderBlock> = {};
@@ -564,7 +548,7 @@ function buildVoteConfirmationTemplate(): TemplateDefinition {
     name: 'Abstimmungsbestätigung',
     subject: '[{{siteName}}] Vielen Dank für Ihre Teilnahme - {{pollTitle}}',
     jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Vielen Dank für Ihre Teilnahme!\n\nHallo {{voterName}},\n\nvielen Dank für Ihre Teilnahme an der {{pollType}} "{{pollTitle}}". Ihre Auswahl wurde erfolgreich gespeichert.\n\nErgebnisse anzeigen: {{resultsLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.',
+    textContent: 'Vielen Dank für Ihre Teilnahme!\n\nHallo {{voterName}},\n\nvielen Dank für Ihre Teilnahme an der {{pollType}} "{{pollTitle}}". Ihre Auswahl wurde erfolgreich gespeichert.\n\nErgebnisse anzeigen: {{resultsLink}}',
   };
 }
 
@@ -584,7 +568,6 @@ function buildPasswordResetTemplate(): TemplateDefinition {
   const bottomDefs: [string, EmailBuilderBlock][] = [
     txt('t3', 'Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren. Ihr Passwort bleibt unverändert.', { color: '#6c757d', fontSize: 14 }),
     divider('d1'),
-    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'),
   ];
 
   const allBlocks: Record<string, EmailBuilderBlock> = {};
@@ -599,7 +582,7 @@ function buildPasswordResetTemplate(): TemplateDefinition {
     name: 'Passwort zurücksetzen',
     subject: '[{{siteName}}] Passwort zurücksetzen',
     jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Passwort zurücksetzen\n\nHallo {{userName}},\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nPasswort zurücksetzen: {{resetLink}}\n\nDieser Link ist 1 Stunde gültig.\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.',
+    textContent: 'Passwort zurücksetzen\n\nHallo {{userName}},\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nPasswort zurücksetzen: {{resetLink}}\n\nDieser Link ist 1 Stunde gültig.',
   };
 }
 
@@ -618,7 +601,6 @@ function buildWelcomeTemplate(): TemplateDefinition {
 
   const bottomDefs: [string, EmailBuilderBlock][] = [
     divider('d1'),
-    footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'),
   ];
 
   const allBlocks: Record<string, EmailBuilderBlock> = {};
@@ -633,7 +615,7 @@ function buildWelcomeTemplate(): TemplateDefinition {
     name: 'Willkommen',
     subject: '[{{siteName}}] Willkommen bei {{siteName}}!',
     jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Willkommen bei {{siteName}}!\n\nHallo {{userName}},\n\nvielen Dank für Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.\n\nE-Mail bestätigen: {{verificationLink}}\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.',
+    textContent: 'Willkommen bei {{siteName}}!\n\nHallo {{userName}},\n\nvielen Dank für Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.\n\nE-Mail bestätigen: {{verificationLink}}',
   };
 }
 
@@ -662,8 +644,6 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
     ],
     'E-Mail bestätigen',
     'confirmLink',
-    'primary',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
   ),
 
   password_changed: buildSimpleTemplate(
@@ -675,10 +655,6 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
       'Ihr Passwort für Ihren {{siteName}} Account wurde erfolgreich geändert.',
       '<strong>Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.</strong>',
     ],
-    undefined,
-    undefined,
-    'primary',
-    'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
   ),
 
   test_report: buildSimpleTemplate(
@@ -694,10 +670,6 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
       'Dauer: {{duration}}',
       'Gestartet: {{startedAt}}',
     ],
-    undefined,
-    undefined,
-    'primary',
-    'Diese E-Mail wurde automatisch vom {{siteName}} Testsystem erstellt.'
   ),
 
   welcome: buildWelcomeTemplate(),
@@ -995,6 +967,7 @@ interface V3TemplateData {
   secondaryColor: string;
   siteUrl: string;
   privacyUrl: string;
+  footerHtml: string;
   footerText: string;
   fontFamily: string;
   subject: string;
@@ -1091,7 +1064,7 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
       style="padding: 16px 40px 22px; border-top: 1px solid rgba(0,0,0,0.06); text-align: center;">
       <p class="footer-text"
         style="font-family: ${sysFont}; font-size: 12px; color: #b0bcd0; line-height: 1.7;">
-        ${data.footerText ? htmlEscape(data.footerText) : (hasName ? `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
+        ${data.footerHtml ? htmlEscape(data.footerHtml) : (hasName ? `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteName + data.siteAccent)}</a>` : `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteUrl)}</a>`)}${data.privacyUrl ? `
         <br>
@@ -1781,8 +1754,9 @@ export class EmailTemplateService {
     const siteUrl = getBaseUrl();
     const logoDataUri = await this.resolveLogoDataUri(customization.branding.logoUrl || undefined);
     const footer = await this.getEmailFooter();
-    const siteName = `${customization.branding.siteName || ''}${customization.branding.siteNameAccent || ''}`;
-    const footerText = footer.text.replace(/\{\{siteName\}\}/g, siteName);
+    const fullSiteName = `${customization.branding.siteName || ''}${customization.branding.siteNameAccent || ''}`;
+    const footerHtml = footer.html.replace(/\{\{siteName\}\}/g, fullSiteName);
+    const footerText = footer.text.replace(/\{\{siteName\}\}/g, fullSiteName);
 
     return {
       logoDataUri,
@@ -1792,6 +1766,7 @@ export class EmailTemplateService {
       secondaryColor: emailTheme.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
       siteUrl,
       privacyUrl: this.resolvePrivacyUrl(customization),
+      footerHtml,
       footerText,
       fontFamily: emailTheme.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,
       subject,
@@ -1828,8 +1803,8 @@ export class EmailTemplateService {
           .replace(/Den Administratorlink sicher aufbewahren\. Nur damit l\u00E4sst sich die Umfrage verwalten\./,
             'Diese E-Mail dient als Schnellzugriff. Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten.');
       }
-      if (/\n---\nDiese E-Mail wurde automatisch von/.test(textBase)) {
-        textBase = textBase.replace(/\n---\nDiese E-Mail wurde automatisch von[^\n]*$/, `\n---\n${v3Data.footerText}`);
+      if (/\n---\nDiese E-Mail wurde automatisch vo[nm]/.test(textBase)) {
+        textBase = textBase.replace(/\n---\nDiese E-Mail wurde automatisch vo[nm][^\n]*$/, `\n---\n${v3Data.footerText}`);
       } else if (v3Data.footerText) {
         textBase = textBase.trimEnd() + `\n\n---\n${v3Data.footerText}`;
       }
@@ -1851,8 +1826,8 @@ export class EmailTemplateService {
     const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
     const html = v3Shell(v3Data, wrappedBody);
     let textFallback = template.textContent || '';
-    if (/\n---\nDiese E-Mail wurde automatisch von/.test(textFallback)) {
-      textFallback = textFallback.replace(/\n---\nDiese E-Mail wurde automatisch von[^\n]*$/, `\n---\n${v3Data.footerText}`);
+    if (/\n---\nDiese E-Mail wurde automatisch vo[nm]/.test(textFallback)) {
+      textFallback = textFallback.replace(/\n---\nDiese E-Mail wurde automatisch vo[nm][^\n]*$/, `\n---\n${v3Data.footerText}`);
     } else if (v3Data.footerText) {
       textFallback = textFallback.trimEnd() + `\n\n---\n${v3Data.footerText}`;
     }

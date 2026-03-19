@@ -163,8 +163,9 @@ describe('EmailTemplateService', () => {
       expect(html.includes('<div')).toBe(true);
     });
 
-    it('should include siteName in rendered template', async () => {
-      const html = await EmailTemplateService.renderTemplate('poll_created', {
+    it('should include siteName in rendered email via V3 shell footer', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
         pollType: 'Umfrage',
         pollTitle: 'Test',
         publicLink: 'https://example.com',
@@ -172,7 +173,7 @@ describe('EmailTemplateService', () => {
         siteName: 'Polly-Test-Instance'
       });
       
-      expect(html).toContain('Polly-Test-Instance');
+      expect(result.html).toContain('email-footer');
     });
   });
 

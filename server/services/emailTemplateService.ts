@@ -1064,7 +1064,7 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
       style="padding: 16px 40px 22px; border-top: 1px solid rgba(0,0,0,0.06); text-align: center;">
       <p class="footer-text"
         style="font-family: ${sysFont}; font-size: 12px; color: #b0bcd0; line-height: 1.7;">
-        ${data.footerHtml ? htmlEscape(data.footerHtml) : (hasName ? `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
+        ${data.footerHtml ? htmlEscape(data.footerHtml) /* XSS-safe: user-provided footer text is escaped */ : (hasName ? `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteName + data.siteAccent)}</a>` : `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteUrl)}</a>`)}${data.privacyUrl ? `
         <br>

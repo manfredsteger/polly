@@ -1,12 +1,20 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { storage } from '../storage';
 
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
+  const snapshot = await storage.getCustomizationSettings();
+  (globalThis as any).__brandingSnapshot = JSON.parse(JSON.stringify(snapshot));
 });
 
 afterAll(async () => {
-  // Don't close the pool here - it's shared across all test files
-  // The pool is closed in globalTeardown.ts which runs once after ALL tests
+  const snapshot = (globalThis as any).__brandingSnapshot;
+  if (snapshot) {
+    try {
+      await storage.setCustomizationSettings(snapshot);
+    } catch {
+    }
+  }
 });
 
 beforeEach(async () => {

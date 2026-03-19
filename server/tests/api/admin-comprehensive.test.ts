@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
+import { storage } from '../../storage';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -285,6 +286,16 @@ describe('Admin API - Comprehensive Functional Tests', () => {
   });
 
   describe('Customization & Branding', () => {
+    let savedCustomization: any;
+
+    beforeAll(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+
+    afterAll(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should get customization settings', async () => {
       const res = await adminAgent.get('/api/v1/admin/customization');
       expect(res.status).toBe(200);

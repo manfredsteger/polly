@@ -424,6 +424,30 @@ describe('EmailTemplateService', () => {
         await service.setEmailFooter(origFooter);
       }
     });
+
+    it('should apply central footer in wrapWithEmailTheme plain text', async () => {
+      const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Wrap Footer HTML Test',
+          text: 'Wrap Footer Text Test',
+        });
+
+        const result = await service.wrapWithEmailTheme(
+          'Test Subject',
+          '<p>Body content</p>',
+          'Body content plain text'
+        );
+
+        expect(result.html).toContain('Wrap Footer HTML Test');
+        expect(result.text).toContain('Wrap Footer Text Test');
+        expect(result.text).toContain('---');
+      } finally {
+        await service.setEmailFooter(origFooter);
+      }
+    });
   });
 
   describe('Template Reset', () => {

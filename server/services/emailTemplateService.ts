@@ -1847,7 +1847,14 @@ export class EmailTemplateService {
     const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
     const html = v3Shell(v3Data, wrappedBody);
 
-    return { subject, html, text: plainText };
+    let text = plainText;
+    if (/\n---\nDiese E-Mail wurde automatisch vo[nm]/.test(text)) {
+      text = text.replace(/\n---\nDiese E-Mail wurde automatisch vo[nm][^\n]*$/, `\n---\n${v3Data.footerText}`);
+    } else if (v3Data.footerText) {
+      text = text.trimEnd() + `\n\n---\n${v3Data.footerText}`;
+    }
+
+    return { subject, html, text };
   }
 
   private extractContainerDarkColors(doc: Record<string, unknown> | null, emailTheme?: EmailTheme): Map<string, string> {

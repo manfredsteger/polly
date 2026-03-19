@@ -295,7 +295,8 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
         suggestion.title,
         publicLink,
         adminLink,
-        suggestion.pollType
+        suggestion.pollType,
+        userId !== null
       );
     }
 

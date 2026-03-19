@@ -110,7 +110,8 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
         data.title,
         publicLink,
         adminLink,
-        data.type
+        data.type,
+        userId !== null
       );
     }
 

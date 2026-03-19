@@ -1278,4 +1278,100 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('notice');
     });
   });
+
+  describe('poll_created Guest vs Registered User', () => {
+    it('should show guest notice when isRegisteredUser is empty', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test Poll',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: '',
+      });
+
+      expect(result.html).toContain('Bitte diese E-Mail aufbewahren.');
+      expect(result.html).toContain('Administratorlink');
+      expect(result.html).not.toContain('Meine Umfragen');
+    });
+
+    it('should show registered user notice when isRegisteredUser is true', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test Poll',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: 'true',
+      });
+
+      expect(result.html).toContain('Schnellzugriff');
+      expect(result.html).toContain('Meine Umfragen');
+      expect(result.html).not.toContain('Bitte diese E-Mail aufbewahren.');
+    });
+
+    it('should default to guest notice when isRegisteredUser is not provided', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test Poll',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('Bitte diese E-Mail aufbewahren.');
+      expect(result.html).not.toContain('Meine Umfragen');
+    });
+
+    it('should differentiate plain text for guest vs registered user', async () => {
+      const service = new EmailTemplateService();
+      const guestResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: '',
+      });
+      const registeredResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: 'true',
+      });
+
+      expect(guestResult.text).toContain('Administratorlink sicher aufbewahren');
+      expect(guestResult.text).not.toContain('Meine Umfragen');
+
+      expect(registeredResult.text).toContain('Schnellzugriff');
+      expect(registeredResult.text).toContain('Meine Umfragen');
+      expect(registeredResult.text).not.toContain('Administratorlink sicher aufbewahren');
+    });
+
+    it('should use neutral language without direct address (Sie/Du)', async () => {
+      const service = new EmailTemplateService();
+      const guestResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: '',
+      });
+      const registeredResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: 'true',
+      });
+
+      for (const result of [guestResult, registeredResult]) {
+        const bodyAfterGreeting = result.html.replace(/Hallo[^<]*/g, '');
+        expect(bodyAfterGreeting).not.toMatch(/\bIhre\b/);
+        expect(bodyAfterGreeting).not.toMatch(/\bIhren\b/);
+        expect(bodyAfterGreeting).not.toMatch(/\bIhrem\b/);
+        expect(bodyAfterGreeting).not.toMatch(/\bSie\b(?![_-])/);
+      }
+    });
+  });
 });

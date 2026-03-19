@@ -137,7 +137,8 @@ export class EmailService {
     pollTitle: string,
     publicLink: string,
     adminLink: string,
-    pollType: 'schedule' | 'survey' | 'organization'
+    pollType: 'schedule' | 'survey' | 'organization',
+    isRegisteredUser: boolean = false
   ): Promise<void> {
     if (!this.isConfigured || !this.transporter) {
       console.log(`Email would be sent to ${creatorEmail} for poll: ${pollTitle}`);
@@ -154,6 +155,7 @@ export class EmailService {
         pollType: pollTypeText,
         publicLink: validateEmailUrl(publicLink),
         adminLink: validateEmailUrl(adminLink),
+        isRegisteredUser: isRegisteredUser ? 'true' : '',
       });
 
       await this.transporter.sendMail({

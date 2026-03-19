@@ -456,25 +456,25 @@ function buildSimpleTemplate(
 // ---- poll_created: the showcase template with containers ----
 function buildPollCreatedTemplate(): TemplateDefinition {
   const adminBox = container('admin-box', '#f8f9fa', '#2a2a3e', [
-    heading('ab-h', 'Administratorlink (nur für Sie)', 'h3'),
-    txt('ab-t', 'Mit diesem Link können Sie Ihre Umfrage verwalten, bearbeiten und die Ergebnisse einsehen.'),
+    heading('ab-h', 'Administratorlink', 'h3'),
+    txt('ab-t', 'Mit diesem Link l\u00E4sst sich die Umfrage verwalten, bearbeiten und die Ergebnisse einsehen.'),
     btn('ab-btn', 'Umfrage verwalten', 'adminLink', 'primary'),
   ]);
 
   const publicBox = container('public-box', '#e8f4f8', '#1e3a4a', [
     heading('pb-h', 'Öffentlicher Link zum Teilen', 'h3'),
-    txt('pb-t', 'Teilen Sie diesen Link mit Ihren Teilnehmern, damit diese an der Abstimmung teilnehmen können.'),
+    txt('pb-t', 'Diesen Link an alle Teilnehmer weiterleiten, damit diese an der Abstimmung teilnehmen k\u00F6nnen.'),
     btn('pb-btn', 'Zur Abstimmung', 'publicLink', 'secondary'),
   ], 'secondary');
 
   const topDefs: [string, EmailBuilderBlock][] = [
     heading('h1', '{{pollType}} erfolgreich erstellt!', 'h1'),
     txt('t1', 'Hallo,'),
-    txt('t2', 'Ihre {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich erstellt.'),
+    txt('t2', 'Die {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich erstellt.'),
   ];
 
   const bottomDefs: [string, EmailBuilderBlock][] = [
-    txt('warn', '<strong>⚠️ Wichtig:</strong> Bewahren Sie den Administratorlink sicher auf. Nur mit diesem Link können Sie Ihre Umfrage verwalten.', { bold: true }),
+    txt('warn', '<strong>\u26A0\uFE0F Wichtig:</strong> Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.', { bold: true }),
     divider('d1'),
     footerBlock('f1', 'Diese E-Mail wurde automatisch von {{siteName}} erstellt. — Open-Source Abstimmungsplattform für Teams'),
   ];
@@ -494,9 +494,9 @@ function buildPollCreatedTemplate(): TemplateDefinition {
 
   for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
 
-  const textContent = `{{pollType}} erfolgreich erstellt!\n\nHallo,\n\nIhre {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.\n\nAdministratorlink (nur für Sie):\nUmfrage verwalten: {{adminLink}}\n\nÖffentlicher Link zum Teilen:\nZur Abstimmung: {{publicLink}}\n\nWichtig: Bewahren Sie den Administratorlink sicher auf.\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
+  const textContent = `{{pollType}} erfolgreich erstellt!\n\nHallo,\n\nDie {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.\n\nAdministratorlink:\nUmfrage verwalten: {{adminLink}}\n\n\u00D6ffentlicher Link zum Teilen:\nZur Abstimmung: {{publicLink}}\n\nWichtig: Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.\n\n---\nDiese E-Mail wurde automatisch von {{siteName}} erstellt.`;
 
-  return { name: 'Umfrage erstellt', subject: '[{{siteName}}] Ihre {{pollType}} wurde erstellt: {{pollTitle}}', jsonContent: tpl(allBlocks, topIds), textContent };
+  return { name: 'Umfrage erstellt', subject: '[{{siteName}}] {{pollType}} wurde erstellt: {{pollTitle}}', jsonContent: tpl(allBlocks, topIds), textContent };
 }
 
 // ---- invitation with QR code ----
@@ -921,6 +921,7 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       pollTitle: 'Teammeeting Q1 2025',
       publicLink: 'https://polly.example.com/poll/abc123',
       adminLink: 'https://polly.example.com/admin/abc123',
+      isRegisteredUser: '',
       siteName,
     },
     invitation: {
@@ -1188,18 +1189,31 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
   const creatorName = htmlEscape(vars.creatorName || '');
   const adminLink = vars.adminLink || '#';
   const publicLink = vars.publicLink || '#';
+  const isRegistered = vars.isRegisteredUser === 'true';
   const greeting = creatorName ? `Hallo ${creatorName}` : 'Hallo';
+
+  const subline = isRegistered
+    ? `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`
+    : `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`;
+
+  const noticeTitle = isRegistered
+    ? 'Diese E-Mail dient als Schnellzugriff.'
+    : 'Bitte diese E-Mail aufbewahren.';
+
+  const noticeBody = isRegistered
+    ? 'Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten \u2014 nach der Anmeldung.'
+    : 'Diese E-Mail enth\u00E4lt den pers\u00F6nlichen Administratorlink \u2014 nur damit l\u00E4sst sich die Umfrage verwalten, bearbeiten und schlie\u00DFen.';
 
   return `${v3BodyStart()}
       ${v3Tag(pollType, ctx.primaryColor)}
-      ${v3Headline('Ihre Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(`${greeting} \u2014 Sie finden unten Ihren pers\u00F6nlichen Administratorlink sowie den Abstimmungslink f\u00FCr Ihre Teilnehmer.`)}
+      ${v3Headline('Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Subline(subline)}
     ${v3BodyEnd()}
     ${v3Divider()}
-    ${v3LinkSection('F\u00FCr Sie \u00B7 Administratorlink', 'Umfrage verwalten', 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nur f\u00FCr Sie \u2014 nicht weitergeben.', 'Zur Verwaltung \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3LinkSection('Administratorlink', 'Umfrage verwalten', 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nicht weitergeben.', 'Zur Verwaltung \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
     ${v3Divider()}
-    ${v3LinkSection('F\u00FCr Teilnehmer \u00B7 \u00D6ffentlicher Link', 'Abstimmung \u00F6ffnen', 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.', 'Zur Abstimmung \u2192', publicLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
-    ${v3Notice('Bewahren Sie diese E-Mail auf.', 'Sie enth\u00E4lt Ihren pers\u00F6nlichen Administratorlink \u2014 nur damit k\u00F6nnen Sie Ihre Umfrage verwalten, bearbeiten und schlie\u00DFen. Au\u00DFerdem finden Sie hier den Abstimmungslink f\u00FCr Ihre Teilnehmer.', ctx.primaryColor)}`;
+    ${v3LinkSection('\u00D6ffentlicher Link \u00B7 F\u00FCr Teilnehmer', 'Abstimmung \u00F6ffnen', 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.', 'Zur Abstimmung \u2192', publicLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3Notice(noticeTitle, noticeBody, ctx.primaryColor)}`;
 }
 
 function buildV3InvitationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
@@ -1803,7 +1817,13 @@ export class EmailTemplateService {
       };
       const bodyHtml = v3Builder(allVariables, ctx);
       const html = v3Shell(v3Data, bodyHtml);
-      const text = renderTemplate(template.textContent || '', allVariables);
+      let textBase = template.textContent || '';
+      if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
+        textBase = textBase
+          .replace(/Den Administratorlink sicher aufbewahren\. Nur damit l\u00E4sst sich die Umfrage verwalten\./,
+            'Diese E-Mail dient als Schnellzugriff. Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten.');
+      }
+      const text = renderTemplate(textBase, allVariables);
       return { subject, html, text };
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -16,6 +16,15 @@ function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string;
   return <>{text}</>;
 }
 
+function TimeOnlyText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
+  const startTimeStr = startTime instanceof Date ? startTime.toISOString() : startTime;
+  const formatted = formatScheduleOptionWithWeekday(text, startTimeStr, locale);
+  if (formatted.isSchedule && formatted.time) {
+    return <>{formatted.time}</>;
+  }
+  return <>{text}</>;
+}
+
 interface SimpleImageVotingProps {
   options: PollOption[];
   onVote: (optionId: string, response: 'yes' | 'no' | 'maybe') => void;
@@ -23,6 +32,141 @@ interface SimpleImageVotingProps {
   disabled?: boolean;
   adminPreview?: boolean;
   allowMaybe?: boolean;
+}
+
+interface DayGroup {
+  dateKey: string;
+  dateLabel: string;
+  options: PollOption[];
+}
+
+function getDateSortKey(option: PollOption): string {
+  if (option.startTime) {
+    const d = new Date(option.startTime);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString();
+    }
+  }
+  const match = option.text.match(/^(\d{1,2})\.(\d{1,2})\.?(\d{2,4})?\s*/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3] || new Date().getFullYear().toString();
+    const fullYear = year.length === 2 ? `20${year}` : year;
+    const timePart = option.text.replace(match[0], '').trim();
+    const timeMatch = timePart.match(/^(\d{1,2}):(\d{2})/);
+    const time = timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : '00:00';
+    return `${fullYear}-${month}-${day}T${time}`;
+  }
+  return '9999-99-99';
+}
+
+function getDateKey(option: PollOption): string {
+  if (option.startTime) {
+    const d = new Date(option.startTime);
+    if (!isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    }
+  }
+  const match = option.text.match(/^(\d{1,2})\.(\d{1,2})\.?(\d{2,4})?\s*/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3] || new Date().getFullYear().toString();
+    const fullYear = year.length === 2 ? `20${year}` : year;
+    return `${fullYear}-${month}-${day}`;
+  }
+  return '';
+}
+
+function getDateLabel(option: PollOption, locale: string): string {
+  const startTimeStr = option.startTime instanceof Date ? option.startTime.toISOString() : option.startTime;
+  const formatted = formatScheduleOptionWithWeekday(option.text, startTimeStr, locale);
+  if (formatted.isSchedule) {
+    return formatted.dateWithWeekday;
+  }
+  return option.text;
+}
+
+function groupByDay(options: PollOption[], locale: string): DayGroup[] {
+  const sorted = [...options].sort((a, b) => getDateSortKey(a).localeCompare(getDateSortKey(b)));
+
+  const groups: DayGroup[] = [];
+  let currentKey = '';
+  let currentGroup: DayGroup | null = null;
+
+  for (const opt of sorted) {
+    const key = getDateKey(opt);
+    if (key && key !== currentKey) {
+      currentKey = key;
+      currentGroup = { dateKey: key, dateLabel: getDateLabel(opt, locale), options: [] };
+      groups.push(currentGroup);
+    }
+    if (currentGroup && key) {
+      currentGroup.options.push(opt);
+    } else {
+      const noDateGroup = groups.find(g => g.dateKey === '');
+      if (noDateGroup) {
+        noDateGroup.options.push(opt);
+      } else {
+        groups.push({ dateKey: '', dateLabel: '', options: [opt] });
+      }
+    }
+  }
+
+  return groups;
+}
+
+function VoteButtons({ 
+  optionId, currentVote, allowMaybe, disabled, onVote, t, testIdSuffix 
+}: { 
+  optionId: string | number; 
+  currentVote?: 'yes' | 'no' | 'maybe'; 
+  allowMaybe: boolean; 
+  disabled: boolean; 
+  onVote: (id: string | number, response: 'yes' | 'no' | 'maybe') => void; 
+  t: (key: string) => string;
+  testIdSuffix: string;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      <Button
+        className={`px-3 py-1.5 text-xs ${currentVote === 'yes' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950'}`}
+        variant={currentVote === 'yes' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => onVote(optionId, 'yes')}
+        disabled={disabled}
+        data-testid={`vote-yes-${testIdSuffix}`}
+      >
+        <Check className="w-3.5 h-3.5 mr-0.5" />
+        {t('voting.yes')}
+      </Button>
+      {allowMaybe && (
+        <Button
+          className={`px-3 py-1.5 text-xs ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950'}`}
+          variant={currentVote === 'maybe' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => onVote(optionId, 'maybe')}
+          disabled={disabled}
+          data-testid={`vote-maybe-${testIdSuffix}`}
+        >
+          <Minus className="w-3.5 h-3.5 mr-0.5" />
+          {t('voting.maybe')}
+        </Button>
+      )}
+      <Button
+        className={`px-3 py-1.5 text-xs ${currentVote === 'no' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-600 text-red-600 hover:bg-red-50 dark:hover:bg-red-950'}`}
+        variant={currentVote === 'no' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => onVote(optionId, 'no')}
+        disabled={disabled}
+        data-testid={`vote-no-${testIdSuffix}`}
+      >
+        <X className="w-3.5 h-3.5 mr-0.5" />
+        {t('voting.no')}
+      </Button>
+    </div>
+  );
 }
 
 export function SimpleImageVoting({ 
@@ -38,12 +182,19 @@ export function SimpleImageVoting({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Filter options that have images
   const imageOptions = options.filter(option => option.imageUrl && option.imageUrl.trim());
   const textOptions = options.filter(option => !option.imageUrl || !option.imageUrl.trim());
   const hasImages = imageOptions.length > 0;
 
-  // Create slides for lightbox
+  const isSchedulePoll = useMemo(() => {
+    return textOptions.some(opt => opt.startTime || /^\d{1,2}\.\d{1,2}\./.test(opt.text));
+  }, [textOptions]);
+
+  const dayGroups = useMemo(() => {
+    if (!isSchedulePoll) return null;
+    return groupByDay(textOptions, i18n.language);
+  }, [textOptions, isSchedulePoll, i18n.language]);
+
   const slides = imageOptions.map(option => ({
     src: option.imageUrl || '',
     alt: option.altText || option.text,
@@ -51,7 +202,6 @@ export function SimpleImageVoting({
     height: 900
   }));
 
-  // Update votes when external votes change
   useEffect(() => {
     setVotes(existingVotes);
   }, [existingVotes]);
@@ -67,11 +217,8 @@ export function SimpleImageVoting({
     setLightboxOpen(true);
   };
 
-  // Update lightbox when votes change
   useEffect(() => {
-    // Force re-render of lightbox when votes change
     if (lightboxOpen) {
-      // The lightbox will automatically re-render due to state change
     }
   }, [votes, lightboxOpen]);
 
@@ -81,7 +228,6 @@ export function SimpleImageVoting({
 
   return (
     <div className="space-y-6">
-      {/* Image grid with voting buttons */}
       {hasImages && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {imageOptions.map((option, index) => {
@@ -102,7 +248,6 @@ export function SimpleImageVoting({
                       {t('voting.clickToEnlarge')}
                     </div>
                   </div>
-                  {/* Vote indicator */}
                   {currentVote && (
                     <div className="absolute top-2 right-2">
                       <div className={`px-2 py-1 rounded text-xs font-medium ${
@@ -117,13 +262,12 @@ export function SimpleImageVoting({
                   )}
                 </div>
                 
-                {/* Title and voting buttons below each image */}
                 <div className="text-center">
                   <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></h4>
                   {!adminPreview && (
                     <div className="flex gap-2">
                       <Button
-                        className={`flex-1 py-2 ${currentVote === 'yes' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-600 text-green-600 hover:bg-green-50'}`}
+                        className={`flex-1 py-2 ${currentVote === 'yes' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950'}`}
                         variant={currentVote === 'yes' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => handleVoteClick(option.id, 'yes')}
@@ -135,7 +279,7 @@ export function SimpleImageVoting({
                       </Button>
                       {allowMaybe && (
                         <Button
-                          className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50'}`}
+                          className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950'}`}
                           variant={currentVote === 'maybe' ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => handleVoteClick(option.id, 'maybe')}
@@ -147,7 +291,7 @@ export function SimpleImageVoting({
                         </Button>
                       )}
                       <Button
-                        className={`flex-1 py-2 ${currentVote === 'no' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-600 text-red-600 hover:bg-red-50'}`}
+                        className={`flex-1 py-2 ${currentVote === 'no' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-600 text-red-600 hover:bg-red-50 dark:hover:bg-red-950'}`}
                         variant={currentVote === 'no' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => handleVoteClick(option.id, 'no')}
@@ -166,62 +310,111 @@ export function SimpleImageVoting({
         </div>
       )}
 
-      {/* Text-only options */}
       {textOptions.length > 0 && (
-        <div className="space-y-4">
+        <div>
           <h3 className="text-lg font-semibold mb-4">{t('voting.textOptions')}</h3>
-          {textOptions.map((option, textIndex) => {
-            const currentVote = votes[String(option.id)];
-            const globalIndex = imageOptions.length + textIndex;
-            return (
-              <div key={option.id} className="p-4 border rounded-lg" data-testid={`option-${globalIndex}`}>
-                <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></h4>
-                {!adminPreview && (
-                  <div className="flex gap-2">
-                    <Button
-                      className={`flex-1 py-2 ${currentVote === 'yes' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-600 text-green-600 hover:bg-green-50'}`}
-                      variant={currentVote === 'yes' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleVoteClick(option.id, 'yes')}
-                      disabled={disabled}
-                      data-testid={`vote-yes-${globalIndex}`}
-                    >
-                      <Check className="w-4 h-4 mr-1" />
-                      {t('voting.yes')}
-                    </Button>
-                    {allowMaybe && (
-                      <Button
-                        className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50'}`}
-                        variant={currentVote === 'maybe' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleVoteClick(option.id, 'maybe')}
-                        disabled={disabled}
-                        data-testid={`vote-maybe-${globalIndex}`}
-                      >
-                        <Minus className="w-4 h-4 mr-1" />
-                        {t('voting.maybe')}
-                      </Button>
-                    )}
-                    <Button
-                      className={`flex-1 py-2 ${currentVote === 'no' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-600 text-red-600 hover:bg-red-50'}`}
-                      variant={currentVote === 'no' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleVoteClick(option.id, 'no')}
-                      disabled={disabled}
-                      data-testid={`vote-no-${globalIndex}`}
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      {t('voting.no')}
-                    </Button>
+          
+          {isSchedulePoll && dayGroups ? (
+            <div className="space-y-5">
+              {dayGroups.map((group) => (
+                <div key={group.dateKey || 'no-date'}>
+                  {group.dateLabel && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="text-sm font-bold text-primary">{group.dateLabel}</h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {group.options.map((option) => {
+                      const currentVote = votes[String(option.id)];
+                      const globalIndex = options.findIndex(o => o.id === option.id);
+                      return (
+                        <div 
+                          key={option.id} 
+                          className={`p-3 border rounded-lg transition-colors ${
+                            currentVote === 'yes' ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' :
+                            currentVote === 'maybe' ? 'border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20' :
+                            currentVote === 'no' ? 'border-red-500/50 bg-red-50/50 dark:bg-red-950/20' :
+                            'border-border'
+                          }`}
+                          data-testid={`option-${globalIndex}`}
+                        >
+                          <div className="text-sm font-medium mb-2">
+                            <TimeOnlyText text={option.text} startTime={option.startTime} locale={i18n.language} />
+                          </div>
+                          {!adminPreview && (
+                            <VoteButtons 
+                              optionId={option.id} 
+                              currentVote={currentVote} 
+                              allowMaybe={allowMaybe} 
+                              disabled={disabled} 
+                              onVote={handleVoteClick} 
+                              t={t}
+                              testIdSuffix={String(globalIndex)}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {textOptions.map((option, textIndex) => {
+                const currentVote = votes[String(option.id)];
+                const globalIndex = imageOptions.length + textIndex;
+                return (
+                  <div key={option.id} className="p-4 border rounded-lg" data-testid={`option-${globalIndex}`}>
+                    <h4 className="font-medium text-lg mb-3"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></h4>
+                    {!adminPreview && (
+                      <div className="flex gap-2">
+                        <Button
+                          className={`flex-1 py-2 ${currentVote === 'yes' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950'}`}
+                          variant={currentVote === 'yes' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleVoteClick(option.id, 'yes')}
+                          disabled={disabled}
+                          data-testid={`vote-yes-${globalIndex}`}
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          {t('voting.yes')}
+                        </Button>
+                        {allowMaybe && (
+                          <Button
+                            className={`flex-1 py-2 ${currentVote === 'maybe' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950'}`}
+                            variant={currentVote === 'maybe' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleVoteClick(option.id, 'maybe')}
+                            disabled={disabled}
+                            data-testid={`vote-maybe-${globalIndex}`}
+                          >
+                            <Minus className="w-4 h-4 mr-1" />
+                            {t('voting.maybe')}
+                          </Button>
+                        )}
+                        <Button
+                          className={`flex-1 py-2 ${currentVote === 'no' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-600 text-red-600 hover:bg-red-50 dark:hover:bg-red-950'}`}
+                          variant={currentVote === 'no' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleVoteClick(option.id, 'no')}
+                          disabled={disabled}
+                          data-testid={`vote-no-${globalIndex}`}
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          {t('voting.no')}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Yet Another React Lightbox */}
       <Lightbox
         open={lightboxOpen}
         close={() => setLightboxOpen(false)}
@@ -233,8 +426,7 @@ export function SimpleImageVoting({
         render={{
           buttonPrev: slides.length <= 1 ? () => null : undefined,
           buttonNext: slides.length <= 1 ? () => null : undefined,
-          slide: ({ slide, offset, rect }) => {
-            // Get the current slide index from the slide itself
+          slide: ({ slide }) => {
             const currentSlideIndex = slides.findIndex(s => s.src === slide.src);
             const currentOption = imageOptions[currentSlideIndex >= 0 ? currentSlideIndex : lightboxIndex];
             const currentVote = votes[String(currentOption?.id)];
@@ -251,7 +443,6 @@ export function SimpleImageVoting({
                   }}
                 />
                 
-                {/* Title overlay at top */}
                 {currentOption && (
                   <div style={{
                     position: 'absolute',
@@ -272,7 +463,6 @@ export function SimpleImageVoting({
                   </div>
                 )}
                 
-                {/* Voting buttons at bottom */}
                 {currentOption && !adminPreview && (
                   <div style={{
                     position: 'absolute',

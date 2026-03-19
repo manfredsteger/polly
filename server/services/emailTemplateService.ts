@@ -1805,7 +1805,8 @@ export class EmailTemplateService {
     const emailTheme = await this.getEmailTheme();
     const allVariables = { siteName, ...variables };
 
-    const subject = renderTemplate(template.subject, allVariables);
+    const rawSubject = renderTemplate(template.subject, allVariables);
+    const subject = rawSubject.replace(/^\[\]\s*/, '');
 
     const v3Builder = V3_BODY_BUILDERS[type];
     if (template.isDefault && v3Builder) {

@@ -419,7 +419,7 @@ async function runTestsInBackground(runId: number, config: ResolvedTestConfig): 
     const completedAt = new Date();
     await db.update(testRuns)
       .set({
-        status: parsed.success ? 'completed' : 'failed',
+        status: (parsed.numFailedTests === 0 && parsed.numTotalTests > 0) ? 'completed' : 'failed',
         passed: parsed.numPassedTests,
         failed: parsed.numFailedTests,
         skipped: totalSkipped,
@@ -432,7 +432,7 @@ async function runTestsInBackground(runId: number, config: ResolvedTestConfig): 
     const finalTotal = finalRun[0]?.totalTests || (parsed.numTotalTests + e2eTestsToSkip.length);
     
     await sendTestReportNotification(runId, {
-      status: parsed.success ? 'completed' : 'failed',
+      status: (parsed.numFailedTests === 0 && parsed.numTotalTests > 0) ? 'completed' : 'failed',
       totalTests: finalTotal,
       passed: parsed.numPassedTests,
       failed: parsed.numFailedTests,

@@ -332,7 +332,96 @@ describe('EmailTemplateService', () => {
       
       expect(result.html).toContain('border-top');
       expect(result.html).toContain('email-footer');
-      expect(result.html).toContain('Datenschutz');
+    });
+
+    it('should show Datenschutz link only when privacy URL is configured', async () => {
+      const origCustomization = await storage.getCustomizationSettings();
+      const service = new EmailTemplateService();
+
+      try {
+        await storage.setCustomizationSettings({
+          ...origCustomization,
+          footer: { ...(origCustomization.footer || {}), supportLinks: [] },
+        });
+
+        const resultWithout = await service.renderEmail('poll_created', {
+          pollType: 'Terminumfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+        expect(resultWithout.html).not.toContain('>Datenschutz<');
+
+        await storage.setCustomizationSettings({
+          ...origCustomization,
+          footer: {
+            ...(origCustomization.footer || {}),
+            supportLinks: [{ label: 'Datenschutz', url: 'https://example.com/privacy' }],
+          },
+        });
+
+        const resultWith = await service.renderEmail('poll_created', {
+          pollType: 'Terminumfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+        expect(resultWith.html).toContain('Datenschutz');
+        expect(resultWith.html).toContain('https://example.com/privacy');
+      } finally {
+        await storage.setCustomizationSettings(origCustomization);
+      }
+    });
+
+    it('should render the central email footer text from settings', async () => {
+      const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Gesendet von TestOrg — Die Abstimmungsplattform',
+          text: 'Gesendet von TestOrg — Die Abstimmungsplattform',
+        });
+
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Terminumfrage',
+          pollTitle: 'Footer-Test',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+
+        expect(result.html).toContain('Gesendet von TestOrg');
+        expect(result.text).toContain('Gesendet von TestOrg');
+      } finally {
+        await service.setEmailFooter(origFooter);
+      }
+    });
+
+    it('should use central footer for all email types', async () => {
+      const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Zentraler Footer Marker XYZ',
+          text: 'Zentraler Footer Marker XYZ',
+        });
+
+        const types: Array<{ type: any; vars: Record<string, string> }> = [
+          { type: 'poll_created', vars: { pollType: 'Umfrage', pollTitle: 'T', publicLink: 'https://a.com', adminLink: 'https://b.com' } },
+          { type: 'invitation', vars: { pollTitle: 'T', inviterName: 'A', publicLink: 'https://a.com', message: '' } },
+          { type: 'reminder', vars: { pollTitle: 'T', senderName: 'A', pollLink: 'https://a.com', expiresAt: '' } },
+          { type: 'vote_confirmation', vars: { voterName: 'A', pollType: 'Umfrage', pollTitle: 'T', resultsLink: 'https://a.com' } },
+          { type: 'welcome', vars: { userName: 'A', verificationLink: 'https://a.com' } },
+        ];
+
+        for (const { type, vars } of types) {
+          const result = await service.renderEmail(type, vars);
+          expect(result.html).toContain('Zentraler Footer Marker XYZ');
+        }
+      } finally {
+        await service.setEmailFooter(origFooter);
+      }
     });
   });
 

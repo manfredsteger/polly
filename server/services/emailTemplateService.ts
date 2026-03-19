@@ -995,6 +995,7 @@ interface V3TemplateData {
   secondaryColor: string;
   siteUrl: string;
   privacyUrl: string;
+  footerText: string;
   fontFamily: string;
   subject: string;
 }
@@ -1090,13 +1091,12 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
       style="padding: 16px 40px 22px; border-top: 1px solid rgba(0,0,0,0.06); text-align: center;">
       <p class="footer-text"
         style="font-family: ${sysFont}; font-size: 12px; color: #b0bcd0; line-height: 1.7;">
-        ${hasName ? `Automatisch gesendet von
-        <a href="${htmlEscape(data.siteUrl)}" class="footer-link"
+        ${data.footerText ? htmlEscape(data.footerText) : (hasName ? `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteName + data.siteAccent)}</a>` : `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
-          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteUrl)}</a>`}
+          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteUrl)}</a>`)}${data.privacyUrl ? `
         <br>
         <a href="${htmlEscape(data.privacyUrl)}" class="footer-link"
-          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">Datenschutz</a>
+          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">Datenschutz</a>` : ''}
       </p>
     </td>
   </tr>
@@ -1757,7 +1757,7 @@ export class EmailTemplateService {
     return (await fetchLogoAsBase64(logoUrl)) || '';
   }
 
-  private resolvePrivacyUrl(customization: any, siteUrl: string): string {
+  private resolvePrivacyUrl(customization: any): string {
     try {
       const footer = customization?.footer;
       if (footer?.supportLinks && Array.isArray(footer.supportLinks)) {
@@ -1769,7 +1769,7 @@ export class EmailTemplateService {
         if (privacyLink?.url && privacyLink.url !== '#') return privacyLink.url;
       }
     } catch {}
-    return `${siteUrl}/datenschutz`;
+    return '';
   }
 
   private async buildV3TemplateData(
@@ -1780,6 +1780,9 @@ export class EmailTemplateService {
     const { getBaseUrl } = await import('../utils/baseUrl');
     const siteUrl = getBaseUrl();
     const logoDataUri = await this.resolveLogoDataUri(customization.branding.logoUrl || undefined);
+    const footer = await this.getEmailFooter();
+    const siteName = `${customization.branding.siteName || ''}${customization.branding.siteNameAccent || ''}`;
+    const footerText = footer.text.replace(/\{\{siteName\}\}/g, siteName);
 
     return {
       logoDataUri,
@@ -1788,7 +1791,8 @@ export class EmailTemplateService {
       primaryColor: emailTheme.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor,
       secondaryColor: emailTheme.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
       siteUrl,
-      privacyUrl: this.resolvePrivacyUrl(customization, siteUrl),
+      privacyUrl: this.resolvePrivacyUrl(customization),
+      footerText,
       fontFamily: emailTheme.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,
       subject,
     };
@@ -1824,6 +1828,11 @@ export class EmailTemplateService {
           .replace(/Den Administratorlink sicher aufbewahren\. Nur damit l\u00E4sst sich die Umfrage verwalten\./,
             'Diese E-Mail dient als Schnellzugriff. Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten.');
       }
+      if (/\n---\nDiese E-Mail wurde automatisch von/.test(textBase)) {
+        textBase = textBase.replace(/\n---\nDiese E-Mail wurde automatisch von[^\n]*$/, `\n---\n${v3Data.footerText}`);
+      } else if (v3Data.footerText) {
+        textBase = textBase.trimEnd() + `\n\n---\n${v3Data.footerText}`;
+      }
       const text = renderTemplate(textBase, allVariables);
       return { subject, html, text };
     }
@@ -1841,7 +1850,13 @@ export class EmailTemplateService {
     const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
     const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
     const html = v3Shell(v3Data, wrappedBody);
-    const text = renderTemplate(template.textContent || '', allVariables);
+    let textFallback = template.textContent || '';
+    if (/\n---\nDiese E-Mail wurde automatisch von/.test(textFallback)) {
+      textFallback = textFallback.replace(/\n---\nDiese E-Mail wurde automatisch von[^\n]*$/, `\n---\n${v3Data.footerText}`);
+    } else if (v3Data.footerText) {
+      textFallback = textFallback.trimEnd() + `\n\n---\n${v3Data.footerText}`;
+    }
+    const text = renderTemplate(textFallback, allVariables);
     return { subject, html, text };
   }
 

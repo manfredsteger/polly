@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { InDevelopmentBadge } from "@/components/ui/InDevelopmentBadge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -365,21 +366,19 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span>
+                      <div className="inline-flex items-center gap-2 opacity-40 cursor-not-allowed" data-testid="button-import-theme">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           disabled
-                          className="opacity-50 cursor-not-allowed"
-                          data-testid="button-import-theme"
+                          className="pointer-events-none"
+                          tabIndex={-1}
                         >
                           <Upload className="w-4 h-4 mr-1" />
                           {t('admin.emailTemplates.importTheme')}
-                          <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0">
-                            {t('admin.emailTemplates.inDevelopment')}
-                          </Badge>
                         </Button>
-                      </span>
+                        <InDevelopmentBadge />
+                      </div>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>{t('admin.emailTemplates.importThemeDisabledHint')}</p>

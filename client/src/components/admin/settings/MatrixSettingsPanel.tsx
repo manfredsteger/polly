@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { InDevelopmentBadge } from "@/components/ui/InDevelopmentBadge";
 import { 
   MessageSquare,
   ArrowLeft,
   ChevronRight,
-  Clock,
   Users,
   Bell,
   Bot,
@@ -39,10 +38,7 @@ export function MatrixSettingsPanel({ onBack }: { onBack: () => void }) {
           <h2 className="text-2xl font-semibold text-foreground">{t('admin.matrix.title')}</h2>
           <p className="text-muted-foreground">{t('admin.matrix.description')}</p>
         </div>
-        <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-400 dark:border-amber-600">
-          <Clock className="w-3 h-3 mr-1" />
-          {t('admin.matrix.comingSoon.badge')}
-        </Badge>
+        <InDevelopmentBadge size="md" />
       </div>
 
       <Card className="polly-card overflow-hidden">

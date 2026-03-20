@@ -337,10 +337,10 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
       {!selectedTemplate ? (
         <>
-          <Card className="polly-card">
+          <Card className="polly-card relative">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 opacity-50">
                   <div className="p-2 bg-primary/10 rounded-lg text-primary">
                     <Palette className="w-5 h-5" />
                   </div>
@@ -366,12 +366,12 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="inline-flex items-center gap-2 opacity-40 cursor-not-allowed" data-testid="button-import-theme">
+                      <div className="inline-flex items-center gap-2 cursor-default" data-testid="button-import-theme">
                         <Button
                           size="sm"
                           variant="ghost"
                           disabled
-                          className="pointer-events-none"
+                          className="pointer-events-none opacity-50"
                           tabIndex={-1}
                         >
                           <Upload className="w-4 h-4 mr-1" />
@@ -389,7 +389,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
             </CardHeader>
             <CardContent>
               {emailTheme && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 opacity-50">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">{t('admin.emailTemplates.backdrop')}</Label>
                     <div className="flex items-center space-x-2">

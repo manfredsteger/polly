@@ -273,11 +273,15 @@ describe('EmailTemplateService', () => {
 
   describe('Customized Template Rendering (renderEmail)', () => {
     let savedCustomization: any;
+    const service = new EmailTemplateService();
     beforeEach(async () => {
       savedCustomization = await storage.getCustomizationSettings();
     });
     afterEach(async () => {
       await storage.setCustomizationSettings(savedCustomization);
+      for (const type of modifiedTemplateTypes) {
+        await service.resetTemplate(type);
+      }
     });
 
     it('should use stored htmlContent for customized templates', async () => {
@@ -452,11 +456,15 @@ describe('EmailTemplateService', () => {
 
   describe('Template Reset', () => {
     let savedCustomization: any;
+    const service = new EmailTemplateService();
     beforeEach(async () => {
       savedCustomization = await storage.getCustomizationSettings();
     });
     afterEach(async () => {
       await storage.setCustomizationSettings(savedCustomization);
+      for (const type of modifiedTemplateTypes) {
+        await service.resetTemplate(type);
+      }
     });
 
     it('should reset customized template to default', async () => {
@@ -482,11 +490,15 @@ describe('EmailTemplateService', () => {
 
   describe('End-to-End: Customized Template Email Sending', () => {
     let savedCustomization: any;
+    const service = new EmailTemplateService();
     beforeEach(async () => {
       savedCustomization = await storage.getCustomizationSettings();
     });
     afterEach(async () => {
       await storage.setCustomizationSettings(savedCustomization);
+      for (const type of modifiedTemplateTypes) {
+        await service.resetTemplate(type);
+      }
     });
 
     it('should render customized template content when preparing email for sending', async () => {

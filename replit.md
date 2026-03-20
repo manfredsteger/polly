@@ -18,6 +18,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
   2. `afterAll`: Restore the saved state (e.g. `await storage.setCustomizationSettings(origCustomization);`). `afterAll` runs even when tests fail.
   3. Tests must NOT pollute production DB — after a test run, all settings must be identical to before.
   4. Pattern: `const orig = await storage.getCustomizationSettings(); ... afterAll: await storage.setCustomizationSettings(orig);`
+  5. **Template cleanup**: Any `describe` block that calls `service.saveTemplate()` MUST call `service.resetTemplate(type)` for all modified types in its `afterEach`. Without this, test crashes leave custom templates in the DB, breaking V3 rendering (templates with `htmlContent` set → `isDefault=false` → V3 body builder is skipped).
 - **i18n Discipline (MANDATORY)**: Every user-visible string in the frontend MUST use `t()` from react-i18next. When adding, changing, or removing any UI text:
   1. Always add/update the key in BOTH `client/src/locales/de.json` AND `client/src/locales/en.json`.
   2. If a text is modified, update the translation in both locale files immediately.

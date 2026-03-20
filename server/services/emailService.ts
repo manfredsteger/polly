@@ -505,6 +505,9 @@ export class EmailService {
         text,
         headers: {
           'X-Mailer': 'Polly System',
+          'X-Priority': '3',
+          'X-MSMail-Priority': 'Normal',
+          'Reply-To': this.getReplyTo(),
         },
       });
       console.log(`[Email] Pre-rendered email sent to ${recipientEmail}`);

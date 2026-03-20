@@ -23,6 +23,18 @@ interface EmailConfig {
   };
 }
 
+type EmailPriority = 'high' | 'normal';
+
+interface SendMailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  priority?: EmailPriority;
+  fromPrefix?: string;
+  attachments?: nodemailer.SendMailOptions['attachments'];
+}
+
 export class EmailService {
   private transporter: nodemailer.Transporter | null = null;
   private isConfigured: boolean = false;
@@ -132,6 +144,37 @@ export class EmailService {
     return emailTemplateService.renderEmail(type, variables);
   }
 
+  async sendMail(options: SendMailOptions): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.log(`[Email] Would send to ${options.to}: ${options.subject}`);
+      return;
+    }
+
+    const priority = options.priority || 'normal';
+    const isHigh = priority === 'high';
+
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: this.getFromAddress(options.fromPrefix),
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+      headers: {
+        'X-Mailer': 'Polly System',
+        'X-Priority': isHigh ? '1' : '3',
+        'X-MSMail-Priority': isHigh ? 'High' : 'Normal',
+        'Importance': isHigh ? 'high' : 'normal',
+        'Reply-To': this.getReplyTo(),
+      },
+    };
+
+    if (options.attachments) {
+      mailOptions.attachments = options.attachments;
+    }
+
+    await this.transporter.sendMail(mailOptions);
+  }
+
   async sendPollCreationEmails(
     creatorEmail: string,
     pollTitle: string,
@@ -140,13 +183,6 @@ export class EmailService {
     pollType: 'schedule' | 'survey' | 'organization',
     isRegisteredUser: boolean = false
   ): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`Email would be sent to ${creatorEmail} for poll: ${pollTitle}`);
-      console.log(`Public link: ${publicLink}`);
-      console.log(`Admin link: ${adminLink}`);
-      return;
-    }
-
     try {
       const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
 
@@ -158,18 +194,11 @@ export class EmailService {
         isRegisteredUser: isRegisteredUser ? 'true' : '',
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: creatorEmail,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-          'X-MSMail-Priority': 'Normal',
-          'Reply-To': this.getReplyTo(),
-        },
       });
     } catch (error) {
       console.error('Failed to send poll creation email:', error);
@@ -183,11 +212,6 @@ export class EmailService {
     pollLink: string,
     customMessage?: string
   ): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`Invitation email would be sent to ${inviteeEmail} for poll: ${pollTitle}`);
-      return;
-    }
-
     try {
       const validatedLink = validateEmailUrl(pollLink);
 
@@ -206,18 +230,11 @@ export class EmailService {
         qrCodeUrl: qrCodeDataUrl,
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: inviteeEmail,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-          'X-MSMail-Priority': 'Normal',
-          'Reply-To': this.getReplyTo(),
-        },
       });
     } catch (error) {
       console.error('Failed to send invitation email:', error);
@@ -232,10 +249,7 @@ export class EmailService {
     publicLink: string,
     resultsLink: string
   ): Promise<void> {
-    if (!this.isConfigured || !this.transporter || !voterEmail) {
-      console.log(`Voting confirmation email would be sent to ${voterEmail} for poll: ${pollTitle}`);
-      return;
-    }
+    if (!voterEmail) return;
 
     try {
       const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
@@ -248,15 +262,11 @@ export class EmailService {
         resultsLink: validateEmailUrl(resultsLink),
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: voterEmail,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'Reply-To': this.getReplyTo(),
-        },
       });
     } catch (error) {
       console.error('Failed to send voting confirmation email:', error);
@@ -271,11 +281,6 @@ export class EmailService {
     pollLink: string,
     expiresAt?: Date | null
   ): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`Reminder email would be sent to ${recipientEmail} for poll: ${pollTitle}`);
-      return;
-    }
-
     try {
       const validatedLink = validateEmailUrl(pollLink);
 
@@ -298,18 +303,11 @@ export class EmailService {
         qrCodeUrl: qrCodeDataUrl,
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: recipientEmail,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-          'X-MSMail-Priority': 'Normal',
-          'Reply-To': this.getReplyTo(),
-        },
       });
     } catch (error) {
       console.error('Failed to send reminder email:', error);
@@ -318,28 +316,17 @@ export class EmailService {
   }
 
   async sendPasswordResetEmail(email: string, resetLink: string, userName?: string): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Password reset would be sent to ${email}`);
-      console.log(`[Email] Reset link: ${resetLink}`);
-      return;
-    }
-
     try {
       const rendered = await this.renderTemplate('password_reset', {
         userName: userName || '',
         resetLink: validateEmailUrl(resetLink),
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: email,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-        },
       });
     } catch (error) {
       console.error('Failed to send password reset email:', error);
@@ -348,12 +335,6 @@ export class EmailService {
   }
 
   async sendEmailChangeConfirmation(oldEmail: string, newEmail: string, confirmLink: string): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Email change confirmation would be sent to ${newEmail}`);
-      console.log(`[Email] Confirm link: ${confirmLink}`);
-      return;
-    }
-
     try {
       const rendered = await this.renderTemplate('email_change', {
         oldEmail,
@@ -361,16 +342,11 @@ export class EmailService {
         confirmLink: validateEmailUrl(confirmLink),
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: newEmail,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-        },
       });
     } catch (error) {
       console.error('Failed to send email change confirmation:', error);
@@ -379,26 +355,16 @@ export class EmailService {
   }
 
   async sendPasswordChangedEmail(email: string, userName?: string): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.warn(`[Email] Cannot send password changed email - SMTP not configured`);
-      return;
-    }
-
     try {
       const rendered = await this.renderTemplate('password_changed', {
         userName: userName || '',
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: email,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-        },
       });
       console.log(`[Email] Password changed notification sent to ${email}`);
     } catch (error) {
@@ -422,12 +388,6 @@ export class EmailService {
     },
     pdfBuffer?: Buffer
   ): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Test report would be sent to ${recipientEmail}`);
-      console.log(`[Email] Test run #${testRun.id}: ${testRun.passed}/${testRun.totalTests} passed`);
-      return;
-    }
-
     try {
       const isSuccess = testRun.status === 'completed' && testRun.failed === 0;
       const statusEmoji = isSuccess ? '✅' : '❌';
@@ -456,27 +416,18 @@ export class EmailService {
         startedAt: startedAtText,
       });
 
-      const mailOptions: nodemailer.SendMailOptions = {
-        from: this.getFromAddress(),
+      const attachments: nodemailer.SendMailOptions['attachments'] = pdfBuffer
+        ? [{ filename: `testbericht-${testRun.id}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+        : undefined;
+
+      await this.sendMail({
         to: recipientEmail,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': isSuccess ? '3' : '1',
-        },
-      };
-
-      if (pdfBuffer) {
-        mailOptions.attachments = [{
-          filename: `testbericht-${testRun.id}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf',
-        }];
-      }
-
-      await this.transporter.sendMail(mailOptions);
+        priority: isSuccess ? 'normal' : 'high',
+        attachments,
+      });
       console.log(`[Email] Test report sent to ${recipientEmail} for run #${testRun.id}`);
     } catch (error) {
       console.error('Failed to send test report email:', error);
@@ -490,25 +441,12 @@ export class EmailService {
     html: string,
     text: string
   ): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Pre-rendered email would be sent to ${recipientEmail}`);
-      console.log(`[Email] Subject: ${subject}`);
-      return;
-    }
-
     try {
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: recipientEmail,
         subject,
         html,
         text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-          'X-MSMail-Priority': 'Normal',
-          'Reply-To': this.getReplyTo(),
-        },
       });
       console.log(`[Email] Pre-rendered email sent to ${recipientEmail}`);
     } catch (error) {
@@ -528,12 +466,6 @@ export class EmailService {
       scannedAt: Date;
     }
   ): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Virus detection alert would be sent to ${adminEmails.join(', ')}`);
-      console.log(`[Email] Virus detected: ${details.virusName} in ${details.filename}`);
-      return;
-    }
-
     if (adminEmails.length === 0) {
       console.log('[Email] No admin emails configured for virus alerts');
       return;
@@ -599,18 +531,13 @@ export class EmailService {
       const rendered = await emailTemplateService.wrapWithEmailTheme(subject, bodyHtml, plainText);
 
       for (const adminEmail of adminEmails) {
-        await this.transporter.sendMail({
-          from: this.getFromAddress('Security'),
+        await this.sendMail({
           to: adminEmail,
           subject: rendered.subject,
           html: rendered.html,
           text: rendered.text,
-          headers: {
-            'X-Mailer': 'Polly System',
-            'X-Priority': '1',
-            'X-MSMail-Priority': 'High',
-            'Importance': 'high',
-          },
+          priority: 'high',
+          fromPrefix: 'Security',
         });
         console.log(`[Email] Virus detection alert sent to ${adminEmail}`);
       }
@@ -620,12 +547,6 @@ export class EmailService {
   }
 
   async sendWelcomeEmail(email: string, userName: string, verificationLink: string): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Welcome email would be sent to ${email}`);
-      console.log(`[Email] Verification link: ${verificationLink}`);
-      return;
-    }
-
     try {
       const rendered = await this.renderTemplate('welcome', {
         userName,
@@ -633,16 +554,11 @@ export class EmailService {
         verificationLink: validateEmailUrl(verificationLink),
       });
 
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
+      await this.sendMail({
         to: email,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-          'X-Priority': '3',
-        },
       });
       console.log(`[Email] Welcome email sent to ${email}`);
     } catch (error) {
@@ -652,11 +568,6 @@ export class EmailService {
   }
 
   async sendDeletionRequestNotification(adminEmails: string[], userName: string, userEmail: string, adminPanelUrl: string): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Deletion request notification would be sent to admins for user ${userEmail}`);
-      return;
-    }
-
     try {
       const requestDate = new Date().toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
       const subject = '[Polly] Neuer Löschantrag eingegangen';
@@ -664,57 +575,55 @@ export class EmailService {
       const bodyHtml = `
         <div style="padding: 16px 24px;">
           <h2 class="email-heading" style="margin: 0 0 16px 0;">Neuer Löschantrag</h2>
-          
-          <p class="email-text" style="font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">Ein Benutzer hat die Löschung seines Kontos beantragt (DSGVO Art. 17).</p>
-          
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p class="email-text" style="margin: 0 0 8px 0;"><strong>Benutzer:</strong> ${escapeHtml(userName || 'Unbekannt')}</p>
-            <p class="email-text" style="margin: 0 0 8px 0;"><strong>E-Mail:</strong> ${escapeHtml(userEmail)}</p>
-            <p class="email-text" style="margin: 0;"><strong>Zeitpunkt:</strong> ${requestDate}</p>
-          </div>
-          
-          <p class="email-text" style="font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">Bitte bearbeiten Sie den Löschantrag innerhalb eines Monats gemäß DSGVO.</p>
-          
-          <div style="margin: 20px 0; text-align: center;">
-            <a href="${validatedUrl}" style="background-color: #FF6B35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Löschanträge verwalten</a>
-          </div>
+          <p class="email-text" style="margin-bottom: 16px;">
+            Ein Benutzer hat die Löschung seines Kontos beantragt:
+          </p>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 0; font-weight: bold; width: 120px;">Benutzer:</td>
+              <td style="padding: 8px 0;">${escapeHtml(userName)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 0; font-weight: bold;">E-Mail:</td>
+              <td style="padding: 8px 0;">${escapeHtml(userEmail)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold;">Datum:</td>
+              <td style="padding: 8px 0;">${requestDate}</td>
+            </tr>
+          </table>
+          <p class="email-text" style="margin-top: 16px;">
+            <a href="${escapeHtml(validatedUrl)}" style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 6px;">Löschanträge verwalten</a>
+          </p>
         </div>
       `;
-      const plainText = `Neuer Löschantrag\n\nEin Benutzer hat die Löschung seines Kontos beantragt.\n\nBenutzer: ${userName || 'Unbekannt'}\nE-Mail: ${userEmail}\nZeitpunkt: ${requestDate}\n\nBitte bearbeiten Sie den Löschantrag: ${validatedUrl}`;
+
+      const plainText = `Neuer Löschantrag\n\nEin Benutzer hat die Löschung seines Kontos beantragt:\n\nBenutzer: ${userName}\nE-Mail: ${userEmail}\nDatum: ${requestDate}\n\nLöschanträge verwalten: ${validatedUrl}`;
 
       const rendered = await emailTemplateService.wrapWithEmailTheme(subject, bodyHtml, plainText);
 
       for (const adminEmail of adminEmails) {
-        try {
-          await this.transporter.sendMail({
-            from: this.getFromAddress(),
-            to: adminEmail,
-            subject: rendered.subject,
-            html: rendered.html,
-            text: rendered.text,
-            headers: {
-              'X-Mailer': 'Polly System',
-              'X-Priority': '1',
-            },
-          });
-        } catch (error) {
-          console.error(`[Email] Failed to send deletion notification to admin ${adminEmail}:`, error);
-        }
+        await this.sendMail({
+          to: adminEmail,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+          priority: 'high',
+        });
+        console.log(`[Email] Deletion request notification sent to ${adminEmail}`);
       }
-      console.log(`[GDPR] Deletion request notification sent to ${adminEmails.length} admin(s)`);
     } catch (error) {
-      console.error('[Email] Failed to send deletion request notifications:', error);
+      console.error('Failed to send deletion request notification:', error);
     }
   }
 
   async sendBulkInvitations(emails: string[], pollTitle: string, senderName: string, pollUrl: string, customMessage?: string): Promise<{ sent: number; failed: string[]; smtpConfigured: boolean }> {
-    const failed: string[] = [];
-    let sent = 0;
-
     if (!this.isConfigured || !this.transporter) {
-      console.warn('[Email] SMTP not configured - invitations cannot be sent');
       return { sent: 0, failed: emails, smtpConfigured: false };
     }
+    
+    const failed: string[] = [];
+    let sent = 0;
 
     for (const email of emails) {
       try {

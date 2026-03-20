@@ -6,14 +6,17 @@ import { emailTemplateService } from '../../services/emailTemplateService';
 export const testMeta = {
   category: 'functional' as const,
   name: 'E-Mail-Service Integration',
-  description: 'Prüft dass EmailService die neuen Templates nutzt',
+  description: 'Prüft dass EmailService die neuen Templates nutzt und alle Header korrekt gesetzt werden',
   severity: 'high' as const,
 };
 
 interface CapturedMailOptions {
+  from: string;
+  to: string;
   html: string;
   text: string;
   subject: string;
+  headers: Record<string, string>;
   attachments?: Array<{ filename: string; contentType: string; content: Buffer }>;
 }
 
@@ -23,14 +26,12 @@ function themedHtml(body: string): string {
   return THEMED_HTML.replace('{{BODY}}', body);
 }
 
-let capturedHtml: string;
-let capturedText: string;
-let capturedSubject: string;
+let lastMailOptions: CapturedMailOptions;
+const allMailOptions: CapturedMailOptions[] = [];
 
 const mockSendMail = vi.fn(async (options: CapturedMailOptions) => {
-  capturedHtml = options.html;
-  capturedText = options.text;
-  capturedSubject = options.subject;
+  lastMailOptions = options;
+  allMailOptions.push(options);
   return { messageId: 'test-id' };
 });
 
@@ -40,6 +41,18 @@ function createConfiguredEmailService(): EmailService {
   const svc = new EmailService();
   svc.configureForTesting(mockTransporter);
   return svc;
+}
+
+const REQUIRED_HEADERS = ['X-Mailer', 'X-Priority', 'X-MSMail-Priority', 'Reply-To'];
+
+function assertRequiredHeaders(mailOpts: CapturedMailOptions, priority: 'normal' | 'high' = 'normal') {
+  const headers = mailOpts.headers;
+  expect(headers).toBeDefined();
+  expect(headers['X-Mailer']).toBe('Polly System');
+  expect(headers['X-Priority']).toBe(priority === 'high' ? '1' : '3');
+  expect(headers['X-MSMail-Priority']).toBe(priority === 'high' ? 'High' : 'Normal');
+  expect(headers['Reply-To']).toBeDefined();
+  expect(headers['Reply-To']).not.toBe('');
 }
 
 describe('EmailService Integration — Template System', () => {
@@ -52,11 +65,10 @@ describe('EmailService Integration — Template System', () => {
     process.env.SMTP_PORT = '587';
     process.env.SMTP_USER = 'test';
     process.env.SMTP_PASSWORD = 'test';
+    process.env.FROM_EMAIL = 'noreply@polly.test';
     process.env.APP_URL = 'https://polly.example.com';
     mockSendMail.mockClear();
-    capturedHtml = '';
-    capturedText = '';
-    capturedSubject = '';
+    allMailOptions.length = 0;
     emailService = createConfiguredEmailService();
 
     renderEmailSpy = vi.spyOn(emailTemplateService, 'renderEmail').mockResolvedValue({
@@ -76,6 +88,223 @@ describe('EmailService Integration — Template System', () => {
     renderEmailSpy.mockRestore();
     wrapWithEmailThemeSpy.mockRestore();
     delete process.env.APP_URL;
+    delete process.env.FROM_EMAIL;
+  });
+
+  describe('Central sendMail method', () => {
+    it('sendMail sets all required headers for normal priority', async () => {
+      await emailService.sendMail({
+        to: 'test@example.com',
+        subject: 'Test',
+        html: '<p>Test</p>',
+        text: 'Test',
+      });
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions, 'normal');
+    });
+
+    it('sendMail sets high priority headers when priority is high', async () => {
+      await emailService.sendMail({
+        to: 'test@example.com',
+        subject: 'Urgent',
+        html: '<p>Urgent</p>',
+        text: 'Urgent',
+        priority: 'high',
+      });
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions, 'high');
+      expect(lastMailOptions.headers['Importance']).toBe('high');
+    });
+
+    it('sendMail uses fromPrefix when provided', async () => {
+      await emailService.sendMail({
+        to: 'test@example.com',
+        subject: 'Test',
+        html: '<p>Test</p>',
+        text: 'Test',
+        fromPrefix: 'Security',
+      });
+      expect(lastMailOptions.from).toContain('Security');
+    });
+
+    it('sendMail includes attachments when provided', async () => {
+      const pdfBuffer = Buffer.from('fake-pdf');
+      await emailService.sendMail({
+        to: 'test@example.com',
+        subject: 'Report',
+        html: '<p>Report</p>',
+        text: 'Report',
+        attachments: [{ filename: 'report.pdf', content: pdfBuffer, contentType: 'application/pdf' }],
+      });
+      expect(lastMailOptions.attachments).toBeDefined();
+      expect(lastMailOptions.attachments![0].filename).toBe('report.pdf');
+    });
+
+    it('sendMail does not send when SMTP is not configured', async () => {
+      const savedHost = process.env.SMTP_HOST;
+      const savedUser = process.env.SMTP_USER;
+      const savedPass = process.env.SMTP_PASSWORD;
+      delete process.env.SMTP_HOST;
+      delete process.env.SMTP_USER;
+      delete process.env.SMTP_PASSWORD;
+      try {
+        const unconfiguredService = new EmailService();
+        await unconfiguredService.sendMail({
+          to: 'test@example.com',
+          subject: 'Test',
+          html: '<p>Test</p>',
+          text: 'Test',
+        });
+        expect(mockSendMail).not.toHaveBeenCalled();
+      } finally {
+        process.env.SMTP_HOST = savedHost;
+        process.env.SMTP_USER = savedUser;
+        process.env.SMTP_PASSWORD = savedPass;
+      }
+    });
+  });
+
+  describe('ALL email methods use sendMail with correct headers', () => {
+    it('sendPollCreationEmails has all required headers', async () => {
+      await emailService.sendPollCreationEmails(
+        'admin@test.com', 'Teammeeting',
+        'https://polly.example.com/poll/abc', 'https://polly.example.com/admin/xyz', 'schedule'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendInvitationEmail has all required headers', async () => {
+      await emailService.sendInvitationEmail(
+        'user@test.com', 'Max', 'Sommerfeier',
+        'https://polly.example.com/poll/summer'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendVotingConfirmationEmail has all required headers', async () => {
+      await emailService.sendVotingConfirmationEmail(
+        'voter@test.com', 'Anna', 'Weihnachtsfeier', 'schedule',
+        'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendReminderEmail has all required headers', async () => {
+      await emailService.sendReminderEmail(
+        'user@test.com', 'Chef', 'Wichtige Umfrage',
+        'https://polly.example.com/poll/urgent', new Date('2025-12-31')
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendPasswordResetEmail has all required headers', async () => {
+      await emailService.sendPasswordResetEmail(
+        'user@test.com', 'https://polly.example.com/reset/token123', 'Max'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendEmailChangeConfirmation has all required headers', async () => {
+      await emailService.sendEmailChangeConfirmation(
+        'old@test.com', 'new@test.com', 'https://polly.example.com/confirm/abc'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendPasswordChangedEmail has all required headers', async () => {
+      await emailService.sendPasswordChangedEmail('user@test.com', 'Max');
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendTestReportEmail has all required headers (success = normal priority)', async () => {
+      await emailService.sendTestReportEmail('admin@test.com', {
+        id: 42, status: 'completed', triggeredBy: 'manual',
+        totalTests: 25, passed: 25, failed: 0, skipped: 0,
+        duration: 12500,
+        startedAt: new Date('2025-03-15T14:30:00'),
+        completedAt: new Date('2025-03-15T14:30:12'),
+      });
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions, 'normal');
+    });
+
+    it('sendTestReportEmail has high priority headers when tests fail', async () => {
+      await emailService.sendTestReportEmail('admin@test.com', {
+        id: 42, status: 'completed', triggeredBy: 'manual',
+        totalTests: 25, passed: 24, failed: 1, skipped: 0,
+        duration: 12500,
+        startedAt: new Date('2025-03-15T14:30:00'),
+        completedAt: new Date('2025-03-15T14:30:12'),
+      });
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions, 'high');
+    });
+
+    it('sendPreRenderedEmail has all required headers', async () => {
+      await emailService.sendPreRenderedEmail(
+        'user@test.com', 'Pre-rendered', '<p>HTML</p>', 'Text'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendWelcomeEmail has all required headers', async () => {
+      await emailService.sendWelcomeEmail(
+        'new@test.com', 'Neuer User', 'https://polly.example.com/verify/abc123'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
+    it('sendVirusDetectionAlert has high priority headers', async () => {
+      await emailService.sendVirusDetectionAlert(['admin@test.com'], {
+        filename: 'evil.exe', fileSize: 1024, virusName: 'Eicar-Test',
+        uploaderEmail: 'user@test.com', requestIp: '127.0.0.1',
+        scannedAt: new Date('2025-03-15T12:00:00'),
+      });
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions, 'high');
+    });
+
+    it('sendDeletionRequestNotification has all required headers with high priority', async () => {
+      await emailService.sendDeletionRequestNotification(
+        ['admin@test.com'], 'Max', 'max@test.com',
+        'https://polly.example.com/admin/users'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions, 'high');
+    });
+  });
+
+  describe('Reply-To header consistency', () => {
+    it('all email methods use the same Reply-To address', async () => {
+      const methods: Array<{ name: string; fn: () => Promise<void> }> = [
+        { name: 'poll_created', fn: () => emailService.sendPollCreationEmails('a@b.com', 'T', 'https://e.com/p', 'https://e.com/a', 'schedule') },
+        { name: 'invitation', fn: () => emailService.sendInvitationEmail('a@b.com', 'N', 'T', 'https://e.com/p') },
+        { name: 'vote_confirmation', fn: () => emailService.sendVotingConfirmationEmail('a@b.com', 'N', 'T', 'survey', 'https://e.com/p', 'https://e.com/r') },
+        { name: 'reminder', fn: () => emailService.sendReminderEmail('a@b.com', 'S', 'T', 'https://e.com/p') },
+        { name: 'password_reset', fn: () => emailService.sendPasswordResetEmail('a@b.com', 'https://e.com/r') },
+        { name: 'email_change', fn: () => emailService.sendEmailChangeConfirmation('a@b.com', 'b@c.com', 'https://e.com/c') },
+        { name: 'password_changed', fn: () => emailService.sendPasswordChangedEmail('a@b.com') },
+        { name: 'welcome', fn: () => emailService.sendWelcomeEmail('a@b.com', 'N', 'https://e.com/v') },
+        { name: 'pre_rendered', fn: () => emailService.sendPreRenderedEmail('a@b.com', 'S', '<p>H</p>', 'T') },
+      ];
+
+      for (const { name, fn } of methods) {
+        mockSendMail.mockClear();
+        await fn();
+        expect(mockSendMail).toHaveBeenCalledTimes(1);
+        const headers = lastMailOptions.headers;
+        expect(headers['Reply-To']).toBe('noreply@polly.test');
+      }
+    });
   });
 
   describe('Template-based emails call renderEmail with correct type', () => {
@@ -89,9 +318,6 @@ describe('EmailService Integration — Template System', () => {
         publicLink: 'https://polly.example.com/poll/abc',
         adminLink: 'https://polly.example.com/admin/xyz',
       }));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
-      expect(capturedHtml).toContain('prefers-color-scheme: dark');
     });
 
     it('sendInvitationEmail calls renderEmail with invitation and qrCodeUrl', async () => {
@@ -105,8 +331,6 @@ describe('EmailService Integration — Template System', () => {
         publicLink: expect.stringContaining('polly.example.com/poll/summer'),
         qrCodeUrl: expect.any(String),
       }));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
     });
 
     it('sendVotingConfirmationEmail calls renderEmail with vote_confirmation', async () => {
@@ -118,14 +342,12 @@ describe('EmailService Integration — Template System', () => {
         voterName: 'Anna',
         pollTitle: 'Weihnachtsfeier',
       }));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
     it('sendReminderEmail calls renderEmail with reminder', async () => {
-      const expiryDate = new Date('2025-12-31T23:59:00');
       await emailService.sendReminderEmail(
         'user@test.com', 'Chef', 'Wichtige Umfrage',
-        'https://polly.example.com/poll/urgent', expiryDate
+        'https://polly.example.com/poll/urgent', new Date('2025-12-31T23:59:00')
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('reminder', expect.objectContaining({
         senderName: 'Chef',
@@ -133,7 +355,6 @@ describe('EmailService Integration — Template System', () => {
         pollLink: 'https://polly.example.com/poll/urgent',
         qrCodeUrl: expect.any(String),
       }));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
     it('sendPasswordResetEmail calls renderEmail with password_reset', async () => {
@@ -143,9 +364,6 @@ describe('EmailService Integration — Template System', () => {
       expect(renderEmailSpy).toHaveBeenCalledWith('password_reset', expect.objectContaining({
         resetLink: 'https://polly.example.com/reset/token123',
       }));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
-      expect(capturedText).toBeDefined();
-      expect(capturedText.length).toBeGreaterThan(0);
     });
 
     it('sendEmailChangeConfirmation calls renderEmail with email_change', async () => {
@@ -155,13 +373,11 @@ describe('EmailService Integration — Template System', () => {
       expect(renderEmailSpy).toHaveBeenCalledWith('email_change', expect.objectContaining({
         confirmLink: 'https://polly.example.com/confirm/abc',
       }));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
     it('sendPasswordChangedEmail calls renderEmail with password_changed', async () => {
       await emailService.sendPasswordChangedEmail('user@test.com', 'Max Mustermann');
       expect(renderEmailSpy).toHaveBeenCalledWith('password_changed', expect.any(Object));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
     it('sendTestReportEmail calls renderEmail with test_report', async () => {
@@ -173,7 +389,6 @@ describe('EmailService Integration — Template System', () => {
         completedAt: new Date('2025-03-15T14:30:12'),
       });
       expect(renderEmailSpy).toHaveBeenCalledWith('test_report', expect.any(Object));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
     it('sendTestReportEmail attaches PDF when provided', async () => {
@@ -198,7 +413,6 @@ describe('EmailService Integration — Template System', () => {
       expect(renderEmailSpy).toHaveBeenCalledWith('welcome', expect.objectContaining({
         verificationLink: expect.stringContaining('polly.example.com/verify/abc123'),
       }));
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -211,7 +425,6 @@ describe('EmailService Integration — Template System', () => {
       });
       expect(wrapWithEmailThemeSpy).toHaveBeenCalledTimes(1);
       expect(mockSendMail).toHaveBeenCalledTimes(1);
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
     });
 
     it('sendDeletionRequestNotification calls wrapWithEmailTheme', async () => {
@@ -221,7 +434,6 @@ describe('EmailService Integration — Template System', () => {
       );
       expect(wrapWithEmailThemeSpy).toHaveBeenCalledTimes(1);
       expect(mockSendMail).toHaveBeenCalledTimes(1);
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
     });
   });
 
@@ -231,7 +443,8 @@ describe('EmailService Integration — Template System', () => {
         'admin@test.com', 'Test',
         'https://polly.example.com/poll/abc', 'https://polly.example.com/admin/xyz', 'schedule'
       );
-      expect(capturedHtml).not.toContain('x-webdoc://');
+      const lastCall = mockSendMail.mock.lastCall?.[0];
+      expect(lastCall.html).not.toContain('x-webdoc://');
     });
 
     it('all template emails include both HTML and plain text', async () => {
@@ -248,9 +461,10 @@ describe('EmailService Integration — Template System', () => {
         mockSendMail.mockClear();
         await fn();
         expect(mockSendMail).toHaveBeenCalledTimes(1);
-        expect(capturedHtml).toContain('<!DOCTYPE html>');
-        expect(capturedText).toBeDefined();
-        expect(capturedText.length).toBeGreaterThan(0);
+        const lastCall = mockSendMail.mock.lastCall?.[0];
+        expect(lastCall.html).toContain('<!DOCTYPE html>');
+        expect(lastCall.text).toBeDefined();
+        expect(lastCall.text.length).toBeGreaterThan(0);
       }
     });
   });

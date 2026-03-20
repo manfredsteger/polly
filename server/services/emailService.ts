@@ -515,6 +515,36 @@ export class EmailService {
     }
   }
 
+  async sendPreRenderedEmail(
+    recipientEmail: string,
+    subject: string,
+    html: string,
+    text: string
+  ): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.log(`[Email] Pre-rendered email would be sent to ${recipientEmail}`);
+      console.log(`[Email] Subject: ${subject}`);
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: this.getFromAddress(),
+        to: recipientEmail,
+        subject,
+        html,
+        text,
+        headers: {
+          'X-Mailer': 'Polly System',
+        },
+      });
+      console.log(`[Email] Pre-rendered email sent to ${recipientEmail}`);
+    } catch (error) {
+      console.error('Failed to send pre-rendered email:', error);
+      throw error;
+    }
+  }
+
   async sendVirusDetectionAlert(
     adminEmails: string[],
     details: {

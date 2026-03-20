@@ -1670,7 +1670,7 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
     };
     
     const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
-    await emailService.sendCustomEmail(recipientEmail, rendered.subject, rendered.html, rendered.text);
+    await emailService.sendPreRenderedEmail(recipientEmail, rendered.subject, rendered.html, rendered.text);
     
     res.json({ success: true, message: 'Test-E-Mail gesendet' });
   } catch (error: any) {

@@ -1605,7 +1605,7 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('>Zur Website</a>');
     });
 
-    it('should render default footer with Datenschutz link placeholder', async () => {
+    it('should render default footer with Datenschutz as plain text when no privacy URL configured', async () => {
       const service = new EmailTemplateService();
       const footer = await service.getEmailFooter();
 
@@ -1619,8 +1619,8 @@ describe('EmailTemplateService', () => {
         adminLink: 'https://example.com/admin/test',
       });
 
-      expect(result.html).toContain('href="#"');
-      expect(result.html).toContain('>Datenschutz</a>');
+      expect(result.html).not.toContain('href="#"');
+      expect(result.html).toContain('Datenschutz');
       expect(result.html).not.toContain('{{link:');
       expect(result.html).not.toContain('{{siteName}}');
     });

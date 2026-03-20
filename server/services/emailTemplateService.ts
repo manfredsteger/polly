@@ -704,7 +704,7 @@ function renderFooterMarkup(input: string, linkStyle: string = ''): string {
     const url = match[1].trim();
     const label = match[2]?.trim();
     const displayText = label || url.replace(/^https?:\/\//, '');
-    const isUrlSafe = /^(https?:\/\/|#|mailto:)/i.test(url);
+    const isUrlSafe = /^(https?:\/\/|mailto:)/i.test(url);
     if (isUrlSafe) {
       const styleAttr = linkStyle ? ` style="${linkStyle}"` : '';
       parts.push(`<a href="${htmlEscape(url)}" target="_blank" rel="noopener noreferrer"${styleAttr}>${htmlEscape(displayText)}</a>`);
@@ -730,7 +730,7 @@ function stripFooterMarkupToText(input: string): string {
   return input.replace(/\{\{link:([^|}]+?)(?:\|([^}]+?))?\}\}/g, (_match, url: string, label?: string) => {
     const trimUrl = url.trim();
     const trimLabel = label?.trim();
-    const isUrlSafe = /^(https?:\/\/|#|mailto:)/i.test(trimUrl);
+    const isUrlSafe = /^(https?:\/\/|mailto:)/i.test(trimUrl);
     if (!isUrlSafe) {
       return trimLabel || '';
     }

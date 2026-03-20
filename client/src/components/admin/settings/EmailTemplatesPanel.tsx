@@ -346,6 +346,10 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   <div>
                     <CardTitle className="text-lg">{t('admin.emailTemplates.emailTheme')}</CardTitle>
                     <CardDescription>{t('admin.emailTemplates.themeDescription')}</CardDescription>
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Info className="w-3 h-3 shrink-0" />
+                      {t('admin.emailTemplates.themeHint')}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -359,14 +363,28 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     <RotateCcw className="w-4 h-4 mr-1" />
                     {t('admin.emailTemplates.resetTheme')}
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowThemeImport(true)}
-                    data-testid="button-import-theme"
-                  >
-                    <Upload className="w-4 h-4 mr-1" />
-                    {t('admin.emailTemplates.importTheme')}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled
+                          className="opacity-50 cursor-not-allowed"
+                          data-testid="button-import-theme"
+                        >
+                          <Upload className="w-4 h-4 mr-1" />
+                          {t('admin.emailTemplates.importTheme')}
+                          <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0">
+                            {t('admin.emailTemplates.inDevelopment')}
+                          </Badge>
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t('admin.emailTemplates.importThemeDisabledHint')}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </CardHeader>

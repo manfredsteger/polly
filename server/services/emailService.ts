@@ -484,37 +484,6 @@ export class EmailService {
     }
   }
 
-  async sendCustomEmail(
-    recipientEmail: string,
-    subject: string,
-    html: string,
-    text: string
-  ): Promise<void> {
-    if (!this.isConfigured || !this.transporter) {
-      console.log(`[Email] Custom email would be sent to ${recipientEmail}`);
-      console.log(`[Email] Subject: ${subject}`);
-      return;
-    }
-
-    try {
-      const themed = await emailTemplateService.wrapWithEmailTheme(subject, html, text);
-      await this.transporter.sendMail({
-        from: this.getFromAddress(),
-        to: recipientEmail,
-        subject,
-        html: themed.html,
-        text: themed.text,
-        headers: {
-          'X-Mailer': 'Polly System',
-        },
-      });
-      console.log(`[Email] Custom email sent to ${recipientEmail}`);
-    } catch (error) {
-      console.error('Failed to send custom email:', error);
-      throw error;
-    }
-  }
-
   async sendPreRenderedEmail(
     recipientEmail: string,
     subject: string,

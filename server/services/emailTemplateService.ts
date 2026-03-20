@@ -1106,12 +1106,14 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
   ${hasHeader ? `<tr>
     <td class="email-header"
       style="background-color: #ffffff; padding: 14px 40px; border-bottom: 1px solid rgba(0,0,0,0.06);">
-      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+      <a href="${htmlEscape(data.siteUrl)}" style="text-decoration: none; color: inherit; display: inline-block;">
+      <table cellpadding="0" cellspacing="0" role="presentation">
         <tr>
           ${logoBlock}
           ${wordmark}
         </tr>
       </table>
+      </a>
     </td>
   </tr>` : ''}
   ${bodyHtml}

@@ -203,17 +203,6 @@ describe('EmailService Integration — Template System', () => {
   });
 
   describe('Themed wrapper methods call wrapWithEmailTheme', () => {
-    it('sendCustomEmail calls wrapWithEmailTheme', async () => {
-      await emailService.sendCustomEmail(
-        'user@test.com', 'Custom Subject', '<p>Custom body</p>', 'Custom body'
-      );
-      expect(wrapWithEmailThemeSpy).toHaveBeenCalledWith(
-        'Custom Subject', '<p>Custom body</p>', 'Custom body'
-      );
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
-      expect(capturedHtml).toContain('<!DOCTYPE html>');
-    });
-
     it('sendVirusDetectionAlert calls wrapWithEmailTheme', async () => {
       await emailService.sendVirusDetectionAlert(['admin@test.com'], {
         filename: 'evil.exe', fileSize: 1024, virusName: 'Eicar-Test',

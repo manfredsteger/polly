@@ -685,6 +685,62 @@ function htmlEscape(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
+/**
+ * Render footer markup: escapes HTML but processes {{link:URL}} and {{link:URL|Label}} syntax.
+ * - {{link:https://example.com}} → <a href="https://example.com" target="_blank">example.com</a>
+ * - {{link:https://example.com|Datenschutz}} → <a href="https://example.com" target="_blank">Datenschutz</a>
+ * - All other text is HTML-escaped for XSS safety.
+ */
+function renderFooterMarkup(input: string, linkStyle: string = ''): string {
+  const linkPattern = /\{\{link:([^|}]+?)(?:\|([^}]+?))?\}\}/g;
+  const parts: string[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkPattern.exec(input)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(htmlEscape(input.slice(lastIndex, match.index)));
+    }
+    const url = match[1].trim();
+    const label = match[2]?.trim();
+    const displayText = label || url.replace(/^https?:\/\//, '');
+    const isUrlSafe = /^(https?:\/\/|#|mailto:)/i.test(url);
+    if (isUrlSafe) {
+      const styleAttr = linkStyle ? ` style="${linkStyle}"` : '';
+      parts.push(`<a href="${htmlEscape(url)}" target="_blank" rel="noopener noreferrer"${styleAttr}>${htmlEscape(displayText)}</a>`);
+    } else {
+      parts.push(htmlEscape(displayText));
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < input.length) {
+    parts.push(htmlEscape(input.slice(lastIndex)));
+  }
+
+  return parts.join('').replace(/\n/g, '<br>');
+}
+
+/**
+ * Strip {{link:URL|Label}} markup from text for plain-text output.
+ * - {{link:https://example.com}} → https://example.com
+ * - {{link:https://example.com|Datenschutz}} → Datenschutz (https://example.com)
+ */
+function stripFooterMarkupToText(input: string): string {
+  return input.replace(/\{\{link:([^|}]+?)(?:\|([^}]+?))?\}\}/g, (_match, url: string, label?: string) => {
+    const trimUrl = url.trim();
+    const trimLabel = label?.trim();
+    const isUrlSafe = /^(https?:\/\/|#|mailto:)/i.test(trimUrl);
+    if (!isUrlSafe) {
+      return trimLabel || '';
+    }
+    if (trimLabel) {
+      return `${trimLabel} (${trimUrl})`;
+    }
+    return trimUrl;
+  });
+}
+
 // Template rendering - replace variables with actual values
 // Note: leaves unmatched variables as-is (does not remove them)
 export function renderTemplate(
@@ -1064,7 +1120,7 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
       style="padding: 16px 40px 22px; border-top: 1px solid rgba(0,0,0,0.06); text-align: center;">
       <p class="footer-text"
         style="font-family: ${sysFont}; font-size: 12px; color: #b0bcd0; line-height: 1.7;">
-        ${data.footerHtml ? htmlEscape(data.footerHtml) /* XSS-safe: user-provided footer text is escaped */ : (hasName ? `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
+        ${data.footerHtml ? renderFooterMarkup(data.footerHtml, 'color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;') : (hasName ? `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteName + data.siteAccent)}</a>` : `<a href="${htmlEscape(data.siteUrl)}" class="footer-link"
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteUrl)}</a>`)}${data.privacyUrl ? `
         <br>
@@ -1508,18 +1564,20 @@ export class EmailTemplateService {
   }
 
   // Get email footer from system settings
+  static readonly DEFAULT_FOOTER = 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.\n{{link:#|Datenschutz}}';
+
   async getEmailFooter(): Promise<{ html: string; text: string }> {
     const setting = await storage.getSetting('email_footer');
     if (setting?.value) {
       const footerData = setting.value as { html?: string; text?: string };
       return {
-        html: footerData.html || 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.',
-        text: footerData.text || 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
+        html: footerData.html || EmailTemplateService.DEFAULT_FOOTER,
+        text: footerData.text || EmailTemplateService.DEFAULT_FOOTER
       };
     }
     return {
-      html: 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.',
-      text: 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.'
+      html: EmailTemplateService.DEFAULT_FOOTER,
+      text: EmailTemplateService.DEFAULT_FOOTER
     };
   }
 
@@ -1708,7 +1766,7 @@ export class EmailTemplateService {
         <tr>
           <td style="padding: 20px 24px 24px; text-align: center;">
             <p class="email-footer-text" style="color: #999999; font-size: 12px; margin: 0; line-height: 1.5; font-family: ${theme.fontFamily};">
-              ${footerText}
+              ${renderFooterMarkup(footerText, 'color: #999999; text-decoration: underline;')}
             </p>
           </td>
         </tr>
@@ -1755,8 +1813,19 @@ export class EmailTemplateService {
     const logoDataUri = await this.resolveLogoDataUri(customization.branding.logoUrl || undefined);
     const footer = await this.getEmailFooter();
     const fullSiteName = `${customization.branding.siteName || ''}${customization.branding.siteNameAccent || ''}`;
-    const footerHtml = footer.html.replace(/\{\{siteName\}\}/g, fullSiteName);
-    const footerText = footer.text.replace(/\{\{siteName\}\}/g, fullSiteName);
+    const privacyUrl = this.resolvePrivacyUrl(customization);
+    const hasFooterPrivacyPlaceholder = /\{\{link:#\|/.test(footer.html);
+    const resolveFooterVars = (text: string) => {
+      let result = text
+        .replace(/\{\{siteName\}\}/g, fullSiteName)
+        .replace(/\{\{siteUrl\}\}/g, siteUrl);
+      if (privacyUrl && hasFooterPrivacyPlaceholder) {
+        result = result.replace(/\{\{link:#\|/g, `{{link:${privacyUrl}|`);
+      }
+      return result;
+    };
+    const footerHtml = resolveFooterVars(footer.html);
+    const footerText = stripFooterMarkupToText(resolveFooterVars(footer.text));
 
     return {
       logoDataUri,
@@ -1765,7 +1834,7 @@ export class EmailTemplateService {
       primaryColor: emailTheme.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor,
       secondaryColor: emailTheme.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
       siteUrl,
-      privacyUrl: this.resolvePrivacyUrl(customization),
+      privacyUrl: hasFooterPrivacyPlaceholder ? '' : privacyUrl,
       footerHtml,
       footerText,
       fontFamily: emailTheme.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,

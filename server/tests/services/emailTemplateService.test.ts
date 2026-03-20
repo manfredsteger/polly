@@ -339,11 +339,14 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('email-footer');
     });
 
-    it('should show Datenschutz link only when privacy URL is configured', async () => {
+    it('should show Datenschutz link from customization only when privacy URL is configured', async () => {
       const origCustomization = await storage.getCustomizationSettings();
       const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
 
       try {
+        await service.setEmailFooter({ html: 'Plain footer only', text: 'Plain footer only' });
+
         await storage.setCustomizationSettings({
           ...origCustomization,
           footer: { ...(origCustomization.footer || {}), supportLinks: [] },
@@ -375,6 +378,7 @@ describe('EmailTemplateService', () => {
         expect(resultWith.html).toContain('https://example.com/privacy');
       } finally {
         await storage.setCustomizationSettings(origCustomization);
+        await service.setEmailFooter(origFooter);
       }
     });
 
@@ -1498,6 +1502,252 @@ describe('EmailTemplateService', () => {
         expect(bodyAfterGreeting).not.toMatch(/\bIhrem\b/);
         expect(bodyAfterGreeting).not.toMatch(/\bSie\b(?![_-])/);
       }
+    });
+  });
+
+  describe('Footer {{link:URL}} and {{siteUrl}} template syntax', () => {
+    afterEach(async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: EmailTemplateService.DEFAULT_FOOTER,
+        text: EmailTemplateService.DEFAULT_FOOTER,
+      });
+    });
+
+    it('should render {{link:URL|Label}} as clickable HTML link in footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Erstellt von {{siteName}} | {{link:https://example.com/privacy|Datenschutz}}',
+        text: 'Erstellt von {{siteName}} | {{link:https://example.com/privacy|Datenschutz}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('href="https://example.com/privacy"');
+      expect(result.html).toContain('target="_blank"');
+      expect(result.html).toContain('>Datenschutz</a>');
+    });
+
+    it('should render {{link:URL}} without label using domain as display text', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:https://example.com/page}}',
+        text: '{{link:https://example.com/page}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('href="https://example.com/page"');
+      expect(result.html).toContain('>example.com/page</a>');
+    });
+
+    it('should render plain-text footer with {{link:URL|Label}} as "Label (URL)"', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Kontakt: {{link:https://example.com/privacy|Datenschutz}}',
+        text: 'Kontakt: {{link:https://example.com/privacy|Datenschutz}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.text).toContain('Datenschutz (https://example.com/privacy)');
+    });
+
+    it('should render plain-text footer with {{link:URL}} as bare URL', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Info: {{link:https://example.com/info}}',
+        text: 'Info: {{link:https://example.com/info}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.text).toContain('https://example.com/info');
+      expect(result.text).not.toContain('{{link:');
+    });
+
+    it('should replace {{siteUrl}} variable in footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Besuche uns: {{link:{{siteUrl}}|Zur Website}}',
+        text: 'Besuche uns: {{link:{{siteUrl}}|Zur Website}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'SiteUrl-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).not.toContain('{{siteUrl}}');
+      expect(result.html).toContain('href=');
+      expect(result.html).toContain('>Zur Website</a>');
+    });
+
+    it('should render default footer with Datenschutz link placeholder', async () => {
+      const service = new EmailTemplateService();
+      const footer = await service.getEmailFooter();
+
+      expect(footer.html).toContain('{{link:#|Datenschutz}}');
+      expect(footer.html).toContain('{{siteName}}');
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Default-Footer-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('href="#"');
+      expect(result.html).toContain('>Datenschutz</a>');
+      expect(result.html).not.toContain('{{link:');
+      expect(result.html).not.toContain('{{siteName}}');
+    });
+
+    it('should handle multiple {{link:...}} in one footer line', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:https://a.com|Impressum}} | {{link:https://b.com|Datenschutz}}',
+        text: '{{link:https://a.com|Impressum}} | {{link:https://b.com|Datenschutz}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Multi-Link',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('href="https://a.com"');
+      expect(result.html).toContain('>Impressum</a>');
+      expect(result.html).toContain('href="https://b.com"');
+      expect(result.html).toContain('>Datenschutz</a>');
+    });
+
+    it('should strip unsafe URL schemes in {{link:...}} (no href rendered)', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:javascript:alert(1)|Click me}}',
+        text: '{{link:javascript:alert(1)|Click me}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'XSS-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).not.toContain('javascript:');
+      expect(result.html).not.toContain('href="javascript');
+      expect(result.html).toContain('Click me');
+    });
+
+    it('should XSS-escape malicious label text in {{link:...}}', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:https://safe.com|<script>alert(1)</script>}}',
+        text: '{{link:https://safe.com|<script>alert(1)</script>}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'XSS-Label-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).not.toContain('<script>');
+      expect(result.html).toContain('&lt;script&gt;');
+    });
+
+    it('should replace # placeholder with configured privacy URL', async () => {
+      const service = new EmailTemplateService();
+      const origCustomization = await storage.getCustomizationSettings();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Footer text\n{{link:#|Datenschutz}}',
+          text: 'Footer text\n{{link:#|Datenschutz}}',
+        });
+        await storage.setCustomizationSettings({
+          ...origCustomization,
+          footer: {
+            ...(origCustomization.footer || {}),
+            supportLinks: [{ label: 'Datenschutz', url: 'https://example.com/privacy' }],
+          },
+        });
+
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Privacy-Replace',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+
+        expect(result.html).toContain('href="https://example.com/privacy"');
+        expect(result.html).toContain('>Datenschutz</a>');
+        const datenschutzCount = (result.html.match(/>Datenschutz</g) || []).length;
+        expect(datenschutzCount).toBe(1);
+      } finally {
+        await storage.setCustomizationSettings(origCustomization);
+      }
+    });
+
+    it('should strip unsafe URL scheme in plain-text footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:javascript:alert(1)|Evil Link}}',
+        text: '{{link:javascript:alert(1)|Evil Link}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Plaintext-XSS',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.text).not.toContain('javascript:');
+      expect(result.text).toContain('Evil Link');
+    });
+
+    it('should render newlines as <br> in HTML footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Zeile 1\nZeile 2',
+        text: 'Zeile 1\nZeile 2',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Newline-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('Zeile 1<br>Zeile 2');
     });
   });
 });

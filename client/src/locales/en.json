@@ -492,11 +492,15 @@
     "confirmColumn": "Confirm Date",
     "confirmed": "Confirmed",
     "undoConfirmation": "Undo",
-    "dateConfirmed": "Date has been confirmed",
+    "dateConfirmed": "Date has been confirmed.",
     "dateUnconfirmed": "Date confirmation has been removed",
     "finalizeFailed": "Error confirming the date",
     "confirmDialogTitle": "Confirm this date?",
-    "confirmDialogDescription": "Are you sure you want to confirm {{date}} {{time}} as the final date? This will be visible to all participants."
+    "confirmDialogDescription": "Are you sure you want to confirm {{date}} {{time}} as the final date? This will be visible to all participants.",
+    "closePollOption": "Close poll (no more votes)",
+    "notifyParticipantsOption": "Notify participants via email (with calendar invitation)",
+    "pollClosed": "The poll has been closed.",
+    "participantsNotified": "Participants have been notified."
   },
   "pollTypes": {
     "schedule": "Schedule",

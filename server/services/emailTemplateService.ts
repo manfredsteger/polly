@@ -673,6 +673,21 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
   ),
 
   welcome: buildWelcomeTemplate(),
+
+  poll_finalized: buildSimpleTemplate(
+    'Termin bestätigt',
+    '[{{siteName}}] Termin bestätigt: {{pollTitle}}',
+    'Termin bestätigt',
+    [
+      'Hallo,',
+      'für die Terminumfrage <strong>„{{pollTitle}}"</strong> wurde ein Termin festgelegt.',
+      '<strong>Datum:</strong> {{confirmedDate}}',
+      '{{confirmedTime}}',
+      'Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.',
+    ],
+    'Zur Umfrage',
+    'pollLink',
+  ),
 };
 
 // HTML escape helper to prevent XSS
@@ -1004,6 +1019,13 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       userName: 'Max Mustermann',
       userEmail: 'max.mustermann@example.com',
       verificationLink: 'https://polly.example.com/email-bestaetigen/abc123xyz789',
+      siteName,
+    },
+    poll_finalized: {
+      pollTitle: 'Teammeeting Q1 2025',
+      confirmedDate: 'Montag, 15. Januar 2025',
+      confirmedTime: '<strong>Uhrzeit:</strong> 14:00 – 15:00 Uhr',
+      pollLink: 'https://polly.example.com/poll/abc123',
       siteName,
     },
   };
@@ -1369,6 +1391,21 @@ function buildV3WelcomeBody(vars: Record<string, string | undefined>, ctx: V3Bod
     ${v3SingleButtonSection('Bitte best\u00E4tigen Sie Ihre E-Mail-Adresse, um alle Funktionen nutzen zu k\u00F6nnen.', 'E-Mail best\u00E4tigen \u2192', verificationLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
 
+function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const confirmedDate = htmlEscape(vars.confirmedDate || '');
+  const confirmedTime = vars.confirmedTime || '';
+  const pollLink = vars.pollLink || '#';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Termin bestätigt', ctx.primaryColor)}
+      ${v3Headline('Termin festgelegt für', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/>${confirmedTime}` : ''}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Klicken Sie auf den Button, um die Umfrage und Ergebnisse einzusehen.', 'Zur Umfrage \u2192', pollLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+}
+
 function buildV3GenericBody(bodyHtml: string, fontFamily: string): string {
   return `${v3BodyStart()}
       <div style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; line-height: 1.7;">
@@ -1387,6 +1424,7 @@ const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>
   password_changed: buildV3PasswordChangedBody,
   test_report: buildV3TestReportBody,
   welcome: buildV3WelcomeBody,
+  poll_finalized: buildV3PollFinalizedBody,
 };
 
 export class EmailTemplateService {

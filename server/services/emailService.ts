@@ -455,6 +455,58 @@ export class EmailService {
     }
   }
 
+  async sendFinalizationEmails(
+    participantEmails: string[],
+    pollTitle: string,
+    confirmedDate: string,
+    confirmedTime: string,
+    pollLink: string,
+    icsBuffer: Buffer
+  ): Promise<{ sent: number; failed: number }> {
+    if (participantEmails.length === 0) {
+      console.log('[Email] No participant emails for finalization notification');
+      return { sent: 0, failed: 0 };
+    }
+
+    const rendered = await this.renderTemplate('poll_finalized', {
+      pollTitle,
+      confirmedDate,
+      confirmedTime: confirmedTime ? `<strong>Uhrzeit:</strong> ${confirmedTime}` : '',
+      pollLink,
+    });
+
+    const attachments: nodemailer.SendMailOptions['attachments'] = [
+      {
+        filename: 'termin.ics',
+        content: icsBuffer,
+        contentType: 'text/calendar; method=PUBLISH',
+      },
+    ];
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const email of participantEmails) {
+      try {
+        await this.sendMail({
+          to: email,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+          attachments,
+        });
+        sent++;
+        console.log(`[Email] Finalization notification sent to ${email}`);
+      } catch (error) {
+        failed++;
+        console.error(`[Email] Failed to send finalization notification to ${email}:`, error);
+      }
+    }
+
+    console.log(`[Email] Finalization notifications: ${sent} sent, ${failed} failed`);
+    return { sent, failed };
+  }
+
   async sendVirusDetectionAlert(
     adminEmails: string[],
     details: {

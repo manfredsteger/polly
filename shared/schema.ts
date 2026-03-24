@@ -407,6 +407,7 @@ export const EMAIL_TEMPLATE_TYPES = [
   'password_changed',
   'test_report',
   'welcome',
+  'poll_finalized',
 ] as const;
 
 export type EmailTemplateType = typeof EMAIL_TEMPLATE_TYPES[number];
@@ -475,6 +476,13 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'userName', description: 'Name des Benutzers' },
     { key: 'userEmail', description: 'E-Mail-Adresse des Benutzers' },
     { key: 'verificationLink', description: 'Link zur E-Mail-Verifizierung' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  poll_finalized: [
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'confirmedDate', description: 'Bestätigter Termin (formatiert)' },
+    { key: 'confirmedTime', description: 'Uhrzeit des Termins (falls vorhanden)' },
+    { key: 'pollLink', description: 'Link zur Umfrage' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
 };

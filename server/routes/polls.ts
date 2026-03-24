@@ -254,6 +254,8 @@ router.delete('/admin/:token', async (req, res) => {
 // Finalize poll schema
 const finalizeSchema = z.object({
   optionId: z.number().int().nonnegative(),
+  closePoll: z.boolean().optional().default(false),
+  notifyParticipants: z.boolean().optional().default(false),
 }).strict();
 
 // Finalize poll (set final option)
@@ -267,7 +269,7 @@ router.post('/admin/:token/finalize', async (req, res) => {
       });
     }
     
-    const { optionId } = parseResult.data;
+    const { optionId, closePoll, notifyParticipants } = parseResult.data;
     
     const poll = await storage.getPollByAdminToken(req.params.token);
     if (!poll) {
@@ -294,12 +296,67 @@ router.post('/admin/:token/finalize', async (req, res) => {
     }
     
     const finalOptionId = optionId === 0 ? null : optionId;
-    const updatedPoll = await storage.updatePoll(poll.id, { finalOptionId });
+    const updateData: { finalOptionId: number | null; isActive?: boolean } = { finalOptionId };
+    if (finalOptionId && closePoll) {
+      updateData.isActive = false;
+    }
+    const updatedPoll = await storage.updatePoll(poll.id, updateData);
+
+    let emailResult: { sent: number; failed: number } | undefined;
+    if (notifyParticipants && finalOptionId && poll.type === 'schedule') {
+      try {
+        const uniqueEmails = [...new Set(
+          poll.votes
+            .map((v: { voterEmail: string }) => v.voterEmail)
+            .filter((e: string) => e && e.includes('@'))
+        )];
+
+        const confirmedOption = poll.options.find((o: { id: number }) => o.id === finalOptionId);
+        if (confirmedOption && uniqueEmails.length > 0) {
+          const { getBaseUrl } = await import('../utils/baseUrl');
+          const baseUrl = getBaseUrl();
+          const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
+
+          const startTime = confirmedOption.startTime ? new Date(confirmedOption.startTime) : null;
+          const endTime = confirmedOption.endTime ? new Date(confirmedOption.endTime) : null;
+
+          const confirmedDate = startTime
+            ? startTime.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+            : confirmedOption.text;
+
+          let confirmedTime = '';
+          if (startTime && (startTime.getHours() !== 0 || startTime.getMinutes() !== 0)) {
+            confirmedTime = startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            if (endTime && (endTime.getHours() !== 0 || endTime.getMinutes() !== 0)) {
+              confirmedTime += ` – ${endTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
+            } else {
+              confirmedTime += ' Uhr';
+            }
+          }
+
+          const { generateSingleEventIcs } = await import('../services/icsService');
+          const icsContent = generateSingleEventIcs(poll, confirmedOption, baseUrl);
+          const icsBuffer = Buffer.from(icsContent, 'utf-8');
+
+          emailResult = await emailService.sendFinalizationEmails(
+            uniqueEmails,
+            poll.title,
+            confirmedDate,
+            confirmedTime,
+            pollLink,
+            icsBuffer
+          );
+        }
+      } catch (emailError) {
+        console.error('Error sending finalization emails:', emailError);
+      }
+    }
     
     res.json({ 
       success: true, 
       poll: updatedPoll,
-      message: finalOptionId ? 'Finaler Termin wurde festgelegt' : 'Finalisierung wurde aufgehoben'
+      message: finalOptionId ? 'Finaler Termin wurde festgelegt' : 'Finalisierung wurde aufgehoben',
+      emailResult,
     });
   } catch (error) {
     console.error('Error finalizing poll:', error);

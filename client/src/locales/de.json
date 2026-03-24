@@ -492,11 +492,15 @@
     "confirmColumn": "Termin bestätigen",
     "confirmed": "Bestätigt",
     "undoConfirmation": "Zurücknehmen",
-    "dateConfirmed": "Termin wurde bestätigt",
+    "dateConfirmed": "Termin wurde bestätigt.",
     "dateUnconfirmed": "Terminbestätigung wurde zurückgenommen",
     "finalizeFailed": "Fehler beim Bestätigen des Termins",
     "confirmDialogTitle": "Diesen Termin bestätigen?",
-    "confirmDialogDescription": "Möchten Sie {{date}} {{time}} als endgültigen Termin bestätigen? Dies wird für alle Teilnehmer sichtbar sein."
+    "confirmDialogDescription": "Möchten Sie {{date}} {{time}} als endgültigen Termin bestätigen? Dies wird für alle Teilnehmer sichtbar sein.",
+    "closePollOption": "Umfrage beenden (keine weiteren Stimmen)",
+    "notifyParticipantsOption": "Teilnehmer per E-Mail benachrichtigen (mit Kalendereinladung)",
+    "pollClosed": "Die Umfrage wurde beendet.",
+    "participantsNotified": "Teilnehmer wurden benachrichtigt."
   },
   "pollTypes": {
     "schedule": "Termin",

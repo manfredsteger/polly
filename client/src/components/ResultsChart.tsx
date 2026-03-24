@@ -79,13 +79,22 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   const isFinalized = poll.finalOptionId != null && poll.finalOptionId > 0;
   const [isFinalizingOption, setIsFinalizingOption] = useState<number | null>(null);
   const [confirmDialogOptionId, setConfirmDialogOptionId] = useState<number | null>(null);
+  const [finalizeClosePoll, setFinalizeClosePoll] = useState(true);
+  const [finalizeNotify, setFinalizeNotify] = useState(true);
 
   const handleFinalize = async (optionId: number) => {
     if (!adminToken) return;
     setIsFinalizingOption(optionId);
     try {
-      await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, { optionId });
-      toast({ title: t('common.success'), description: t('resultsChart.dateConfirmed') });
+      await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, {
+        optionId,
+        closePoll: finalizeClosePoll,
+        notifyParticipants: finalizeNotify,
+      });
+      const parts: string[] = [t('resultsChart.dateConfirmed')];
+      if (finalizeClosePoll) parts.push(t('resultsChart.pollClosed'));
+      if (finalizeNotify) parts.push(t('resultsChart.participantsNotified'));
+      toast({ title: t('common.success'), description: parts.join(' ') });
       onFinalize?.();
     } catch (error) {
       toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
@@ -1222,18 +1231,44 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('resultsChart.confirmDialogTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {(() => {
-                if (confirmDialogOptionId === null) return '';
-                const opt = options.find(o => o.id === confirmDialogOptionId);
-                if (!opt) return '';
-                const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
-                const dateStr = opt.startTime ? new Date(opt.startTime).toLocaleDateString(localeCode, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : opt.text;
-                const timeStr = opt.startTime && opt.endTime 
-                  ? `${new Date(opt.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} – ${new Date(opt.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`
-                  : '';
-                return t('resultsChart.confirmDialogDescription', { date: dateStr, time: timeStr });
-              })()}
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  {(() => {
+                    if (confirmDialogOptionId === null) return '';
+                    const opt = options.find(o => o.id === confirmDialogOptionId);
+                    if (!opt) return '';
+                    const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
+                    const dateStr = opt.startTime ? new Date(opt.startTime).toLocaleDateString(localeCode, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : opt.text;
+                    const timeStr = opt.startTime && opt.endTime 
+                      ? `${new Date(opt.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} – ${new Date(opt.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`
+                      : '';
+                    return t('resultsChart.confirmDialogDescription', { date: dateStr, time: timeStr });
+                  })()}
+                </p>
+                <div className="space-y-2 pt-2 border-t">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={finalizeClosePoll}
+                      onChange={(e) => setFinalizeClosePoll(e.target.checked)}
+                      className="rounded border-gray-300 w-4 h-4 accent-primary"
+                    />
+                    <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>{t('resultsChart.closePollOption')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={finalizeNotify}
+                      onChange={(e) => setFinalizeNotify(e.target.checked)}
+                      className="rounded border-gray-300 w-4 h-4 accent-primary"
+                    />
+                    <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>{t('resultsChart.notifyParticipantsOption')}</span>
+                  </label>
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

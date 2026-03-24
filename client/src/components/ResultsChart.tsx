@@ -2,6 +2,16 @@ import { MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -68,6 +78,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   const isSchedule = poll.type === 'schedule';
   const isFinalized = poll.finalOptionId != null && poll.finalOptionId > 0;
   const [isFinalizingOption, setIsFinalizingOption] = useState<number | null>(null);
+  const [confirmDialogOptionId, setConfirmDialogOptionId] = useState<number | null>(null);
 
   const handleFinalize = async (optionId: number) => {
     if (!adminToken) return;
@@ -80,6 +91,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
       toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
     } finally {
       setIsFinalizingOption(null);
+      setConfirmDialogOptionId(null);
     }
   };
 
@@ -1001,7 +1013,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleFinalize(stat.optionId)}
+                                onClick={() => setConfirmDialogOptionId(stat.optionId)}
                                 disabled={isFinalizingOption !== null}
                                 className="text-xs"
                               >
@@ -1205,6 +1217,37 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
           },
         }}
       />
+
+      <AlertDialog open={confirmDialogOptionId !== null} onOpenChange={(open) => { if (!open) setConfirmDialogOptionId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('resultsChart.confirmDialogTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                if (confirmDialogOptionId === null) return '';
+                const opt = options.find(o => o.id === confirmDialogOptionId);
+                if (!opt) return '';
+                const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
+                const dateStr = opt.startTime ? new Date(opt.startTime).toLocaleDateString(localeCode, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : opt.text;
+                const timeStr = opt.startTime && opt.endTime 
+                  ? `${new Date(opt.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} – ${new Date(opt.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`
+                  : '';
+                return t('resultsChart.confirmDialogDescription', { date: dateStr, time: timeStr });
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (confirmDialogOptionId !== null) handleFinalize(confirmDialogOptionId); }}
+              disabled={isFinalizingOption !== null}
+            >
+              {isFinalizingOption !== null ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CalendarCheck className="w-4 h-4 mr-1" />}
+              {t('resultsChart.confirmDate')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

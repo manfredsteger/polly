@@ -494,7 +494,9 @@
     "undoConfirmation": "Undo",
     "dateConfirmed": "Date has been confirmed",
     "dateUnconfirmed": "Date confirmation has been removed",
-    "finalizeFailed": "Error confirming the date"
+    "finalizeFailed": "Error confirming the date",
+    "confirmDialogTitle": "Confirm this date?",
+    "confirmDialogDescription": "Are you sure you want to confirm {{date}} {{time}} as the final date? This will be visible to all participants."
   },
   "pollTypes": {
     "schedule": "Schedule",

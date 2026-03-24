@@ -494,7 +494,9 @@
     "undoConfirmation": "Zurücknehmen",
     "dateConfirmed": "Termin wurde bestätigt",
     "dateUnconfirmed": "Terminbestätigung wurde zurückgenommen",
-    "finalizeFailed": "Fehler beim Bestätigen des Termins"
+    "finalizeFailed": "Fehler beim Bestätigen des Termins",
+    "confirmDialogTitle": "Diesen Termin bestätigen?",
+    "confirmDialogDescription": "Möchten Sie {{date}} {{time}} als endgültigen Termin bestätigen? Dies wird für alle Teilnehmer sichtbar sein."
   },
   "pollTypes": {
     "schedule": "Termin",

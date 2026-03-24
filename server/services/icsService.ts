@@ -9,6 +9,7 @@ interface CalendarEvent {
   location?: string;
   organizer?: string;
   url?: string;
+  status?: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED';
 }
 
 export interface CalendarExportContext {
@@ -138,6 +139,10 @@ function generateEvent(event: CalendarEvent): string {
 
   lines.push(`SUMMARY:${escapeIcsText(event.title)}`);
 
+  if (event.status) {
+    lines.push(`STATUS:${event.status}`);
+  }
+
   if (event.description) {
     lines.push(`DESCRIPTION:${escapeIcsText(event.description)}`);
   }
@@ -237,8 +242,9 @@ export function generatePollIcs(
 
   const events: CalendarEvent[] = [];
 
+  const isFinalized = isPollFinalized(poll);
+
   for (const option of options) {
-    // Use unified filter: auto-filters to final option when poll is finalized
     if (!shouldIncludeOption(option, poll, effectiveContext)) {
       continue;
     }
@@ -252,15 +258,20 @@ export function generatePollIcs(
     const maybeCount = votes.filter(v => v.optionId === option.id && v.response === 'maybe').length;
     const uid = `poll-${poll.id}-option-${option.id}@polly`;
 
+    const isFinalOption = isFinalized && option.id === poll.finalOptionId;
+
     const votesLabel = language === 'de' 
       ? `Stimmen: ${yesCount} Ja, ${maybeCount} Vielleicht`
       : `Votes: ${yesCount} Yes, ${maybeCount} Maybe`;
 
-    const description = poll.description
-      ? `${poll.description}\n\n${votesLabel}`
-      : votesLabel;
+    const pollUrlLine = `${baseUrl}/poll/${poll.publicToken}`;
+    const descriptionParts: string[] = [];
+    if (poll.description) descriptionParts.push(poll.description);
+    descriptionParts.push(votesLabel);
+    descriptionParts.push(pollUrlLine);
+    const description = descriptionParts.join('\n\n');
 
-    const baseTitle = `${poll.title}: ${option.text}`;
+    const baseTitle = isFinalOption ? poll.title : `${poll.title}: ${option.text}`;
     const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext);
 
     events.push({
@@ -269,7 +280,8 @@ export function generatePollIcs(
       description,
       startTime,
       endTime,
-      url: `${baseUrl}/poll/${poll.publicToken}`,
+      url: pollUrlLine,
+      status: isFinalOption ? 'CONFIRMED' : 'TENTATIVE',
     });
   }
 

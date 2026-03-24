@@ -21,7 +21,7 @@ import {
   type CalendarSettings, calendarSettingsSchema
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, count, isNull, asc } from "drizzle-orm";
 
 // Export db for direct database access in routes
 export { db };
@@ -320,6 +320,18 @@ export class DatabaseStorage implements IStorage {
     return { poll, adminToken, publicToken, options: createdOptions };
   }
 
+  private sortOptionsChronologically(options: PollOption[], pollType: string): PollOption[] {
+    if (pollType !== 'schedule') return options;
+    return [...options].sort((a, b) => {
+      const aTime = a.startTime ? new Date(a.startTime).getTime() : null;
+      const bTime = b.startTime ? new Date(b.startTime).getTime() : null;
+      if (aTime !== null && bTime !== null) return aTime - bTime;
+      if (aTime !== null) return -1;
+      if (bTime !== null) return 1;
+      return (a.order ?? a.id) - (b.order ?? b.id);
+    });
+  }
+
   async getPoll(id: string): Promise<PollWithOptions | undefined> {
     const [poll] = await db.select().from(polls).where(eq(polls.id, id));
     if (!poll) return undefined;
@@ -332,7 +344,7 @@ export class DatabaseStorage implements IStorage {
       [user] = await db.select().from(users).where(eq(users.id, poll.userId));
     }
 
-    return { ...poll, options, votes: allVotes, user };
+    return { ...poll, options: this.sortOptionsChronologically(options, poll.type), votes: allVotes, user };
   }
 
   async getPollByAdminToken(token: string): Promise<PollWithOptions | undefined> {
@@ -344,7 +356,7 @@ export class DatabaseStorage implements IStorage {
     if (poll.userId) {
       [user] = await db.select().from(users).where(eq(users.id, poll.userId));
     }
-    return { ...poll, options, votes: allVotes, user };
+    return { ...poll, options: this.sortOptionsChronologically(options, poll.type), votes: allVotes, user };
   }
 
   async getPollByPublicToken(token: string): Promise<PollWithOptions | undefined> {
@@ -356,7 +368,7 @@ export class DatabaseStorage implements IStorage {
     if (poll.userId) {
       [user] = await db.select().from(users).where(eq(users.id, poll.userId));
     }
-    return { ...poll, options, votes: allVotes, user };
+    return { ...poll, options: this.sortOptionsChronologically(options, poll.type), votes: allVotes, user };
   }
 
   async updatePoll(id: string, updates: Partial<InsertPoll>): Promise<Poll> {

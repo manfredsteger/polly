@@ -470,6 +470,7 @@
     "detailedResults": "Detaillierte Ergebnisse",
     "csvExport": "CSV Export",
     "pdfExport": "PDF Export",
+    "icsExport": "Kalender",
     "option": "Option",
     "noEntriesYet": "Noch keine Eintragungen vorhanden",
     "full": "voll",
@@ -485,7 +486,15 @@
     "maxCapacity": "Kapazität darf maximal 9999 sein",
     "capacitySet": "Kapazität auf {{count}} gesetzt",
     "participantsOverview": "{{count}} Teilnehmer",
-    "votedAt": "Abgestimmt am"
+    "votedAt": "Abgestimmt am",
+    "confirmedDate": "Bestätigter Termin",
+    "confirmDate": "Bestätigen",
+    "confirmColumn": "Termin bestätigen",
+    "confirmed": "Bestätigt",
+    "undoConfirmation": "Zurücknehmen",
+    "dateConfirmed": "Termin wurde bestätigt",
+    "dateUnconfirmed": "Terminbestätigung wurde zurückgenommen",
+    "finalizeFailed": "Fehler beim Bestätigen des Termins"
   },
   "pollTypes": {
     "schedule": "Termin",

@@ -19,7 +19,11 @@ import {
   Mail,
   Pencil,
   Save,
-  ClipboardList
+  ClipboardList,
+  Lock,
+  Unlock,
+  CalendarCheck,
+  Loader2
 } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -28,6 +32,7 @@ import { useTranslation } from 'react-i18next';
 import { Table } from "lucide-react";
 import type { PollResults } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { formatScheduleOptionWithWeekday } from "@/lib/utils";
 
 function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
@@ -42,11 +47,13 @@ function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string;
 interface ResultsChartProps {
   results: PollResults;
   publicToken?: string;
+  adminToken?: string;
   isAdminAccess?: boolean;
   onCapacityUpdate?: (optionId: number, newCapacity: number | null) => Promise<void>;
+  onFinalize?: () => void;
 }
 
-export function ResultsChart({ results, publicToken, isAdminAccess = false, onCapacityUpdate }: ResultsChartProps) {
+export function ResultsChart({ results, publicToken, adminToken, isAdminAccess = false, onCapacityUpdate, onFinalize }: ResultsChartProps) {
   const { poll, options, stats, participantCount } = results;
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
@@ -58,6 +65,43 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
   const [capacityError, setCapacityError] = useState<string>("");
 
   const isOrganization = poll.type === 'organization';
+  const isSchedule = poll.type === 'schedule';
+  const isFinalized = poll.finalOptionId != null && poll.finalOptionId > 0;
+  const [isFinalizingOption, setIsFinalizingOption] = useState<number | null>(null);
+
+  const handleFinalize = async (optionId: number) => {
+    if (!adminToken) return;
+    setIsFinalizingOption(optionId);
+    try {
+      await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, { optionId });
+      toast({ title: t('common.success'), description: t('resultsChart.dateConfirmed') });
+      onFinalize?.();
+    } catch (error) {
+      toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
+    } finally {
+      setIsFinalizingOption(null);
+    }
+  };
+
+  const handleUnfinalize = async () => {
+    if (!adminToken) return;
+    setIsFinalizingOption(0);
+    try {
+      await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, { optionId: 0 });
+      toast({ title: t('common.success'), description: t('resultsChart.dateUnconfirmed') });
+      onFinalize?.();
+    } catch (error) {
+      toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
+    } finally {
+      setIsFinalizingOption(null);
+    }
+  };
+
+  const handleExportICS = () => {
+    if (publicToken) {
+      window.open(`/api/v1/polls/${publicToken}/export/ics?lang=${i18n.language}`, '_blank');
+    }
+  };
 
   const handleEditCapacity = (optionId: number, currentCapacity: number | null | undefined) => {
     setEditingCapacity(optionId);
@@ -196,6 +240,12 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
             <Download className="w-4 h-4 mr-2" />
             {t('results.pdfExport')}
           </Button>
+          {isSchedule && (
+            <Button variant="outline" onClick={handleExportICS}>
+              <CalendarCheck className="w-4 h-4 mr-2" />
+              {t('results.icsExport')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -230,6 +280,58 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           </div>
         </CardContent>
       </Card>
+
+      {/* Finalized Date Banner */}
+      {isSchedule && isFinalized && (() => {
+        const finalOption = options.find(opt => opt.id === poll.finalOptionId);
+        if (!finalOption) return null;
+        return (
+          <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-950/30 dark:border-green-600">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Lock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <div>
+                    <h3 className="font-semibold text-green-900 dark:text-green-100">{t('resultsChart.confirmedDate')}</h3>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      <FormattedOptionText text={finalOption.text} startTime={finalOption.startTime} locale={i18n.language} />
+                    </p>
+                    {finalOption.startTime && finalOption.endTime && (
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-0.5">
+                        <Calendar className="w-3 h-3 inline mr-1" />
+                        {new Date(finalOption.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                        {' · '}
+                        <Clock className="w-3 h-3 inline mr-1" />
+                        {new Date(finalOption.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                        {' – '}
+                        {new Date(finalOption.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm" onClick={handleExportICS} className="border-green-500 text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-900">
+                    <CalendarCheck className="w-4 h-4 mr-1" />
+                    {t('results.icsExport')}
+                  </Button>
+                  {isAdminAccess && adminToken && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleUnfinalize}
+                      disabled={isFinalizingOption !== null}
+                      className="border-orange-400 text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-900"
+                    >
+                      {isFinalizingOption === 0 ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Unlock className="w-4 h-4 mr-1" />}
+                      {t('resultsChart.undoConfirmation')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Best Option Highlight */}
       {bestOptionData && (
@@ -775,6 +877,11 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                         </span>
                       </div>
                     </th>
+                    {isSchedule && isAdminAccess && adminToken && (
+                      <th className="text-center py-3 px-4 font-medium text-foreground w-36">
+                        {t('resultsChart.confirmColumn')}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -786,9 +893,10 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     const yesPercent = total > 0 ? (stat.yesCount / total) * 100 : 0;
                     const maybePercent = total > 0 ? (stat.maybeCount / total) * 100 : 0;
                     const noPercent = total > 0 ? (stat.noCount / total) * 100 : 0;
+                    const isFinalOption = isFinalized && poll.finalOptionId === stat.optionId;
 
                     return (
-                      <tr key={stat.optionId} className="hover:bg-muted/50">
+                      <tr key={stat.optionId} className={isFinalOption ? "bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500" : "hover:bg-muted/50"}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             {/* Show image if available */}
@@ -882,6 +990,31 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                             )}
                           </div>
                         </td>
+                        {isSchedule && isAdminAccess && adminToken && (
+                          <td className="py-4 px-4 text-center">
+                            {isFinalOption ? (
+                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <Lock className="w-3 h-3 mr-1" />
+                                {t('resultsChart.confirmed')}
+                              </Badge>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleFinalize(stat.optionId)}
+                                disabled={isFinalizingOption !== null}
+                                className="text-xs"
+                              >
+                                {isFinalizingOption === stat.optionId ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <CalendarCheck className="w-3 h-3 mr-1" />
+                                )}
+                                {t('resultsChart.confirmDate')}
+                              </Button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

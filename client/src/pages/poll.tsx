@@ -748,10 +748,15 @@ export default function Poll() {
             <ResultsChart 
               results={results} 
               publicToken={poll.publicToken}
+              adminToken={isAdminAccess ? poll.adminToken : undefined}
               isAdminAccess={isAdminAccess}
               onCapacityUpdate={isAdminAccess ? async (optionId, newCapacity) => {
                 await updateOptionMutation.mutateAsync({ optionId, updates: { maxCapacity: newCapacity === null ? null : newCapacity } });
               } : undefined}
+              onFinalize={() => {
+                queryClient.invalidateQueries({ queryKey: [endpoint] });
+                queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${token}/results`] });
+              }}
             />
           ) : (
             <Card>

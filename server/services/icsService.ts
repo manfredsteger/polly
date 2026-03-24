@@ -156,7 +156,7 @@ function generateEvent(event: CalendarEvent): string {
   }
 
   if (event.organizer) {
-    lines.push(`ORGANIZER:${escapeIcsText(event.organizer)}`);
+    lines.push(`ORGANIZER:${event.organizer}`);
   }
 
   lines.push('END:VEVENT');
@@ -217,7 +217,7 @@ export function getDefaultCalendarSettings(): CalendarSettings {
 }
 
 export function generatePollIcs(
-  poll: Poll,
+  poll: Poll & { user?: { displayName?: string; email?: string } | null },
   options: PollOption[],
   votes: Vote[],
   baseUrl: string,
@@ -243,6 +243,12 @@ export function generatePollIcs(
   const events: CalendarEvent[] = [];
 
   const isFinalized = isPollFinalized(poll);
+
+  const organizerValue = poll.user?.email 
+    ? `MAILTO:${poll.user.email}`
+    : poll.creatorEmail 
+      ? `MAILTO:${poll.creatorEmail}`
+      : undefined;
 
   for (const option of options) {
     if (!shouldIncludeOption(option, poll, effectiveContext)) {
@@ -282,6 +288,7 @@ export function generatePollIcs(
       endTime,
       url: pollUrlLine,
       status: isFinalOption ? 'CONFIRMED' : 'TENTATIVE',
+      organizer: organizerValue,
     });
   }
 

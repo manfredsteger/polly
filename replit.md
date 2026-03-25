@@ -70,7 +70,8 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Security Hardening**: Force-password-change for default admin credentials (`isInitialAdmin` middleware blocks API until password changed), Cache-Control `no-store` on all API responses, generic error messages (no `error.message` leaks), JSON body limit 1MB, field-level input length validation (voter names 100, option text 500, description 5000, email 254), `autocomplete="off"` on all password fields, `X-Powered-By` disabled.
 
 ### API Documentation
--   **OpenAPI Spec**: `docs/openapi.yaml` provides a full API specification.
+-   **API-Dokumentation (Pentest-tauglich)**: `docs/API-DOCUMENTATION.md` — vollständige REST-API-Referenz mit allen Endpunkten, Schemas, Auth-Mechanismen, Rate Limiting und Fehlercodes. **Muss bei jeder API-Änderung aktualisiert werden.**
+-   **OpenAPI Spec**: `docs/openapi.yaml` provides a full API specification for Flutter/Mobile integration.
 -   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` for mobile app integration.
 -   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` for Docker/Production Deployment.
 

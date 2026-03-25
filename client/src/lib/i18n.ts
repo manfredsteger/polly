@@ -18,10 +18,10 @@ let systemDefaultLanguage: SupportedLanguage = 'en';
 
 async function fetchSystemLanguage(): Promise<SupportedLanguage> {
   try {
-    const response = await fetch('/api/v1/customization');
+    const response = await fetch('/api/v1/system/language');
     if (response.ok) {
       const data = await response.json();
-      const lang = data?.language?.defaultLanguage;
+      const lang = data?.defaultLanguage;
       if (lang === 'de' || lang === 'en') {
         return lang;
       }

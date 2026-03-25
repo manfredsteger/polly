@@ -47,6 +47,18 @@ router.get('/customization', async (req, res) => {
   }
 });
 
+// Public endpoint for system default language (lightweight, no auth required)
+router.get('/system/language', async (req, res) => {
+  try {
+    const setting = await storage.getSetting('customization_language');
+    const lang = (setting?.value as Record<string, string>)?.defaultLanguage || 'en';
+    res.json({ defaultLanguage: lang });
+  } catch (error) {
+    console.error('Error fetching system language:', error);
+    res.json({ defaultLanguage: 'en' });
+  }
+});
+
 // Public endpoint for accessibility settings (for E2E tests and frontend)
 router.get('/settings/accessibility', async (req, res) => {
   try {

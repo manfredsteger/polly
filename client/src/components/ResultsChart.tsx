@@ -119,9 +119,36 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
     }
   };
 
-  const handleExportICS = () => {
-    if (publicToken) {
-      window.open(`/api/v1/polls/${publicToken}/export/ics?lang=${i18n.language}`, '_blank');
+  const handleExportICS = async () => {
+    if (!publicToken) return;
+    try {
+      const response = await fetch(`/api/v1/polls/${publicToken}/export/ics?lang=${i18n.language}`);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        toast({
+          title: t('common.error'),
+          description: data?.error || t('results.icsExportError'),
+          variant: "destructive",
+        });
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = response.headers.get('Content-Disposition');
+      const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+      a.download = filenameMatch?.[1] || 'poll.ics';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({
+        title: t('common.error'),
+        description: t('results.icsExportError'),
+        variant: "destructive",
+      });
     }
   };
 
@@ -262,7 +289,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
             <Download className="w-4 h-4 mr-2" />
             {t('results.pdfExport')}
           </Button>
-          {isSchedule && (
+          {isSchedule && isFinalized && (
             <Button variant="outline" onClick={handleExportICS}>
               <CalendarCheck className="w-4 h-4 mr-2" />
               {t('results.icsExport')}

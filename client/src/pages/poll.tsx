@@ -877,7 +877,7 @@ export default function Poll() {
                   <Download className="w-4 h-4 mr-2" />
                   {t('pollView.exportPdf')}
                 </Button>
-                {poll.type === 'schedule' && (
+                {poll.type === 'schedule' && poll.finalOptionId != null && poll.finalOptionId > 0 && (
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"

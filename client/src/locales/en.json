@@ -471,6 +471,7 @@
     "csvExport": "CSV Export",
     "pdfExport": "PDF Export",
     "icsExport": "Calendar",
+    "icsExportError": "Calendar export could not be created. The poll options do not contain valid date/time values.",
     "option": "Option",
     "noEntriesYet": "No entries yet",
     "full": "full",

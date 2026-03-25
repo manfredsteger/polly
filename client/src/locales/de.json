@@ -471,6 +471,7 @@
     "csvExport": "CSV Export",
     "pdfExport": "PDF Export",
     "icsExport": "Kalender",
+    "icsExportError": "Der Kalender-Export konnte nicht erstellt werden. Die Umfrageoptionen enthalten keine gültigen Datums-/Uhrzeitwerte.",
     "option": "Option",
     "noEntriesYet": "Noch keine Eintragungen vorhanden",
     "full": "voll",

@@ -59,11 +59,12 @@ interface ResultsChartProps {
   publicToken?: string;
   adminToken?: string;
   isAdminAccess?: boolean;
+  isOwner?: boolean;
   onCapacityUpdate?: (optionId: number, newCapacity: number | null) => Promise<void>;
   onFinalize?: () => void;
 }
 
-export function ResultsChart({ results, publicToken, adminToken, isAdminAccess = false, onCapacityUpdate, onFinalize }: ResultsChartProps) {
+export function ResultsChart({ results, publicToken, adminToken, isAdminAccess = false, isOwner = false, onCapacityUpdate, onFinalize }: ResultsChartProps) {
   const { poll, options, stats, participantCount } = results;
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
@@ -91,7 +92,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
         closePoll: finalizeClosePoll,
         notifyParticipants: finalizeNotify,
       });
-      const parts: string[] = [t('resultsChart.dateConfirmed')];
+      const parts: string[] = [isSchedule ? t('resultsChart.dateConfirmed') : t('resultsChart.resultConfirmed')];
       if (finalizeClosePoll) parts.push(t('resultsChart.pollClosed'));
       if (finalizeNotify) parts.push(t('resultsChart.participantsNotified'));
       toast({ title: t('common.success'), description: parts.join(' ') });
@@ -109,7 +110,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
     setIsFinalizingOption(0);
     try {
       await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, { optionId: 0 });
-      toast({ title: t('common.success'), description: t('resultsChart.dateUnconfirmed') });
+      toast({ title: t('common.success'), description: isSchedule ? t('resultsChart.dateUnconfirmed') : t('resultsChart.resultUnconfirmed') });
       onFinalize?.();
     } catch (error) {
       toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
@@ -302,8 +303,8 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
         </CardContent>
       </Card>
 
-      {/* Finalized Date Banner */}
-      {isSchedule && isFinalized && (() => {
+      {/* Finalized Option Banner */}
+      {isFinalized && (() => {
         const finalOption = options.find(opt => opt.id === poll.finalOptionId);
         if (!finalOption) return null;
         return (
@@ -313,7 +314,9 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 <div className="flex items-center space-x-3">
                   <Lock className="w-5 h-5 text-green-600 dark:text-green-400" />
                   <div>
-                    <h3 className="font-semibold text-green-900 dark:text-green-100">{t('resultsChart.confirmedDate')}</h3>
+                    <h3 className="font-semibold text-green-900 dark:text-green-100">
+                      {isSchedule ? t('resultsChart.confirmedDate') : t('resultsChart.confirmedResult')}
+                    </h3>
                     <p className="text-sm text-green-700 dark:text-green-300 mt-1">
                       <FormattedOptionText text={finalOption.text} startTime={finalOption.startTime} locale={i18n.language} />
                     </p>
@@ -331,11 +334,13 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm" onClick={handleExportICS} className="border-green-500 text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-900">
-                    <CalendarCheck className="w-4 h-4 mr-1" />
-                    {t('results.icsExport')}
-                  </Button>
-                  {isAdminAccess && adminToken && (
+                  {isSchedule && (
+                    <Button variant="outline" size="sm" onClick={handleExportICS} className="border-green-500 text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-900">
+                      <CalendarCheck className="w-4 h-4 mr-1" />
+                      {t('results.icsExport')}
+                    </Button>
+                  )}
+                  {(isAdminAccess || isOwner) && adminToken && (
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -898,9 +903,9 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                         </span>
                       </div>
                     </th>
-                    {isSchedule && isAdminAccess && adminToken && (
+                    {(isAdminAccess || isOwner) && adminToken && (
                       <th className="text-center py-3 px-4 font-medium text-foreground w-36">
-                        {t('resultsChart.confirmColumn')}
+                        {isSchedule ? t('resultsChart.confirmColumn') : t('resultsChart.setResultColumn')}
                       </th>
                     )}
                   </tr>
@@ -1011,7 +1016,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                             )}
                           </div>
                         </td>
-                        {isSchedule && isAdminAccess && adminToken && (
+                        {(isAdminAccess || isOwner) && adminToken && (
                           <td className="py-4 px-4 text-center">
                             {isFinalOption ? (
                               <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -1031,7 +1036,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                                 ) : (
                                   <CalendarCheck className="w-3 h-3 mr-1" />
                                 )}
-                                {t('resultsChart.confirmDate')}
+                                {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
                               </Button>
                             )}
                           </td>
@@ -1230,7 +1235,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
       <AlertDialog open={confirmDialogOptionId !== null} onOpenChange={(open) => { if (!open) setConfirmDialogOptionId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('resultsChart.confirmDialogTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>{isSchedule ? t('resultsChart.confirmDialogTitle') : t('resultsChart.confirmResultDialogTitle')}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
@@ -1243,7 +1248,9 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                     const timeStr = opt.startTime && opt.endTime 
                       ? `${new Date(opt.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} – ${new Date(opt.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`
                       : '';
-                    return t('resultsChart.confirmDialogDescription', { date: dateStr, time: timeStr });
+                    return isSchedule 
+                      ? t('resultsChart.confirmDialogDescription', { date: dateStr, time: timeStr })
+                      : t('resultsChart.confirmResultDialogDescription', { option: opt.text });
                   })()}
                 </p>
                 <div className="space-y-2 pt-2 border-t">
@@ -1278,7 +1285,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
               disabled={isFinalizingOption !== null}
             >
               {isFinalizingOption !== null ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CalendarCheck className="w-4 h-4 mr-1" />}
-              {t('resultsChart.confirmDate')}
+              {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

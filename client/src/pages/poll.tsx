@@ -143,7 +143,7 @@ export default function Poll() {
   const [activeTab, setActiveTab] = useState("vote");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [authError, setAuthError] = useState<{ type: 'unauthorized' | 'forbidden'; message: string } | null>(null);
   
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -748,8 +748,9 @@ export default function Poll() {
             <ResultsChart 
               results={results} 
               publicToken={poll.publicToken}
-              adminToken={isAdminAccess ? poll.adminToken : undefined}
+              adminToken={(isAdminAccess || (user && poll.userId === user.id)) ? poll.adminToken : undefined}
               isAdminAccess={isAdminAccess}
+              isOwner={!!(user && poll.userId === user.id)}
               onCapacityUpdate={isAdminAccess ? async (optionId, newCapacity) => {
                 await updateOptionMutation.mutateAsync({ optionId, updates: { maxCapacity: newCapacity === null ? null : newCapacity } });
               } : undefined}

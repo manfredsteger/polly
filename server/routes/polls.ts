@@ -140,8 +140,13 @@ router.get('/public/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    const { adminToken, ...pollData } = poll;
-    res.json(pollData);
+    const isOwner = poll.userId != null && req.session?.userId === poll.userId;
+    if (isOwner) {
+      res.json(poll);
+    } else {
+      const { adminToken, ...pollData } = poll;
+      res.json(pollData);
+    }
   } catch (error) {
     console.error('Error fetching poll:', error);
     res.status(500).json({ error: 'Internal server error' });

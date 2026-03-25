@@ -209,13 +209,16 @@ export default function Poll() {
     queryKey: [endpoint],
     enabled: !!token,
     retry: (failureCount, error: any) => {
-      // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {
         return false;
       }
       return failureCount < 3;
     },
   });
+
+  const isOwner = !!(user && poll?.userId === user.id);
+  const isEffectiveAdmin = isAdminAccess || isOwner;
+  const effectiveAdminToken = isAdminAccess ? token : (isOwner ? poll?.adminToken : undefined);
   
   // Handle auth errors from query
   useEffect(() => {
@@ -281,7 +284,8 @@ export default function Poll() {
   
   const updatePollMutation = useMutation({
     mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean }) => {
-      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${token}`, updates);
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}`, updates);
       return response.json();
     },
     onSuccess: () => {
@@ -297,7 +301,8 @@ export default function Poll() {
 
   const addOptionMutation = useMutation({
     mutationFn: async (option: { text: string; startTime?: string; endTime?: string; maxCapacity?: number }) => {
-      const response = await apiRequest("POST", `/api/v1/polls/admin/${token}/options`, option);
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("POST", `/api/v1/polls/admin/${effectiveAdminToken}/options`, option);
       return response.json();
     },
     onSuccess: () => {
@@ -307,7 +312,8 @@ export default function Poll() {
 
   const updateOptionMutation = useMutation({
     mutationFn: async ({ optionId, updates }: { optionId: number; updates: Record<string, any> }) => {
-      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${token}/options/${optionId}`, updates);
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}/options/${optionId}`, updates);
       return response.json();
     },
     onSuccess: () => {
@@ -317,7 +323,8 @@ export default function Poll() {
 
   const deleteOptionMutation = useMutation({
     mutationFn: async (optionId: number) => {
-      const response = await apiRequest("DELETE", `/api/v1/polls/admin/${token}/options/${optionId}`);
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("DELETE", `/api/v1/polls/admin/${effectiveAdminToken}/options/${optionId}`);
       return response.json();
     },
     onSuccess: () => {
@@ -658,7 +665,7 @@ export default function Poll() {
             )}
           </div>
           
-          {isAdminAccess && (
+          {isEffectiveAdmin && (
             <div className="flex space-x-2 ml-4">
               <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)} data-testid="button-edit-poll">
                 <Settings className="w-4 h-4 mr-2" />
@@ -716,14 +723,14 @@ export default function Poll() {
         </TabsList>
 
         <TabsContent value="vote" className="space-y-6">
-          <VotingInterface poll={poll} isAdminAccess={isAdminAccess} />
+          <VotingInterface poll={poll} isAdminAccess={isEffectiveAdmin} />
         </TabsContent>
 
         <TabsContent value="live" className="space-y-6">
           <LiveResultsView 
             poll={poll} 
             publicToken={poll.publicToken}
-            isAdminAccess={isAdminAccess}
+            isAdminAccess={isEffectiveAdmin}
           />
         </TabsContent>
 
@@ -748,10 +755,10 @@ export default function Poll() {
             <ResultsChart 
               results={results} 
               publicToken={poll.publicToken}
-              adminToken={(isAdminAccess || (user && poll.userId === user.id)) ? poll.adminToken : undefined}
-              isAdminAccess={isAdminAccess}
-              isOwner={!!(user && poll.userId === user.id)}
-              onCapacityUpdate={isAdminAccess ? async (optionId, newCapacity) => {
+              adminToken={isEffectiveAdmin ? poll.adminToken : undefined}
+              isAdminAccess={isEffectiveAdmin}
+              isOwner={isOwner}
+              onCapacityUpdate={isEffectiveAdmin ? async (optionId, newCapacity) => {
                 await updateOptionMutation.mutateAsync({ optionId, updates: { maxCapacity: newCapacity === null ? null : newCapacity } });
               } : undefined}
               onFinalize={() => {
@@ -885,7 +892,7 @@ export default function Poll() {
             </Card>
 
             {/* Admin Tools - only visible for poll owner or admin access */}
-            {isAdminAccess && (
+            {isEffectiveAdmin && (
               <Card className="polly-card md:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -965,7 +972,7 @@ export default function Poll() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t('pollView.adminLink')}: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/poll/{poll.adminToken}</code>
+                    {t('pollView.adminLink')}: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/admin/{poll.adminToken}</code>
                   </p>
                 </CardContent>
               </Card>
@@ -1753,19 +1760,19 @@ export default function Poll() {
                 </Button>
               </div>
             </div>
-            {isAdminAccess && (
+            {isEffectiveAdmin && poll.adminToken && (
               <div className="space-y-2">
                 <Label>{t('pollView.adminLinkForYou')}</Label>
                 <div className="flex">
                   <Input
-                    value={`${window.location.origin}/admin/${token}`}
+                    value={`${window.location.origin}/admin/${poll.adminToken}`}
                     readOnly
                     className="rounded-r-none"
                   />
                   <Button 
                     variant="outline" 
                     className="rounded-l-none"
-                    onClick={() => handleCopyLink(`${window.location.origin}/admin/${token}`, 'admin')}
+                    onClick={() => handleCopyLink(`${window.location.origin}/admin/${poll.adminToken}`, 'admin')}
                   >
                     {copiedLink === 'admin' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </Button>

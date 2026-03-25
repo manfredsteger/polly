@@ -881,7 +881,29 @@ export default function Poll() {
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
-                    onClick={() => window.open(`/api/v1/polls/${poll.publicToken}/export/ics`, '_blank')}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/v1/polls/${poll.publicToken}/export/ics?lang=${i18n.language}`);
+                        if (!response.ok) {
+                          const data = await response.json().catch(() => null);
+                          toast({ title: t('pollView.toasts.error'), description: data?.error || t('results.icsExportError'), variant: "destructive" });
+                          return;
+                        }
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const disposition = response.headers.get('Content-Disposition');
+                        const match = disposition?.match(/filename="?([^"]+)"?/);
+                        a.download = match?.[1] || 'poll.ics';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch {
+                        toast({ title: t('pollView.toasts.error'), description: t('results.icsExportError'), variant: "destructive" });
+                      }
+                    }}
                     data-testid="button-export-ics"
                   >
                     <Calendar className="w-4 h-4 mr-2" />

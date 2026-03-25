@@ -834,12 +834,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomizationSettings(): Promise<CustomizationSettings> {
-    // Parallelize all 4 database queries for better performance
-    const [themeSetting, brandingSetting, footerSetting, wcagSetting] = await Promise.all([
+    const [themeSetting, brandingSetting, footerSetting, wcagSetting, languageSetting] = await Promise.all([
       this.getSetting('customization_theme'),
       this.getSetting('customization_branding'),
       this.getSetting('customization_footer'),
       this.getSetting('customization_wcag'),
+      this.getSetting('customization_language'),
     ]);
 
     const settings = {
@@ -847,6 +847,7 @@ export class DatabaseStorage implements IStorage {
       branding: brandingSetting?.value || {},
       footer: footerSetting?.value || {},
       wcag: wcagSetting?.value || {},
+      language: languageSetting?.value || {},
     };
 
     return customizationSettingsSchema.parse(settings);
@@ -864,6 +865,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (settings.wcag) {
       await this.setSetting({ key: 'customization_wcag', value: settings.wcag });
+    }
+    if (settings.language) {
+      await this.setSetting({ key: 'customization_language', value: settings.language });
     }
 
     return await this.getCustomizationSettings();

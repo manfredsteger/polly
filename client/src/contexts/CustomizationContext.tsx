@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { CustomizationSettings } from '@shared/schema';
+import i18n from '@/lib/i18n';
+import type { SupportedLanguage } from '@/lib/i18n';
 
 interface CustomizationContextType {
   settings: CustomizationSettings | null;
@@ -175,6 +177,16 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     applyColors();
   }, [applyColors]);
+
+  useEffect(() => {
+    if (settings?.language?.defaultLanguage) {
+      const systemLang = settings.language.defaultLanguage as SupportedLanguage;
+      const stored = localStorage.getItem('polly-language');
+      if (!stored && i18n.language !== systemLang) {
+        i18n.changeLanguage(systemLang);
+      }
+    }
+  }, [settings?.language?.defaultLanguage]);
 
   useEffect(() => {
     if (!settings?.theme) return;

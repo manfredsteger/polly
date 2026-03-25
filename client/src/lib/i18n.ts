@@ -14,25 +14,58 @@ export const languageNames: Record<SupportedLanguage, string> = {
   en: 'English'
 };
 
-i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources: {
-      de: { translation: de },
-      en: { translation: en }
-    },
-    fallbackLng: 'en',
-    supportedLngs: supportedLanguages,
-    interpolation: {
-      escapeValue: false
-    },
-    detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'polly-language'
+let systemDefaultLanguage: SupportedLanguage = 'en';
+
+async function fetchSystemLanguage(): Promise<SupportedLanguage> {
+  try {
+    const response = await fetch('/api/v1/customization');
+    if (response.ok) {
+      const data = await response.json();
+      const lang = data?.language?.defaultLanguage;
+      if (lang === 'de' || lang === 'en') {
+        return lang;
+      }
     }
-  });
+  } catch (_e) {}
+  return 'en';
+}
+
+export function getSystemDefaultLanguage(): SupportedLanguage {
+  return systemDefaultLanguage;
+}
+
+export async function initI18n() {
+  systemDefaultLanguage = await fetchSystemLanguage();
+
+  await i18n
+    .use(LanguageDetector)
+    .use(initReactI18next)
+    .init({
+      resources: {
+        de: { translation: de },
+        en: { translation: en }
+      },
+      fallbackLng: systemDefaultLanguage,
+      supportedLngs: supportedLanguages,
+      interpolation: {
+        escapeValue: false
+      },
+      detection: {
+        order: ['localStorage'],
+        caches: ['localStorage'],
+        lookupLocalStorage: 'polly-language'
+      }
+    });
+
+  return i18n;
+}
+
+export function applySystemLanguageIfNoPreference() {
+  const stored = localStorage.getItem('polly-language');
+  if (!stored && i18n.language !== systemDefaultLanguage) {
+    i18n.changeLanguage(systemDefaultLanguage);
+  }
+}
 
 export const getDateLocale = () => {
   return i18n.language === 'de' ? deLocale : enLocale;

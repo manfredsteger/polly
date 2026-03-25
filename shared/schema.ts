@@ -685,12 +685,17 @@ export type WcagAuditIssue = z.infer<typeof wcagAuditIssueSchema>;
 export type WcagAuditResult = z.infer<typeof wcagAuditResultSchema>;
 export type WcagSettings = z.infer<typeof wcagSettingsSchema>;
 
+export const languageSettingsSchema = z.object({
+  defaultLanguage: z.enum(['de', 'en']).default('en'),
+});
+
 export const customizationSettingsSchema = z.object({
   theme: themeSettingsSchema.default({}),
   branding: brandingSettingsSchema.default({}),
   footer: footerSettingsSchema.default({}),
   matrix: matrixSettingsSchema.default({}),
   wcag: wcagSettingsSchema.default({}),
+  language: languageSettingsSchema.default({}),
 });
 
 export type ThemeSettings = z.infer<typeof themeSettingsSchema>;
@@ -698,6 +703,7 @@ export type BrandingSettings = z.infer<typeof brandingSettingsSchema>;
 export type FooterLink = z.infer<typeof footerLinkSchema>;
 export type MatrixSettings = z.infer<typeof matrixSettingsSchema>;
 export type FooterSettings = z.infer<typeof footerSettingsSchema>;
+export type LanguageSettings = z.infer<typeof languageSettingsSchema>;
 export type CustomizationSettings = z.infer<typeof customizationSettingsSchema>;
 
 // ============================================================

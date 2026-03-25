@@ -1424,7 +1424,12 @@
       "siteNameAccent": "Accent Part (colored)",
       "supportLinks": "Support Links",
       "themeDescription": "Color scheme and theme settings",
-      "themeSection": "Theme Section"
+      "themeSection": "Theme Section",
+      "languageSection": "Language Settings",
+      "languageDescription": "System-wide default language for all visitors without a personal language preference",
+      "defaultLanguage": "Default Language",
+      "defaultLanguageHint": "This language is used for anonymous visitors and new users who have not set a personal language preference.",
+      "saveLanguage": "Save Language"
     },
     "tests": {
       "backToSettings": "Back to Settings",

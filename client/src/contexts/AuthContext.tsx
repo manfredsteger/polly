@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, ReactNode } fro
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type { User } from '@shared/schema';
+import i18n, { getSystemDefaultLanguage } from '@/lib/i18n';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 
@@ -43,9 +44,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentUserId = authData?.user?.id ?? null;
     const previousUserId = previousUserIdRef.current;
     
-    // On first load, just set the previous ID
+    // On first load, just set the previous ID and apply user language
     if (previousUserId === undefined) {
       previousUserIdRef.current = currentUserId;
+      if (authData?.user?.languagePreference) {
+        const lang = authData.user.languagePreference;
+        localStorage.setItem('polly-language', lang);
+        if (i18n.language !== lang) {
+          i18n.changeLanguage(lang);
+        }
+      }
       setIsAuthReady(true);
       return;
     }
@@ -56,6 +64,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Clear ALL cached data immediately - this is critical for security
       queryClient.clear();
+      
+      if (authData?.user?.languagePreference) {
+        const lang = authData.user.languagePreference;
+        localStorage.setItem('polly-language', lang);
+        i18n.changeLanguage(lang);
+      }
+      
+      if (!currentUserId && previousUserId) {
+        localStorage.removeItem('polly-language');
+        i18n.changeLanguage(getSystemDefaultLanguage());
+      }
       
       previousUserIdRef.current = currentUserId;
     }

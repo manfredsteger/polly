@@ -19,7 +19,8 @@ import {
   Sun,
   Monitor,
   RotateCcw,
-  Loader2
+  Loader2,
+  Globe
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -70,6 +71,10 @@ export function CustomizePanel() {
     supportLinks: [] as FooterLink[],
   });
 
+  const [languageSettings, setLanguageSettings] = useState({
+    defaultLanguage: 'en' as 'de' | 'en',
+  });
+
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
@@ -100,6 +105,9 @@ export function CustomizePanel() {
         description: customization.footer?.description || '',
         copyrightText: customization.footer?.copyrightText || '',
         supportLinks: customization.footer?.supportLinks || [],
+      });
+      setLanguageSettings({
+        defaultLanguage: customization.language?.defaultLanguage || 'en',
       });
       setInitialDataLoaded(true);
     }
@@ -333,6 +341,47 @@ export function CustomizePanel() {
           >
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {t('admin.customize.saveBranding')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Language Settings */}
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="w-5 h-5" />
+            {t('admin.customize.languageSection')}
+          </CardTitle>
+          <CardDescription>{t('admin.customize.languageDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="mb-2 block">{t('admin.customize.defaultLanguage')}</Label>
+            <p className="text-sm text-muted-foreground mb-3">{t('admin.customize.defaultLanguageHint')}</p>
+            <RadioGroup
+              value={languageSettings.defaultLanguage}
+              onValueChange={(value) => setLanguageSettings({ defaultLanguage: value as 'de' | 'en' })}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="de" id="lang-de" />
+                <Label htmlFor="lang-de">Deutsch</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="en" id="lang-en" />
+                <Label htmlFor="lang-en">English</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <Button 
+            onClick={() => saveMutation.mutate({ language: languageSettings })}
+            disabled={saveMutation.isPending}
+            data-testid="button-save-language"
+            className="bg-polly-orange hover:bg-polly-orange/90 text-white font-medium"
+          >
+            {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {t('admin.customize.saveLanguage')}
           </Button>
         </CardContent>
       </Card>

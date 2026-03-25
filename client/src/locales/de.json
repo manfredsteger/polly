@@ -1424,7 +1424,12 @@
       "siteNameAccent": "Akzent-Teil des Namens",
       "supportLinks": "Support-Links",
       "themeDescription": "Farben und Erscheinungsbild anpassen",
-      "themeSection": "Design-Einstellungen"
+      "themeSection": "Design-Einstellungen",
+      "languageSection": "Spracheinstellungen",
+      "languageDescription": "Systemweite Standardsprache für alle Besucher ohne eigene Spracheinstellung",
+      "defaultLanguage": "Standard-Sprache",
+      "defaultLanguageHint": "Diese Sprache wird für anonyme Besucher und neue Benutzer verwendet, die keine eigene Sprachpräferenz festgelegt haben.",
+      "saveLanguage": "Sprache speichern"
     },
     "toast": {
       "systemStatusUpdated": "System-Status aktualisiert",

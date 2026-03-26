@@ -469,12 +469,17 @@ export class EmailService {
       return { sent: 0, failed: 0 };
     }
 
+    const videoConfHtml = videoConferenceUrl
+      ? `<strong>Videokonferenz:</strong> <a href="${videoConferenceUrl}" style="color:#7A3800;text-decoration:underline;">${videoConferenceUrl}</a>`
+      : '';
+
     const rendered = await this.renderTemplate('poll_finalized', {
       pollTitle,
       confirmedDate,
       confirmedTime: confirmedTime ? `<strong>Uhrzeit:</strong> ${confirmedTime}` : '',
       pollLink,
       videoConferenceUrl: videoConferenceUrl || '',
+      videoConferenceHtml: videoConfHtml,
     });
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [

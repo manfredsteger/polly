@@ -683,7 +683,7 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
       'für die Terminumfrage <strong>„{{pollTitle}}"</strong> wurde ein Termin festgelegt.',
       '<strong>Datum:</strong> {{confirmedDate}}',
       '{{confirmedTime}}',
-      '{{videoConferenceUrl}}',
+      '{{videoConferenceHtml}}',
       'Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.',
     ],
     'Zur Umfrage',

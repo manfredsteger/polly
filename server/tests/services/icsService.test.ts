@@ -90,7 +90,7 @@ describe('ICS Service', () => {
       expect(eventCount).toBe(3);
     });
 
-    it('should only emit the final option when finalized (no CANCELLED events)', () => {
+    it('should emit CONFIRMED final + CANCELLED cleanup events with SEQUENCE:1 when finalized', () => {
       const poll = createMockPoll({ finalOptionId: 2 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -102,10 +102,13 @@ describe('ICS Service', () => {
       const ics = generatePollIcs(poll, options, votes, 'https://test.com');
 
       const eventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
-      expect(eventCount).toBe(1);
+      expect(eventCount).toBe(3);
 
       expect(ics).toContain('STATUS:CONFIRMED');
-      expect(ics).not.toContain('STATUS:CANCELLED');
+      const cancelledCount = (ics.match(/STATUS:CANCELLED/g) || []).length;
+      expect(cancelledCount).toBe(2);
+      const sequenceCount = (ics.match(/SEQUENCE:1/g) || []).length;
+      expect(sequenceCount).toBe(3);
     });
 
     it('should use suffix format (Bestätigt) for finalized polls', () => {
@@ -257,7 +260,7 @@ describe('ICS Service', () => {
   });
 
   describe('generateUserCalendarFeed - finalization filtering', () => {
-    it('should emit only CONFIRMED final option in user feed (no CANCELLED)', () => {
+    it('should emit CONFIRMED final + CANCELLED cleanup events in user feed', () => {
       const poll = createMockPoll({ finalOptionId: 2 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -274,15 +277,19 @@ describe('ICS Service', () => {
       const ics = generateUserCalendarFeed(participations, 'Test User', 'https://test.com');
 
       const eventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
-      expect(eventCount).toBe(1);
+      expect(eventCount).toBe(4);
 
       expect(ics).toContain('STATUS:CONFIRMED');
-      expect(ics).not.toContain('STATUS:CANCELLED');
+      const cancelledCount = (ics.match(/STATUS:CANCELLED/g) || []).length;
+      expect(cancelledCount).toBe(3);
 
       expect(ics).toContain('Option 2');
+
+      const sequenceCount = (ics.match(/SEQUENCE:1/g) || []).length;
+      expect(sequenceCount).toBe(4);
     });
 
-    it('should set STATUS:CONFIRMED only for finalized poll in user feed', () => {
+    it('should set STATUS:CONFIRMED + CANCELLED cleanup for finalized poll in user feed', () => {
       const poll = createMockPoll({ finalOptionId: 2 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -294,7 +301,7 @@ describe('ICS Service', () => {
       const ics = generateUserCalendarFeed(participations, 'Test User', 'https://test.com');
 
       expect(ics).toContain('STATUS:CONFIRMED');
-      expect(ics).not.toContain('STATUS:CANCELLED');
+      expect(ics).toContain('STATUS:CANCELLED');
     });
 
     it('should set STATUS:TENTATIVE for non-finalized poll in user feed', () => {
@@ -350,7 +357,7 @@ describe('ICS Service', () => {
       expect(eventCount).toBe(0);
     });
 
-    it('should export only final option with final_only scope (no CANCELLED)', () => {
+    it('should export final + CANCELLED cleanup with final_only scope', () => {
       const poll = createMockPoll({ finalOptionId: 1 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -367,9 +374,9 @@ describe('ICS Service', () => {
       const ics = generatePollIcs(poll, options, votes, 'https://test.com', context);
 
       const eventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
-      expect(eventCount).toBe(1);
+      expect(eventCount).toBe(2);
       expect(ics).toContain('STATUS:CONFIRMED');
-      expect(ics).not.toContain('STATUS:CANCELLED');
+      expect(ics).toContain('STATUS:CANCELLED');
     });
   });
 

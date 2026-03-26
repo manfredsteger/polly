@@ -10,6 +10,7 @@ interface CalendarEvent {
   organizer?: string;
   url?: string;
   status?: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED';
+  sequence?: number;
 }
 
 export interface CalendarExportContext {
@@ -160,6 +161,10 @@ function generateEvent(event: CalendarEvent): string {
     lines.push(`ORGANIZER:${event.organizer}`);
   }
 
+  if (event.sequence !== undefined) {
+    lines.push(`SEQUENCE:${event.sequence}`);
+  }
+
   lines.push('END:VEVENT');
   return lines.join('\r\n');
 }
@@ -260,6 +265,15 @@ export function generatePollIcs(
     const isFinalOption = isFinalized && option.id === poll.finalOptionId;
 
     if (isFinalized && !isFinalOption) {
+      events.push({
+        uid,
+        title: `${poll.title}: ${option.text}`,
+        startTime,
+        endTime,
+        status: 'CANCELLED',
+        sequence: 1,
+        organizer: organizerValue,
+      });
       continue;
     }
 
@@ -296,6 +310,7 @@ export function generatePollIcs(
       location: poll.videoConferenceUrl || undefined,
       url: pollUrl,
       status: isFinalOption ? 'CONFIRMED' : 'TENTATIVE',
+      sequence: isFinalized ? 1 : undefined,
       organizer: organizerValue,
     });
   }
@@ -324,8 +339,6 @@ export function generateUserCalendarFeed(
       userVotedOptionIds,
     };
 
-    // When poll is finalized, show only the final option (even if user didn't vote for it)
-    // This prevents calendar clutter and shows only the confirmed date
     if (isPollFinalized(poll)) {
       const finalOption = options.find(o => o.id === poll.finalOptionId);
       if (finalOption) {
@@ -350,8 +363,25 @@ export function generateUserCalendarFeed(
             location: poll.videoConferenceUrl || undefined,
             url: `${baseUrl}/poll/${poll.publicToken}`,
             status: 'CONFIRMED',
+            sequence: 1,
           });
         }
+      }
+
+      for (const vote of userVotes) {
+        const option = options.find(o => o.id === vote.optionId);
+        if (!option) continue;
+        const dateTime = parseOptionDateTime(option);
+        if (!dateTime) continue;
+
+        events.push({
+          uid: `participation-${poll.id}-${vote.id}@polly`,
+          title: poll.title,
+          startTime: dateTime.startTime,
+          endTime: dateTime.endTime,
+          status: 'CANCELLED',
+          sequence: 1,
+        });
       }
 
       continue;

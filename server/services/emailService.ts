@@ -469,8 +469,9 @@ export class EmailService {
       return { sent: 0, failed: 0 };
     }
 
+    const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const videoConfHtml = videoConferenceUrl
-      ? `<strong>Videokonferenz:</strong> <a href="${videoConferenceUrl}" style="color:#7A3800;text-decoration:underline;">${videoConferenceUrl}</a>`
+      ? `<strong>Videokonferenz:</strong> <a href="${escapeHtml(videoConferenceUrl)}" style="color:#7A3800;text-decoration:underline;">${escapeHtml(videoConferenceUrl)}</a>`
       : '';
 
     const rendered = await this.renderTemplate('poll_finalized', {

@@ -349,17 +349,6 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                     <p className="text-sm text-green-700 dark:text-green-300 mt-1">
                       <FormattedOptionText text={finalOption.text} startTime={finalOption.startTime} locale={i18n.language} />
                     </p>
-                    {finalOption.startTime && finalOption.endTime && (
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-0.5">
-                        <Calendar className="w-3 h-3 inline mr-1" />
-                        {new Date(finalOption.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                        {' · '}
-                        <Clock className="w-3 h-3 inline mr-1" />
-                        {new Date(finalOption.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                        {' – '}
-                        {new Date(finalOption.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    )}
                     {poll.videoConferenceUrl && (
                       <p className="text-sm text-green-600 dark:text-green-400 mt-1">
                         <Video className="w-3 h-3 inline mr-1" />

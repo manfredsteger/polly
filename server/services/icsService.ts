@@ -274,11 +274,14 @@ export function generatePollIcs(
       ? `Stimmen: ${yesCount} Ja, ${maybeCount} Vielleicht`
       : `Votes: ${yesCount} Yes, ${maybeCount} Maybe`;
 
-    const pollUrlLine = `${baseUrl}/poll/${poll.publicToken}`;
+    const pollUrl = `${baseUrl}/poll/${poll.publicToken}`;
     const descriptionParts: string[] = [];
     if (poll.description) descriptionParts.push(poll.description);
     descriptionParts.push(votesLabel);
-    descriptionParts.push(pollUrlLine);
+    if (!isFinalOption) {
+      const votingLabel = language === 'de' ? 'Abstimmung' : 'Vote';
+      descriptionParts.push(`${votingLabel}: ${pollUrl}`);
+    }
     const description = descriptionParts.join('\n\n');
 
     const baseTitle = isFinalOption ? poll.title : `${poll.title}: ${option.text}`;
@@ -291,7 +294,7 @@ export function generatePollIcs(
       startTime,
       endTime,
       location: poll.videoConferenceUrl || undefined,
-      url: pollUrlLine,
+      url: pollUrl,
       status: isFinalOption ? 'CONFIRMED' : 'TENTATIVE',
       organizer: organizerValue,
     });
@@ -373,6 +376,7 @@ export function generateUserCalendarFeed(
       const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext);
 
       const commentLabel = language === 'de' ? 'Ihr Kommentar' : 'Your comment';
+      const votingLabel = language === 'de' ? 'Abstimmung' : 'Vote';
 
       events.push({
         uid,
@@ -380,6 +384,7 @@ export function generateUserCalendarFeed(
         description: [
           poll.description,
           vote.comment ? `${commentLabel}: ${vote.comment}` : null,
+          `${votingLabel}: ${baseUrl}/poll/${poll.publicToken}`,
         ].filter(Boolean).join('\n\n') || undefined,
         startTime,
         endTime,

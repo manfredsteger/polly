@@ -216,6 +216,44 @@ describe('ICS Service', () => {
 
       expect(ics).toMatch(/\[Meine Wahl\].*Test Poll.*\(Vorläufig\)/);
     });
+
+    it('should include labeled "Abstimmung:" link in description for non-finalized options', () => {
+      const poll = createMockPoll({ finalOptionId: null });
+      const options = [createMockOption(1, 'Option 1')];
+      const votes: Vote[] = [];
+
+      const ics = generatePollIcs(poll, options, votes, 'https://test.com');
+
+      expect(ics).toContain('Abstimmung: https://test.com/poll/public-token');
+    });
+
+    it('should not include voting link in description for finalized option', () => {
+      const poll = createMockPoll({ finalOptionId: 1 });
+      const options = [createMockOption(1, 'Option 1')];
+      const votes: Vote[] = [];
+
+      const ics = generatePollIcs(poll, options, votes, 'https://test.com');
+
+      expect(ics).not.toContain('Abstimmung:');
+    });
+
+    it('should not have raw URL without label in description', () => {
+      const poll = createMockPoll({ finalOptionId: null });
+      const options = [createMockOption(1, 'Option 1')];
+      const votes: Vote[] = [];
+
+      const ics = generatePollIcs(poll, options, votes, 'https://test.com');
+
+      const descMatch = ics.match(/DESCRIPTION:(.*?)(?=\r\n[A-Z])/s);
+      if (descMatch) {
+        const lines = descMatch[1].split('\\n');
+        for (const line of lines) {
+          if (line.includes('https://test.com')) {
+            expect(line).toMatch(/^(Abstimmung|Vote): /);
+          }
+        }
+      }
+    });
   });
 
   describe('generateUserCalendarFeed - finalization filtering', () => {

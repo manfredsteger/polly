@@ -219,7 +219,7 @@ router.patch('/admin/:token', async (req, res) => {
     if (allowVoteWithdrawal !== undefined) updates.allowVoteWithdrawal = allowVoteWithdrawal;
     if (allowMaybe !== undefined) updates.allowMaybe = allowMaybe;
     if (allowMultipleSlots !== undefined) updates.allowMultipleSlots = allowMultipleSlots;
-    if (videoConferenceUrl !== undefined) {
+    if (videoConferenceUrl !== undefined && poll.type === 'schedule') {
       if (videoConferenceUrl && typeof videoConferenceUrl === 'string') {
         try {
           new URL(videoConferenceUrl);

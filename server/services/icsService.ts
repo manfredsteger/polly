@@ -97,7 +97,8 @@ function buildEventTitle(
   baseTitle: string,
   poll: Poll,
   optionId: number,
-  context: CalendarExportContext
+  context: CalendarExportContext,
+  overrideFinalized?: boolean
 ): string {
   const { settings, language, userVotedOptionIds } = context;
   const prefixes = getLocalizedPrefixes(settings, language);
@@ -107,16 +108,17 @@ function buildEventTitle(
     parts.push(prefixes.myChoice);
   }
 
+  parts.push(baseTitle);
+
   if (settings.prefixEnabled) {
-    const isConfirmed = isPollFinalized(poll);
+    const isConfirmed = overrideFinalized !== undefined ? overrideFinalized : isPollFinalized(poll);
     if (isConfirmed) {
-      parts.push(`${prefixes.confirmed}:`);
+      parts.push(`(${prefixes.confirmed})`);
     } else {
-      parts.push(`${prefixes.tentative}:`);
+      parts.push(`(${prefixes.tentative})`);
     }
   }
 
-  parts.push(baseTitle);
   return parts.join(' ');
 }
 
@@ -258,14 +260,6 @@ export function generatePollIcs(
     const isFinalOption = isFinalized && option.id === poll.finalOptionId;
 
     if (isFinalized && !isFinalOption) {
-      events.push({
-        uid,
-        title: `${poll.title}: ${option.text}`,
-        startTime,
-        endTime,
-        status: 'CANCELLED',
-        organizer: organizerValue,
-      });
       continue;
     }
 
@@ -357,21 +351,6 @@ export function generateUserCalendarFeed(
         }
       }
 
-      for (const vote of userVotes) {
-        const option = options.find(o => o.id === vote.optionId);
-        if (!option) continue;
-        const dateTime = parseOptionDateTime(option);
-        if (!dateTime) continue;
-
-        events.push({
-          uid: `participation-${poll.id}-${vote.id}@polly`,
-          title: `${poll.title}: ${option.text}`,
-          startTime: dateTime.startTime,
-          endTime: dateTime.endTime,
-          status: 'CANCELLED',
-        });
-      }
-
       continue;
     }
 
@@ -422,7 +401,8 @@ export function generateSingleEventIcs(
   poll: Poll,
   option: PollOption,
   baseUrl: string,
-  context?: CalendarExportContext
+  context?: CalendarExportContext,
+  isFinalized?: boolean
 ): string {
   const settings = context?.settings || getDefaultCalendarSettings();
   const language = context?.language || 'de';
@@ -441,7 +421,7 @@ export function generateSingleEventIcs(
   const { startTime, endTime } = dateTime;
 
   const baseTitle = `${poll.title}: ${option.text}`;
-  const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext);
+  const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext, isFinalized);
 
   const event: CalendarEvent = {
     uid: `poll-${poll.id}-option-${option.id}@polly`,
@@ -451,6 +431,7 @@ export function generateSingleEventIcs(
     endTime,
     location: poll.videoConferenceUrl || undefined,
     url: `${baseUrl}/poll/${poll.publicToken}`,
+    status: isFinalized ? 'CONFIRMED' : undefined,
   };
 
   return generateCalendar([event], poll.title);

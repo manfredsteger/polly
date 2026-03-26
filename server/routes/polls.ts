@@ -359,7 +359,7 @@ router.post('/admin/:token/finalize', async (req, res) => {
           }
 
           const { generateSingleEventIcs } = await import('../services/icsService');
-          const icsContent = generateSingleEventIcs(poll, confirmedOption, baseUrl);
+          const icsContent = generateSingleEventIcs(updatedPoll, confirmedOption, baseUrl, undefined, true);
           const icsBuffer = Buffer.from(icsContent, 'utf-8');
 
           emailResult = await emailService.sendFinalizationEmails(

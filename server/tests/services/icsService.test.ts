@@ -91,7 +91,7 @@ describe('ICS Service', () => {
       expect(eventCount).toBe(3);
     });
 
-    it('should export only final option when poll is finalized', () => {
+    it('should emit CONFIRMED for final option and CANCELLED for others when finalized', () => {
       const poll = createMockPoll({ finalOptionId: 2 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -102,14 +102,13 @@ describe('ICS Service', () => {
 
       const ics = generatePollIcs(poll, options, votes, 'https://test.com');
 
-      // Should only have 1 event
       const eventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
-      expect(eventCount).toBe(1);
-      
-      expect(ics).toContain('Test Poll');
+      expect(eventCount).toBe(3);
+
       expect(ics).toContain('STATUS:CONFIRMED');
-      expect(ics).not.toContain('Option 1');
-      expect(ics).not.toContain('Option 3');
+
+      const cancelledCount = (ics.match(/STATUS:CANCELLED/g) || []).length;
+      expect(cancelledCount).toBe(2);
     });
 
     it('should use Bestätigt prefix for finalized polls', () => {
@@ -191,7 +190,7 @@ describe('ICS Service', () => {
   });
 
   describe('generateUserCalendarFeed - finalization filtering', () => {
-    it('should only show final option for finalized polls in user feed', () => {
+    it('should emit CONFIRMED final option and CANCELLED old votes in user feed', () => {
       const poll = createMockPoll({ finalOptionId: 2 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -207,15 +206,18 @@ describe('ICS Service', () => {
       const participations = [{ poll, options, votes }];
       const ics = generateUserCalendarFeed(participations, 'Test User', 'https://test.com');
 
-      // Should only have 1 event (the finalized option)
       const eventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
-      expect(eventCount).toBe(1);
-      
-      // Should contain the finalized option even if user didn't vote for it
+      expect(eventCount).toBe(4);
+
+      expect(ics).toContain('STATUS:CONFIRMED');
+
+      const cancelledCount = (ics.match(/STATUS:CANCELLED/g) || []).length;
+      expect(cancelledCount).toBe(3);
+
       expect(ics).toContain('Option 2');
     });
 
-    it('should set STATUS:CONFIRMED for finalized poll in user feed', () => {
+    it('should set CONFIRMED and CANCELLED statuses correctly in user feed', () => {
       const poll = createMockPoll({ finalOptionId: 2 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -227,7 +229,7 @@ describe('ICS Service', () => {
       const ics = generateUserCalendarFeed(participations, 'Test User', 'https://test.com');
 
       expect(ics).toContain('STATUS:CONFIRMED');
-      expect(ics).not.toContain('STATUS:TENTATIVE');
+      expect(ics).toContain('STATUS:CANCELLED');
     });
 
     it('should set STATUS:TENTATIVE for non-finalized poll in user feed', () => {
@@ -285,7 +287,7 @@ describe('ICS Service', () => {
       expect(eventCount).toBe(0);
     });
 
-    it('should export final option even with final_only scope', () => {
+    it('should export final option as CONFIRMED and others as CANCELLED with final_only scope', () => {
       const poll = createMockPoll({ finalOptionId: 1 });
       const options = [
         createMockOption(1, 'Option 1'),
@@ -301,9 +303,10 @@ describe('ICS Service', () => {
 
       const ics = generatePollIcs(poll, options, votes, 'https://test.com', context);
 
-      // Should have 1 event (the final option)
       const eventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
-      expect(eventCount).toBe(1);
+      expect(eventCount).toBe(2);
+      expect(ics).toContain('STATUS:CONFIRMED');
+      expect(ics).toContain('STATUS:CANCELLED');
     });
   });
 });

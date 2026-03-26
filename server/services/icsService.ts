@@ -250,20 +250,31 @@ export function generatePollIcs(
       : undefined;
 
   for (const option of options) {
-    if (!shouldIncludeOption(option, poll, effectiveContext)) {
-      continue;
-    }
-
     const dateTime = parseOptionDateTime(option);
     if (!dateTime) continue;
 
     const { startTime, endTime } = dateTime;
+    const uid = `poll-${poll.id}-option-${option.id}@polly`;
+    const isFinalOption = isFinalized && option.id === poll.finalOptionId;
+
+    if (isFinalized && !isFinalOption) {
+      events.push({
+        uid,
+        title: `${poll.title}: ${option.text}`,
+        startTime,
+        endTime,
+        status: 'CANCELLED',
+        organizer: organizerValue,
+      });
+      continue;
+    }
+
+    if (!shouldIncludeOption(option, poll, effectiveContext)) {
+      continue;
+    }
 
     const yesCount = votes.filter(v => v.optionId === option.id && v.response === 'yes').length;
     const maybeCount = votes.filter(v => v.optionId === option.id && v.response === 'maybe').length;
-    const uid = `poll-${poll.id}-option-${option.id}@polly`;
-
-    const isFinalOption = isFinalized && option.id === poll.finalOptionId;
 
     const votesLabel = language === 'de' 
       ? `Stimmen: ${yesCount} Ja, ${maybeCount} Vielleicht`
@@ -343,6 +354,22 @@ export function generateUserCalendarFeed(
           });
         }
       }
+
+      for (const vote of userVotes) {
+        const option = options.find(o => o.id === vote.optionId);
+        if (!option) continue;
+        const dateTime = parseOptionDateTime(option);
+        if (!dateTime) continue;
+
+        events.push({
+          uid: `participation-${poll.id}-${vote.id}@polly`,
+          title: `${poll.title}: ${option.text}`,
+          startTime: dateTime.startTime,
+          endTime: dateTime.endTime,
+          status: 'CANCELLED',
+        });
+      }
+
       continue;
     }
 

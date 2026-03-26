@@ -48,11 +48,9 @@ app.use((req, res, next) => {
   
   const cspDirectives = [
     "default-src 'self'",
-    // In production: no unsafe-eval (Vite bundles everything)
-    // In development: unsafe-eval needed for Vite HMR
     isDev 
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" 
-      : "script-src 'self' 'unsafe-inline'",
+      : "script-src 'self'",
     "style-src 'self' 'unsafe-inline'", // Required for Tailwind CSS - cannot be avoided
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
@@ -132,7 +130,7 @@ app.use(session({
   saveUninitialized: false,
   name: 'polly.sid',
   cookie: {
-    secure: 'auto',
+    secure: isProxied ? true : false,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',

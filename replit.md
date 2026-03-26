@@ -53,7 +53,7 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 - **Admin Tools**: User management (incl. manual email verification), email template customization, security scanning integration, and system package monitoring.
 - **Post-Login Flow**: Regular users land on Home (`/`) with AI chat front and center; admins redirect to `/admin`.
 - **Meine Umfragen**: Consolidated poll management with stat cards (active/total/participations/this week), inline action buttons (stats/share/edit/delete), and archive tab for expired/closed polls. Dashboard page removed.
-- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls. Finalization optionally closes the poll and sends notification emails with ICS calendar attachment to all participants.
+- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls. Finalization optionally closes the poll and sends notification emails with ICS calendar attachment to all participants. Optional video conference URL (Zoom, Teams, Google Meet) stored per schedule poll, shown as LOCATION in ICS/CalDAV, in finalization emails, and on the results page.
 - **Test Data Isolation**: `isTestData` flags for development and purging, with specific API header for test mode.
 - **Real-Time Slot Reservation (Orga-Listen)**: Uses transactional locking and advisory locks with WebSocket updates for capacity management.
 

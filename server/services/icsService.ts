@@ -296,6 +296,7 @@ export function generatePollIcs(
       description,
       startTime,
       endTime,
+      location: poll.videoConferenceUrl || undefined,
       url: pollUrlLine,
       status: isFinalOption ? 'CONFIRMED' : 'TENTATIVE',
       organizer: organizerValue,
@@ -349,6 +350,7 @@ export function generateUserCalendarFeed(
             description: poll.description || undefined,
             startTime,
             endTime,
+            location: poll.videoConferenceUrl || undefined,
             url: `${baseUrl}/poll/${poll.publicToken}`,
             status: 'CONFIRMED',
           });
@@ -402,6 +404,7 @@ export function generateUserCalendarFeed(
         ].filter(Boolean).join('\n\n') || undefined,
         startTime,
         endTime,
+        location: poll.videoConferenceUrl || undefined,
         url: `${baseUrl}/poll/${poll.publicToken}`,
         status: 'TENTATIVE',
       });
@@ -446,6 +449,7 @@ export function generateSingleEventIcs(
     description: poll.description || undefined,
     startTime,
     endTime,
+    location: poll.videoConferenceUrl || undefined,
     url: `${baseUrl}/poll/${poll.publicToken}`,
   };
 

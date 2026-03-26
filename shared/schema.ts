@@ -55,6 +55,7 @@ export const polls = pgTable("polls", {
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at"),
+  videoConferenceUrl: text("video_conference_url"),
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports
   enableExpiryReminder: boolean("enable_expiry_reminder").default(false).notNull(),
   expiryReminderHours: integer("expiry_reminder_hours").default(24), // hours before expiry to send reminder
@@ -482,6 +483,7 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'pollTitle', description: 'Titel der Umfrage' },
     { key: 'confirmedDate', description: 'Bestätigter Termin (formatiert)' },
     { key: 'confirmedTime', description: 'Uhrzeit des Termins (falls vorhanden)' },
+    { key: 'videoConferenceUrl', description: 'Videokonferenz-Link (falls vorhanden)' },
     { key: 'pollLink', description: 'Link zur Umfrage' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],

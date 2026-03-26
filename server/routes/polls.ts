@@ -82,6 +82,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       allowVoteEdit: data.allowVoteEdit,
       allowVoteWithdrawal: data.allowVoteWithdrawal,
       resultsPublic: data.resultsPublic,
+      videoConferenceUrl: data.type === 'schedule' ? (data.videoConferenceUrl || null) : null,
       isTestData: req.isTestMode === true,
     };
 
@@ -206,7 +207,7 @@ router.patch('/admin/:token', async (req, res) => {
       }
     }
     
-    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots } = req.body;
+    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl } = req.body;
     
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
@@ -218,6 +219,24 @@ router.patch('/admin/:token', async (req, res) => {
     if (allowVoteWithdrawal !== undefined) updates.allowVoteWithdrawal = allowVoteWithdrawal;
     if (allowMaybe !== undefined) updates.allowMaybe = allowMaybe;
     if (allowMultipleSlots !== undefined) updates.allowMultipleSlots = allowMultipleSlots;
+    if (videoConferenceUrl !== undefined) {
+      if (videoConferenceUrl && typeof videoConferenceUrl === 'string') {
+        try {
+          new URL(videoConferenceUrl);
+          if (!/^https?:\/\//i.test(videoConferenceUrl)) {
+            return res.status(400).json({ error: 'Nur HTTP/HTTPS-URLs sind erlaubt' });
+          }
+          if (videoConferenceUrl.length > 2000) {
+            return res.status(400).json({ error: 'URL ist zu lang (max. 2000 Zeichen)' });
+          }
+          updates.videoConferenceUrl = videoConferenceUrl;
+        } catch {
+          return res.status(400).json({ error: 'Ungültige URL' });
+        }
+      } else {
+        updates.videoConferenceUrl = null;
+      }
+    }
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
@@ -349,7 +368,8 @@ router.post('/admin/:token/finalize', async (req, res) => {
             confirmedDate,
             confirmedTime,
             pollLink,
-            icsBuffer
+            icsBuffer,
+            poll.videoConferenceUrl
           );
         }
       } catch (emailError) {

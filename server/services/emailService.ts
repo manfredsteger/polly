@@ -461,7 +461,8 @@ export class EmailService {
     confirmedDate: string,
     confirmedTime: string,
     pollLink: string,
-    icsBuffer: Buffer
+    icsBuffer: Buffer,
+    videoConferenceUrl?: string | null
   ): Promise<{ sent: number; failed: number }> {
     if (participantEmails.length === 0) {
       console.log('[Email] No participant emails for finalization notification');
@@ -473,6 +474,7 @@ export class EmailService {
       confirmedDate,
       confirmedTime: confirmedTime ? `<strong>Uhrzeit:</strong> ${confirmedTime}` : '',
       pollLink,
+      videoConferenceUrl: videoConferenceUrl || '',
     });
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [

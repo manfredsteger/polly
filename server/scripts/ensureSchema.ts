@@ -38,6 +38,7 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'users', column: 'email_verified', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'poll_options', column: 'is_free_text', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'votes', column: 'free_text_answer', definition: 'TEXT' },
+  { table: 'polls', column: 'video_conference_url', definition: 'TEXT' },
 ];
 
 async function ensureSchema(): Promise<void> {
@@ -228,6 +229,7 @@ async function createCoreTables(client: any): Promise<void> {
       allow_maybe BOOLEAN NOT NULL DEFAULT TRUE,
       is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
       expires_at TIMESTAMP,
+      video_conference_url TEXT,
       final_option_id INTEGER,
       enable_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
       expiry_reminder_hours INTEGER DEFAULT 24,

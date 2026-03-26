@@ -683,6 +683,7 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
       'für die Terminumfrage <strong>„{{pollTitle}}"</strong> wurde ein Termin festgelegt.',
       '<strong>Datum:</strong> {{confirmedDate}}',
       '{{confirmedTime}}',
+      '{{videoConferenceUrl}}',
       'Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.',
     ],
     'Zur Umfrage',
@@ -1396,11 +1397,16 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
   const confirmedDate = htmlEscape(vars.confirmedDate || '');
   const confirmedTime = vars.confirmedTime || '';
   const pollLink = vars.pollLink || '#';
+  const videoConferenceUrl = vars.videoConferenceUrl || '';
+
+  const videoLine = videoConferenceUrl
+    ? `<br/><strong>Videokonferenz:</strong> <a href="${htmlEscape(videoConferenceUrl)}" style="color:${ctx.primaryColor};text-decoration:underline;">${htmlEscape(videoConferenceUrl)}</a>`
+    : '';
 
   return `${v3BodyStart()}
       ${v3Tag('Termin bestätigt', ctx.primaryColor)}
       ${v3Headline('Termin festgelegt für', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/>${confirmedTime}` : ''}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
+      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/>${confirmedTime}` : ''}${videoLine}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
     ${v3BodyEnd()}
     ${v3Divider()}
     ${v3SingleButtonSection('Klicken Sie auf den Button, um die Umfrage und Ergebnisse einzusehen.', 'Zur Umfrage \u2192', pollLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;

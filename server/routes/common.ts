@@ -75,6 +75,10 @@ export const createPollSchema = z.object({
   allowVoteEdit: z.boolean().optional().default(false),
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
+  videoConferenceUrl: z.string().url().max(2000).refine(
+    (url) => /^https?:\/\//i.test(url),
+    { message: 'Only http and https URLs are allowed' }
+  ).optional().nullable(),
   options: z.array(z.object({
     text: z.string().min(1).max(500),
     imageUrl: z.string().optional(),

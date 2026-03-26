@@ -33,7 +33,9 @@ import {
   Lock,
   Unlock,
   CalendarCheck,
-  Loader2
+  Loader2,
+  Video,
+  ExternalLink
 } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -358,6 +360,15 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                         {new Date(finalOption.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     )}
+                    {poll.videoConferenceUrl && (
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                        <Video className="w-3 h-3 inline mr-1" />
+                        <a href={poll.videoConferenceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-green-800 dark:hover:text-green-200">
+                          {t('resultsChart.videoConferenceLink')}
+                          <ExternalLink className="w-3 h-3 inline ml-1" />
+                        </a>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -439,6 +450,15 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                   hour: '2-digit', 
                   minute: '2-digit' 
                 })}
+              </div>
+            )}
+            {poll.videoConferenceUrl && (
+              <div className="flex items-center text-sm text-gray-700 dark:text-gray-300 mt-1">
+                <Video className="w-4 h-4 mr-1" />
+                <a href={poll.videoConferenceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-900 dark:hover:text-gray-100">
+                  {t('resultsChart.videoConferenceLink')}
+                  <ExternalLink className="w-3 h-3 inline ml-1" />
+                </a>
               </div>
             )}
             {(isAdminAccess || isOwner) && adminToken && (

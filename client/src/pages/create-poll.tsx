@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
 import { formatScheduleOptionText } from "@/lib/utils";
-import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, Video } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -42,6 +42,7 @@ interface PollFormData {
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   expiresAt: string | null;
+  videoConferenceUrl?: string;
 }
 
 export default function CreatePoll() {
@@ -59,6 +60,7 @@ export default function CreatePoll() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [videoConferenceUrl, setVideoConferenceUrl] = useState("");
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<PollOption[]>([]);
   
@@ -85,6 +87,7 @@ export default function CreatePoll() {
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setVideoConferenceUrl(stored.data.videoConferenceUrl || "");
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
       }
@@ -161,6 +164,7 @@ export default function CreatePoll() {
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
+          videoConferenceUrl: videoConferenceUrl.trim() || undefined,
           options: options.map((option) => {
             const opt: any = {
               text: option.text,
@@ -221,7 +225,7 @@ export default function CreatePoll() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null, videoConferenceUrl: videoConferenceUrl || undefined },
           '/create-poll'
         );
         
@@ -331,6 +335,7 @@ export default function CreatePoll() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
+      videoConferenceUrl: videoConferenceUrl.trim() || undefined,
       options: options.map((option) => {
         const opt: any = {
           text: option.text,
@@ -412,6 +417,24 @@ export default function CreatePoll() {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {t('pollCreation.expiryHint')}
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="videoConferenceUrl" className="flex items-center gap-2">
+                <Video className="w-4 h-4 text-polly-orange" />
+                {t('pollCreation.videoConferenceLabel')}
+              </Label>
+              <Input
+                id="videoConferenceUrl"
+                type="url"
+                value={videoConferenceUrl}
+                onChange={(e) => setVideoConferenceUrl(e.target.value)}
+                placeholder={t('pollCreation.videoConferencePlaceholder')}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('pollCreation.videoConferenceHint')}
               </p>
             </div>
 

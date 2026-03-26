@@ -506,6 +506,7 @@
     "confirmResultDialogTitle": "Set this result?",
     "confirmResultDialogDescription": "Are you sure you want to set \"{{option}}\" as the final result? This will be visible to all participants.",
     "closePollOption": "Close poll (no more votes)",
+    "videoConferenceLink": "Join video conference",
     "notifyParticipantsOption": "Notify participants via email (with calendar invitation)",
     "pollClosed": "The poll has been closed.",
     "participantsNotified": "Participants have been notified."
@@ -2632,6 +2633,9 @@
     "datePlaceholder": "mm/dd/yyyy",
     "expiryHint": "Voting is not possible after this date.",
     "expiryHintOrga": "Sign-ups are not possible after this date.",
+    "videoConferenceLabel": "Video Conference Link (optional)",
+    "videoConferencePlaceholder": "https://meet.google.com/... or https://zoom.us/...",
+    "videoConferenceHint": "Link to an online meeting (e.g. Zoom, Teams, Google Meet). Will be shown in the calendar entry and notification.",
     "expiryReminder": "Reminder before expiry",
     "expiryReminderDescription": "Participants will receive an email reminder before the expiry date",
     "expiryTooShort": "The poll ends in {{hours}} hours - too short for reminders",

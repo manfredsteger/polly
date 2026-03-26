@@ -506,6 +506,7 @@
     "confirmResultDialogTitle": "Dieses Ergebnis festlegen?",
     "confirmResultDialogDescription": "Möchten Sie \"{{option}}\" als endgültiges Ergebnis festlegen? Dies wird für alle Teilnehmer sichtbar sein.",
     "closePollOption": "Umfrage beenden (keine weiteren Stimmen)",
+    "videoConferenceLink": "Videokonferenz beitreten",
     "notifyParticipantsOption": "Teilnehmer per E-Mail benachrichtigen (mit Kalendereinladung)",
     "pollClosed": "Die Umfrage wurde beendet.",
     "participantsNotified": "Teilnehmer wurden benachrichtigt."
@@ -2632,6 +2633,9 @@
     "datePlaceholder": "tt.mm.jjjj",
     "expiryHint": "Nach diesem Datum kann nicht mehr abgestimmt werden.",
     "expiryHintOrga": "Nach diesem Datum können keine Eintragungen mehr erfolgen.",
+    "videoConferenceLabel": "Videokonferenz-Link (optional)",
+    "videoConferencePlaceholder": "https://meet.google.com/... oder https://zoom.us/...",
+    "videoConferenceHint": "Link zu einem Online-Meeting (z.B. Zoom, Teams, Google Meet). Wird im Kalendereintrag und in der Benachrichtigung angezeigt.",
     "expiryReminder": "Erinnerung vor Ablauf",
     "expiryReminderDescription": "Teilnehmer erhalten eine E-Mail-Erinnerung vor dem Ablaufdatum",
     "expiryTooShort": "Die Umfrage endet in {{hours}} Stunden - zu kurz für Erinnerungen",

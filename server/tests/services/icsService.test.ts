@@ -106,8 +106,8 @@ describe('ICS Service', () => {
       const eventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
       expect(eventCount).toBe(1);
       
-      // Should contain the finalized option
-      expect(ics).toContain('Option 2');
+      expect(ics).toContain('Test Poll');
+      expect(ics).toContain('STATUS:CONFIRMED');
       expect(ics).not.toContain('Option 1');
       expect(ics).not.toContain('Option 3');
     });
@@ -128,6 +128,36 @@ describe('ICS Service', () => {
 
     it('should use Vorläufig prefix for non-finalized polls', () => {
       const poll = createMockPoll({ finalOptionId: null, isActive: true });
+      const options = [createMockOption(1, 'Option 1')];
+      const votes: Vote[] = [];
+      
+      const settings = getDefaultCalendarSettings();
+      const context = { settings, language: 'de' as const };
+
+      const ics = generatePollIcs(poll, options, votes, 'https://test.com', context);
+
+      expect(ics).toContain('Vorläufig:');
+      expect(ics).not.toContain('Bestätigt:');
+    });
+
+    it('should use Vorläufig prefix for expired but unfinalized polls', () => {
+      const expiredDate = new Date();
+      expiredDate.setDate(expiredDate.getDate() - 7);
+      const poll = createMockPoll({ finalOptionId: null, isActive: true, expiresAt: expiredDate });
+      const options = [createMockOption(1, 'Option 1')];
+      const votes: Vote[] = [];
+      
+      const settings = getDefaultCalendarSettings();
+      const context = { settings, language: 'de' as const };
+
+      const ics = generatePollIcs(poll, options, votes, 'https://test.com', context);
+
+      expect(ics).toContain('Vorläufig:');
+      expect(ics).not.toContain('Bestätigt:');
+    });
+
+    it('should use Vorläufig prefix for inactive but unfinalized polls', () => {
+      const poll = createMockPoll({ finalOptionId: null, isActive: false });
       const options = [createMockOption(1, 'Option 1')];
       const votes: Vote[] = [];
       
@@ -183,6 +213,33 @@ describe('ICS Service', () => {
       
       // Should contain the finalized option even if user didn't vote for it
       expect(ics).toContain('Option 2');
+    });
+
+    it('should set STATUS:CONFIRMED for finalized poll in user feed', () => {
+      const poll = createMockPoll({ finalOptionId: 2 });
+      const options = [
+        createMockOption(1, 'Option 1'),
+        createMockOption(2, 'Option 2'),
+      ];
+      const votes = [createMockVote(1, 'yes'), createMockVote(2, 'yes')];
+
+      const participations = [{ poll, options, votes }];
+      const ics = generateUserCalendarFeed(participations, 'Test User', 'https://test.com');
+
+      expect(ics).toContain('STATUS:CONFIRMED');
+      expect(ics).not.toContain('STATUS:TENTATIVE');
+    });
+
+    it('should set STATUS:TENTATIVE for non-finalized poll in user feed', () => {
+      const poll = createMockPoll({ finalOptionId: null });
+      const options = [createMockOption(1, 'Option 1')];
+      const votes = [createMockVote(1, 'yes')];
+
+      const participations = [{ poll, options, votes }];
+      const ics = generateUserCalendarFeed(participations, 'Test User', 'https://test.com');
+
+      expect(ics).toContain('STATUS:TENTATIVE');
+      expect(ics).not.toContain('STATUS:CONFIRMED');
     });
 
     it('should show user votes when poll is not finalized', () => {

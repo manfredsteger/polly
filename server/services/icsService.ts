@@ -108,8 +108,7 @@ function buildEventTitle(
   }
 
   if (settings.prefixEnabled) {
-    // Use confirmed prefix if: poll is completed OR poll has a final option selected
-    const isConfirmed = isPollCompleted(poll) || isPollFinalized(poll);
+    const isConfirmed = isPollFinalized(poll);
     if (isConfirmed) {
       parts.push(`${prefixes.confirmed}:`);
     } else {
@@ -340,13 +339,13 @@ export function generateUserCalendarFeed(
             startTime,
             endTime,
             url: `${baseUrl}/poll/${poll.publicToken}`,
+            status: 'CONFIRMED',
           });
         }
       }
-      continue; // Skip to next poll, don't add individual vote entries
+      continue;
     }
 
-    // For non-finalized polls, include user's yes votes
     for (const vote of userVotes) {
       const option = options.find(o => o.id === vote.optionId);
       if (!option) continue;
@@ -377,6 +376,7 @@ export function generateUserCalendarFeed(
         startTime,
         endTime,
         url: `${baseUrl}/poll/${poll.publicToken}`,
+        status: 'TENTATIVE',
       });
     }
   }

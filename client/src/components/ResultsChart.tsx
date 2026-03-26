@@ -441,6 +441,33 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 })}
               </div>
             )}
+            {(isAdminAccess || isOwner) && adminToken && (
+              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
+                {isFinalized && poll.finalOptionId === bestOptionData.id ? (
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <Lock className="w-3 h-3 mr-1" />
+                    {t('resultsChart.confirmed')}
+                  </Badge>
+                ) : !isFinalized ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmDialogOptionId(bestOptionData.id)}
+                    disabled={isFinalizingOption !== null}
+                    className={poll.type === 'schedule' 
+                      ? 'border-orange-500 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-950' 
+                      : 'border-teal-500 text-teal-700 hover:bg-teal-100 dark:border-teal-600 dark:text-teal-400 dark:hover:bg-teal-950'}
+                  >
+                    {isFinalizingOption === bestOptionData.id ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <CalendarCheck className="w-4 h-4 mr-1" />
+                    )}
+                    {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
+                  </Button>
+                ) : null}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

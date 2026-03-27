@@ -28,6 +28,33 @@ function escapeIcsText(text: string): string {
     .replace(/\n/g, '\\n');
 }
 
+function foldLine(line: string): string {
+  const bytes = Buffer.from(line, 'utf8');
+  if (bytes.length <= 75) return line;
+
+  const result: string[] = [];
+  let offset = 0;
+
+  while (offset < bytes.length) {
+    const limit = offset === 0 ? 75 : 74;
+    let end = offset + limit;
+
+    if (end >= bytes.length) {
+      result.push(bytes.slice(offset).toString('utf8'));
+      break;
+    }
+
+    while (end > offset && (bytes[end] & 0xC0) === 0x80) {
+      end--;
+    }
+
+    result.push(bytes.slice(offset, end).toString('utf8'));
+    offset = end;
+  }
+
+  return result.join('\r\n ');
+}
+
 function formatIcsDate(date: Date): string {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
@@ -126,39 +153,39 @@ function buildEventTitle(
 function generateEvent(event: CalendarEvent): string {
   const lines: string[] = [
     'BEGIN:VEVENT',
-    `UID:${event.uid}`,
-    `DTSTAMP:${formatIcsDate(new Date())}`,
-    `DTSTART:${formatIcsDate(event.startTime)}`,
+    foldLine(`UID:${event.uid}`),
+    foldLine(`DTSTAMP:${formatIcsDate(new Date())}`),
+    foldLine(`DTSTART:${formatIcsDate(event.startTime)}`),
   ];
 
   if (event.endTime) {
-    lines.push(`DTEND:${formatIcsDate(event.endTime)}`);
+    lines.push(foldLine(`DTEND:${formatIcsDate(event.endTime)}`));
   } else {
     const endTime = new Date(event.startTime);
     endTime.setHours(endTime.getHours() + 1);
-    lines.push(`DTEND:${formatIcsDate(endTime)}`);
+    lines.push(foldLine(`DTEND:${formatIcsDate(endTime)}`));
   }
 
-  lines.push(`SUMMARY:${escapeIcsText(event.title)}`);
+  lines.push(foldLine(`SUMMARY:${escapeIcsText(event.title)}`));
 
   if (event.status) {
     lines.push(`STATUS:${event.status}`);
   }
 
   if (event.description) {
-    lines.push(`DESCRIPTION:${escapeIcsText(event.description)}`);
+    lines.push(foldLine(`DESCRIPTION:${escapeIcsText(event.description)}`));
   }
 
   if (event.location) {
-    lines.push(`LOCATION:${escapeIcsText(event.location)}`);
+    lines.push(foldLine(`LOCATION:${escapeIcsText(event.location)}`));
   }
 
   if (event.url) {
-    lines.push(`URL:${event.url}`);
+    lines.push(foldLine(`URL:${event.url}`));
   }
 
   if (event.organizer) {
-    lines.push(`ORGANIZER:${event.organizer}`);
+    lines.push(foldLine(`ORGANIZER:${event.organizer}`));
   }
 
   if (event.sequence !== undefined) {
@@ -176,7 +203,7 @@ function generateCalendar(events: CalendarEvent[], calendarName: string = 'Polly
     'PRODID:-//Polly//Polling System//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
+    foldLine(`X-WR-CALNAME:${escapeIcsText(calendarName)}`),
     'X-WR-TIMEZONE:Europe/Berlin',
   ];
 

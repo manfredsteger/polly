@@ -9,6 +9,10 @@ export const testMeta = {
   severity: 'high' as const,
 };
 
+function unfoldIcs(ics: string): string {
+  return ics.replace(/\r\n[ \t]/g, '');
+}
+
 function createMockPoll(overrides: Partial<Poll> = {}): Poll {
   return {
     id: 'test-poll-id',
@@ -225,7 +229,7 @@ describe('ICS Service', () => {
       const options = [createMockOption(1, 'Option 1')];
       const votes: Vote[] = [];
 
-      const ics = generatePollIcs(poll, options, votes, 'https://test.com');
+      const ics = unfoldIcs(generatePollIcs(poll, options, votes, 'https://test.com'));
 
       expect(ics).toContain('Abstimmung: https://test.com/poll/public-token');
     });
@@ -235,7 +239,7 @@ describe('ICS Service', () => {
       const options = [createMockOption(1, 'Option 1')];
       const votes: Vote[] = [];
 
-      const ics = generatePollIcs(poll, options, votes, 'https://test.com');
+      const ics = unfoldIcs(generatePollIcs(poll, options, votes, 'https://test.com'));
 
       expect(ics).not.toContain('Abstimmung:');
     });
@@ -245,7 +249,7 @@ describe('ICS Service', () => {
       const options = [createMockOption(1, 'Option 1')];
       const votes: Vote[] = [];
 
-      const ics = generatePollIcs(poll, options, votes, 'https://test.com');
+      const ics = unfoldIcs(generatePollIcs(poll, options, votes, 'https://test.com'));
 
       const descMatch = ics.match(/DESCRIPTION:(.*?)(?=\r\n[A-Z])/s);
       if (descMatch) {

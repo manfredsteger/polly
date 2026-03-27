@@ -33,6 +33,7 @@ interface SendMailOptions {
   priority?: EmailPriority;
   fromPrefix?: string;
   attachments?: nodemailer.SendMailOptions['attachments'];
+  isBulk?: boolean;
 }
 
 export class EmailService {
@@ -152,6 +153,25 @@ export class EmailService {
 
     const priority = options.priority || 'normal';
     const isHigh = priority === 'high';
+    const fromEmail = process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'noreply@polly.example.com';
+
+    const headers: Record<string, string> = {
+      'X-Mailer': 'Polly',
+      'Reply-To': this.getReplyTo(),
+      'Auto-Submitted': 'auto-generated',
+    };
+
+    if (isHigh) {
+      headers['X-Priority'] = '1';
+      headers['X-MSMail-Priority'] = 'High';
+      headers['Importance'] = 'high';
+    }
+
+    if (options.isBulk) {
+      headers['Precedence'] = 'bulk';
+      headers['List-Unsubscribe'] = `<mailto:${fromEmail}?subject=Abbestellen>`;
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    }
 
     const mailOptions: nodemailer.SendMailOptions = {
       from: this.getFromAddress(options.fromPrefix),
@@ -159,13 +179,7 @@ export class EmailService {
       subject: options.subject,
       html: options.html,
       text: options.text,
-      headers: {
-        'X-Mailer': 'Polly System',
-        'X-Priority': isHigh ? '1' : '3',
-        'X-MSMail-Priority': isHigh ? 'High' : 'Normal',
-        'Importance': isHigh ? 'high' : 'normal',
-        'Reply-To': this.getReplyTo(),
-      },
+      headers,
     };
 
     if (options.attachments) {
@@ -235,6 +249,7 @@ export class EmailService {
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
+        isBulk: true,
       });
     } catch (error) {
       console.error('Failed to send invitation email:', error);
@@ -308,6 +323,7 @@ export class EmailService {
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
+        isBulk: true,
       });
     } catch (error) {
       console.error('Failed to send reminder email:', error);
@@ -502,6 +518,7 @@ export class EmailService {
           html: rendered.html,
           text: rendered.text,
           attachments,
+          isBulk: true,
         });
         sent++;
         console.log(`[Email] Finalization notification sent to ${email}`);

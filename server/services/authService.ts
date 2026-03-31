@@ -357,7 +357,7 @@ export const authService = {
       return null;
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await storage.createUser({
       username,
@@ -373,7 +373,7 @@ export const authService = {
   },
 
   async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
+    return bcrypt.hash(password, 12);
   },
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {

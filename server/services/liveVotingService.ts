@@ -1,6 +1,12 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
+import { timingSafeEqual } from 'crypto';
 import { storage } from '../storage';
+
+function safeCompareTokens(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
 
 interface LiveVoter {
   odId: string;
@@ -172,7 +178,7 @@ class LiveVotingService {
       return;
     }
 
-    const isPresenter = !!(message.adminToken && poll.adminToken === message.adminToken);
+    const isPresenter = safeCompareTokens(poll.adminToken, message.adminToken);
 
     let room = this.pollRooms.get(pollToken);
     if (!room) {
@@ -298,7 +304,7 @@ class LiveVotingService {
     if (!session) return;
 
     const poll = await storage.getPollByPublicToken(session.pollToken);
-    if (!poll || !message.adminToken || poll.adminToken !== message.adminToken) {
+    if (!poll || !safeCompareTokens(poll.adminToken, message.adminToken)) {
       ws.send(JSON.stringify({ type: 'error', code: 'FORBIDDEN', message: 'Presenter-Berechtigung fehlt' }));
       return;
     }

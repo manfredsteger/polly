@@ -271,6 +271,44 @@ describe('Security Hardening Tests', () => {
       }
     });
   });
+
+  describe('T010: bcrypt Cost Factor >= 12', () => {
+    it('should use bcrypt cost factor >= 12 for newly hashed passwords', async () => {
+      const { authService } = await import('../../services/authService');
+      const hash = await authService.hashPassword('test-password-strength-check');
+      const costMatch = hash.match(/^\$2[ab]?\$(\d+)\$/);
+      expect(costMatch).not.toBeNull();
+      const cost = parseInt(costMatch![1], 10);
+      expect(cost).toBeGreaterThanOrEqual(12);
+    });
+
+    it('should still verify passwords hashed with cost factor 10 (backwards compat)', async () => {
+      const bcrypt = await import('bcryptjs');
+      const legacyHash = await bcrypt.hash('legacy-password', 10);
+      const { authService } = await import('../../services/authService');
+      const valid = await authService.verifyPassword('legacy-password', legacyHash);
+      expect(valid).toBe(true);
+    });
+  });
+
+  describe('T011: Admin upload error does not leak internal details', () => {
+    it('should return generic error message for invalid non-image upload, not internal error text', async () => {
+      const adminAgent = request.agent(app);
+      await loginAsAdmin(adminAgent);
+
+      const res = await adminAgent
+        .post('/api/v1/admin/customization/logo')
+        .attach('logo', Buffer.from('<?php system($_GET["cmd"]); ?>'), {
+          filename: 'shell.php',
+          contentType: 'application/x-httpd-php',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBeDefined();
+      expect(res.body.error).not.toMatch(/php|shell|cmd|system|exec|eval/i);
+      expect(res.body.error).not.toMatch(/multer|ENOENT|EACCES|stack|TypeError/i);
+    });
+  });
 });
 
 function extractSessionId(cookies: string | string[] | undefined): string | null {

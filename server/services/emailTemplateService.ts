@@ -1897,7 +1897,7 @@ export class EmailTemplateService {
     const customization = await storage.getCustomizationSettings();
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
     const emailTheme = await this.getEmailTheme();
-    const allVariables = { siteName, ...variables };
+    const allVariables: Record<string, string | undefined> = { siteName, ...variables };
 
     const rawSubject = renderTemplate(template.subject, allVariables);
     const subject = rawSubject.replace(/^\[\]\s*/, '');

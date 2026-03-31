@@ -305,14 +305,14 @@ ${langHint}`;
         if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
       }
 
-      const normalizeOptions = (opts: any[]): (string | SurveyOption)[] =>
+      const normalizeOptions = (opts: any[]): string[] | SurveyOption[] =>
         opts.map((o) => {
           if (typeof o === "string") return o.slice(0, 120);
           if (o && typeof o === "object" && typeof o.text === "string") {
             return { text: o.text.slice(0, 120), isFreeText: !!o.isFreeText };
           }
           return String(o).slice(0, 120);
-        }).slice(0, 50);
+        }).slice(0, 50) as string[] | SurveyOption[];
 
       return {
         pollType: pollType as PollSuggestion["pollType"],
@@ -416,14 +416,14 @@ export async function createPollFromDescription(
         if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
       }
 
-      const normalizeOpts = (opts: any[]): (string | SurveyOption)[] =>
+      const normalizeOpts = (opts: any[]): string[] | SurveyOption[] =>
         opts.map((o) => {
           if (typeof o === "string") return o.slice(0, 120);
           if (o && typeof o === "object" && typeof o.text === "string") {
             return { text: o.text.slice(0, 120), isFreeText: !!o.isFreeText };
           }
           return String(o).slice(0, 120);
-        }).slice(0, 50);
+        }).slice(0, 50) as string[] | SurveyOption[];
 
       return {
         pollType: pollType as PollSuggestion["pollType"],

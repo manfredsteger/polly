@@ -327,7 +327,7 @@ router.post('/admin/:token/finalize', async (req, res) => {
     const updatedPoll = await storage.updatePoll(poll.id, updateData);
 
     let emailResult: { sent: number; failed: number } | undefined;
-    if (notifyParticipants && finalOptionId && poll.type === 'schedule') {
+    if (notifyParticipants && finalOptionId) {
       try {
         const participantEmails = poll.votes
           .map((v: { voterEmail: string }) => v.voterEmail)
@@ -339,42 +339,54 @@ router.post('/admin/:token/finalize', async (req, res) => {
         }
         const uniqueEmails = [...allRecipients];
 
-        const confirmedOption = poll.options.find((o: { id: number }) => o.id === finalOptionId);
-        if (confirmedOption && uniqueEmails.length > 0) {
+        if (uniqueEmails.length > 0) {
           const { getBaseUrl } = await import('../utils/baseUrl');
           const baseUrl = getBaseUrl();
           const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
 
-          const startTime = confirmedOption.startTime ? new Date(confirmedOption.startTime) : null;
-          const endTime = confirmedOption.endTime ? new Date(confirmedOption.endTime) : null;
+          if (poll.type === 'schedule') {
+            const confirmedOption = poll.options.find((o: { id: number }) => o.id === finalOptionId);
+            if (confirmedOption) {
+              const startTime = confirmedOption.startTime ? new Date(confirmedOption.startTime) : null;
+              const endTime = confirmedOption.endTime ? new Date(confirmedOption.endTime) : null;
 
-          const confirmedDate = startTime
-            ? startTime.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-            : confirmedOption.text;
+              const confirmedDate = startTime
+                ? startTime.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                : confirmedOption.text;
 
-          let confirmedTime = '';
-          if (startTime && (startTime.getHours() !== 0 || startTime.getMinutes() !== 0)) {
-            confirmedTime = startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-            if (endTime && (endTime.getHours() !== 0 || endTime.getMinutes() !== 0)) {
-              confirmedTime += ` – ${endTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
-            } else {
-              confirmedTime += ' Uhr';
+              let confirmedTime = '';
+              if (startTime && (startTime.getHours() !== 0 || startTime.getMinutes() !== 0)) {
+                confirmedTime = startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                if (endTime && (endTime.getHours() !== 0 || endTime.getMinutes() !== 0)) {
+                  confirmedTime += ` – ${endTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
+                } else {
+                  confirmedTime += ' Uhr';
+                }
+              }
+
+              const { generateSingleEventIcs } = await import('../services/icsService');
+              const icsContent = generateSingleEventIcs(updatedPoll, confirmedOption, baseUrl, undefined, true);
+              const icsBuffer = Buffer.from(icsContent, 'utf-8');
+
+              emailResult = await emailService.sendFinalizationEmails(
+                uniqueEmails,
+                poll.title,
+                confirmedDate,
+                confirmedTime,
+                pollLink,
+                icsBuffer,
+                poll.videoConferenceUrl
+              );
             }
+          } else {
+            emailResult = await emailService.sendPollEndedEmails(
+              uniqueEmails,
+              poll.title,
+              pollLink,
+              poll.resultsPublic ?? true,
+              poll.type as 'survey' | 'organization'
+            );
           }
-
-          const { generateSingleEventIcs } = await import('../services/icsService');
-          const icsContent = generateSingleEventIcs(updatedPoll, confirmedOption, baseUrl, undefined, true);
-          const icsBuffer = Buffer.from(icsContent, 'utf-8');
-
-          emailResult = await emailService.sendFinalizationEmails(
-            uniqueEmails,
-            poll.title,
-            confirmedDate,
-            confirmedTime,
-            pollLink,
-            icsBuffer,
-            poll.videoConferenceUrl
-          );
         }
       } catch (emailError) {
         console.error('Error sending finalization emails:', emailError);

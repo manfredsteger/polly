@@ -492,12 +492,17 @@ export class EmailService {
       : '';
 
     const rendered = await this.renderTemplate('poll_finalized', {
+      pollType: 'schedule',
+      statusLabel: 'Termin bestätigt',
       pollTitle,
       confirmedDate,
       confirmedTime: confirmedTime ? `<strong>Uhrzeit:</strong> ${confirmedTime}` : '',
       pollLink,
+      buttonLink: pollLink,
+      buttonLabel: 'Zur Umfrage \u2192',
       videoConferenceUrl: videoConferenceUrl || '',
       videoConferenceHtml: videoConfHtml,
+      resultsPublic: 'true',
     });
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [
@@ -530,6 +535,59 @@ export class EmailService {
     }
 
     console.log(`[Email] Finalization notifications: ${sent} sent, ${failed} failed`);
+    return { sent, failed };
+  }
+
+  async sendPollEndedEmails(
+    recipientEmails: string[],
+    pollTitle: string,
+    pollLink: string,
+    resultsPublic: boolean,
+    pollType: 'survey' | 'organization' = 'survey'
+  ): Promise<{ sent: number; failed: number }> {
+    if (recipientEmails.length === 0) {
+      console.log('[Email] No recipient emails for poll-ended notification');
+      return { sent: 0, failed: 0 };
+    }
+
+    const buttonLabel = resultsPublic ? 'Ergebnisse anzeigen \u2192' : 'Zur Umfrage \u2192';
+    const buttonLink = resultsPublic ? `${pollLink}#results` : pollLink;
+
+    const rendered = await this.renderTemplate('poll_finalized', {
+      pollType,
+      statusLabel: 'Umfrage beendet',
+      pollTitle,
+      pollLink,
+      buttonLink,
+      buttonLabel,
+      resultsPublic: String(resultsPublic),
+      confirmedDate: '',
+      confirmedTime: '',
+      videoConferenceUrl: '',
+      videoConferenceHtml: '',
+    });
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const email of recipientEmails) {
+      try {
+        await this.sendMail({
+          to: email,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+          isBulk: true,
+        });
+        sent++;
+        console.log(`[Email] Poll-ended notification sent to ${email}`);
+      } catch (error) {
+        failed++;
+        console.error(`[Email] Failed to send poll-ended notification to ${email}:`, error);
+      }
+    }
+
+    console.log(`[Email] Poll-ended notifications: ${sent} sent, ${failed} failed`);
     return { sent, failed };
   }
 

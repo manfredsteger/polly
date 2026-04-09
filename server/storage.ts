@@ -1409,11 +1409,15 @@ export class DatabaseStorage implements IStorage {
     // Delete test users (by flag or pattern) - with protection for users who have real data
     const testUserCondition = sql`
       is_test_data = true 
+      OR email LIKE '%@test.local'
       OR email LIKE 'test-%@example.com' 
       OR email LIKE 'test\_%@example.com'
       OR email LIKE 'creator-%@example.com' 
       OR email LIKE 'voter-%@example.com'
       OR email LIKE 'fixtest-%@example.com'
+      OR email LIKE 'sessiontest-%@example.com'
+      OR email LIKE 'cookietest-%@example.com'
+      OR email LIKE 'reset-test-%@example.com'
       OR email LIKE 'e2e\_%@test.com'
       OR email LIKE 'e2e\_%@example.com'
       OR email LIKE 'e2etest\_%@example.com'
@@ -1496,11 +1500,15 @@ export class DatabaseStorage implements IStorage {
     // Count users matching test patterns (same as purgeTestData)
     const testUserCondition = sql`
       is_test_data = true 
+      OR email LIKE '%@test.local'
       OR email LIKE 'test-%@example.com' 
       OR email LIKE 'test\_%@example.com'
       OR email LIKE 'creator-%@example.com' 
       OR email LIKE 'voter-%@example.com'
       OR email LIKE 'fixtest-%@example.com'
+      OR email LIKE 'sessiontest-%@example.com'
+      OR email LIKE 'cookietest-%@example.com'
+      OR email LIKE 'reset-test-%@example.com'
       OR email LIKE 'e2e\_%@test.com'
       OR email LIKE 'e2e\_%@example.com'
       OR email LIKE 'e2etest\_%@example.com'

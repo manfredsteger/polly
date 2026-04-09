@@ -18,12 +18,14 @@ describe('Auth - Registration', () => {
     app = await createTestApp();
   });
 
+
+
   it('should reject registration with short password (less than 8 chars)', async () => {
     const response = await request(app)
       .post('/api/v1/auth/register')
       .send({
         username: `user${nanoid(6)}`,
-        email: `test-${nanoid(8)}@example.com`,
+        email: `test-${nanoid(8)}@test.local`,
         name: 'Test User',
         password: '1234567',
       });
@@ -36,7 +38,7 @@ describe('Auth - Registration', () => {
       .post('/api/v1/auth/register')
       .send({
         username: `user${nanoid(6)}`,
-        email: `test-${nanoid(8)}@example.com`,
+        email: `test-${nanoid(8)}@test.local`,
         name: 'Test User',
         password: 'password123!',
       });
@@ -49,7 +51,7 @@ describe('Auth - Registration', () => {
       .post('/api/v1/auth/register')
       .send({
         username: `user${nanoid(6)}`,
-        email: `test-${nanoid(8)}@example.com`,
+        email: `test-${nanoid(8)}@test.local`,
         name: 'Test User',
         password: 'Password123',
       });
@@ -74,7 +76,7 @@ describe('Auth - Registration', () => {
     const response = await request(app)
       .post('/api/v1/auth/register')
       .send({
-        email: `test-${nanoid(8)}@example.com`,
+        email: `test-${nanoid(8)}@test.local`,
         name: 'Test User',
         password: 'SecurePassword123!',
       });
@@ -107,7 +109,7 @@ describe('Auth - Registration', () => {
       .post('/api/v1/auth/register')
       .send({
         username: 'ab',
-        email: `test-${nanoid(8)}@example.com`,
+        email: `test-${nanoid(8)}@test.local`,
         name: 'Test User',
         password: 'SecurePassword123!',
       });

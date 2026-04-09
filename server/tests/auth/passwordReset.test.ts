@@ -27,7 +27,7 @@ describe('Auth - Password Reset', () => {
 
   beforeEach(async () => {
     const uniqueId = Date.now();
-    const userData = createTestUser({ email: `reset-test-${uniqueId}@example.com` });
+    const userData = createTestUser({ email: `reset-test-${uniqueId}@test.local` });
     const passwordHash = await bcrypt.hash(userData.password, 10);
     
     const [user] = await db.insert(users).values({
@@ -120,7 +120,7 @@ describe('Auth - Password Reset', () => {
   describe('SSO User Blocking', () => {
     it('should silently ignore password reset requests for SSO users', async () => {
       const ssoId = Date.now();
-      const ssoEmail = `sso-user-${ssoId}@example.com`;
+      const ssoEmail = `sso-user-${ssoId}@test.local`;
       await db.insert(users).values({
         username: `ssouser${ssoId}`,
         email: ssoEmail,
@@ -236,7 +236,7 @@ describe('Auth - Password Reset', () => {
       const loginTestId = Date.now();
       const newPassword = 'ResetPassword789!';
       const originalPassword = 'OriginalPassword123!';
-      const loginTestEmail = `login-test-${loginTestId}@example.com`;
+      const loginTestEmail = `login-test-${loginTestId}@test.local`;
       
       const passwordHash = await bcrypt.hash(originalPassword, 10);
       const [loginUser] = await db.insert(users).values({
@@ -246,7 +246,7 @@ describe('Auth - Password Reset', () => {
         passwordHash,
         provider: 'local',
         role: 'user',
-        isTestData: false,
+        isTestData: true,
       }).returning();
 
       const resetToken = await storage.createPasswordResetToken(loginUser.id);
@@ -260,6 +260,7 @@ describe('Auth - Password Reset', () => {
 
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: loginTestEmail,
           password: newPassword,
@@ -275,7 +276,7 @@ describe('Auth - Password Reset', () => {
       const loginTestId = Date.now();
       const originalPassword = 'OriginalPassword456!';
       const newPassword = 'ChangedPassword999!';
-      const loginTestEmail = `login-test2-${loginTestId}@example.com`;
+      const loginTestEmail = `login-test2-${loginTestId}@test.local`;
       
       const passwordHash = await bcrypt.hash(originalPassword, 10);
       const [loginUser] = await db.insert(users).values({
@@ -285,7 +286,7 @@ describe('Auth - Password Reset', () => {
         passwordHash,
         provider: 'local',
         role: 'user',
-        isTestData: false,
+        isTestData: true,
       }).returning();
 
       const resetToken = await storage.createPasswordResetToken(loginUser.id);
@@ -299,6 +300,7 @@ describe('Auth - Password Reset', () => {
 
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: loginTestEmail,
           password: originalPassword,

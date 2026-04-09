@@ -14,7 +14,7 @@ export const testMeta = {
 };
 
 async function createTestUserDirectly() {
-  const email = `sessiontest-${nanoid(8)}@example.com`;
+  const email = `sessiontest-${nanoid(8)}@test.local`;
   const password = 'TestPassword123!';
   const username = `sessuser_${nanoid(8)}`;
   const passwordHash = await bcrypt.hash(password, 10);
@@ -41,10 +41,13 @@ describe('Session Persistence - CRITICAL', () => {
     testUser = await createTestUserDirectly();
   });
 
+
+
   describe('Login Session Creation', () => {
     it('should create a valid session on successful login', async () => {
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -69,6 +72,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       const loginResponse = await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -90,6 +94,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -108,6 +113,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -130,6 +136,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -149,6 +156,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -189,6 +197,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent1
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -196,6 +205,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent2
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: user2.email,
           password: user2.password,

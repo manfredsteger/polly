@@ -25,6 +25,12 @@ describe('Admin API - Comprehensive Functional Tests', () => {
     expect([200, 201]).toContain(loginRes.status);
   });
 
+  afterAll(async () => {
+    try {
+      await storage.purgeTestData();
+    } catch { }
+  });
+
   describe('System Stats & Status', () => {
     it('should return stats', async () => {
       const res = await adminAgent.get('/api/v1/admin/stats');

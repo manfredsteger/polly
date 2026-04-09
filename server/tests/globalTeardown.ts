@@ -46,8 +46,53 @@ export default async function globalSetup() {
     // Ignore errors
   }
 
-  // Return teardown function that runs ONCE after all tests
+  // Return teardown function that runs ONCE after all tests complete
   return async () => {
+    try {
+      const { db: dbTeardown } = await import('../db');
+      const { sql: sqlTeardown } = await import('drizzle-orm');
+
+      await dbTeardown.execute(sqlTeardown`
+        DELETE FROM votes WHERE poll_id IN (
+          SELECT id FROM polls WHERE is_test_data = true
+          OR title LIKE 'Test Poll%' OR title LIKE 'E2E:%'
+        )
+      `);
+      await dbTeardown.execute(sqlTeardown`
+        DELETE FROM poll_options WHERE poll_id IN (
+          SELECT id FROM polls WHERE is_test_data = true
+          OR title LIKE 'Test Poll%' OR title LIKE 'E2E:%'
+        )
+      `);
+      await dbTeardown.execute(sqlTeardown`
+        DELETE FROM polls WHERE is_test_data = true
+          OR title LIKE 'Test Poll%' OR title LIKE 'E2E:%'
+      `);
+      await dbTeardown.execute(sqlTeardown`
+        DELETE FROM password_reset_tokens WHERE user_id IN (
+          SELECT id FROM users WHERE is_test_data = true
+          OR email LIKE '%@test.local'
+          OR email LIKE 'test-%@example.com'
+          OR email LIKE 'sessiontest-%@example.com'
+          OR email LIKE 'cookietest-%@example.com'
+          OR email LIKE 'reset-test-%@example.com'
+          OR email LIKE 'login-test%@example.com'
+        )
+      `);
+      await dbTeardown.execute(sqlTeardown`
+        DELETE FROM users WHERE is_test_data = true
+          OR email LIKE '%@test.local'
+          OR email LIKE 'test-%@example.com'
+          OR email LIKE 'sessiontest-%@example.com'
+          OR email LIKE 'cookietest-%@example.com'
+          OR email LIKE 'reset-test-%@example.com'
+          OR email LIKE 'login-test%@example.com'
+          OR email LIKE 'fixtest-%@example.com'
+      `);
+    } catch {
+      // Ignore errors
+    }
+
     try {
       const { pool } = await import('../db');
       await pool.end();

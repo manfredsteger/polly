@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import { nanoid } from 'nanoid';
@@ -18,8 +18,8 @@ async function createTestUserDirectly() {
   const password = 'TestPassword123!';
   const username = `sessuser_${nanoid(8)}`;
   const passwordHash = await bcrypt.hash(password, 10);
-  
-  await storage.createUser({
+
+  const user = await storage.createUser({
     email,
     username,
     name: 'Session Test User',
@@ -28,19 +28,27 @@ async function createTestUserDirectly() {
     provider: 'local',
     isTestData: true,
   });
-  
-  return { email, password, username, name: 'Session Test User' };
+
+  return { id: user.id, email, password, username, name: 'Session Test User' };
 }
 
 describe('Session Persistence - CRITICAL', () => {
   let app: Express;
-  let testUser: { email: string; password: string; username: string; name: string };
+  let testUser: { id: number; email: string; password: string; username: string; name: string };
 
   beforeAll(async () => {
     app = await createTestApp();
     testUser = await createTestUserDirectly();
   });
 
+  afterAll(async () => {
+    try {
+      if (testUser?.id) {
+        await storage.deleteUser(testUser.id);
+      }
+    } catch {
+    }
+  });
 
 
   describe('Login Session Creation', () => {

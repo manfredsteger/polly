@@ -1410,6 +1410,7 @@ export class DatabaseStorage implements IStorage {
     const testUserCondition = sql`
       is_test_data = true 
       OR email LIKE '%@test.local'
+      OR email LIKE '%@test.de'
       OR email LIKE 'test-%@example.com' 
       OR email LIKE 'test\_%@example.com'
       OR email LIKE 'creator-%@example.com' 
@@ -1435,10 +1436,9 @@ export class DatabaseStorage implements IStorage {
         SELECT DISTINCT u.id, u.email FROM users u
         WHERE (${testUserCondition})
         AND (
-          u.role = 'admin'
+          (u.role = 'admin' AND u.is_test_data IS NOT TRUE)
           OR u.username = ${configuredAdminUsername}
-          OR
-          EXISTS (
+          OR EXISTS (
             SELECT 1 FROM votes v 
             WHERE v.voter_email = u.email 
             AND v.poll_id NOT IN (SELECT p.id FROM polls p WHERE ${testPatternCondition})
@@ -1507,6 +1507,7 @@ export class DatabaseStorage implements IStorage {
     const testUserCondition = sql`
       is_test_data = true 
       OR email LIKE '%@test.local'
+      OR email LIKE '%@test.de'
       OR email LIKE 'test-%@example.com' 
       OR email LIKE 'test\_%@example.com'
       OR email LIKE 'creator-%@example.com' 

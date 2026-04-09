@@ -27,11 +27,52 @@ async function registerUser(agent: request.SuperTest<request.Test>, username: st
 }
 
 describe('Security Hardening Tests', () => {
+  const enumerationEmail = `enumtest-${suffix}@test.local`;
+  const sessUser = `sessuser-${suffix}`;
+  const sessEmail = `sessuser-${suffix}@test.local`;
+  const sessPass = 'TestPass123!';
+
   beforeAll(async () => {
     app = await createTestApp();
+
+    const bcrypt = await import('bcryptjs');
+
+    // Pre-create user for enumeration test (so "existing email" check is deterministic)
+    const enumHash = await bcrypt.hash('TestPass123!', 10);
+    const existingEnum = await storage.getUserByEmail(enumerationEmail);
+    if (!existingEnum) {
+      await storage.createUser({
+        username: `enumuser-${suffix}`,
+        email: enumerationEmail,
+        passwordHash: enumHash,
+        name: 'Enumeration Test User',
+        role: 'user',
+        provider: 'local',
+        isTestData: true,
+      });
+    }
+
+    // Pre-create session test user
+    const sessHash = await bcrypt.hash(sessPass, 10);
+    const existingSess = await storage.getUserByUsername(sessUser);
+    if (!existingSess) {
+      await storage.createUser({
+        username: sessUser,
+        email: sessEmail,
+        passwordHash: sessHash,
+        name: 'Session Test User',
+        role: 'user',
+        provider: 'local',
+        isTestData: true,
+      });
+    }
   });
 
   afterAll(async () => {
+    try {
+      await storage.purgeTestData();
+    } catch {
+    }
     await closeTestApp();
   });
 
@@ -107,7 +148,7 @@ describe('Security Hardening Tests', () => {
   describe('T003: Registration Enumeration Prevention', () => {
     it('should return generic message when registering with existing username', async () => {
       const agent = request.agent(app);
-      const res = await registerUser(agent, ADMIN_USERNAME, `unique-${suffix}@test.de`, 'TestPass123!');
+      const res = await registerUser(agent, ADMIN_USERNAME, `unique-${suffix}@test.local`, 'TestPass123!');
       if (res.status >= 400) {
         const errorMsg = res.body.error || res.body.message || '';
         expect(errorMsg).not.toMatch(/bereits vergeben/i);
@@ -119,7 +160,7 @@ describe('Security Hardening Tests', () => {
 
     it('should return generic message when registering with existing email', async () => {
       const agent = request.agent(app);
-      const res = await registerUser(agent, `unique-${suffix}`, 'manfred.steger@ifp.bayern.de', 'TestPass123!');
+      const res = await registerUser(agent, `unique-${suffix}`, enumerationEmail, 'TestPass123!');
       if (res.status >= 400) {
         const errorMsg = res.body.error || res.body.message || '';
         expect(errorMsg).not.toMatch(/bereits vergeben/i);
@@ -130,27 +171,6 @@ describe('Security Hardening Tests', () => {
   });
 
   describe('T009: Session Regeneration after Login', () => {
-    const sessUser = `sessuser-${suffix}`;
-    const sessEmail = `sessuser-${suffix}@test.de`;
-    const sessPass = 'TestPass123!';
-
-    beforeAll(async () => {
-      const bcrypt = await import('bcryptjs');
-      const hash = await bcrypt.hash(sessPass, 10);
-      const existing = await storage.getUserByUsername(sessUser);
-      if (!existing) {
-        await storage.createUser({
-          username: sessUser,
-          email: sessEmail,
-          passwordHash: hash,
-          name: 'Session Test User',
-          role: 'user',
-          provider: 'local',
-          isTestData: true,
-        });
-      }
-    });
-
     it('should issue new session cookie after login', async () => {
       const agent = request.agent(app);
 
@@ -183,7 +203,7 @@ describe('Security Hardening Tests', () => {
       const regRes = await registerUser(
         agent as any,
         regUser,
-        `${regUser}@test.de`,
+        `${regUser}@test.local`,
         'TestPass123!'
       );
 
@@ -235,13 +255,16 @@ describe('Security Hardening Tests', () => {
 
   describe('T007: Force Password Change for Initial Admin', () => {
     it('should block API access for isInitialAdmin users except allowed paths', async () => {
-      const initialAdmin = await storage.getUserByUsername(`initadmin-${suffix}`);
+      const initAdminUsername = `initadmin-${suffix}`;
+      const initAdminEmail = `initadmin-${suffix}@test.local`;
+
+      const initialAdmin = await storage.getUserByUsername(initAdminUsername);
       if (!initialAdmin) {
         const bcrypt = await import('bcryptjs');
         const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
         await storage.createUser({
-          username: `initadmin-${suffix}`,
-          email: `initadmin-${suffix}@test.de`,
+          username: initAdminUsername,
+          email: initAdminEmail,
           passwordHash: hash,
           name: 'Init Admin',
           role: 'admin',
@@ -253,7 +276,7 @@ describe('Security Hardening Tests', () => {
 
       const agent = request.agent(app);
       const loginRes = await agent.post('/api/v1/auth/login').send({
-        usernameOrEmail: `initadmin-${suffix}`,
+        usernameOrEmail: initAdminUsername,
         password: ADMIN_PASSWORD,
       });
 

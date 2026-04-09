@@ -3139,7 +3139,15 @@
     "noChanges": "Keine Änderungen vorgenommen",
     "changesSaved": "Ihre Änderungen wurden gespeichert",
     "errorSaving": "Fehler beim Speichern der Änderungen",
-    "unsavedChanges": "Sie haben ungespeicherte Änderungen"
+    "unsavedChanges": "Sie haben ungespeicherte Änderungen",
+    "responsesChanged": "Ihre Antworten wurden aktualisiert",
+    "updateError": "Fehler beim Aktualisieren Ihrer Abstimmung",
+    "voteRemoved": "Ihre Abstimmung wurde zurückgezogen",
+    "withdrawError": "Fehler beim Zurückziehen Ihrer Abstimmung",
+    "loadingVote": "Abstimmung wird geladen …",
+    "voteNotFound": "Abstimmung nicht gefunden",
+    "invalidLink": "Dieser Link ist ungültig oder abgelaufen.",
+    "withdrawing": "Wird zurückgezogen …"
   },
   "liveResults": {
     "title": "Live-Ergebnisse",

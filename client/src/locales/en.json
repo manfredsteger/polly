@@ -3139,7 +3139,15 @@
     "noChanges": "No changes made",
     "changesSaved": "Your changes have been saved",
     "errorSaving": "Error saving changes",
-    "unsavedChanges": "You have unsaved changes"
+    "unsavedChanges": "You have unsaved changes",
+    "responsesChanged": "Your responses have been updated",
+    "updateError": "Error updating your vote",
+    "voteRemoved": "Your vote has been withdrawn",
+    "withdrawError": "Error withdrawing your vote",
+    "loadingVote": "Loading vote...",
+    "voteNotFound": "Vote not found",
+    "invalidLink": "This link is invalid or has expired.",
+    "withdrawing": "Withdrawing..."
   },
   "liveResults": {
     "title": "Live Results",

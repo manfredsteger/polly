@@ -1425,13 +1425,19 @@ export class DatabaseStorage implements IStorage {
       OR email LIKE '%@test.example.com'
     `;
 
+    // Admin protection: resolve configured admin username from env (falls back to 'admin')
+    const configuredAdminUsername = process.env.ADMIN_USERNAME || 'admin';
+
     // Use a transaction to ensure atomicity - no user can be deleted between checks
     const userResult = await db.transaction(async (tx) => {
-      // Find protected user IDs: users who have votes in non-test polls or created non-test polls
+      // Find protected user IDs: admin users and users who have votes/polls in non-test data
       const protectedUserIds = await tx.execute(sql`
         SELECT DISTINCT u.id, u.email FROM users u
         WHERE (${testUserCondition})
         AND (
+          u.role = 'admin'
+          OR u.username = ${configuredAdminUsername}
+          OR
           EXISTS (
             SELECT 1 FROM votes v 
             WHERE v.voter_email = u.email 

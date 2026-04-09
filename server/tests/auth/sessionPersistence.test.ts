@@ -35,18 +35,20 @@ async function createTestUserDirectly() {
 describe('Session Persistence - CRITICAL', () => {
   let app: Express;
   let testUser: { id: number; email: string; password: string; username: string; name: string };
+  const createdUserIds: number[] = [];
 
   beforeAll(async () => {
     app = await createTestApp();
     testUser = await createTestUserDirectly();
+    createdUserIds.push(testUser.id);
   });
 
   afterAll(async () => {
-    try {
-      if (testUser?.id) {
-        await storage.deleteUser(testUser.id);
+    for (const id of createdUserIds) {
+      try {
+        await storage.deleteUser(id);
+      } catch {
       }
-    } catch {
     }
   });
 
@@ -200,8 +202,9 @@ describe('Session Persistence - CRITICAL', () => {
     it('should maintain separate sessions for different users', async () => {
       const agent1 = request.agent(app);
       const agent2 = request.agent(app);
-      
+
       const user2 = await createTestUserDirectly();
+      createdUserIds.push(user2.id);
 
       await agent1
         .post('/api/v1/auth/login')

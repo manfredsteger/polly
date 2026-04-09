@@ -329,11 +329,15 @@ router.post('/admin/:token/finalize', async (req, res) => {
     let emailResult: { sent: number; failed: number } | undefined;
     if (notifyParticipants && finalOptionId && poll.type === 'schedule') {
       try {
-        const uniqueEmails = [...new Set(
-          poll.votes
-            .map((v: { voterEmail: string }) => v.voterEmail)
-            .filter((e: string) => e && e.includes('@'))
-        )];
+        const participantEmails = poll.votes
+          .map((v: { voterEmail: string }) => v.voterEmail)
+          .filter((e: string) => e && e.includes('@'));
+
+        const allRecipients = new Set<string>(participantEmails);
+        if (poll.creatorEmail && poll.creatorEmail.includes('@')) {
+          allRecipients.add(poll.creatorEmail);
+        }
+        const uniqueEmails = [...allRecipients];
 
         const confirmedOption = poll.options.find((o: { id: number }) => o.id === finalOptionId);
         if (confirmedOption && uniqueEmails.length > 0) {

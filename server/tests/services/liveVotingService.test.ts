@@ -130,6 +130,7 @@ describe('LiveVotingService - Multi-User Live Session Tests', () => {
     orgaPollOptions = orgaDetail.body.options;
 
     server = getTestServer()!;
+    liveVotingService.cleanup();
     liveVotingService.initializeWithUpgrade(server);
     await new Promise<void>((resolve) => {
       if (server.listening) resolve();
@@ -146,6 +147,7 @@ describe('LiveVotingService - Multi-User Live Session Tests', () => {
 
   afterAll(() => {
     openConnections.forEach(ws => safeClose(ws));
+    liveVotingService.cleanup();
   });
 
   describe('Multi-user presence tracking', () => {

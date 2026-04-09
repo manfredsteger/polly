@@ -92,8 +92,9 @@ export class EmailService {
     const hasSmtpConfig = process.env.SMTP_HOST && 
                          process.env.SMTP_USER && 
                          smtpPassword;
+    const isTestEnv = process.env.NODE_ENV === 'test';
 
-    if (hasSmtpConfig) {
+    if (hasSmtpConfig && !isTestEnv) {
       const config: EmailConfig = {
         host: process.env.SMTP_HOST!,
         port: parseInt(process.env.SMTP_PORT || '587'),

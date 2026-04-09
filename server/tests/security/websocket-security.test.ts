@@ -51,6 +51,10 @@ describe('WebSocket Security Tests', () => {
   let adminToken: string;
   let publicToken: string;
 
+  afterAll(() => {
+    liveVotingService.cleanup();
+  });
+
   beforeAll(async () => {
     app = await createTestApp();
     agent = request.agent(app);

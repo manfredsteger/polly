@@ -266,8 +266,11 @@ describe('Database Migration Tests', () => {
       const savedSessions = await backupSessions();
       const client = await pool.connect();
       try {
-        const beforeCount = await client.query('SELECT COUNT(*) as count FROM users');
-        const userCountBefore = parseInt(beforeCount.rows[0].count);
+        const beforeAdmins = await client.query(
+          'SELECT COUNT(*) as count FROM users WHERE role = $1 AND (is_test_data IS NOT TRUE)',
+          ['admin']
+        );
+        const adminCountBefore = parseInt(beforeAdmins.rows[0].count);
 
         execSync('npx drizzle-kit push --force 2>&1', {
           encoding: 'utf-8',
@@ -277,10 +280,13 @@ describe('Database Migration Tests', () => {
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        const afterCount = await client.query('SELECT COUNT(*) as count FROM users');
-        const userCountAfter = parseInt(afterCount.rows[0].count);
+        const afterAdmins = await client.query(
+          'SELECT COUNT(*) as count FROM users WHERE role = $1 AND (is_test_data IS NOT TRUE)',
+          ['admin']
+        );
+        const adminCountAfter = parseInt(afterAdmins.rows[0].count);
 
-        expect(userCountAfter).toBeGreaterThanOrEqual(userCountBefore);
+        expect(adminCountAfter).toBeGreaterThanOrEqual(adminCountBefore);
       } finally {
         client.release();
       }

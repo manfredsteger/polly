@@ -31,6 +31,23 @@ class LiveVotingService {
   private wsToSession: Map<WebSocket, { pollToken: string; sessionId: string; isPresenter: boolean }> = new Map();
   private inactivityCheckInterval: NodeJS.Timeout | null = null;
 
+  /** Close all connections and reset state — for test teardown only */
+  cleanup() {
+    if (this.inactivityCheckInterval) {
+      clearInterval(this.inactivityCheckInterval);
+      this.inactivityCheckInterval = null;
+    }
+    this.wsToSession.forEach((_session, ws) => {
+      try { ws.terminate(); } catch {}
+    });
+    this.wsToSession.clear();
+    this.pollRooms.clear();
+    if (this.wss) {
+      try { this.wss.close(); } catch {}
+      this.wss = null;
+    }
+  }
+
   // Use noServer mode to avoid interfering with Vite's HMR WebSocket
   initializeWithUpgrade(server: Server) {
     // Guard against double initialization during dev hot reloads

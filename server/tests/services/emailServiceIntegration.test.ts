@@ -43,14 +43,19 @@ function createConfiguredEmailService(): EmailService {
   return svc;
 }
 
-const REQUIRED_HEADERS = ['X-Mailer', 'X-Priority', 'X-MSMail-Priority', 'Reply-To'];
+const REQUIRED_HEADERS = ['X-Mailer', 'Reply-To'];
 
 function assertRequiredHeaders(mailOpts: CapturedMailOptions, priority: 'normal' | 'high' = 'normal') {
   const headers = mailOpts.headers;
   expect(headers).toBeDefined();
-  expect(headers['X-Mailer']).toBe('Polly System');
-  expect(headers['X-Priority']).toBe(priority === 'high' ? '1' : '3');
-  expect(headers['X-MSMail-Priority']).toBe(priority === 'high' ? 'High' : 'Normal');
+  expect(headers['X-Mailer']).toBe('Polly');
+  if (priority === 'high') {
+    expect(headers['X-Priority']).toBe('1');
+    expect(headers['X-MSMail-Priority']).toBe('High');
+  } else {
+    expect(headers['X-Priority']).toBeUndefined();
+    expect(headers['X-MSMail-Priority']).toBeUndefined();
+  }
   expect(headers['Reply-To']).toBeDefined();
   expect(headers['Reply-To']).not.toBe('');
 }

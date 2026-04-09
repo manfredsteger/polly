@@ -69,10 +69,6 @@ describe('Security Hardening Tests', () => {
   });
 
   afterAll(async () => {
-    try {
-      await storage.purgeTestData();
-    } catch {
-    }
     await closeTestApp();
   });
 

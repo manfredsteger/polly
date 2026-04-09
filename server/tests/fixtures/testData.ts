@@ -7,7 +7,7 @@ export function createTestUser(overrides: Partial<{
   role: string;
 }> = {}) {
   return {
-    email: overrides.email || `test-${nanoid(8)}@test.local`,
+    email: overrides.email || `test-${nanoid(8)}@example.com`,
     name: overrides.name || `Test User ${nanoid(4)}`,
     password: overrides.password || 'TestPassword123!',
     role: overrides.role || 'user',
@@ -47,7 +47,7 @@ export function createTestPoll(overrides: Partial<{
     resultsPublic: overrides.resultsPublic ?? true,
     allowVoteWithdrawal: overrides.allowVoteWithdrawal ?? true,
     allowVoteEdit: overrides.allowVoteEdit ?? true,
-    creatorEmail: overrides.creatorEmail || `creator-${nanoid(8)}@test.local`,
+    creatorEmail: overrides.creatorEmail || `creator-${nanoid(8)}@example.com`,
     options,
   };
 }
@@ -59,7 +59,7 @@ export function createTestVote(overrides: Partial<{
 }> = {}) {
   return {
     voterName: overrides.voterName || `Voter ${nanoid(4)}`,
-    voterEmail: overrides.voterEmail || `voter-${nanoid(8)}@test.local`,
+    voterEmail: overrides.voterEmail || `voter-${nanoid(8)}@example.com`,
     response: overrides.response || 'yes',
   };
 }

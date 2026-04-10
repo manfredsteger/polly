@@ -25,42 +25,57 @@ The initial development phase focused on building a solid foundation for a self-
 
 ---
 
-## 🧪 Beta Phase (Q1-Q2 2025)
+## 🧪 Beta Phase (Q1 2025 – Q2 2026)
 
 The beta phase focuses on enterprise readiness, AI integration, and community feedback.
 
 ### Core Goals
 
 #### 1. Single Sign-On (SSO) with Keycloak OIDC
-- [ ] Full Keycloak OIDC integration testing
-- [ ] Automatic role mapping (User, Admin, Manager)
+- [x] Keycloak OIDC integration (basic)
+- [x] Automatic role mapping (User, Admin, Manager)
+- [ ] Full Keycloak end-to-end integration testing
 - [ ] Session synchronization with identity provider
 - [ ] Documentation for enterprise SSO setup
 
-#### 2. AI-Powered Poll Creation & Voice Control (GWDG KISSKI Integration)
+#### 2. AI-Powered Poll Creation & Voice Control (GWDG KISSKI Integration) ✅ *Released in beta.2*
 - [x] Integration with [GWDG KISSKI](https://kisski.gwdg.de) AI services
 - [x] **Free Tier included** for all Polly installations
-- [x] Voice-controlled poll creation with speech-to-text
+- [x] Voice-controlled poll creation with speech-to-text (GWDG Whisper API)
 - [x] AI agent-guided form completion (no manual input required)
 - [x] Natural language commands: "Erstelle eine Terminumfrage für nächste Woche"
+- [x] Drag-and-drop reordering of AI-suggested slots
+- [x] Follow-up refinement via chat ("Füge noch Montag Abend hinzu")
+- [x] AI rate limiting (configurable guest/user limits via admin panel)
 - [x] OpenAI-compatible provider support for custom deployments
 
-> **Partner:** GWDG (Gesellschaft für wissenschaftliche Datenverarbeitung mbH Göttingen) is the primary AI integration partner, providing free AI capabilities to all Polly users.
+#### 3. Schedule Poll Enhancements ✅ *Released in beta.2*
+- [x] Video conference URL field (optional, shown in emails and ICS)
+- [x] Chronological date sorting in finalization view
+- [x] Finalize button visible on best-voted option
+- [x] Labeled voting links in calendar event descriptions
+- [x] CANCELLED events removed from ICS exports
 
-#### 3. Community & Stability
+#### 4. Notification Improvements ✅ *Released in beta.2*
+- [x] End Poll notifications for all poll types (not just Schedule)
+- [x] Survey finalization email shows winning option text
+- [x] Organization poll "End Poll" email shows slot summary
+- [x] Creator always included in finalization email recipients
+- [x] Frontend "End Poll" notify toggle wired to backend
+
+#### 5. Community & Stability
 - [ ] Community feedback collection and issue tracking
-- [ ] Bug fixes and stability improvements
 - [ ] Performance optimization for large-scale deployments
 - [ ] Extended documentation for self-hosting
 
-#### 4. Additional Integrations
+#### 6. Additional Integrations
 - [ ] Additional language packs (community contributions welcome)
 - [ ] Webhook support for external automation
 - [ ] Enhanced calendar integrations
 
 ---
 
-## 🎯 Version 1.0 (Target: H2 2025)
+## 🎯 Version 1.0 (Target: H2 2026)
 
 The 1.0 release will focus on meeting the needs of European data centers and simplifying enterprise deployment.
 
@@ -75,12 +90,11 @@ The 1.0 release will focus on meeting the needs of European data centers and sim
 
 #### Enterprise Features
 - [ ] Advanced analytics dashboard
-- [ ] API rate limiting (admin-configurable)
 - [ ] Audit logging for compliance
 - [ ] Backup and restore utilities
 
 #### Mobile & Integrations
-- [ ] Mobile app (React Native or Flutter)
+- [ ] Mobile app (React Native or Flutter) — see `docs/FLUTTER_INTEGRATION.md`
 - [ ] 🚧 **Matrix / Element Chatbot** *(Coming Soon)* - Create and manage polls via Matrix messenger
   - [ ] Bot account for self-hosted Matrix/Synapse servers
   - [ ] Poll creation via chat commands (e.g. `!poll create Terminumfrage ...`)
@@ -117,12 +131,13 @@ We welcome community input! If you have feature requests or suggestions:
 
 ## 📅 Release Timeline
 
-| Phase | Target | Focus |
-|-------|--------|-------|
-| **Alpha** | 2024 - Q1 2025 | Core functionality, foundation |
-| **Beta 0.1.0** | Q1-Q2 2025 | SSO, AI integration, stability |
-| **Version 1.0** | H2 2025 | European DC support, enterprise features |
+| Phase | Released | Focus |
+|-------|----------|-------|
+| **Alpha** | 2024 – Q1 2025 | Core functionality, foundation |
+| **Beta 0.1.0-beta.1** | 2025-02-24 | Initial public beta — all poll types, auth, Docker |
+| **Beta 0.1.0-beta.2** | 2026-04-10 | AI integration, schedule improvements, notification fixes |
+| **Version 1.0** | Target: H2 2026 | European DC support, enterprise features |
 
 ---
 
-*Last updated: March 2026*
+*Last updated: April 2026*

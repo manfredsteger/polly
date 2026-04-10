@@ -328,6 +328,86 @@ describe('Security Hardening Tests', () => {
       expect(res.body.error).not.toMatch(/multer|ENOENT|EACCES|stack|TypeError/i);
     });
   });
+
+  describe('T012: MIME-spoofing upload returns 400 not 500', () => {
+    // Regression guard: previously, a file that passed multer's MIME-filter but
+    // failed validateImageMagicBytes caused the route to fall through to the
+    // generic "statusCode = 500" branch because invalidFileType was not threaded
+    // through UploadResult. This test ensures the route returns 400 for this case.
+    it('should return 400 (not 500) when file has image MIME type but non-image content', async () => {
+      const adminAgent = request.agent(app);
+      await loginAsAdmin(adminAgent);
+
+      // image/jpeg MIME passes multer fileFilter — but PHP content fails
+      // validateImageMagicBytes → processUpload returns { invalidFileType: true }
+      const res = await adminAgent
+        .post('/api/v1/admin/customization/logo')
+        .attach('logo', Buffer.from('<?php system($_GET["cmd"]); ?>\x00\x00\x00\x00\x00'), {
+          filename: 'evil.jpg',
+          contentType: 'image/jpeg',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBeDefined();
+      expect(res.body.error).not.toMatch(/php|system|exec|TypeError|stack/i);
+    });
+
+    it('should return 400 (not 500) when file is a ZIP disguised as PNG', async () => {
+      const adminAgent = request.agent(app);
+      await loginAsAdmin(adminAgent);
+
+      const zipHeader = Buffer.from([
+        0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00,
+        0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      ]);
+
+      const res = await adminAgent
+        .post('/api/v1/admin/customization/logo')
+        .attach('logo', zipHeader, {
+          filename: 'archive.png',
+          contentType: 'image/png',
+        });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('T013: Admin is not blocked by isInitialAdmin after test setup (global setup canary)', () => {
+    // Regression guard: globalTeardown.ts seeds the admin via seedInitialAdmin(),
+    // which sets isInitialAdmin=true when default credentials are used (CI env).
+    // The middleware in server/index.ts returns 403 PASSWORD_CHANGE_REQUIRED for
+    // all API paths when isInitialAdmin=true. The global setup must clear this flag
+    // so test suites that create polls or call other endpoints can actually work.
+    // This test acts as the canary that would have caught both regressions:
+    //   • admin not seeded at all → loginRes.status !== 200
+    //   • admin seeded with isInitialAdmin=true → pollsRes.status === 403
+    it('admin login succeeds and API calls are not blocked by PASSWORD_CHANGE_REQUIRED', async () => {
+      const adminAgent = request.agent(app);
+      const loginRes = await loginAsAdmin(adminAgent);
+
+      expect(loginRes.status).toBe(200);
+
+      const pollsRes = await adminAgent.get('/api/v1/polls');
+      expect(pollsRes.status).not.toBe(403);
+      expect(pollsRes.body.code).not.toBe('PASSWORD_CHANGE_REQUIRED');
+    });
+
+    it('admin can create a poll (end-to-end API access check)', async () => {
+      const adminAgent = request.agent(app);
+      await loginAsAdmin(adminAgent);
+
+      const res = await adminAgent.post('/api/v1/polls').send({
+        title: `Canary poll ${suffix}`,
+        type: 'survey',
+        options: [{ text: 'Option A' }, { text: 'Option B' }],
+        isTestData: true,
+      });
+
+      expect(res.status).not.toBe(403);
+      expect(res.body.code).not.toBe('PASSWORD_CHANGE_REQUIRED');
+      expect(res.status).toBeLessThan(300);
+    });
+  });
 });
 
 function extractSessionId(cookies: string | string[] | undefined): string | null {

@@ -194,4 +194,68 @@ describe('ImageService', () => {
       expect(validateImageMagicBytes(nullBuffer)).toBe(false);
     });
   });
+
+  describe('processUpload — invalidFileType flag (regression guard)', () => {
+    // These tests exist because the MIME-filter in multer only checks the
+    // Content-Type header, which can be spoofed. processUpload runs a second
+    // layer of defence (magic-byte validation). When that check fails the
+    // result MUST carry invalidFileType=true so HTTP routes return 400 instead
+    // of the generic 500 fallback — a difference that was previously untested
+    // and caused CI failures in hardening.test.ts T011.
+
+    function makeMockFile(buf: Buffer, mimetype = 'image/jpeg', name = 'upload.jpg') {
+      return {
+        originalname: name,
+        buffer: buf,
+        size: buf.length,
+        mimetype,
+        fieldname: 'image',
+        encoding: '7bit',
+        stream: null as any,
+        destination: '',
+        filename: '',
+        path: '',
+      };
+    }
+
+    it('should return invalidFileType=true when content is a PHP script disguised as JPEG', async () => {
+      const phpPayload = Buffer.from('<?php system($_GET["cmd"]); ?>\x00\x00\x00\x00\x00');
+      const result = await imageService.processUpload(makeMockFile(phpPayload) as any);
+      expect(result.success).toBe(false);
+      expect(result.invalidFileType).toBe(true);
+      expect(result.error).toBeDefined();
+      expect(result.error).not.toMatch(/php|system|exec|TypeError|multer|stack/i);
+    });
+
+    it('should return invalidFileType=true for a ZIP archive disguised as PNG', async () => {
+      const zipHeader = Buffer.from([
+        0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00,
+        0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      ]);
+      const result = await imageService.processUpload(makeMockFile(zipHeader, 'image/png', 'archive.png') as any);
+      expect(result.success).toBe(false);
+      expect(result.invalidFileType).toBe(true);
+    });
+
+    it('should return invalidFileType=true for a PE executable disguised as image', async () => {
+      const exeHeader = Buffer.from([
+        0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00,
+        0x04, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00,
+      ]);
+      const result = await imageService.processUpload(makeMockFile(exeHeader, 'image/jpeg', 'payload.jpg') as any);
+      expect(result.success).toBe(false);
+      expect(result.invalidFileType).toBe(true);
+    });
+
+    it('should NOT set invalidFileType for a file with valid JPEG magic bytes', async () => {
+      const validJpeg = Buffer.from([
+        0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46,
+        0x49, 0x46, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      ]);
+      const result = await imageService.processUpload(makeMockFile(validJpeg) as any);
+      // The file has valid magic bytes — regardless of ClamAV state,
+      // invalidFileType must be absent/falsy.
+      expect(result.invalidFileType).toBeFalsy();
+    });
+  });
 });

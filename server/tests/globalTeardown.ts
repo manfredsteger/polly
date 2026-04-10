@@ -18,32 +18,53 @@ export default async function globalSetup() {
     // Ignore errors (e.g. tables don't exist yet on first CI run)
   }
 
-  // Ensure the initial admin account exists so every test file that needs admin
-  // login (e.g. hardening.test.ts T011, liveVotingService.test.ts) can authenticate.
+  // Seed admin with isInitialAdmin=false using a direct pg connection.
   //
-  // Security note: seedInitialAdmin() sets isInitialAdmin=true when the default
-  // credentials are used (no ADMIN_* env vars → CI environment). The middleware in
-  // server/index.ts blocks ALL API calls for isInitialAdmin users to force a password
-  // change on first production boot. In tests this guard must be disabled, so we
-  // explicitly clear the flag immediately after seeding — only inside this test-only
-  // setup file, never in any production code path.
+  // WHY NOT use seedInitialAdmin() or the Drizzle `db` object here:
+  //   server/db.ts itself does `import * as schema from "@shared/schema"`.
+  //   If the @shared path alias is not resolved in the globalSetup execution
+  //   context (Vitest runs globalSetup in a separate process that may not
+  //   apply all Vite aliases), the entire import chain fails silently inside
+  //   the catch block — admin is never seeded, subsequent test files that rely
+  //   on admin login start failing with cascading TypeErrors.
+  //
+  //   A direct pg.Pool connection has zero alias dependencies and is always safe.
+  //
+  // SECURITY: the NODE_ENV guard above ensures this only runs in test, and the
+  //   UPSERT below only touches the single 'admin' (or ADMIN_USERNAME) user row.
   try {
-    const { seedInitialAdmin } = await import('../seed-admin');
-    await seedInitialAdmin();
+    const { Pool } = await import('pg');
+    const bcrypt = (await import('bcryptjs')).default;
 
-    // Clear the isInitialAdmin flag so the force-password-change middleware
-    // does not block test API calls. This is safe: the flag has no meaning
-    // in a test database and is never written back to production.
-    const { db } = await import('../db');
-    const { users } = await import('@shared/schema');
-    const { eq } = await import('drizzle-orm');
-    const { ADMIN_USERNAME } = await import('./testCredentials');
-    await db
-      .update(users)
-      .set({ isInitialAdmin: false })
-      .where(eq(users.username, ADMIN_USERNAME));
-  } catch {
-    // Ignore errors (e.g. admin already exists with correct state)
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminEmail   = process.env.ADMIN_EMAIL    || 'admin@polly.local';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
+
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+
+    const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      await pgPool.query(
+        `INSERT INTO users
+           (username, email, password_hash, name, role,
+            email_verified, is_initial_admin, provider, is_test_data)
+         VALUES ($1, $2, $3, $4, 'admin', true, false, 'local', false)
+         ON CONFLICT (username) DO UPDATE SET
+           password_hash   = EXCLUDED.password_hash,
+           email           = EXCLUDED.email,
+           role            = 'admin',
+           email_verified  = true,
+           is_initial_admin = false`,
+        [adminUsername, adminEmail, passwordHash, adminUsername],
+      );
+      console.log(`[globalSetup] Admin "${adminUsername}" seeded with isInitialAdmin=false`);
+    } finally {
+      await pgPool.end();
+    }
+  } catch (err) {
+    // Log the error so CI annotations make the root cause visible,
+    // but do not abort the entire test run.
+    console.error('[globalSetup] Admin seeding failed:', err);
   }
 
   // Return teardown function that runs ONCE after all tests complete

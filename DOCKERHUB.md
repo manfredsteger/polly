@@ -52,7 +52,7 @@ docker run -d \
 | `manfredsteger/polly:latest` | Latest stable release |
 | `manfredsteger/polly:beta` | Latest beta release |
 | `manfredsteger/polly:rc` | Latest release candidate |
-| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.1`) |
+| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.2`) |
 
 ## Environment Variables
 

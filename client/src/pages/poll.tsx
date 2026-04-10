@@ -283,7 +283,7 @@ export default function Poll() {
   }, [poll, editDialogOpen]);
   
   const updatePollMutation = useMutation({
-    mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean }) => {
+    mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean }) => {
       if (!effectiveAdminToken) throw new Error('No admin token');
       const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}`, updates);
       return response.json();
@@ -1928,7 +1928,8 @@ export default function Poll() {
               onClick={() => {
                 updatePollMutation.mutate({ 
                   isActive: false, 
-                  resultsPublic: endPollResultsPublic 
+                  resultsPublic: endPollResultsPublic,
+                  notifyParticipants: endPollNotifyParticipants,
                 });
               }}
               disabled={updatePollMutation.isPending}

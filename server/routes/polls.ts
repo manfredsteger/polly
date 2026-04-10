@@ -207,7 +207,7 @@ router.patch('/admin/:token', async (req, res) => {
       }
     }
     
-    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl } = req.body;
+    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl, notifyParticipants } = req.body;
     
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
@@ -244,6 +244,72 @@ router.patch('/admin/:token', async (req, res) => {
     
     const updatedPoll = await storage.updatePoll(poll.id, updates);
     res.json(updatedPoll);
+
+    // Send end-of-poll notifications if requested
+    if (isActive === false && notifyParticipants === true) {
+      try {
+        const participantEmails = (poll.votes as Array<{ voterEmail: string }>)
+          .map((v) => v.voterEmail)
+          .filter((e) => e && e.includes('@'));
+
+        const allRecipients = new Set<string>(participantEmails);
+        if (poll.creatorEmail && poll.creatorEmail.includes('@')) {
+          allRecipients.add(poll.creatorEmail);
+        }
+        const uniqueEmails = [...allRecipients];
+
+        if (uniqueEmails.length > 0) {
+          const { getBaseUrl } = await import('../utils/baseUrl');
+          const baseUrl = getBaseUrl();
+          const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
+          const effectiveResultsPublic = resultsPublic !== undefined ? resultsPublic : (poll.resultsPublic ?? true);
+
+          if (poll.type === 'organization') {
+            // Build compact slot summary: count 'yes' votes per option
+            const yesVotesByOption = new Map<number, number>();
+            for (const vote of (poll.votes as Array<{ optionId: number; response: string }>)) {
+              if (vote.response === 'yes') {
+                yesVotesByOption.set(vote.optionId, (yesVotesByOption.get(vote.optionId) || 0) + 1);
+              }
+            }
+            const slotSummary = (poll.options as Array<{ id: number; text: string; maxCapacity: number | null }>)
+              .map((opt) => ({
+                text: opt.text,
+                filled: yesVotesByOption.get(opt.id) || 0,
+                total: opt.maxCapacity,
+              }));
+
+            await emailService.sendPollEndedEmails(
+              uniqueEmails,
+              poll.title,
+              pollLink,
+              effectiveResultsPublic,
+              'organization',
+              undefined,
+              slotSummary
+            );
+          } else if (poll.type === 'survey') {
+            let finalOptionText: string | undefined;
+            if (poll.finalOptionId) {
+              const winningOption = (poll.options as Array<{ id: number; text: string }>)
+                .find((o) => o.id === poll.finalOptionId);
+              finalOptionText = winningOption?.text;
+            }
+
+            await emailService.sendPollEndedEmails(
+              uniqueEmails,
+              poll.title,
+              pollLink,
+              effectiveResultsPublic,
+              'survey',
+              finalOptionText
+            );
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending poll-ended emails:', emailError);
+      }
+    }
   } catch (error) {
     console.error('Error updating poll:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -379,12 +445,14 @@ router.post('/admin/:token/finalize', async (req, res) => {
               );
             }
           } else {
+            const winningOption = poll.options.find((o: { id: number }) => o.id === finalOptionId);
             emailResult = await emailService.sendPollEndedEmails(
               uniqueEmails,
               poll.title,
               pollLink,
               poll.resultsPublic ?? true,
-              poll.type as 'survey' | 'organization'
+              poll.type as 'survey' | 'organization',
+              winningOption?.text
             );
           }
         }

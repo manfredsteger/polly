@@ -1419,16 +1419,26 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     ${v3SingleButtonSection('Klicken Sie auf den Button, um die Umfrage und Ergebnisse einzusehen.', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
   }
 
-  // Survey / orga: generic "poll ended" notification
+  // Survey / orga: "poll ended" notification
   const resultsPublic = vars.resultsPublic !== 'false';
   const resultNote = resultsPublic
     ? 'Die Ergebnisse sind öffentlich einsehbar – klicken Sie auf den Button, um sie anzuzeigen.'
     : 'Der Ersteller hat die Ergebnisse nicht öffentlich gemacht.';
 
+  const finalOptionText = vars.finalOptionText || '';
+  const slotSummaryHtml = vars.slotSummaryHtml || '';
+
+  let extraContent = '';
+  if (finalOptionText) {
+    extraContent = `<p style="margin:12px 0 0 0;"><strong>Festgelegtes Ergebnis:</strong> ${finalOptionText}</p>`;
+  } else if (slotSummaryHtml) {
+    extraContent = `<p style="margin:12px 0 4px 0;"><strong>Slot-Übersicht:</strong></p>${slotSummaryHtml}`;
+  }
+
   return `${v3BodyStart()}
       ${v3Tag('Umfrage beendet', ctx.primaryColor)}
       ${v3Headline('Die Umfrage wurde abgeschlossen:', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(resultNote)}
+      ${v3Subline(resultNote + extraContent)}
     ${v3BodyEnd()}
     ${v3Divider()}
     ${v3SingleButtonSection('', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;

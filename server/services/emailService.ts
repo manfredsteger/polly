@@ -543,7 +543,9 @@ export class EmailService {
     pollTitle: string,
     pollLink: string,
     resultsPublic: boolean,
-    pollType: 'survey' | 'organization' = 'survey'
+    pollType: 'survey' | 'organization' = 'survey',
+    finalOptionText?: string,
+    slotSummary?: Array<{ text: string; filled: number; total: number | null }>
   ): Promise<{ sent: number; failed: number }> {
     if (recipientEmails.length === 0) {
       console.log('[Email] No recipient emails for poll-ended notification');
@@ -552,6 +554,22 @@ export class EmailService {
 
     const buttonLabel = resultsPublic ? 'Ergebnisse anzeigen \u2192' : 'Zur Umfrage \u2192';
     const buttonLink = resultsPublic ? `${pollLink}#results` : pollLink;
+
+    // Build slot summary HTML for orga polls
+    let slotSummaryHtml = '';
+    if (slotSummary && slotSummary.length > 0) {
+      const MAX_SLOTS = 5;
+      const displayed = slotSummary.slice(0, MAX_SLOTS);
+      const remaining = slotSummary.length - displayed.length;
+      const rows = displayed.map((s) => {
+        const capacityStr = s.total !== null ? ` / ${s.total}` : '';
+        return `<li style="margin:2px 0;">${escapeHtml(s.text)}: <strong>${s.filled}${capacityStr}</strong> belegt</li>`;
+      });
+      if (remaining > 0) {
+        rows.push(`<li style="margin:2px 0; color:#666;">… und ${remaining} weitere</li>`);
+      }
+      slotSummaryHtml = `<ul style="margin:8px 0 0 0; padding-left:18px;">${rows.join('')}</ul>`;
+    }
 
     const rendered = await this.renderTemplate('poll_finalized', {
       pollType,
@@ -565,6 +583,8 @@ export class EmailService {
       confirmedTime: '',
       videoConferenceUrl: '',
       videoConferenceHtml: '',
+      finalOptionText: finalOptionText ? escapeHtml(finalOptionText) : '',
+      slotSummaryHtml,
     });
 
     let sent = 0;

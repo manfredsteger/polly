@@ -1428,18 +1428,26 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
   const finalOptionText = vars.finalOptionText || '';
   const slotSummaryHtml = vars.slotSummaryHtml || '';
 
-  let extraContent = '';
+  let extraBlock = '';
   if (finalOptionText) {
-    extraContent = `<p style="margin:12px 0 0 0;"><strong>Festgelegtes Ergebnis:</strong> ${finalOptionText}</p>`;
+    extraBlock = `<tr><td style="padding: 0 40px 16px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; margin: 0;">
+        <strong>Festgelegtes Ergebnis:</strong> ${finalOptionText}
+      </p>
+    </td></tr>`;
   } else if (slotSummaryHtml) {
-    extraContent = `<p style="margin:12px 0 4px 0;"><strong>Slot-Übersicht:</strong></p>${slotSummaryHtml}`;
+    extraBlock = `<tr><td style="padding: 0 40px 16px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; margin: 0 0 4px 0;"><strong>Slot-Übersicht:</strong></p>
+      <div style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563;">${slotSummaryHtml}</div>
+    </td></tr>`;
   }
 
   return `${v3BodyStart()}
       ${v3Tag('Umfrage beendet', ctx.primaryColor)}
       ${v3Headline('Die Umfrage wurde abgeschlossen:', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(resultNote + extraContent)}
+      ${v3Subline(resultNote)}
     ${v3BodyEnd()}
+    ${extraBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }

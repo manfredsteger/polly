@@ -299,7 +299,8 @@ router.post('/upload/image', imageService.getUploadMiddleware().single('image'),
   
   if (!result.success) {
     let statusCode = 500;
-    if (result.virusName) statusCode = 422;
+    if (result.invalidFileType) statusCode = 400;
+    else if (result.virusName) statusCode = 422;
     else if (result.scannerUnavailable) statusCode = 503;
     return res.status(statusCode).json({ 
       error: result.error,

@@ -175,8 +175,11 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
 
       const mockFile = {
         originalname: 'clamav-test-log-verify.jpg',
-        buffer: Buffer.from('test content for logging'),
-        size: 24,
+        buffer: Buffer.from([
+          0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46,
+          0x49, 0x46, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        ]),
+        size: 16,
         mimetype: 'image/jpeg',
         fieldname: 'image',
         encoding: '7bit',

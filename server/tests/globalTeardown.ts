@@ -8,6 +8,14 @@ export default async function globalSetup() {
     // Ignore errors (e.g. tables don't exist yet)
   }
 
+  // Ensure the initial admin account exists so tests that require admin login work in CI
+  try {
+    const { seedInitialAdmin } = await import('../seed-admin');
+    await seedInitialAdmin();
+  } catch {
+    // Ignore errors (e.g. admin already exists)
+  }
+
   // Return teardown function that runs ONCE after all tests complete
   return async () => {
     try {

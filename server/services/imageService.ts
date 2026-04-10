@@ -12,6 +12,7 @@ export interface UploadResult {
   error?: string;
   virusName?: string;
   scannerUnavailable?: boolean;
+  invalidFileType?: boolean;
 }
 
 export interface ScanContext {
@@ -89,6 +90,7 @@ export class ImageService {
       return {
         success: false,
         error: 'Nur Bilddateien sind erlaubt',
+        invalidFileType: true,
       };
     }
 

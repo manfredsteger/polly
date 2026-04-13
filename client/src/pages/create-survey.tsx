@@ -76,7 +76,7 @@ function SortableSurveyRow({ option, index, options, onUpdate, onRemove, onImage
   return (
     <div ref={setNodeRef} style={style} className="border rounded-lg p-4 space-y-3">
       <div className="flex items-center space-x-3">
-        <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground shrink-0" {...attributes} {...listeners}>
+        <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground shrink-0" aria-label={t('createSurvey.moveOption')} {...attributes} {...listeners}>
           <GripVertical className="w-4 h-4" />
         </button>
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted shrink-0">

@@ -2704,6 +2704,7 @@
     "choices": "Auswahlmöglichkeiten",
     "addOption": "Option hinzufügen",
     "removeOption": "Option entfernen",
+    "moveOption": "Option verschieben",
     "optionsHint": "Fügen Sie mindestens 2 Optionen hinzu, zwischen denen die Teilnehmer wählen können.",
     "optionPlaceholder": "Option {{number}}",
     "addImage": "Bild hinzufügen (optional):",

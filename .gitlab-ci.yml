@@ -148,6 +148,7 @@ build:
   script:
     - *npm_install
     - npm run build
+    - rm -rf node_modules
   artifacts:
     paths:
       - dist/

@@ -151,7 +151,6 @@ build:
   artifacts:
     paths:
       - dist/
-      - node_modules/
     expire_in: 1 hour
 
 typescript-check:

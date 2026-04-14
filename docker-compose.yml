@@ -112,6 +112,12 @@ services:
       TEST_MODE_SECRET: ${TEST_MODE_SECRET:-polly-e2e-test-mode}
       # WCAG Override
       POLLY_WCAG_OVERRIDE: ${POLLY_WCAG_OVERRIDE:-false}
+      # Branding (applied on first start; can be changed via Admin Panel afterwards)
+      # SITE_NAME: ${SITE_NAME:-}           # e.g. "MyPolly"
+      # SITE_NAME_ACCENT: ${SITE_NAME_ACCENT:-}  # e.g. "y" (highlighted letter)
+      # FAVICON_URL: ${FAVICON_URL:-}       # e.g. "https://example.com/favicon.png"
+      # LOGO_URL: ${LOGO_URL:-}             # e.g. "https://example.com/logo.png"
+      # PRIMARY_COLOR: ${PRIMARY_COLOR:-}   # e.g. "#F97316"
     ports:
       - "${APP_PORT:-3080}:5000"
     volumes:

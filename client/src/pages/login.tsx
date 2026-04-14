@@ -169,7 +169,7 @@ export default function Login() {
   const getRedirectUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
-    return redirect ? decodeURIComponent(redirect) : '/meine-umfragen';
+    return redirect ? decodeURIComponent(redirect) : '/';
   };
 
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function Login() {
             </div>
           )}
 
-          {authMethods.registrationEnabled ? (
+          {authMethods.showLoginForm !== false && authMethods.registrationEnabled ? (
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login" data-testid="tab-login">
@@ -298,7 +298,7 @@ export default function Login() {
                       type="text"
                       value={loginForm.usernameOrEmail}
                       onChange={(e) => setLoginForm({ ...loginForm, usernameOrEmail: e.target.value })}
-                      placeholder="max@example.de"
+                      placeholder={t('auth.placeholders.email')}
                       required
                       data-testid="input-login-email"
                     />
@@ -313,6 +313,7 @@ export default function Login() {
                         onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                         placeholder="••••••••"
                         required
+                        autoComplete="off"
                         className="pr-10"
                         data-testid="input-login-password"
                       />
@@ -352,7 +353,7 @@ export default function Login() {
                       type="text"
                       value={registerForm.name}
                       onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
-                      placeholder="Max Mustermann"
+                      placeholder={t('auth.placeholders.name')}
                       required
                       data-testid="input-register-name"
                     />
@@ -364,7 +365,7 @@ export default function Login() {
                       type="text"
                       value={registerForm.username}
                       onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                      placeholder="max123"
+                      placeholder={t('auth.placeholders.username')}
                       required
                       minLength={3}
                       data-testid="input-register-username"
@@ -377,7 +378,7 @@ export default function Login() {
                       type="email"
                       value={registerForm.email}
                       onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                      placeholder="max@example.de"
+                      placeholder={t('auth.placeholders.email')}
                       required
                       data-testid="input-register-email"
                       className={registerForm.email.length > 0 && !emailValid ? "border-red-500" : ""}
@@ -398,6 +399,7 @@ export default function Login() {
                         onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
                         placeholder={t('auth.enterSecurePassword')}
                         required
+                        autoComplete="off"
                         className="pr-10"
                         data-testid="input-register-password"
                       />
@@ -422,6 +424,7 @@ export default function Login() {
                         onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
                         placeholder={t('auth.repeatPassword')}
                         required
+                        autoComplete="off"
                         className="pr-10"
                         data-testid="input-register-confirm"
                       />
@@ -454,7 +457,7 @@ export default function Login() {
                 </form>
               </TabsContent>
             </Tabs>
-          ) : (
+          ) : authMethods.showLoginForm !== false ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-username">{t('auth.usernameOrEmail')}</Label>
@@ -463,7 +466,7 @@ export default function Login() {
                   type="text"
                   value={loginForm.usernameOrEmail}
                   onChange={(e) => setLoginForm({ ...loginForm, usernameOrEmail: e.target.value })}
-                  placeholder="max@example.de"
+                  placeholder={t('auth.placeholders.email')}
                   required
                   data-testid="input-login-email"
                 />
@@ -478,6 +481,7 @@ export default function Login() {
                     onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                     placeholder="••••••••"
                     required
+                    autoComplete="off"
                     className="pr-10"
                     data-testid="input-login-password"
                   />
@@ -506,18 +510,20 @@ export default function Login() {
                 </a>
               </div>
             </form>
-          )}
+          ) : null}
 
           {authMethods.keycloak && (
             <>
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+              {authMethods.showLoginForm !== false && (
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">{t('common.or')}</span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">{t('common.or')}</span>
-                </div>
-              </div>
+              )}
 
               <Button
                 type="button"
@@ -527,7 +533,7 @@ export default function Login() {
                 data-testid="button-keycloak-login"
               >
                 <KeyRound className="h-4 w-4 mr-2" />
-                {t('auth.loginWithKeycloak')}
+                {authMethods.ssoButtonLabel || t('auth.loginWithKeycloak')}
               </Button>
             </>
           )}

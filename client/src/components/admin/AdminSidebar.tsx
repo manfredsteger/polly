@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,12 @@ export function AdminSidebar({
   clearSelections,
 }: AdminSidebarProps) {
   const { t } = useTranslation();
+
+  const { data: deletionRequests } = useQuery<any[]>({
+    queryKey: ['/api/v1/admin/deletion-requests'],
+    refetchInterval: 60000,
+  });
+  const pendingDeletionCount = deletionRequests?.length ?? 0;
 
   const handleNavClick = (tab: AdminTab) => {
     setActiveTab(tab);
@@ -126,7 +133,8 @@ export function AdminSidebar({
               onClick={() => handleNavClick("deletion-requests")} 
               icon={<UserX className="w-4 h-4" />} 
               label={t('admin.nav.deletionRequests')} 
-              testId="nav-deletion-requests" 
+              testId="nav-deletion-requests"
+              badge={pendingDeletionCount}
             />
           </nav>
         </CardContent>

@@ -42,7 +42,7 @@ export default function Profile() {
   const { user, isLoading: authLoading } = useAuth();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
@@ -389,7 +389,7 @@ export default function Profile() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    <span>{t('profile.memberSince')}: {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('de-DE') : '-'}</span>
+                    <span>{t('profile.memberSince')}: {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US') : '-'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -531,7 +531,7 @@ export default function Profile() {
                         <p className="font-medium text-amber-800 dark:text-amber-200">{t('profile.deletionRequestSubmitted')}</p>
                         <p className="text-sm text-amber-700 dark:text-amber-300">
                           {t('profile.deletionRequestDescription', { 
-                            date: new Date(profile.deletionRequestedAt).toLocaleDateString('de-DE', { 
+                            date: new Date(profile.deletionRequestedAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                               day: '2-digit', 
                               month: '2-digit', 
                               year: 'numeric',
@@ -642,6 +642,7 @@ export default function Profile() {
               <Input
                 id="currentPassword"
                 type="password"
+                autoComplete="off"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="mt-1"
@@ -653,6 +654,7 @@ export default function Profile() {
               <Input
                 id="newPassword"
                 type="password"
+                autoComplete="off"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="mt-1"
@@ -665,6 +667,7 @@ export default function Profile() {
               <Input
                 id="confirmPassword"
                 type="password"
+                autoComplete="off"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="mt-1"
@@ -714,6 +717,7 @@ export default function Profile() {
               <Input
                 id="emailPassword"
                 type="password"
+                autoComplete="off"
                 value={emailPassword}
                 onChange={(e) => setEmailPassword(e.target.value)}
                 className="mt-1"

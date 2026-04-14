@@ -11,15 +11,34 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Vote, Mail, Plus, Trash2, CheckCircle, QrCode, Link as LinkIcon, Info, Bell } from "lucide-react";
+import { ArrowLeft, Vote, Mail, Plus, Trash2, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, GripVertical } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface SurveyOption {
+  id: string;
   text: string;
   imageUrl?: string;
   altText?: string;
+  isFreeText?: boolean;
   order: number;
 }
 
@@ -33,6 +52,69 @@ interface SurveyFormData {
   resultsPublic: boolean;
   allowMaybe: boolean;
   expiresAt: string | null;
+}
+
+interface SortableSurveyRowProps {
+  option: SurveyOption;
+  index: number;
+  options: SurveyOption[];
+  onUpdate: (text: string) => void;
+  onRemove: () => void;
+  onImageUploaded: (url: string) => void;
+  onImageRemoved: () => void;
+  onAltTextChange: (alt: string) => void;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}
+
+function SortableSurveyRow({ option, index, options, onUpdate, onRemove, onImageUploaded, onImageRemoved, onAltTextChange, t }: SortableSurveyRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: option.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  const optionIndex = index + 1;
+  const canDelete = options.length > 2;
+
+  return (
+    <div ref={setNodeRef} style={style} className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-center space-x-3">
+        <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground shrink-0" aria-label={t('createSurvey.moveOption')} {...attributes} {...listeners}>
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted shrink-0">
+          <span className="text-sm font-medium">{optionIndex}</span>
+        </div>
+        <Input
+          value={option.text}
+          onChange={(e) => onUpdate(e.target.value)}
+          placeholder={t('createSurvey.optionPlaceholder', { number: optionIndex })}
+          className="flex-1"
+          data-testid={`input-option-${index}`}
+        />
+        {canDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="text-destructive hover:text-destructive"
+            aria-label={t('createSurvey.removeOption')}
+            data-testid={`button-delete-option-${index}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm text-muted-foreground">{t('createSurvey.addImage')}</span>
+        <ImageUpload
+          onImageUploaded={onImageUploaded}
+          onImageRemoved={onImageRemoved}
+          onAltTextChange={onAltTextChange}
+          currentImageUrl={option.imageUrl}
+          currentAltText={option.altText}
+        />
+      </div>
+    </div>
+  );
 }
 
 export default function CreateSurvey() {
@@ -51,10 +133,28 @@ export default function CreateSurvey() {
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
   const [allowMaybe, setAllowMaybe] = useState(true);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const nextIdRef = useRef(2);
   const [options, setOptions] = useState<SurveyOption[]>([
-    { text: "", order: 0 },
-    { text: "", order: 1 },
+    { id: "0", text: "", order: 0 },
+    { id: "1", text: "", order: 1 },
   ]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setOptions((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex).map((opt, idx) => ({ ...opt, order: idx }));
+      });
+    }
+  };
 
   const formPersistence = useFormPersistence<SurveyFormData>({ key: 'create-survey' });
   const hasRestoredRef = useRef(false);
@@ -74,7 +174,9 @@ export default function CreateSurvey() {
       setResultsPublic(stored.data.resultsPublic ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
       if (stored.data.options && stored.data.options.length >= 2) {
-        setOptions(stored.data.options);
+        const restored = stored.data.options.map((o: SurveyOption, i: number) => ({ ...o, id: o.id ?? String(i) }));
+        nextIdRef.current = restored.length;
+        setOptions(restored);
       }
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
@@ -87,6 +189,34 @@ export default function CreateSurvey() {
         });
       }
     }
+  }, []);
+
+  // Read AI suggestion from sessionStorage if present
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ai-suggestion");
+    if (!raw) return;
+    try {
+      const suggestion = JSON.parse(raw);
+      if (suggestion.pollType !== "survey") return;
+      sessionStorage.removeItem("ai-suggestion");
+      if (suggestion.title) setTitle(suggestion.title);
+      if (suggestion.description) setDescription(suggestion.description);
+      if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
+        const mapped = suggestion.options.map((opt: any, i: number) => {
+          if (typeof opt === "string") return { id: String(i), text: opt, order: i };
+          return { id: String(i), text: opt.text || "", isFreeText: opt.isFreeText ?? false, order: i };
+        });
+        nextIdRef.current = mapped.length;
+        setOptions(mapped);
+      }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
+      }
+    } catch (_) {}
   }, []);
 
   useEffect(() => {
@@ -183,12 +313,13 @@ export default function CreateSurvey() {
   });
 
   const addOption = () => {
-    setOptions([...options, { text: "", order: options.length }]);
+    const id = String(nextIdRef.current++);
+    setOptions(prev => [...prev, { id, text: "", order: prev.length }]);
   };
 
   const removeOption = (index: number) => {
     if (options.length > 2) {
-      setOptions(options.filter((_, i) => i !== index));
+      setOptions(options.filter((_, i) => i !== index).map((o, idx) => ({ ...o, order: idx })));
     }
   };
 
@@ -230,7 +361,10 @@ export default function CreateSurvey() {
     }
 
     const validOptions = options.filter(opt => opt.text.trim());
-    if (validOptions.length < 2) {
+    const validNormalOptions = validOptions.filter(opt => !opt.isFreeText);
+    const validFreeTextOptions = validOptions.filter(opt => opt.isFreeText);
+    // Need at least: 2 normal options, OR 1 free-text question (pure feedback form), OR 1 normal + 1 free-text
+    if (validOptions.length < 1 || (validFreeTextOptions.length === 0 && validNormalOptions.length < 2)) {
       toast({
         title: t('pollCreation.error'),
         description: t('createSurvey.minOptionsError'),
@@ -263,9 +397,10 @@ export default function CreateSurvey() {
       options: validOptions.map((option, index) => {
         const opt: any = {
           text: option.text.trim(),
+          isFreeText: option.isFreeText ?? false,
           order: index,
         };
-        if (option.imageUrl && option.imageUrl.trim()) {
+        if (!option.isFreeText && option.imageUrl && option.imageUrl.trim()) {
           opt.imageUrl = option.imageUrl.trim();
           if (option.altText && option.altText.trim()) {
             opt.altText = option.altText.trim();
@@ -400,64 +535,84 @@ export default function CreateSurvey() {
               );
             })()}
             
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteEdit')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.allowVoteEditDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={allowVoteEdit}
-                onCheckedChange={setAllowVoteEdit}
-                data-testid="switch-allow-vote-edit"
-                aria-label={t('pollCreation.allowVoteEdit')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.allowVoteWithdrawalDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={allowVoteWithdrawal}
-                onCheckedChange={setAllowVoteWithdrawal}
-                data-testid="switch-allow-vote-withdrawal"
-                aria-label={t('pollCreation.allowVoteWithdrawal')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.resultsPublic')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.resultsPublicDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={resultsPublic}
-                onCheckedChange={setResultsPublic}
-                data-testid="switch-results-public"
-                aria-label={t('pollCreation.resultsPublic')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('createSurvey.allowMaybe')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('createSurvey.allowMaybeDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={allowMaybe}
-                onCheckedChange={setAllowMaybe}
-                data-testid="switch-allow-maybe"
-                aria-label={t('createSurvey.allowMaybe')}
-              />
+            <div className="pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setSettingsExpanded(p => !p)}
+                className="flex items-center justify-between w-full text-left"
+                aria-expanded={settingsExpanded}
+              >
+                <span className="text-sm font-medium text-muted-foreground">{t('pollCreation.settings')}</span>
+                <div className="flex items-center gap-2">
+                  {!settingsExpanded && (
+                    <div className="flex gap-1">
+                      {allowVoteEdit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.allowVoteEdit')}</span>}
+                      {!resultsPublic && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.resultsPrivate')}</span>}
+                    </div>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${settingsExpanded ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+              {settingsExpanded && (
+                <div className="space-y-4 mt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowVoteEdit')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowVoteEditDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoteEdit}
+                      onCheckedChange={setAllowVoteEdit}
+                      data-testid="switch-allow-vote-edit"
+                      aria-label={t('pollCreation.allowVoteEdit')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowVoteWithdrawalDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoteWithdrawal}
+                      onCheckedChange={setAllowVoteWithdrawal}
+                      data-testid="switch-allow-vote-withdrawal"
+                      aria-label={t('pollCreation.allowVoteWithdrawal')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.resultsPublic')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.resultsPublicDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={resultsPublic}
+                      onCheckedChange={setResultsPublic}
+                      data-testid="switch-results-public"
+                      aria-label={t('pollCreation.resultsPublic')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('createSurvey.allowMaybe')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('createSurvey.allowMaybeDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowMaybe}
+                      onCheckedChange={setAllowMaybe}
+                      data-testid="switch-allow-maybe"
+                      aria-label={t('createSurvey.allowMaybe')}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -486,46 +641,29 @@ export default function CreateSurvey() {
               <p className="text-sm text-muted-foreground">
                 {t('createSurvey.optionsHint')}
               </p>
-              
-              {options.map((option, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
-                      <span className="text-sm font-medium">{index + 1}</span>
-                    </div>
-                    <Input
-                      value={option.text}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder={t('createSurvey.optionPlaceholder', { number: index + 1 })}
-                      className="flex-1"
-                      data-testid={`input-option-${index}`}
-                    />
-                    {options.length > 2 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeOption(index)}
-                        className="text-destructive hover:text-destructive"
-                        aria-label={t('createSurvey.removeOption')}
-                        data-testid={`button-delete-option-${index}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <span className="text-sm text-muted-foreground">{t('createSurvey.addImage')}</span>
-                    <ImageUpload
-                      onImageUploaded={(imageUrl) => updateOptionImage(index, imageUrl)}
+
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={options.map(o => o.id)} strategy={verticalListSortingStrategy}>
+                  {options.map((option, index) => (
+                    <SortableSurveyRow
+                      key={option.id}
+                      option={option}
+                      index={index}
+                      options={options}
+                      onUpdate={(text) => updateOption(index, text)}
+                      onRemove={() => removeOption(index)}
+                      onImageUploaded={(url) => updateOptionImage(index, url)}
                       onImageRemoved={() => removeOptionImage(index)}
-                      onAltTextChange={(altText) => updateOptionAltText(index, altText)}
-                      currentImageUrl={option.imageUrl}
-                      currentAltText={option.altText}
+                      onAltTextChange={(alt) => updateOptionAltText(index, alt)}
+                      t={t}
                     />
-                  </div>
-                </div>
-              ))}
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
             
             <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">

@@ -8,10 +8,27 @@ import { Button } from '@/components/ui/button';
 import { PollTypeBadge } from '@/components/ui/PollTypeBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2 } from 'lucide-react';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Collapsible,
   CollapsibleContent,
@@ -44,14 +61,52 @@ interface ExtendedStats {
 function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; showAdminLink?: boolean }) {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date());
   const voteCount = poll.votes?.length || 0;
   const optionCount = poll.options?.length || 0;
 
+  const deleteMutation = useMutation({
+    mutationFn: () => apiRequest('DELETE', `/api/v1/polls/admin/${poll.adminToken}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/user/polls'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/user/participations'] });
+      toast({
+        title: t('myPolls.pollDeleted'),
+        description: t('myPolls.pollDeletedDesc'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('myPolls.toasts.error'),
+        description: t('myPolls.pollDeleteError'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/poll/${poll.publicToken}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast({
+        title: t('myPolls.toasts.copied'),
+        description: t('myPolls.shareLinkCopied'),
+      });
+    }).catch(() => {
+      toast({
+        title: t('myPolls.toasts.error'),
+        description: t('myPolls.toasts.linkNotCopied'),
+        variant: 'destructive',
+      });
+    });
+  };
+
   return (
     <Card 
       className="hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => navigate(showAdminLink ? `/admin/${poll.adminToken}` : `/poll/${poll.publicToken}`)}
+      onClick={() => navigate(`/poll/${poll.publicToken}`)}
       data-testid={`poll-card-${poll.id}`}
     >
       <CardHeader className="pb-2">
@@ -97,6 +152,92 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
             {t('myPolls.expiresAt')}: {format(new Date(poll.expiresAt), 'dd. MMM yyyy, HH:mm', { locale: getDateLocale() })}
           </div>
         )}
+        <div className="flex items-center gap-1 mt-3 pt-3 border-t" onClick={(e) => e.stopPropagation()}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/poll/${poll.publicToken}`); }}
+                  data-testid={`poll-action-stats-${poll.id}`}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('myPolls.showResults')}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleShare}
+                  data-testid={`poll-action-share-${poll.id}`}
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('common.share')}</TooltipContent>
+            </Tooltip>
+
+            {showAdminLink && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/${poll.adminToken}`); }}
+                      data-testid={`poll-action-edit-${poll.id}`}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('common.edit')}</TooltipContent>
+                </Tooltip>
+
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`poll-action-delete-${poll.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('common.delete')}</TooltipContent>
+                  </Tooltip>
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('myPolls.deleteConfirmTitle')}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t('myPolls.deleteConfirmDesc', { title: poll.title })}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => deleteMutation.mutate()}
+                        disabled={deleteMutation.isPending}
+                      >
+                        {deleteMutation.isPending ? t('common.loading') : t('common.delete')}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+          </TooltipProvider>
+        </div>
       </CardContent>
     </Card>
   );
@@ -404,71 +545,170 @@ export default function MyPolls() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="polly-gradient-orange text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-100 text-sm">{t('myPolls.statsActivePolls')}</p>
+                <p className="text-2xl font-bold">
+                  {createdLoading ? '–' : (createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date())).length || 0)}
+                </p>
+              </div>
+              <Activity className="w-8 h-8 text-orange-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="polly-gradient-blue text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm">{t('myPolls.statsTotalPolls')}</p>
+                <p className="text-2xl font-bold">
+                  {createdLoading ? '–' : (createdPolls?.length || 0)}
+                </p>
+              </div>
+              <BarChart3 className="w-8 h-8 text-blue-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100 text-sm">{t('myPolls.statsParticipations')}</p>
+                <p className="text-2xl font-bold">
+                  {createdLoading ? '–' : (createdPolls?.reduce((sum, p) => sum + (p.votes?.length || 0), 0) || 0)}
+                </p>
+              </div>
+              <Users className="w-8 h-8 text-green-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100 text-sm">{t('myPolls.statsThisWeek')}</p>
+                <p className="text-2xl font-bold">
+                  {createdLoading ? '–' : (createdPolls?.filter(p => {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return new Date(p.createdAt) > weekAgo;
+                  }).length || 0)}
+                </p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-purple-200" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <CalendarSubscriptionCard enabled={queriesEnabled} />
 
       <Tabs defaultValue="created" className="w-full">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>
-          <TabsTrigger value="created" data-testid="tab-created">
-            <ClipboardList className="h-4 w-4 mr-2" />
-            {t('myPolls.tabCreated')}
-            {createdPolls && createdPolls.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{createdPolls.length}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="participated" data-testid="tab-participated">
-            <Users className="h-4 w-4 mr-2" />
-            {t('myPolls.tabParticipated')}
-            {participatedPolls && participatedPolls.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{participatedPolls.length}</Badge>
-            )}
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="admin" data-testid="tab-admin">
-              <Shield className="h-4 w-4 mr-2" />
-              {t('myPolls.tabAdmin')}
-            </TabsTrigger>
-          )}
-        </TabsList>
+        {(() => {
+          const now = new Date();
+          const activePolls = createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > now)) || [];
+          const archivedPolls = createdPolls?.filter(p => !p.isActive || (p.expiresAt && new Date(p.expiresAt) <= now)) || [];
+          return (
+            <>
+              <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>
+                <TabsTrigger value="created" data-testid="tab-created">
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  {t('myPolls.tabCreated')}
+                  {activePolls.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{activePolls.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="participated" data-testid="tab-participated">
+                  <Users className="h-4 w-4 mr-2" />
+                  {t('myPolls.tabParticipated')}
+                  {participatedPolls && participatedPolls.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{participatedPolls.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="archive" data-testid="tab-archive">
+                  <Archive className="h-4 w-4 mr-2" />
+                  {t('myPolls.tabArchive')}
+                  {archivedPolls.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{archivedPolls.length}</Badge>
+                  )}
+                </TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger value="admin" data-testid="tab-admin">
+                    <Shield className="h-4 w-4 mr-2" />
+                    {t('myPolls.tabAdmin')}
+                  </TabsTrigger>
+                )}
+              </TabsList>
 
-        <TabsContent value="created">
-          {createdLoading ? (
-            <PollListSkeleton />
-          ) : createdPolls && createdPolls.length > 0 ? (
-            <div className="space-y-4">
-              {createdPolls.map((poll) => (
-                <PollCard key={poll.id} poll={poll} showAdminLink />
-              ))}
-            </div>
-          ) : (
-            <EmptyState type="created" />
-          )}
-        </TabsContent>
+              <TabsContent value="created">
+                {createdLoading ? (
+                  <PollListSkeleton />
+                ) : activePolls.length > 0 ? (
+                  <div className="space-y-4">
+                    {activePolls.map((poll) => (
+                      <PollCard key={poll.id} poll={poll} showAdminLink />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState type="created" />
+                )}
+              </TabsContent>
 
-        <TabsContent value="participated">
-          {participatedLoading ? (
-            <PollListSkeleton />
-          ) : participatedPolls && participatedPolls.length > 0 ? (
-            <div className="space-y-4">
-              {participatedPolls.map((poll) => (
-                <PollCard key={poll.id} poll={poll} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState type="participated" />
-          )}
-        </TabsContent>
+              <TabsContent value="participated">
+                {participatedLoading ? (
+                  <PollListSkeleton />
+                ) : participatedPolls && participatedPolls.length > 0 ? (
+                  <div className="space-y-4">
+                    {participatedPolls.map((poll) => (
+                      <PollCard key={poll.id} poll={poll} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState type="participated" />
+                )}
+              </TabsContent>
 
-        {isAdmin && (
-          <TabsContent value="admin" className="mt-0">
-            <AdminDashboard 
-              stats={adminStats}
-              users={adminUsers}
-              polls={adminPolls}
-              settings={adminSettings}
-              userRole="admin"
-            />
-          </TabsContent>
-        )}
+              <TabsContent value="archive">
+                {createdLoading ? (
+                  <PollListSkeleton />
+                ) : archivedPolls.length > 0 ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground mb-2">{t('myPolls.archiveDescription')}</p>
+                    {archivedPolls.map((poll) => (
+                      <PollCard key={poll.id} poll={poll} showAdminLink />
+                    ))}
+                  </div>
+                ) : (
+                  <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                      <Archive className="h-12 w-12 text-muted-foreground mb-4" />
+                      <CardTitle className="text-lg mb-2">{t('myPolls.noArchivedPolls')}</CardTitle>
+                      <CardDescription>{t('myPolls.archiveDescription')}</CardDescription>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              {isAdmin && (
+                <TabsContent value="admin" className="mt-0">
+                  <AdminDashboard 
+                    stats={adminStats}
+                    users={adminUsers}
+                    polls={adminPolls}
+                    settings={adminSettings}
+                    userRole="admin"
+                  />
+                </TabsContent>
+              )}
+            </>
+          );
+        })()}
       </Tabs>
     </div>
   );

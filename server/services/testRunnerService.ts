@@ -168,105 +168,194 @@ export async function getAvailableTests(): Promise<TestCategory[]> {
   return Array.from(categories.values());
 }
 
-export async function runAllTests(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<number> {
-  const [testRun] = await db.insert(testRuns).values({
-    status: 'running',
-    triggeredBy,
-    totalTests: 0,
-    passed: 0,
-    failed: 0,
-    skipped: 0,
-  }).returning();
-
-  runTestsInBackground(testRun.id);
-  
-  return testRun.id;
+async function countAllTests(testFiles?: string[], testNamePattern?: string): Promise<number> {
+  try {
+    const localVitest = path.join(process.cwd(), 'node_modules', '.bin', 'vitest');
+    if (!fs.existsSync(localVitest)) {
+      return countAllTestsFallback(testFiles);
+    }
+    
+    const args = ['list'];
+    if (testNamePattern) {
+      args.push('--testNamePattern', testNamePattern);
+    }
+    if (testFiles && testFiles.length > 0) {
+      args.push(...testFiles);
+    }
+    
+    const count = await new Promise<number>((resolve) => {
+      const proc = spawn(localVitest, args, {
+        cwd: process.cwd(),
+        env: { ...process.env, NODE_ENV: 'test' },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      
+      let output = '';
+      proc.stdout?.on('data', (data: Buffer) => { output += data.toString(); });
+      
+      const timeout = setTimeout(() => {
+        proc.kill('SIGKILL');
+        resolve(0);
+      }, 30000);
+      
+      proc.on('close', () => {
+        clearTimeout(timeout);
+        const lines = output.split('\n').filter(l => l.trim().length > 0);
+        resolve(lines.length);
+      });
+      
+      proc.on('error', () => {
+        clearTimeout(timeout);
+        resolve(0);
+      });
+    });
+    
+    if (count > 0) return count;
+    return countAllTestsFallback(testFiles);
+  } catch {
+    return countAllTestsFallback(testFiles);
+  }
 }
 
-async function runTestsInBackground(runId: number): Promise<void> {
-  const startTime = Date.now();
+function countAllTestsFallback(testFiles?: string[]): number {
+  let count = 0;
   
-  // Track this test run for progress monitoring
-  currentTestRunId = runId;
+  if (testFiles && testFiles.length > 0) {
+    for (const f of testFiles) {
+      try {
+        const fullPath = path.resolve(process.cwd(), f);
+        if (fs.existsSync(fullPath)) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          count += parseTestCases(content).length;
+        }
+      } catch {}
+    }
+    return count;
+  }
   
-  try {
-    // Get test mode and filter tests if in manual mode
-    const modeConfig = await getTestModeConfig();
-    let testFiles: string[] | undefined;
-    let testNamePattern: string | undefined;
+  const serverTestDir = path.join(process.cwd(), 'server', 'tests');
+  
+  function scanDir(dir: string) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          scanDir(fullPath);
+        } else if (entry.name.endsWith('.test.ts')) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          count += parseTestCases(content).length;
+        }
+      }
+    } catch {}
+  }
+  
+  scanDir(serverTestDir);
+  return count;
+}
+
+interface ResolvedTestConfig {
+  testFiles?: string[];
+  testNamePattern?: string;
+  e2eTestsToSkip: Array<{ testFile: string; testName: string; category: string }>;
+  totalTests: number;
+}
+
+async function resolveTestConfig(): Promise<ResolvedTestConfig> {
+  const modeConfig = await getTestModeConfig();
+  let testFiles: string[] | undefined;
+  let testNamePattern: string | undefined;
+  const e2eTestsToSkip: Array<{ testFile: string; testName: string; category: string }> = [];
+  
+  if (modeConfig.mode === 'manual') {
+    const enabledConfig = await getEnabledTestsConfig();
+    testFiles = enabledConfig.files.filter(f => !f.startsWith('e2e/') && !f.includes('/e2e/'));
+    testNamePattern = enabledConfig.testNamePattern;
     
-    // Collect E2E tests to mark as skipped (Playwright not available in Replit)
-    // Note: E2E tests are stored in test_configurations but NOT run by Vitest
-    // They appear separately in the UI as skipped with an explanation
-    const e2eTestsToSkip: Array<{ testFile: string; testName: string; category: string }> = [];
-    
-    if (modeConfig.mode === 'manual') {
-      const enabledConfig = await getEnabledTestsConfig();
-      // Filter out E2E tests from test files (they don't run in internal environment)
-      testFiles = enabledConfig.files.filter(f => !f.startsWith('e2e/') && !f.includes('/e2e/'));
-      testNamePattern = enabledConfig.testNamePattern;
-      
-      // Collect skipped E2E tests for reporting (only in manual mode when explicitly enabled)
-      const skippedE2EFiles = enabledConfig.files.filter(f => f.startsWith('e2e/') || f.includes('/e2e/'));
-      for (const e2eFile of skippedE2EFiles) {
+    const skippedE2EFiles = enabledConfig.files.filter(f => f.startsWith('e2e/') || f.includes('/e2e/'));
+    for (const e2eFile of skippedE2EFiles) {
+      const tests = await getTestNamesFromFile(e2eFile);
+      for (const testName of tests) {
+        e2eTestsToSkip.push({ testFile: e2eFile, testName, category: 'e2e' });
+      }
+    }
+    console.log(`[TestRunner] Manual mode: ${testFiles.length} test files, ${e2eTestsToSkip.length} E2E skipped`);
+  } else {
+    const e2eDir = path.join(process.cwd(), 'e2e');
+    try {
+      const e2eFiles = fs.readdirSync(e2eDir)
+        .filter(f => f.endsWith('.spec.ts') || f.endsWith('.test.ts'))
+        .map(f => `e2e/${f}`);
+      for (const e2eFile of e2eFiles) {
         const tests = await getTestNamesFromFile(e2eFile);
         for (const testName of tests) {
           e2eTestsToSkip.push({ testFile: e2eFile, testName, category: 'e2e' });
         }
       }
-      
-      console.log(`[TestRunner] Running in manual mode with ${testFiles.length} test files (${e2eTestsToSkip.length} E2E tests skipped)`);
-      
-      // Short-circuit if no tests are enabled in manual mode (only E2E or nothing)
-      if (testFiles.length === 0) {
-        // Record skipped E2E tests if any
-        for (const e2eTest of e2eTestsToSkip) {
-          await db.insert(testResults).values({
-            runId,
-            testFile: e2eTest.testFile,
-            testName: e2eTest.testName,
-            category: e2eTest.category,
-            status: 'skipped',
-            duration: null,
-            error: 'E2E tests require Playwright (only available in CI/CD)',
-            errorStack: null,
-          });
-        }
-        
-        const hasOnlyE2E = e2eTestsToSkip.length > 0;
-        console.log(`[TestRunner] No runnable tests in manual mode${hasOnlyE2E ? ' (only E2E tests enabled)' : ''}`);
-        
-        await db.update(testRuns)
-          .set({
-            status: 'completed',
-            totalTests: e2eTestsToSkip.length,
-            passed: 0,
-            failed: 0,
-            skipped: e2eTestsToSkip.length,
-            duration: Date.now() - startTime,
-            completedAt: new Date(),
-          })
-          .where(eq(testRuns.id, runId));
-        currentTestRunId = null;
-        return;
+    } catch {}
+    console.log(`[TestRunner] Auto mode: all server tests, ${e2eTestsToSkip.length} E2E skipped`);
+  }
+  
+  const vitestCount = await countAllTests(testFiles, testNamePattern);
+  const totalTests = vitestCount + e2eTestsToSkip.length;
+  
+  return { testFiles, testNamePattern, e2eTestsToSkip, totalTests };
+}
+
+export async function runAllTests(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<number> {
+  const config = await resolveTestConfig();
+  
+  const [testRun] = await db.insert(testRuns).values({
+    status: 'running',
+    triggeredBy,
+    totalTests: config.totalTests,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+  }).returning();
+
+  runTestsInBackground(testRun.id, config);
+  
+  return testRun.id;
+}
+
+async function runTestsInBackground(runId: number, config: ResolvedTestConfig): Promise<void> {
+  const startTime = Date.now();
+  
+  currentTestRunId = runId;
+  
+  const { testFiles, testNamePattern, e2eTestsToSkip } = config;
+  
+  try {
+    if (testFiles && testFiles.length === 0) {
+      for (const e2eTest of e2eTestsToSkip) {
+        await db.insert(testResults).values({
+          runId,
+          testFile: e2eTest.testFile,
+          testName: e2eTest.testName,
+          category: e2eTest.category,
+          status: 'skipped',
+          duration: null,
+          error: 'E2E tests require Playwright (only available in CI/CD)',
+          errorStack: null,
+        });
       }
-    } else {
-      // Auto mode: also collect E2E tests to mark as skipped for consistent counting
-      const e2eDir = path.join(process.cwd(), 'e2e');
-      try {
-        const e2eFiles = fs.readdirSync(e2eDir)
-          .filter(f => f.endsWith('.spec.ts') || f.endsWith('.test.ts'))
-          .map(f => `e2e/${f}`);
-        for (const e2eFile of e2eFiles) {
-          const tests = await getTestNamesFromFile(e2eFile);
-          for (const testName of tests) {
-            e2eTestsToSkip.push({ testFile: e2eFile, testName, category: 'e2e' });
-          }
-        }
-      } catch (err) {
-        // e2e directory might not exist
-      }
-      console.log(`[TestRunner] Running in auto mode (server tests only, ${e2eTestsToSkip.length} E2E tests skipped)`);
+      
+      console.log(`[TestRunner] No runnable tests (${e2eTestsToSkip.length} E2E skipped)`);
+      
+      await db.update(testRuns)
+        .set({
+          status: 'completed',
+          totalTests: e2eTestsToSkip.length,
+          passed: 0,
+          failed: 0,
+          skipped: e2eTestsToSkip.length,
+          duration: Date.now() - startTime,
+          completedAt: new Date(),
+        })
+        .where(eq(testRuns.id, runId));
+      currentTestRunId = null;
+      return;
     }
     
     const vitestOutput = await executeVitest(testFiles, testNamePattern);
@@ -325,15 +414,12 @@ async function runTestsInBackground(runId: number): Promise<void> {
       }
     }
     
-    // Calculate totals: add manually-skipped E2E tests only if in manual mode
-    const totalTests = parsed.numTotalTests + e2eTestsToSkip.length;
     const totalSkipped = (parsed.numSkippedTests || 0) + e2eTestsToSkip.length;
     
     const completedAt = new Date();
     await db.update(testRuns)
       .set({
-        status: parsed.success ? 'completed' : 'failed',
-        totalTests,
+        status: (parsed.numFailedTests === 0 && parsed.numTotalTests > 0) ? 'completed' : 'failed',
         passed: parsed.numPassedTests,
         failed: parsed.numFailedTests,
         skipped: totalSkipped,
@@ -342,10 +428,12 @@ async function runTestsInBackground(runId: number): Promise<void> {
       })
       .where(eq(testRuns.id, runId));
     
-    // Send email notification if configured
+    const finalRun = await db.select().from(testRuns).where(eq(testRuns.id, runId)).limit(1);
+    const finalTotal = finalRun[0]?.totalTests || (parsed.numTotalTests + e2eTestsToSkip.length);
+    
     await sendTestReportNotification(runId, {
-      status: parsed.success ? 'completed' : 'failed',
-      totalTests,
+      status: (parsed.numFailedTests === 0 && parsed.numTotalTests > 0) ? 'completed' : 'failed',
+      totalTests: finalTotal,
       passed: parsed.numPassedTests,
       failed: parsed.numFailedTests,
       skipped: totalSkipped,
@@ -930,17 +1018,72 @@ interface ParsedTest {
   description?: string;
 }
 
-function parseTestCases(content: string): ParsedTest[] {
+export function parseTestCases(content: string): ParsedTest[] {
   const tests: ParsedTest[] = [];
+  const lines = content.split('\n');
   
-  // Match it() or test() calls
-  const testRegex = /(?:it|test)\s*\(\s*['"`]([^'"`]+)['"`]/g;
-  let match;
+  let inBlockComment = false;
+  let insideForEach = false;
+  let forEachDepth = 0;
   
-  while ((match = testRegex.exec(content)) !== null) {
-    tests.push({
-      name: match[1],
-    });
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    
+    if (inBlockComment) {
+      if (trimmed.includes('*/')) {
+        inBlockComment = false;
+      }
+      continue;
+    }
+    
+    if (trimmed.startsWith('/*')) {
+      if (!trimmed.includes('*/')) {
+        inBlockComment = true;
+      }
+      continue;
+    }
+    
+    if (trimmed.startsWith('//')) {
+      continue;
+    }
+    
+    if (insideForEach) {
+      forEachDepth += (trimmed.match(/\{/g) || []).length;
+      forEachDepth -= (trimmed.match(/\}/g) || []).length;
+      if (forEachDepth <= 0) {
+        insideForEach = false;
+        forEachDepth = 0;
+      }
+      continue;
+    }
+    
+    const forEachMatch = trimmed.match(/\.forEach\s*\(\s*(?:\(?[^)]*\)?\s*=>\s*\{?|function)/);
+    if (forEachMatch) {
+      insideForEach = true;
+      forEachDepth = (trimmed.match(/\{/g) || []).length - (trimmed.match(/\}/g) || []).length;
+      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+        const nextTrimmed = lines[j].trim();
+        if (nextTrimmed.match(/(?:it|test)(?:\.skip|\.todo|\.only)?\s*\(\s*(?:'|"|`)/)) {
+          tests.push({ name: `[dynamic/forEach] ${nextTrimmed.substring(0, 60)}` });
+          break;
+        }
+      }
+      continue;
+    }
+    
+    const eachMatch = trimmed.match(/(?:it|test)\.each\s*[\[(]/);
+    if (eachMatch) {
+      tests.push({ name: `[dynamic] ${trimmed.substring(0, 60)}` });
+      continue;
+    }
+    
+    const testMatch = trimmed.match(/(?:it|test)(?:\.skip|\.todo|\.only)?\s*\(\s*(?:'([^']+)'|"([^"]+)"|`([^`]+)`)/);
+    if (testMatch) {
+      const name = testMatch[1] || testMatch[2] || testMatch[3];
+      if (name) {
+        tests.push({ name });
+      }
+    }
   }
   
   return tests;

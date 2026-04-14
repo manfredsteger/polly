@@ -1,8 +1,8 @@
 # Polly Architecture Documentation
 
-**Version:** 2.0  
-**Last Updated:** 2026-01-08  
-**Status:** Pre-Beta (WCAG 2.1 AA Compliant)
+**Version:** 3.0  
+**Last Updated:** 2026-03-25  
+**Status:** Beta
 
 ---
 
@@ -28,18 +28,21 @@
 Polly is a **self-hosted polling and scheduling platform** that supports three distinct poll types:
 
 1. **Schedule Polls** (Terminumfragen) - Find the best date/time with Yes/Maybe/No voting
-2. **Survey Polls** (Umfragen) - Classic polls with text/image options
-3. **Organization Lists** (Orga-Listen) - Slot booking with capacity management
+2. **Survey Polls** (Umfragen) - Classic polls with text/image options and optional free-text answers
+3. **Organization Lists** (Orga-Listen) - Slot booking with capacity management and real-time reservation
 
 ### Key Characteristics
 
 - **Self-Hosted:** No cloud dependencies, full data ownership
-- **Multi-Language:** German & English (extensible via i18next)
-- **Real-Time:** WebSocket-based live updates
-- **GDPR-Compliant:** Privacy-first design with account deletion workflow
+- **Multi-Language:** German & English with system-wide default language setting and per-user preference
+- **Real-Time:** WebSocket-based live updates and fullscreen presentation mode
+- **GDPR-Compliant:** Privacy-first design with account deletion workflow (Art. 17)
 - **WCAG 2.1 AA Compliant:** Accessibility-first for public sector use
 - **Anonymous & Authenticated:** Works for guests and registered users
 - **Enterprise SSO:** Optional Keycloak OIDC integration
+- **AI-Assisted:** Optional AI-powered poll creation and voice input (Whisper transcription)
+- **Calendar Integration:** ICS export, webcal subscription, calendar feed for finalized dates
+- **Email Templates:** Customizable V3 template system with visual builder and dark mode support
 
 ---
 
@@ -48,38 +51,47 @@ Polly is a **self-hosted polling and scheduling platform** that supports three d
 ### 1. Simplicity Over Complexity
 - **Monolithic architecture** (not microservices) for easier deployment
 - Single Docker container for production
-- PostgreSQL as the only database (no Redis required for MVP)
+- PostgreSQL as the only database (no Redis required)
 
 ### 2. Developer Experience
 - **TypeScript everywhere** (frontend + backend)
 - **Shared types** between client and server (`/shared/schema.ts`)
-- **Hot-reload** in development
+- **Hot-reload** in development via Vite
 - **Type-safe database queries** with Drizzle ORM
+- **Zod schema validation** shared between frontend forms and backend routes
 
 ### 3. Performance & Scalability
 - **WebSocket** for real-time updates (scales to ~100 concurrent users per instance)
-- **Database indexing** on critical queries
-- **Row-level locking + Advisory locks** for race condition prevention (slot booking)
+- **Database indexing** on critical queries (polls, votes, tokens)
+- **Row-level locking + Advisory locks** for race condition prevention (Orga-Listen slot booking)
+- **Admin stats caching** (5-minute TTL with background warming)
 
 ### 4. Security First
-- **Server-side validation** with Zod
-- **Session-based authentication** (not JWT for better security)
-- **Rate limiting** on login endpoints (5 failed attempts → 15 min lockout)
-- **XSS prevention** through React auto-escaping
+- **Server-side validation** with Zod schemas
+- **Session-based authentication** (not JWT for better revocation)
+- **Rate limiting** on login (5 attempts → 15 min lockout), registration, password reset, and API endpoints
+- **XSS prevention** through React auto-escaping and `htmlEscape()` for email templates
 - **ClamAV integration** for file upload scanning (optional)
+- **SSRF protection** on logo URL fetching for email embedding
+- **Session fixation prevention** via session regeneration on login/register
+- **Generic error messages** (no `error.message` leaks to client)
+- **Cache-Control `no-store`** on all API responses
+- **Force-password-change** for default admin credentials
 
 ### 5. Accessibility First
 - **WCAG 2.1 AA compliant** by default
 - **Color contrast ratios** meet 4.5:1 minimum
 - **Focus indicators** on all interactive elements
 - **Screen reader compatible** with ARIA labels
+- **Admin WCAG audit** with automated contrast checking and correction suggestions
 - **Admin override** available for corporate design requirements
 
 ### 6. Extensibility
 - **Plugin-ready** i18n system (easy to add new languages)
-- **Customizable theming** via admin panel
+- **Customizable theming** via admin panel (colors, logo, branding, footer)
 - **Modular poll types** (easy to add new types)
-- **Email template editor** with visual builder
+- **Email template editor** with V3 shell, dark mode support, and footer customization
+- **External deprovisioning API** for Keycloak/Kafka integration
 
 ---
 
@@ -87,43 +99,57 @@ Polly is a **self-hosted polling and scheduling platform** that supports three d
 
 ### Frontend
 ```
-React 18           → UI library
-TypeScript         → Type safety
-Vite               → Build tool & dev server
-TanStack Query v5  → Data fetching & caching
-Shadcn/ui          → Component library (Radix UI based)
-Radix UI           → Headless UI primitives
-Tailwind CSS       → Styling
-Wouter             → Lightweight routing
-react-i18next      → Internationalization
-Framer Motion      → Animations
-Recharts           → Charts & visualizations
+React 18            → UI library
+TypeScript          → Type safety
+Vite                → Build tool & dev server
+TanStack Query v5   → Data fetching & caching
+Shadcn/ui           → Component library (Radix UI based)
+Radix UI            → Headless UI primitives
+Tailwind CSS        → Styling
+Wouter              → Lightweight routing
+react-i18next       → Internationalization
+Framer Motion       → Animations
+Recharts            → Charts & visualizations
+react-hook-form     → Form management
+react-markdown      → Markdown rendering
+Embla Carousel      → Carousel / image gallery
+@dnd-kit            → Drag and drop (option reordering)
+cmdk                → Command palette
 ```
 
 ### Backend
 ```
-Node.js 22 LTS     → Runtime
-Express.js         → Web framework
-TypeScript         → Type safety
-Drizzle ORM        → Database queries
-PostgreSQL         → Database (Neon-backed on Replit)
-Passport.js        → Authentication (local + OIDC)
-express-session    → Session management
-connect-pg-simple  → PostgreSQL session store
-ws                 → WebSocket server
-Nodemailer         → Email sending
-Puppeteer          → PDF generation
+Node.js 22 LTS      → Runtime
+Express.js          → Web framework
+TypeScript          → Type safety
+Drizzle ORM         → Database queries
+PostgreSQL          → Database (Neon-backed on Replit)
+Passport.js         → Authentication (local + OIDC)
+express-session     → Session management
+connect-pg-simple   → PostgreSQL session store
+ws                  → WebSocket server
+Nodemailer          → Email sending (SMTP)
+@sendgrid/mail      → Email sending (SendGrid alternative)
+Puppeteer           → PDF generation
+OpenAI SDK          → AI poll creation (GWDG SAIA compatible)
+openid-client       → Keycloak OIDC integration
+matrix-js-sdk       → Matrix chat integration
+bcryptjs            → Password hashing
+multer              → File upload handling
+qrcode              → QR code generation
+nanoid              → Token generation
 ```
 
 ### DevOps
 ```
-Docker             → Containerization
-Docker Compose     → Local development & production
-Playwright         → E2E testing
-axe-core           → Accessibility testing
-Vitest             → Unit testing
-GitHub Actions     → CI/CD
-GitLab CI          → Alternative CI/CD
+Docker              → Containerization
+Docker Compose      → Local development & production
+Playwright          → E2E testing
+axe-core            → Accessibility testing
+Vitest              → Unit & integration testing
+GitHub Actions      → CI/CD (lint, test, build, release)
+GitLab CI           → Alternative CI/CD
+ESLint + Prettier   → Code formatting & linting
 ```
 
 ---
@@ -154,15 +180,16 @@ GitLab CI          → Alternative CI/CD
 │                            │                                │
 │                  ┌─────────▼──────────┐                     │
 │                  │   Business Logic   │                     │
-│                  │   (storage.ts)     │                     │
+│                  │   (storage.ts +    │                     │
+│                  │    services/*.ts)  │                     │
 │                  └─────────┬──────────┘                     │
 │                            │                                │
-│         ┌──────────────────┼──────────────────┐             │
-│         ▼                  ▼                  ▼             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │  Nodemailer │    │  Puppeteer  │    │  ClamAV     │     │
-│  │  (Email)    │    │  (PDF)      │    │  (Scanning) │     │
-│  └─────────────┘    └─────────────┘    └─────────────┘     │
+│    ┌───────────┬───────────┼───────────┬───────────┐        │
+│    ▼           ▼           ▼           ▼           ▼        │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│ │Nodemailer│ │Puppeteer│ │ ClamAV  │ │   AI    │ │ Matrix  │
+│ │(Email)   │ │(PDF)    │ │(Scan)   │ │(OpenAI) │ │(Chat)   │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
 └────────────────────────────┼────────────────────────────────┘
                              │
                     ┌────────▼─────────┐
@@ -175,34 +202,80 @@ GitLab CI          → Alternative CI/CD
                     └──────────────────┘
 ```
 
+### Route Architecture
+
+```
+server/routes/
+├── index.ts        → Route mounting & middleware registration
+├── common.ts       → Shared schemas (Zod), middleware (requireAuth, requireAdmin, extractUserId)
+├── auth.ts         → /api/v1/auth/* (login, register, password reset, email change, OIDC)
+├── polls.ts        → /api/v1/polls/* (CRUD, options, invite, remind, finalize)
+├── votes.ts        → /api/v1/polls/:token/vote*, /api/v1/votes/edit/:editToken
+├── users.ts        → /api/v1/user/profile, /api/v1/users/me/*
+├── admin.ts        → /api/v1/admin/* (users, polls, settings, security, customization, email templates, WCAG, ClamAV, pentest-tools, test runs, GDPR)
+├── export.ts       → /api/v1/polls/:token/export/* (QR, PDF, CSV, ICS), calendar feed
+├── system.ts       → /api/v1/health, /api/v1/customization, /api/v1/theme, /api/v1/upload/image, /api/v1/matrix/*, SMTP/OIDC config
+└── ai.ts           → /api/v1/ai/* (transcribe, create-poll, apply, admin settings)
+```
+
+### Service Architecture
+
+```
+server/services/
+├── authService.ts           → Local + OIDC authentication logic
+├── tokenService.ts          → Bearer token (JWT) validation
+├── emailService.ts          → Email sending (SMTP/SendGrid)
+├── emailTemplateService.ts  → V3 email template rendering & management
+├── liveVotingService.ts     → WebSocket rooms, live updates, presence tracking
+├── icsService.ts            → ICS calendar generation & parsing
+├── pdfService.ts            → PDF report generation (Puppeteer)
+├── qrService.ts             → QR code generation (PNG/SVG)
+├── imageService.ts          → Image upload + ClamAV scanning
+├── clamavService.ts         → ClamAV daemon interface
+├── aiService.ts             → AI-powered poll creation (OpenAI-compatible)
+├── whisperService.ts        → Audio transcription (Whisper + ffmpeg)
+├── matrixService.ts         → Matrix protocol chat integration
+├── rateLimiterService.ts    → Login-specific rate limiting
+├── apiRateLimiterService.ts → General API rate limiting (configurable)
+├── aiRateLimiterService.ts  → AI feature rate limiting
+├── deviceTokenService.ts    → Anonymous voter device token signing
+├── adminCacheService.ts     → Dashboard stats caching (5-min TTL)
+├── npmAuditService.ts       → npm audit vulnerability scanning
+├── pentestToolsService.ts   → Pentest-Tools.com API integration
+├── systemPackageService.ts  → System package monitoring
+└── testRunnerService.ts     → Vitest/Playwright execution from admin UI
+```
+
 ### Request Flow
 
 #### 1. Poll Creation (Authenticated User)
 ```
 User → React Form → POST /api/v1/polls
                     ↓
-                Check Auth (session)
+                Check Auth (session, optional)
                     ↓
-                Validate (Zod)
+                Validate (Zod: createPollSchema)
                     ↓
                 Insert to DB (Drizzle)
                     ↓
-                Generate Tokens (publicToken, adminToken)
+                Generate Tokens (publicToken, adminToken via nanoid)
                     ↓
-                Return Poll Data
+                [Optional] Send Creator Email (adminToken link)
                     ↓
-User ← Poll Detail Page
+                Return { poll, publicToken, adminToken }
+                    ↓
+User ← Poll Success Page (links to share/admin)
 ```
 
 #### 2. Vote Submission (Anonymous or Authenticated)
 ```
 User → React Form → POST /api/v1/polls/:token/vote
                     ↓
-                Validate Input (Zod)
+                Validate Input (Zod: bulkVoteSchema)
                     ↓
-                Check Poll Exists & Active
+                Check Poll Exists & Active & Not Expired
                     ↓
-                Check Poll Not Expired
+                Check Voter Identity (email ownership for logged-in users)
                     ↓
                 [Organization Only] Acquire Advisory Lock
                     ↓
@@ -210,7 +283,7 @@ User → React Form → POST /api/v1/polls/:token/vote
                     ↓
                 Broadcast to WebSocket Clients
                     ↓
-                [Optional] Send Email Confirmation
+                [Optional] Send Email Confirmation (with voterEditToken link)
                     ↓
 User ← Confirmation + Edit Link (voterEditToken)
 ```
@@ -221,7 +294,7 @@ User A votes → Server receives vote
                     ↓
                 WebSocket.broadcast({ type: 'vote_update' })
                     ↓
-User B, C, D... ← Receive update, invalidate cache
+User B, C, D... ← Receive update, invalidate TanStack Query cache
 ```
 
 ---
@@ -235,19 +308,20 @@ User B, C, D... ← Receive update, invalidate cache
 │                          users                               │
 ├─────────────────────────────────────────────────────────────┤
 │ id (serial PK)           │ Primary key                      │
-│ username (text UNIQUE)   │ Display name                     │
+│ username (text UNIQUE)   │ Login name (3-30 chars)           │
 │ email (text UNIQUE)      │ Login identifier                 │
-│ name (text)              │ Full name                        │
-│ role (text)              │ user / admin / manager           │
-│ organization (text)      │ Company/org name                 │
+│ name (text)              │ Full name (1-100 chars)           │
+│ role (text)              │ user / manager / admin            │
+│ organization (text?)     │ Company/org name                 │
 │ passwordHash (text?)     │ bcrypt hash (null for OIDC)      │
-│ keycloakId (text?)       │ OIDC subject ID from Keycloak    │
+│ keycloakId (text? UNIQUE)│ OIDC subject ID from Keycloak    │
 │ provider (text)          │ 'local' or 'keycloak'            │
 │ themePreference (text)   │ light / dark / system            │
 │ languagePreference (text)│ de / en                          │
-│ calendarToken (text?)    │ Secret for ICS subscription      │
+│ emailVerified (boolean)  │ Email address confirmed          │
+│ calendarToken (text? UNI)│ Secret for ICS subscription      │
 │ isTestData (boolean)     │ Test accounts excluded from prod │
-│ isInitialAdmin (boolean) │ First admin created at startup   │
+│ isInitialAdmin (boolean) │ First admin (force pwd change)   │
 │ deletionRequestedAt (ts?)│ GDPR: Account deletion request   │
 │ lastLoginAt (timestamp?) │ Last successful login            │
 │ createdAt (timestamp)    │                                  │
@@ -259,13 +333,13 @@ User B, C, D... ← Receive update, invalidate cache
 │                          polls                               │
 ├─────────────────────────────────────────────────────────────┤
 │ id (UUID PK)             │ Primary key (auto-generated)     │
-│ title (text)             │ Poll title                       │
-│ description (text?)      │ Optional description             │
+│ title (text)             │ Poll title (1-200 chars)          │
+│ description (text?)      │ Optional description (max 5000)  │
 │ type (text)              │ schedule / survey / organization │
 │ userId (int FK?)         │ Creator (null for anonymous)     │
 │ creatorEmail (text?)     │ Email for anonymous polls        │
-│ adminToken (text UNIQUE) │ For owner/admin access           │
-│ publicToken (text UNIQUE)│ For public voting                │
+│ adminToken (text UNIQUE) │ For owner/admin access (hex)     │
+│ publicToken (text UNIQUE)│ For public voting (hex)          │
 │ isActive (boolean)       │ Can receive votes                │
 │ isAnonymous (boolean)    │ Hide voter names                 │
 │ allowAnonymousVoting     │ Guest voting allowed             │
@@ -275,6 +349,7 @@ User B, C, D... ← Receive update, invalidate cache
 │ allowVoteWithdrawal      │ Voters can delete submissions    │
 │ resultsPublic (boolean)  │ Results visible to everyone      │
 │ allowMaybe (boolean)     │ Schedule: show maybe option      │
+│ finalOptionId (int?)     │ Confirmed/finalized option       │
 │ isTestData (boolean)     │ Excluded from production stats   │
 │ expiresAt (timestamp?)   │ Auto-close date                  │
 │ enableExpiryReminder     │ Send reminder before expiry      │
@@ -282,23 +357,28 @@ User B, C, D... ← Receive update, invalidate cache
 │ expiryReminderSent       │ Reminder already sent            │
 │ createdAt (timestamp)    │                                  │
 │ updatedAt (timestamp)    │                                  │
+├─────────────────────────────────────────────────────────────┤
+│ Indexes: user_id, type, is_active, expires_at              │
 └─────────────────────────────────────────────────────────────┘
        │
        │ pollId (FK)
        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       pollOptions                            │
+│                       poll_options                           │
 ├─────────────────────────────────────────────────────────────┤
 │ id (serial PK)           │ Primary key                      │
 │ pollId (UUID FK)         │ Parent poll                      │
-│ text (text)              │ Option label                     │
+│ text (text)              │ Option label (1-500 chars)       │
 │ imageUrl (text?)         │ For survey with images           │
 │ altText (text?)          │ Alt text for accessibility       │
 │ startTime (timestamp?)   │ Schedule: slot start time (UTC)  │
 │ endTime (timestamp?)     │ Schedule: slot end time (UTC)    │
 │ maxCapacity (int?)       │ Orga: max signups per slot       │
+│ isFreeText (boolean)     │ Survey: free-text answer field   │
 │ order (int)              │ Display order                    │
 │ createdAt (timestamp)    │                                  │
+├─────────────────────────────────────────────────────────────┤
+│ Indexes: poll_id                                            │
 └─────────────────────────────────────────────────────────────┘
        │
        │ optionId (FK)
@@ -309,74 +389,102 @@ User B, C, D... ← Receive update, invalidate cache
 │ id (serial PK)           │ Primary key                      │
 │ pollId (UUID FK)         │ Parent poll                      │
 │ optionId (int FK)        │ Selected option                  │
-│ voterName (text)         │ Display name                     │
+│ voterName (text)         │ Display name (1-100 chars)       │
 │ voterEmail (text)        │ For confirmation emails          │
 │ userId (int FK?)         │ Logged-in user (null for guests) │
-│ voterKey (text?)         │ Dedup key: "user:123" / "device:x"│
+│ voterKey (text?)         │ Dedup key: "user:123"/"device:x" │
 │ voterSource (text?)      │ "user" or "device"               │
-│ response (text)          │ yes / maybe / no / signup        │
+│ response (text)          │ yes/maybe/no/freetext/signup     │
 │ comment (text?)          │ Optional comment                 │
+│ freeTextAnswer (text?)   │ Survey free-text (max 2000)      │
 │ voterEditToken (text?)   │ Unique token for vote editing    │
+│ isTestData (boolean)     │ Excluded from production stats   │
 │ createdAt (timestamp)    │                                  │
 │ updatedAt (timestamp)    │                                  │
+├─────────────────────────────────────────────────────────────┤
+│ Indexes: poll_id, option_id, voter_email, voter_key,       │
+│          voter_edit_token                                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Supporting Tables
 
 ```
-┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐
-│  systemSettings   │  │  emailTemplates   │  │  notificationLogs │
-├───────────────────┤  ├───────────────────┤  ├───────────────────┤
-│ id (serial PK)    │  │ id (serial PK)    │  │ id (serial PK)    │
-│ key (text UNIQUE) │  │ type (text UNIQUE)│  │ pollId (UUID FK)  │
-│ value (jsonb)     │  │ name (text)       │  │ type (text)       │
-│ description       │  │ subject (text)    │  │ recipientEmail    │
-│ updatedAt         │  │ jsonContent (json)│  │ sentBy            │
-└───────────────────┘  │ htmlContent       │  │ success (boolean) │
-                       │ textContent       │  │ errorMessage      │
-                       │ variables (json)  │  │ createdAt         │
-                       │ isDefault         │  └───────────────────┘
-                       │ isActive          │
+┌───────────────────┐  ┌───────────────────┐  ┌────────────────────┐
+│  system_settings  │  │  email_templates  │  │  notification_logs │
+├───────────────────┤  ├───────────────────┤  ├────────────────────┤
+│ id (serial PK)    │  │ id (serial PK)    │  │ id (serial PK)     │
+│ key (text UNIQUE) │  │ type (text UNIQUE)│  │ pollId (UUID FK)   │
+│ value (jsonb)     │  │ name (text)       │  │ type (text)        │
+│ description       │  │ subject (text)    │  │ recipientEmail     │
+│ updatedAt         │  │ jsonContent (jsonb│  │ sentBy             │
+└───────────────────┘  │ htmlContent (text)│  │ sentByGuest (bool) │
+                       │ textContent (text)│  │ success (boolean)  │
+                       │ variables (jsonb) │  │ errorMessage       │
+                       │ isDefault (bool)  │  │ createdAt          │
+                       │ isActive (bool)   │  └────────────────────┘
                        │ createdAt         │
                        │ updatedAt         │
                        └───────────────────┘
 
-┌───────────────────────┐  ┌───────────────────────┐
-│  passwordResetTokens  │  │  emailChangeTokens    │
-├───────────────────────┤  ├───────────────────────┤
-│ id (serial PK)        │  │ id (serial PK)        │
-│ userId (int FK)       │  │ userId (int FK)       │
-│ token (text UNIQUE)   │  │ newEmail (text)       │
-│ expiresAt (timestamp) │  │ token (text UNIQUE)   │
-│ usedAt (timestamp?)   │  │ expiresAt (timestamp) │
-│ createdAt (timestamp) │  │ usedAt (timestamp?)   │
-└───────────────────────┘  │ createdAt (timestamp) │
+┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐
+│  password_reset_tokens│  │  email_change_tokens  │  │  email_verification_  │
+├───────────────────────┤  ├───────────────────────┤  │  tokens               │
+│ id (serial PK)        │  │ id (serial PK)        │  ├───────────────────────┤
+│ userId (int FK)       │  │ userId (int FK)       │  │ id (serial PK)        │
+│ token (text UNIQUE)   │  │ newEmail (text)       │  │ userId (int FK)       │
+│ expiresAt (timestamp) │  │ token (text UNIQUE)   │  │ token (text UNIQUE)   │
+│ usedAt (timestamp?)   │  │ expiresAt (timestamp) │  │ expiresAt (timestamp) │
+│ createdAt (timestamp) │  │ usedAt (timestamp?)   │  │ createdAt (timestamp) │
+├───────────────────────┤  │ createdAt (timestamp) │  ├───────────────────────┤
+│ Idx: token, user_id   │  ├───────────────────────┤  │ Idx: token, user_id   │
+└───────────────────────┘  │ Idx: token, user_id   │  └───────────────────────┘
                            └───────────────────────┘
 
-┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐
-│     testRuns      │  │    testResults    │  │  clamavScanLogs   │
-├───────────────────┤  ├───────────────────┤  ├───────────────────┤
-│ id (serial PK)    │  │ id (serial PK)    │  │ id (serial PK)    │
-│ status (text)     │  │ runId (int FK)    │  │ filename (text)   │
-│ triggeredBy       │  │ testFile (text)   │  │ fileSize (int)    │
-│ totalTests        │  │ testName (text)   │  │ mimeType (text)   │
-│ passed            │  │ category (text)   │  │ scanResult        │
-│ failed            │  │ status (text)     │  │ isInfected        │
-│ skipped           │  │ duration (int)    │  │ virusName         │
-│ duration          │  │ error (text?)     │  │ scannedBy         │
-│ startedAt         │  │ errorStack        │  │ createdAt         │
-│ completedAt       │  │ createdAt         │  └───────────────────┘
-└───────────────────┘  └───────────────────┘
+┌───────────────────┐  ┌───────────────────┐  ┌───────────────────────┐
+│     test_runs     │  │    test_results   │  │  test_configurations  │
+├───────────────────┤  ├───────────────────┤  ├───────────────────────┤
+│ id (serial PK)    │  │ id (serial PK)    │  │ id (serial PK)        │
+│ status (text)     │  │ runId (int FK)    │  │ testId (text UNIQUE)  │
+│ triggeredBy       │  │ testFile (text)   │  │ testFile (text)       │
+│ totalTests        │  │ testName (text)   │  │ testName (text)       │
+│ passed            │  │ category (text)   │  │ testType (text)       │
+│ failed            │  │ status (text)     │  │ category (text)       │
+│ skipped           │  │ duration (int)    │  │ description (text?)   │
+│ duration          │  │ error (text?)     │  │ enabled (boolean)     │
+│ startedAt         │  │ errorStack        │  │ lastStatus (text?)    │
+│ completedAt       │  │ createdAt         │  │ lastRunAt (timestamp?)│
+└───────────────────┘  └───────────────────┘  │ createdAt             │
+                                               │ updatedAt             │
+                                               └───────────────────────┘
+
+┌─────────────────────────┐
+│     clamav_scan_logs    │
+├─────────────────────────┤
+│ id (serial PK)          │
+│ filename (text)         │
+│ fileSize (int)          │
+│ mimeType (text?)        │
+│ scanStatus (text)       │
+│ virusName (text?)       │
+│ errorMessage (text?)    │
+│ actionTaken (text)      │
+│ uploaderUserId (int?)   │
+│ uploaderEmail (text?)   │
+│ requestIp (text?)       │
+│ scanDurationMs (int?)   │
+│ adminNotifiedAt (ts?)   │
+│ createdAt (timestamp)   │
+└─────────────────────────┘
 ```
 
 ### Poll Types & Option Types
 
 | Poll Type | Option Fields | Vote Response | Special Logic |
 |-----------|---------------|---------------|---------------|
-| **Schedule** | startTime, endTime | yes/maybe/no | Best Match Calculation, Calendar Export |
-| **Survey** | text, imageUrl | Single/Multiple Choice | Percentage Calculation |
-| **Organization** | text, maxCapacity | signup + comment | Row-Level Locking, Capacity Enforcement |
+| **Schedule** | startTime, endTime | yes/maybe/no | Best Match Calculation, Calendar Export (ICS), Finalization |
+| **Survey** | text, imageUrl, isFreeText | yes/maybe/no/freetext | Percentage Calculation, Free-Text Answers |
+| **Organization** | text, maxCapacity | signup (→ yes) + comment | Row-Level Locking, Advisory Locks, Capacity Enforcement, Real-Time Slot Updates |
 
 ---
 
@@ -385,15 +493,17 @@ User B, C, D... ← Receive update, invalidate cache
 ### 1. Token-Based Access
 
 Every poll has two tokens:
-- **Public Token:** For sharing (voting + viewing results)
-- **Admin Token:** For owner (editing, deleting, managing)
+- **Public Token (publicToken):** For sharing — voting + viewing results
+- **Admin Token (adminToken):** For owner — editing, deleting, managing, finalizing
 
 Additionally, each vote can have:
-- **Voter Edit Token:** Allows anonymous voters to edit their submission
+- **Voter Edit Token (voterEditToken):** Allows anonymous voters to edit/withdraw their submission
 
-**Why?** 
+**Owner on Public URL:** When a logged-in poll creator accesses their poll via the public URL, the system detects ownership (`userId` match) and automatically shows all admin features — the same as via the admin URL.
+
+**Why?**
 - No login required for basic participation
-- Owner can edit without exposing admin rights
+- Owner can manage without exposing admin token
 - Voters can modify their own votes via unique link
 
 ### 2. Polymorphic Poll Types
@@ -401,31 +511,31 @@ Additionally, each vote can have:
 All three poll types share the same `polls` table but have different `options` structures:
 
 ```typescript
-// Shared Poll Base
 type PollBase = {
-  id: string; // UUID
+  id: string;  // UUID
   title: string;
   type: 'schedule' | 'survey' | 'organization';
   publicToken: string;
   adminToken: string;
+  finalOptionId?: number;  // Set when owner confirms a result
 };
 
-// Type-Specific Options
 type ScheduleOption = {
-  text: string; // Display label (can be auto-formatted)
-  startTime: Date; // UTC
-  endTime?: Date; // UTC
+  text: string;
+  startTime: Date;  // UTC
+  endTime?: Date;   // UTC
 };
 
 type SurveyOption = {
   text: string;
   imageUrl?: string;
-  altText?: string; // Accessibility
+  altText?: string;
+  isFreeText?: boolean;  // Enables free-text answer input
 };
 
 type OrganizationOption = {
   text: string;
-  maxCapacity: number; // 0 = unlimited
+  maxCapacity: number;  // 0 = unlimited
 };
 ```
 
@@ -433,366 +543,178 @@ type OrganizationOption = {
 
 **WebSocket Server** runs alongside Express on `/ws`:
 
-```typescript
-// server/websocket.ts
-wss.on('connection', (ws) => {
-  ws.on('message', (data) => {
-    const msg = JSON.parse(data);
-    
-    if (msg.type === 'join') {
-      // Subscribe to poll updates
-      ws.pollId = msg.pollId;
-    }
-  });
-});
-
-// Broadcast vote update to all clients watching this poll
-function broadcastVoteUpdate(pollId: string, data: any) {
-  wss.clients.forEach((client) => {
-    if (client.pollId === pollId) {
-      client.send(JSON.stringify({ type: 'vote_update', ...data }));
-    }
-  });
-}
-
-// Broadcast slot capacity update (for organization polls)
-function broadcastSlotUpdate(pollId: string, optionId: number, currentCount: number) {
-  wss.clients.forEach((client) => {
-    if (client.pollId === pollId) {
-      client.send(JSON.stringify({ 
-        type: 'slot_update', 
-        optionId, 
-        currentCount 
-      }));
-    }
-  });
-}
 ```
-
-**Client subscribes via `useLiveVoting` hook:**
-
-```typescript
-// client/src/hooks/useLiveVoting.ts
-useEffect(() => {
-  const ws = new WebSocket(`wss://${host}/ws`);
+Messages:
+  join     → Subscribe to poll room
+  leave    → Leave poll room
   
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', pollId }));
-  };
-  
-  ws.onmessage = (event) => {
-    const update = JSON.parse(event.data);
-    if (update.type === 'vote_update') {
-      queryClient.invalidateQueries(['poll', pollId]);
-    }
-    if (update.type === 'slot_update') {
-      setLiveSlotUpdates(prev => ({
-        ...prev,
-        [update.optionId]: update.currentCount
-      }));
-    }
-  };
-}, [pollId]);
+Broadcasts:
+  vote_update       → New/changed vote
+  slot_update       → Capacity change (Orga)
+  results_refresh   → Full results invalidation
+  presence_update   → Active participant count
 ```
 
-### 4. Race Condition Prevention (Slot Booking)
+**Client subscribes via `useLiveVoting` hook** — manages WebSocket connection, presence tracking, and TanStack Query cache invalidation.
 
-**Problem:** Two users booking the last slot simultaneously.
+### 4. Authentication Model
 
-**Solution:** PostgreSQL advisory locks + row-level locking
+```
+                    ┌──────────────────┐
+                    │   extractUserId  │
+                    │   middleware     │
+                    └────────┬─────────┘
+                             │
+                    ┌────────┴────────┐
+                    │                 │
+            ┌───────▼──────┐  ┌──────▼───────┐
+            │ Session Cookie│  │ Bearer Token │
+            │ (polly.sid)  │  │ (Keycloak)   │
+            └──────────────┘  └──────────────┘
 
-```typescript
-// server/storage.ts
-async function bookSlot(pollId: string, optionId: number, voterEmail: string) {
-  return await db.transaction(async (tx) => {
-    // Acquire advisory lock based on poll + voter email
-    // Prevents same user from double-booking simultaneously
-    const lockKey = hashToInt(`${pollId}:${voterEmail}`);
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
-    
-    // Lock the option row
-    const [slot] = await tx
-      .select()
-      .from(pollOptions)
-      .where(eq(pollOptions.id, optionId))
-      .for('update'); // Row-level lock
-    
-    // Count current bookings
-    const [{ count }] = await tx
-      .select({ count: sql<number>`count(*)` })
-      .from(votes)
-      .where(and(
-        eq(votes.optionId, optionId),
-        eq(votes.response, 'signup')
-      ));
-    
-    // Check capacity
-    if (slot.maxCapacity && count >= slot.maxCapacity) {
-      throw new Error('SLOT_FULL');
-    }
-    
-    // Check if already signed up
-    const existing = await tx.select().from(votes)
-      .where(and(
-        eq(votes.pollId, pollId),
-        eq(votes.voterEmail, voterEmail)
-      ));
-    
-    if (existing.length > 0 && !poll.allowMultipleSlots) {
-      throw new Error('ALREADY_SIGNED_UP');
-    }
-    
-    // Insert vote
-    await tx.insert(votes).values({ 
-      pollId, 
-      optionId, 
-      voterEmail,
-      response: 'signup' 
-    });
-    
-    // Broadcast update
-    broadcastSlotUpdate(pollId, optionId, count + 1);
-  });
-}
+Middleware chain:
+  extractUserId    → Checks session OR Bearer token
+  requireAuth      → Ensures user is authenticated
+  requireAdmin     → Ensures admin role
+  requireEmailVerified → Ensures email is verified
 ```
 
-**Why Advisory Locks + FOR UPDATE?**
-- Advisory lock prevents same user from racing against themselves
-- Row-level lock prevents different users from overbooking
-- Both release automatically when transaction commits
-- Returns clear error codes: `SLOT_FULL` (409) or `ALREADY_SIGNED_UP` (409)
+**Session Management:**
+- Store: PostgreSQL (`connect-pg-simple`) or MemoryStore (fallback)
+- Cookie: `polly.sid`, HttpOnly, SameSite=Lax, Secure=auto
+- Expiry: 24 hours
+- Role-based idle timeout: Admin 8h, Manager 4h, User 1h
+- Session regeneration on login/register (session fixation prevention)
 
 ---
 
 ## Feature Architecture
 
-### 1. Authentication System
+### Email Template System (V3)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                  Authentication Flow                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌────────────┐     ┌────────────┐     ┌────────────┐      │
-│  │   Local    │     │  Keycloak  │     │ Anonymous  │      │
-│  │   Login    │     │   OIDC     │     │   Token    │      │
-│  └─────┬──────┘     └─────┬──────┘     └─────┬──────┘      │
-│        │                  │                   │             │
-│        ▼                  ▼                   ▼             │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │               Passport.js Strategies                  │  │
-│  │  • passport-local (email/password + bcrypt)          │  │
-│  │  • openid-client (Keycloak/OIDC)                     │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                          │                                  │
-│                          ▼                                  │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │               express-session                         │  │
-│  │  • Store: PostgreSQL (connect-pg-simple)             │  │
-│  │  • Cookie: polly.sid (httpOnly, secure='auto')       │  │
-│  │  • TTL: Configurable (default 24h)                   │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                          │                                  │
-│                          ▼                                  │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           Rate Limiting (Login Protection)            │  │
-│  │  • 5 failed attempts → 15 min lockout per IP/email   │  │
-│  │  • In-memory store (Redis recommended for prod)      │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+Template Rendering Pipeline:
+  1. Load template by type from DB
+  2. Check isDefault → use V3 body builder OR custom htmlContent
+  3. Wrap in v3Shell() (beige outer, white card, compact header)
+  4. Substitute {{VARIABLE}} placeholders
+  5. Apply htmlEscape() on user-supplied variables
+  6. Embed logo as base64 data URI (5-min cache)
+  7. Apply ensureButtonTextContrast() for button accessibility
+  8. Load centralized footer from getEmailFooter()
+  9. Render footer markup ({{link:URL|Label}} syntax)
+  10. Generate plain-text version via stripFooterMarkupToText()
 ```
 
-**User Roles:**
-| Role | Permissions |
-|------|-------------|
-| `user` | Create polls, vote, view own polls |
-| `manager` | + View all polls in organization |
-| `admin` | + System settings, user management, email templates |
+**Template Types:** `poll_created`, `invitation`, `vote_confirmation`, `reminder`, `password_reset`, `email_change`, `password_changed`, `welcome`, `test_report`, `poll_finalized`
 
-### 2. Email System
+### Calendar Integration
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Email Architecture                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              Email Template Editor (Admin)              │ │
-│  │  • Visual builder (@usewaypoint/email-builder)         │ │
-│  │  • JSON storage in database                            │ │
-│  │  • Variable substitution ({pollTitle}, {voterName})    │ │
-│  │  • Preview & test functionality                        │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                          │                                   │
-│                          ▼                                   │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              Email Service (Nodemailer)                 │ │
-│  │  • SMTP transport (configurable)                       │ │
-│  │  • SendGrid integration (optional)                     │ │
-│  │  • HTML + plain text versions                          │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                          │                                   │
-│                          ▼                                   │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              Notification Logs (Audit)                  │ │
-│  │  • All sent emails logged to database                  │ │
-│  │  • Rate limiting: Max 10 emails per poll per day       │ │
-│  │  • Success/failure tracking                            │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+- **ICS Export:** Download calendar file for finalized poll dates (only available after finalization)
+- **ICS Feed (webcal):** Subscribe to personal calendar feed with all participated polls
+- **Finalization:** Owner confirms a poll option → optionally closes poll + notifies participants with ICS attachment
+- **Empty ICS Protection:** Backend returns 400 error if options have no valid date/time values
 
-**Email Template Types:**
-- `poll_created` - Sent to creator after poll creation
-- `invitation` - Invite participants to vote
-- `vote_confirmation` - Confirm vote submission
-- `reminder` - Manual reminder from poll creator
-- `expiry_reminder` - Automatic reminder before poll expires
-- `password_reset` - Password reset link
-- `email_change` - Email change confirmation
-- `password_changed` - Password change notification
-- `test_report` - Automated test results (admin)
+### AI Features (Optional)
 
-### 3. Calendar Integration
+Requires `AI_API_KEY` environment variable. Auto-enabled unless admin disables.
+
+- **Poll Creation Assistant:** Natural language → structured poll suggestion via OpenAI-compatible API
+- **Voice Input (Whisper):** Microphone recording → audio transcription → text input
+- **Admin Controls:** Enable/disable, usage quotas, model selection
+
+### Admin Panel
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                  Calendar Architecture                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Schedule Polls ──────────────────────────────────────────► │
-│                                                              │
-│  ┌────────────────┐    ┌────────────────┐                   │
-│  │  ICS Download  │    │  webcal://     │                   │
-│  │  (One-time)    │    │  Subscription  │                   │
-│  └───────┬────────┘    └───────┬────────┘                   │
-│          │                     │                             │
-│          ▼                     ▼                             │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              ICS Generator                              │ │
-│  │  • VEVENT for each option with votes                   │ │
-│  │  • VTIMEZONE for correct timezone handling             │ │
-│  │  • UID based on pollId + optionId                      │ │
-│  │  • ATTENDEE list from vote responses                   │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                                                              │
-│  Subscription Feed:                                          │
-│  • User-specific calendarToken for authentication           │
-│  • Auto-updates when polls change                           │
-│  • Shows all user's schedule polls with voted dates         │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+client/src/pages/admin.tsx
+└── Admin Panel Tabs:
+    ├── OverviewPanel.tsx        → Stats, system health, recent activity
+    ├── UsersPanel.tsx           → User CRUD, role management, email verification
+    ├── PollsPanel.tsx           → All polls, moderation, deletion
+    ├── CustomizePanel.tsx       → Branding, theme, footer, language, Matrix, email templates
+    ├── SettingsPanel.tsx        → Security, rate limits, session timeout, calendar, ClamAV, AI
+    ├── MonitoringPanel.tsx      → System status, npm audit, system packages, pentest tools
+    ├── TestsPanel.tsx           → Test runner, test history, data cleanup
+    └── DeletionRequestsPanel   → GDPR Art. 17 deletion queue
 ```
 
-### 4. PDF Export
+### Frontend Page Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   PDF Export Architecture                    │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  GET /api/v1/polls/admin/:token/export/pdf                  │
-│                          │                                   │
-│                          ▼                                   │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              HTML Template Rendering                    │ │
-│  │  • Server-side React rendering                         │ │
-│  │  • Full CSS styling (matching app theme)               │ │
-│  │  • Charts and visualizations (Recharts)                │ │
-│  │  • QR code for poll link                               │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                          │                                   │
-│                          ▼                                   │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              Puppeteer (Headless Chrome)                │ │
-│  │  • page.setContent(html)                               │ │
-│  │  • page.pdf({ format: 'A4' })                          │ │
-│  │  • High-quality vector output                          │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                          │                                   │
-│                          ▼                                   │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              PDF Response                               │ │
-│  │  • Content-Type: application/pdf                       │ │
-│  │  • Content-Disposition: attachment                     │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+client/src/pages/
+├── home.tsx              → Landing page with AI chat + quick-start
+├── login.tsx             → Combined login + registration
+├── poll.tsx              → Main poll view (vote, results, live, tools)
+├── my-polls.tsx          → User dashboard (active/archived polls)
+├── create-poll.tsx       → Schedule poll creation
+├── create-survey.tsx     → Survey creation
+├── create-organization.tsx → Organization list creation
+├── poll-success.tsx      → Post-creation success page
+├── vote-success.tsx      → Post-voting confirmation
+├── vote-edit.tsx         → Edit/withdraw existing votes
+├── profile.tsx           → User profile & security settings
+├── admin.tsx             → Admin dashboard
+├── confirm-email.tsx     → Email verification handler
+├── forgot-password.tsx   → Password recovery request
+├── reset-password.tsx    → Password reset form
+└── not-found.tsx         → 404 page
+```
+
+### Context Providers
+
+```
+client/src/contexts/
+├── AuthContext.tsx          → User session, login/logout, auth methods
+├── CustomizationContext.tsx → Dynamic CSS variables, branding, system language
+└── ThemeContext.tsx         → Light/Dark/System theme management
 ```
 
 ---
 
 ## Security Architecture
 
-### 1. Authentication & Authorization
+### Rate Limiting
 
-| Layer | Implementation |
-|-------|----------------|
-| Password Storage | bcrypt (cost factor 10) |
-| Session Storage | PostgreSQL (connect-pg-simple) |
-| Session Cookie | httpOnly, secure='auto', sameSite=lax |
-| Rate Limiting | 5 attempts / 15 min lockout (per IP + email) |
-| OIDC | Keycloak (OpenID Connect, optional) |
+| Endpoint | Max Attempts | Window | Lockout |
+|----------|-------------|--------|---------|
+| Login | 5 | 15 min | 15 min (IP + account) |
+| Registration | 5 | 1 hour | – |
+| Password Reset | 3 | 15 min | – |
+| Email Check | 10 | 1 min | – |
+| AI Features | Role-based | Configurable | – |
+| Voting | Configurable | Configurable | – |
 
-### 2. Input Validation
+All rate limit settings are dynamically configurable via Admin API.
 
-```typescript
-// All API inputs validated with Zod schemas
-// Example: Vote submission
-const voteSchema = z.object({
-  optionId: z.number().positive(),
-  voterName: z.string().min(1).max(100),
-  voterEmail: z.string().email(),
-  response: z.enum(['yes', 'maybe', 'no', 'signup']),
-  comment: z.string().max(500).optional()
-});
+### Password Requirements
 
-// Middleware applies validation
-app.post('/api/v1/polls/:token/vote', 
-  validateBody(voteSchema),
-  async (req, res) => { ... }
-);
-```
+- Minimum 8 characters
+- At least 1 uppercase letter (A-Z)
+- At least 1 lowercase letter (a-z)
+- At least 1 digit (0-9)
+- At least 1 special character
 
-### 3. File Upload Security
+### Security Hardening
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 File Upload Security                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Upload Request ─────────────────────────────────────────►  │
-│                                                              │
-│  ┌────────────────┐                                         │
-│  │  Multer        │  • memoryStorage (no disk write)        │
-│  │  (Middleware)  │  • File size limit: 5MB                 │
-│  │                │  • Allowed types: image/*, pdf          │
-│  └───────┬────────┘                                         │
-│          │                                                   │
-│          ▼                                                   │
-│  ┌────────────────┐                                         │
-│  │  ClamAV Scan   │  • On-the-fly virus scanning           │
-│  │  (Optional)    │  • Reject infected files (HTTP 422)    │
-│  │                │  • Log all scans to database            │
-│  └───────┬────────┘                                         │
-│          │                                                   │
-│          ▼                                                   │
-│  ┌────────────────┐                                         │
-│  │  Storage       │  • Save to /uploads directory          │
-│  │                │  • Generate unique filename             │
-│  └────────────────┘                                         │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+- `X-Powered-By` disabled
+- `Cache-Control: no-store` on all API responses
+- JSON body limit: 1MB
+- Field-level input length validation (voter names 100, option text 500, description 5000, email 254)
+- `autocomplete="off"` on all password fields
+- Generic error messages (no stack traces or `error.message` leaks)
+- Content Security Policy (CSP) headers
+- HSTS in production
+- X-Frame-Options for clickjacking prevention
+- Permissions-Policy for browser feature restriction
+- SSRF-safe URL validation for logo fetching (only http/https protocols)
+- XSS-safe data URI validation for embedded logos
 
-### 4. Security Scanning (Admin)
+### GDPR Compliance
 
-- **npm audit**: Dependency vulnerability scanning
-- **ClamAV**: File upload malware detection
-- **Pentest-Tools.com**: External vulnerability scanning (optional, requires API key)
-- **System packages**: Nix package version monitoring
+- Account deletion request flow (Art. 17)
+- Admin approval/rejection queue
+- External deprovisioning API (Basic Auth, for Keycloak/Kafka)
+- `anonymize` option (preserve data, remove identity)
 
 ---
 
@@ -800,154 +722,197 @@ app.post('/api/v1/polls/:token/vote',
 
 ### Docker Deployment
 
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  polly:
-    build: .
-    ports:
-      - "3000:5000"
-    environment:
-      - DATABASE_URL=postgresql://...
-      - SESSION_SECRET=...
-      - SMTP_HOST=...
-    depends_on:
-      - db
-    restart: unless-stopped
-
-  db:
-    image: postgres:16
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=polly
-      - POSTGRES_USER=polly
-      - POSTGRES_PASSWORD=...
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
+```
+┌──────────────────────────────────┐
+│         Docker Container         │
+│  ┌────────────────────────────┐  │
+│  │      Node.js Server       │  │
+│  │  (Express + Vite SSR)     │  │
+│  │  Port: 3080 (internal)    │  │
+│  └────────────┬───────────────┘  │
+│               │                  │
+│  ┌────────────▼───────────────┐  │
+│  │   docker-entrypoint.sh    │  │
+│  │   - Wait for PostgreSQL   │  │
+│  │   - Run ensureSchema.ts   │  │
+│  │   - Seed admin user       │  │
+│  │   - Start server          │  │
+│  └────────────────────────────┘  │
+└──────────────────────────────────┘
+         │
+         │ DATABASE_URL
+         ▼
+┌──────────────────────────────────┐
+│        PostgreSQL (external)     │
+└──────────────────────────────────┘
 ```
 
-### Environment Variables
+### Key Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `SESSION_SECRET` | Yes | Random 32+ char secret |
-| `SMTP_HOST` | No | SMTP server hostname |
-| `SMTP_PORT` | No | SMTP port (default 587) |
+| `SESSION_SECRET` | Yes | Session encryption key |
+| `APP_URL` | Yes | Public URL (for emails, OIDC redirects) |
+| `SMTP_HOST` | No | SMTP server for emails |
+| `SMTP_PORT` | No | SMTP port |
 | `SMTP_USER` | No | SMTP username |
-| `SMTP_PASSWORD` | No | SMTP password |
-| `SMTP_FROM` | No | Sender email address |
-| `KEYCLOAK_ISSUER` | No | Keycloak realm URL |
+| `SMTP_PASS` | No | SMTP password |
+| `SENDGRID_API_KEY` | No | SendGrid API key (alternative to SMTP) |
+| `KEYCLOAK_REALM_URL` | No | Keycloak OIDC realm URL |
 | `KEYCLOAK_CLIENT_ID` | No | OIDC client ID |
 | `KEYCLOAK_CLIENT_SECRET` | No | OIDC client secret |
-| `CLAMAV_HOST` | No | ClamAV daemon host |
-| `CLAMAV_PORT` | No | ClamAV daemon port |
+| `AI_API_KEY` | No | OpenAI-compatible API key |
+| `AI_API_URL` | No | AI endpoint URL |
+| `HIDE_LOGIN_FORM` | No | Hide local login when SSO is primary |
+| `ADMIN_USERNAME` | No | Initial admin username (seed) |
+| `ADMIN_EMAIL` | No | Initial admin email (seed) |
+| `ADMIN_PASSWORD` | No | Initial admin password (seed) |
+
+### Schema Management
+
+Schema changes involve updating `shared/schema.ts` and `server/scripts/ensureSchema.ts`. The `ensureSchema.ts` script automatically adds missing columns, tables, and indexes on startup — no manual migration needed.
 
 ---
 
-## Architecture Decision Records (ADRs)
+## Architecture Decision Records
 
 ### ADR-001: Monolithic Architecture
 
-**Decision:** Single application (not microservices)
+**Status:** Accepted  
+**Context:** Polly serves teams of 10-500 users, typically self-hosted.
 
-**Context:** Polly is designed for small-medium teams (10-1000 users)
-
-**Consequences:**
-- ✅ Simple deployment (one Docker container)
-- ✅ Easier debugging
-- ✅ Lower operational overhead
-- ❌ Harder to scale horizontally (future consideration)
-
-### ADR-002: PostgreSQL as Single Database
-
-**Decision:** Use PostgreSQL for everything (data, sessions, advisory locks)
-
-**Context:** Reduces operational complexity
+**Decision:** Single Node.js process serving both frontend and API.
 
 **Consequences:**
-- ✅ Single backup strategy
-- ✅ Transactional guarantees across all data
-- ✅ Built-in row-level locking
-- ❌ May need Redis for high-traffic scenarios (caching, rate limiting)
+- ✅ Single Docker container deployment
+- ✅ Shared TypeScript types between frontend and backend
+- ✅ Simple WebSocket integration (same process)
+- ❌ Vertical scaling only (single instance)
 
-### ADR-003: Session-Based Authentication (not JWT)
+---
 
-**Decision:** Use server-side sessions instead of JWT
+### ADR-002: PostgreSQL as Sole Datastore
 
-**Context:** Better security for stateful applications
+**Status:** Accepted  
+**Context:** Need reliable storage for polls, votes, sessions, and settings.
+
+**Decision:** PostgreSQL for everything — application data, sessions (`connect-pg-simple`), and system settings.
 
 **Consequences:**
-- ✅ Immediate logout (session invalidation)
-- ✅ No token in localStorage (XSS protection)
-- ✅ Server-controlled session lifetime
+- ✅ Single dependency to manage
+- ✅ ACID transactions for slot booking
+- ✅ JSONB for flexible settings storage
+- ❌ No built-in caching (in-memory admin cache as workaround)
+
+---
+
+### ADR-003: Token-Based Poll Access
+
+**Status:** Accepted  
+**Context:** Polls need to be shareable without requiring authentication.
+
+**Decision:** Each poll gets a `publicToken` (sharing) and `adminToken` (management). Votes get an optional `voterEditToken`. Logged-in owners see admin features on public URL.
+
+**Consequences:**
+- ✅ Anonymous participation (no account required)
+- ✅ Simple URL sharing
+- ✅ Owner convenience (admin features visible on any URL when logged in)
+- ❌ Token compromise = full access (mitigated by separate public/admin tokens)
+
+---
+
+### ADR-004: WebSocket for Real-Time Updates
+
+**Status:** Accepted  
+**Context:** Organization polls need instant capacity updates to prevent overbooking.
+
+**Decision:** Native WebSocket server (`ws` library) alongside Express.
+
+**Consequences:**
+- ✅ Sub-second updates for slot booking
+- ✅ Live voting presentation mode
+- ✅ Presence tracking (active participant count)
 - ❌ Requires sticky sessions for horizontal scaling
 
-### ADR-004: UUID for Poll IDs
+---
 
-**Decision:** Use UUID instead of sequential integers for poll IDs
+### ADR-005: V3 Email Template System
 
-**Context:** Prevent enumeration attacks, enable URL-based access
+**Status:** Accepted  
+**Context:** Need customizable, branded emails that work across email clients and support dark mode.
 
-**Consequences:**
-- ✅ Non-guessable poll URLs
-- ✅ Distributed ID generation
-- ✅ No need for separate token columns
-- ❌ Larger storage, slower indexing
-
-### ADR-005: Row-Level Locking for Slot Booking
-
-**Decision:** Use PostgreSQL `SELECT ... FOR UPDATE` + advisory locks
-
-**Context:** Prevent overbooking in organization polls
+**Decision:** Server-side HTML rendering with V3 shell template, `{{VARIABLE}}` substitution, centralized footer, and base64-embedded logos.
 
 **Consequences:**
-- ✅ Correct capacity enforcement
-- ✅ Simple to implement with Drizzle
-- ❌ Slightly slower than optimistic locking
-- ✅ Correctness > performance for booking use case
+- ✅ Consistent branding across all email types
+- ✅ Admin can customize templates via visual builder
+- ✅ Dark mode support via `@media (prefers-color-scheme: dark)`
+- ✅ XSS-safe variable substitution
+- ❌ Complex rendering pipeline
 
-### ADR-006: WCAG 2.1 AA by Default
+---
 
-**Decision:** Ship with accessibility compliance enabled, allow admin override
+### ADR-006: WCAG 2.1 AA Default Compliance
 
-**Context:** Public sector requirements in Germany (BITV 2.0, EU Directive 2016/2102)
+**Status:** Accepted  
+**Context:** Public sector deployment requires accessibility compliance.
 
-**Implementation:**
+**Decision:** Ship with WCAG AA compliant color scheme by default. Admin can override for corporate branding (takes responsibility for compliance).
 
 1. **Default Mode (`enforceDefaultTheme: true`):**
    - System ships with WCAG AA compliant color scheme
-   - Default primary color: `#7A3800` (4.5:1 contrast with white)
-   - E2E tests enforce zero critical/serious violations
+   - Automated color contrast audit in admin panel
 
 2. **Custom Mode (`enforceDefaultTheme: false`):**
-   - Auto-enabled when admin customizes theme colors in Admin Panel → Anpassen
+   - Auto-enabled when admin customizes theme colors
    - Admin takes responsibility for accessibility compliance
-   - E2E tests log warning but don't fail on contrast issues
 
-3. **Environment Override:**
-   - Set `POLLY_WCAG_OVERRIDE=true` to disable default theme without UI changes
-   - Useful for custom corporate branding in self-hosted instances
-
-4. **API Endpoint:**
+3. **API Endpoint:**
    - `GET /api/v1/settings/accessibility` returns current compliance mode
-   - Used by E2E tests and frontend to determine enforcement level
-
-5. **axe-core Limitation:**
-   - `color-contrast` rule excluded from E2E tests (false positives with CSS variables)
-   - Manual verification of all color combinations documented in `index.css`
 
 **Consequences:**
 - ✅ Meets public sector accessibility requirements out of the box
-- ✅ Better UX for all users
 - ✅ Admin can override for corporate branding
 - ✅ Clear responsibility handoff when colors are customized
 - ❌ More restrictive color choices by default
+
+---
+
+### ADR-007: System-Wide Default Language
+
+**Status:** Accepted  
+**Context:** Anonymous visitors should see the admin-configured language, not browser-detected.
+
+**Decision:** System-wide `defaultLanguage` setting in customization. i18n loads system language from `/api/v1/system/language` on startup. Per-user language preference overrides system default for logged-in users.
+
+**Consequences:**
+- ✅ Consistent experience for anonymous visitors
+- ✅ Admin controls default language
+- ✅ Per-user preference still works
+- ❌ Extra API call on app initialization
+
+---
+
+## API Documentation
+
+- **REST API Reference:** `docs/API-DOCUMENTATION.md` — Complete endpoint documentation with schemas, auth requirements, and error codes. **Must be updated when API changes.**
+- **OpenAPI Spec:** `docs/openapi.yaml` — Machine-readable API specification for Flutter/Mobile integration.
+- **Flutter Integration:** `docs/FLUTTER_INTEGRATION.md` — Mobile app integration guide.
+- **Self-Hosting Guide:** `docs/SELF-HOSTING.md` — Docker/Production deployment instructions.
+
+---
+
+## Test Coverage (454+ tests)
+
+- **API**: 174 tests (admin CRUD, user profile/theme/language, poll CRUD/voting/export, email templates, security, validation)
+- **Auth**: 55 tests (login, registration, password reset, session persistence, cookie security)
+- **Polls**: 30 tests (CRUD, voting, finalize, types)
+- **Data/Storage**: 40 tests (settings, branding, storage, test data)
+- **Unit**: 34 tests (validation, token service, QR service)
+- **Services**: 132+ tests (email templates 63, email integration 13, live voting WebSocket multi-user 19, image upload file types 16, ClamAV, ICS, PDF, WCAG audit)
+- **Security**: 31 tests (WebSocket presenter escalation, poll token validation, email HTML escaping/XSS, deprovision Basic Auth, timing attack resistance)
+- **E2E/Integration**: 49 tests (poll flow, multi-voter, Docker build, deployment readiness, DB migration)
 
 ---
 
@@ -984,24 +949,8 @@ volumes:
 
 ---
 
-## API Documentation
-
-- **OpenAPI Spec:** `docs/openapi.yaml`
-- **Flutter Integration:** `docs/FLUTTER_INTEGRATION.md`
-- **Self-Hosting Guide:** `docs/SELF-HOSTING.md`
-
----
-
-## Questions & Feedback
-
-For architecture discussions, open an issue on GitHub/GitLab:
-- 🐛 Bug reports: `architecture:bug` label
-- 💡 Feature requests: `architecture:enhancement` label
-- 🤔 Questions: `architecture:question` label
-
----
-
 **Maintained by:** @manfredsteger  
 **Version History:**
-- v2.0 (2026-01-08): Updated to current implementation, added WCAG, security scanning, calendar integration
-- v1.0 (2026-01-05): Initial architecture documentation
+- v3.0 (2026-03-25): Complete rewrite to match actual codebase. Added all tables (email_verification_tokens, test_configurations), corrected clamav_scan_logs schema, added finalOptionId/isFreeText/freeTextAnswer/emailVerified fields, updated service/route/component listings, added ADR-007 (system language), updated security architecture, added calendar/ICS and AI feature documentation.
+- v2.0 (2026-01-08): Updated to current implementation, added WCAG, security scanning, calendar integration.
+- v1.0 (2026-01-05): Initial architecture documentation.

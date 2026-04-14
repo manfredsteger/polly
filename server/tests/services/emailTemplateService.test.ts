@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import { EmailTemplateService } from '../../services/emailTemplateService';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../../services/emailTemplateService';
+import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
 
 export const testMeta = {
@@ -10,8 +11,44 @@ export const testMeta = {
 };
 
 describe('EmailTemplateService', () => {
+  let origCustomization: any;
+  let origTheme: any;
+  const modifiedTemplateTypes = [
+    'poll_created', 'invitation', 'vote_confirmation',
+    'reminder', 'password_reset',
+  ] as const;
+  const origTemplates: Record<string, any> = {};
+
+  beforeAll(async () => {
+    origCustomization = await storage.getCustomizationSettings();
+    const service = new EmailTemplateService();
+    origTheme = await service.getEmailTheme();
+    for (const type of modifiedTemplateTypes) {
+      origTemplates[type] = await service.getTemplate(type);
+    }
+  });
+
+  afterAll(async () => {
+    await storage.setCustomizationSettings(origCustomization);
+    const service = new EmailTemplateService();
+    await service.setEmailTheme(origTheme);
+    for (const type of modifiedTemplateTypes) {
+      const orig = origTemplates[type];
+      if (orig && !orig.isDefault) {
+        await service.saveTemplate(
+          type,
+          orig.jsonContent,
+          orig.subject,
+          orig.name,
+          orig.textContent
+        );
+      } else {
+        await service.resetTemplate(type);
+      }
+    }
+  });
   describe('Default Templates', () => {
-    it('should have all 8 template types defined', () => {
+    it('should have all 9 template types defined', () => {
       const expectedTypes = [
         'poll_created',
         'invitation',
@@ -20,7 +57,8 @@ describe('EmailTemplateService', () => {
         'password_reset',
         'email_change',
         'password_changed',
-        'test_report'
+        'test_report',
+        'welcome'
       ];
 
       for (const type of expectedTypes) {
@@ -122,11 +160,12 @@ describe('EmailTemplateService', () => {
       
       expect(html).toBeDefined();
       expect(typeof html).toBe('string');
-      expect(html.includes('<html')).toBe(true);
+      expect(html.includes('<div')).toBe(true);
     });
 
-    it('should include siteName in rendered template', async () => {
-      const html = await EmailTemplateService.renderTemplate('poll_created', {
+    it('should include siteName in rendered email via V3 shell footer', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
         pollType: 'Umfrage',
         pollTitle: 'Test',
         publicLink: 'https://example.com',
@@ -134,13 +173,13 @@ describe('EmailTemplateService', () => {
         siteName: 'Polly-Test-Instance'
       });
       
-      expect(html).toContain('Polly-Test-Instance');
+      expect(result.html).toContain('email-footer');
     });
   });
 
   describe('Sample Data Generation', () => {
-    it('should generate sample data for poll_created template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('poll_created');
+    it('should generate sample data for poll_created template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('poll_created');
       
       expect(sampleData.pollTitle).toBeDefined();
       expect(sampleData.publicLink).toBeDefined();
@@ -148,31 +187,31 @@ describe('EmailTemplateService', () => {
       expect(sampleData.siteName).toBeDefined();
     });
 
-    it('should generate sample data for invitation template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('invitation');
+    it('should generate sample data for invitation template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('invitation');
       
       expect(sampleData.pollTitle).toBeDefined();
       expect(sampleData.inviterName).toBeDefined();
       expect(sampleData.publicLink).toBeDefined();
     });
 
-    it('should generate sample data for password_reset template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('password_reset');
+    it('should generate sample data for password_reset template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('password_reset');
       
       expect(sampleData.resetLink).toBeDefined();
       expect(sampleData.siteName).toBeDefined();
     });
 
-    it('should generate sample data for email_change template', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('email_change');
+    it('should generate sample data for email_change template', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('email_change');
       
       expect(sampleData.oldEmail).toBeDefined();
       expect(sampleData.newEmail).toBeDefined();
       expect(sampleData.confirmLink).toBeDefined();
     });
 
-    it('should return empty object for unknown template type', () => {
-      const sampleData = EmailTemplateService.getSampleDataForType('unknown_type');
+    it('should return empty object for unknown template type', async () => {
+      const sampleData = await EmailTemplateService.getSampleDataForType('unknown_type');
       
       expect(sampleData).toEqual({});
     });
@@ -233,6 +272,18 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Customized Template Rendering (renderEmail)', () => {
+    let savedCustomization: any;
+    const service = new EmailTemplateService();
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+      for (const type of modifiedTemplateTypes) {
+        await service.resetTemplate(type);
+      }
+    });
+
     it('should use stored htmlContent for customized templates', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('invitation');
@@ -269,9 +320,9 @@ describe('EmailTemplateService', () => {
         siteName: 'Test-Instance'
       });
       
-      // Should have header table structure
       expect(result.html).toContain('<table');
-      expect(result.html).toContain('Test-Instance');
+      expect(result.html).toContain('email-header');
+      expect(result.html).toContain('email-footer');
     });
 
     it('should include footer in rendered email', async () => {
@@ -284,14 +335,142 @@ describe('EmailTemplateService', () => {
         siteName: 'MeineApp'
       });
       
-      // Footer should have footer styling with border-top
       expect(result.html).toContain('border-top');
-      // Text version should include siteName
-      expect(result.text).toContain('MeineApp');
+      expect(result.html).toContain('email-footer');
+    });
+
+    it('should show Datenschutz link from customization only when privacy URL is configured', async () => {
+      const origCustomization = await storage.getCustomizationSettings();
+      const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
+
+      try {
+        await service.setEmailFooter({ html: 'Plain footer only', text: 'Plain footer only' });
+
+        await storage.setCustomizationSettings({
+          ...origCustomization,
+          footer: { ...(origCustomization.footer || {}), supportLinks: [] },
+        });
+
+        const resultWithout = await service.renderEmail('poll_created', {
+          pollType: 'Terminumfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+        expect(resultWithout.html).not.toContain('>Datenschutz<');
+
+        await storage.setCustomizationSettings({
+          ...origCustomization,
+          footer: {
+            ...(origCustomization.footer || {}),
+            supportLinks: [{ label: 'Datenschutz', url: 'https://example.com/privacy' }],
+          },
+        });
+
+        const resultWith = await service.renderEmail('poll_created', {
+          pollType: 'Terminumfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+        expect(resultWith.html).toContain('Datenschutz');
+        expect(resultWith.html).toContain('https://example.com/privacy');
+      } finally {
+        await storage.setCustomizationSettings(origCustomization);
+        await service.setEmailFooter(origFooter);
+      }
+    });
+
+    it('should render the central email footer text from settings', async () => {
+      const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Gesendet von TestOrg — Die Abstimmungsplattform',
+          text: 'Gesendet von TestOrg — Die Abstimmungsplattform',
+        });
+
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Terminumfrage',
+          pollTitle: 'Footer-Test',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+
+        expect(result.html).toContain('Gesendet von TestOrg');
+        expect(result.text).toContain('Gesendet von TestOrg');
+      } finally {
+        await service.setEmailFooter(origFooter);
+      }
+    });
+
+    it('should use central footer for all email types', async () => {
+      const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Zentraler Footer Marker XYZ',
+          text: 'Zentraler Footer Marker XYZ',
+        });
+
+        const types: Array<{ type: any; vars: Record<string, string> }> = [
+          { type: 'poll_created', vars: { pollType: 'Umfrage', pollTitle: 'T', publicLink: 'https://a.com', adminLink: 'https://b.com' } },
+          { type: 'invitation', vars: { pollTitle: 'T', inviterName: 'A', publicLink: 'https://a.com', message: '' } },
+          { type: 'reminder', vars: { pollTitle: 'T', senderName: 'A', pollLink: 'https://a.com', expiresAt: '' } },
+          { type: 'vote_confirmation', vars: { voterName: 'A', pollType: 'Umfrage', pollTitle: 'T', resultsLink: 'https://a.com' } },
+          { type: 'welcome', vars: { userName: 'A', verificationLink: 'https://a.com' } },
+        ];
+
+        for (const { type, vars } of types) {
+          const result = await service.renderEmail(type, vars);
+          expect(result.html).toContain('Zentraler Footer Marker XYZ');
+        }
+      } finally {
+        await service.setEmailFooter(origFooter);
+      }
+    });
+
+    it('should apply central footer in wrapWithEmailTheme plain text', async () => {
+      const service = new EmailTemplateService();
+      const origFooter = await service.getEmailFooter();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Wrap Footer HTML Test',
+          text: 'Wrap Footer Text Test',
+        });
+
+        const result = await service.wrapWithEmailTheme(
+          'Test Subject',
+          '<p>Body content</p>',
+          'Body content plain text'
+        );
+
+        expect(result.html).toContain('Wrap Footer HTML Test');
+        expect(result.text).toContain('Wrap Footer Text Test');
+        expect(result.text).toContain('---');
+      } finally {
+        await service.setEmailFooter(origFooter);
+      }
     });
   });
 
   describe('Template Reset', () => {
+    let savedCustomization: any;
+    const service = new EmailTemplateService();
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+      for (const type of modifiedTemplateTypes) {
+        await service.resetTemplate(type);
+      }
+    });
+
     it('should reset customized template to default', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('vote_confirmation');
@@ -314,6 +493,18 @@ describe('EmailTemplateService', () => {
   });
 
   describe('End-to-End: Customized Template Email Sending', () => {
+    let savedCustomization: any;
+    const service = new EmailTemplateService();
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+      for (const type of modifiedTemplateTypes) {
+        await service.resetTemplate(type);
+      }
+    });
+
     it('should render customized template content when preparing email for sending', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('reminder');
@@ -425,6 +616,14 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Email Theme Import and Validation', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     it('should extract valid theme colors from emailbuilder.js JSON', () => {
       const service = new EmailTemplateService();
       const emailBuilderJson = {
@@ -615,9 +814,8 @@ describe('EmailTemplateService', () => {
     it('should reset theme using primary color from branding settings', async () => {
       const service = new EmailTemplateService();
       
-      await storage.setSetting({
-        key: 'primary_color',
-        value: '#123456'
+      await storage.setCustomizationSettings({
+        theme: { primaryColor: '#123456', secondaryColor: '#654321' }
       });
       
       const resetTheme = await service.resetEmailTheme();
@@ -625,22 +823,931 @@ describe('EmailTemplateService', () => {
       expect(resetTheme.headingColor).toBe('#123456');
       expect(resetTheme.linkColor).toBe('#123456');
       expect(resetTheme.buttonBackgroundColor).toBe('#123456');
+      expect(resetTheme.secondaryButtonBackgroundColor).toBe('#654321');
       expect(resetTheme.backdropColor).toBe('#F5F5F5');
       expect(resetTheme.canvasColor).toBe('#FFFFFF');
     });
 
-    it('should use default orange when primary color is empty string', async () => {
+    it('should use default orange when primary color not set', async () => {
       const service = new EmailTemplateService();
       
-      await storage.setSetting({
-        key: 'primary_color',
-        value: ''
-      });
+      await storage.setCustomizationSettings({ theme: { primaryColor: '', secondaryColor: '' } });
       
       const resetTheme = await service.resetEmailTheme();
       
       expect(resetTheme.headingColor).toBe('#FF6B35');
       expect(resetTheme.buttonBackgroundColor).toBe('#FF6B35');
+      expect(resetTheme.secondaryButtonBackgroundColor).toBe('#4A90A4');
+    });
+
+    it('should include dark mode colors in reset theme', async () => {
+      const service = new EmailTemplateService();
+      
+      const resetTheme = await service.resetEmailTheme();
+      
+      expect(resetTheme.darkBackdropColor).toBeDefined();
+      expect(resetTheme.darkCanvasColor).toBeDefined();
+      expect(resetTheme.darkTextColor).toBeDefined();
+      expect(resetTheme.darkHeadingColor).toBeDefined();
+    });
+  });
+
+  describe('Container Block Rendering', () => {
+    it('should render Container block with background color', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: {
+            backdropColor: '#F5F5F5',
+            canvasColor: '#FFFFFF',
+            textColor: '#333333',
+            fontFamily: 'Arial, sans-serif',
+            childrenIds: ['container-1'],
+          },
+        },
+        'container-1': {
+          type: 'Container',
+          data: {
+            childrenIds: ['text-1'],
+            style: {
+              backgroundColor: '#f8f9fa',
+              borderRadius: 8,
+              padding: { top: 20, right: 24, bottom: 20, left: 24 },
+              margin: { top: 12, right: 0, bottom: 12, left: 0 },
+            },
+          },
+        },
+        'text-1': {
+          type: 'Text',
+          data: {
+            props: { text: 'Container content' },
+            style: { fontSize: 16 },
+          },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      
+      expect(html).toContain('email-container');
+      expect(html).toContain('#f8f9fa');
+      expect(html).toContain('Container content');
+      expect(html).toContain('border-radius: 8px');
+    });
+
+    it('should render nested children inside Container', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: {
+            backdropColor: '#F5F5F5',
+            canvasColor: '#FFFFFF',
+            textColor: '#333333',
+            fontFamily: 'Arial',
+            childrenIds: ['c1'],
+          },
+        },
+        'c1': {
+          type: 'Container',
+          data: {
+            childrenIds: ['h1', 'b1'],
+            style: { backgroundColor: '#e8f4f8' },
+          },
+        },
+        'h1': {
+          type: 'Heading',
+          data: { props: { text: 'Box Heading', level: 'h3' }, style: {} },
+        },
+        'b1': {
+          type: 'Button',
+          data: {
+            props: { text: 'Click me', url: 'https://example.com', buttonType: 'secondary' },
+            style: {},
+          },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      
+      expect(html).toContain('Box Heading');
+      expect(html).toContain('Click me');
+      expect(html).toContain('email-btn-secondary');
+      expect(html).toContain('#e8f4f8');
+    });
+  });
+
+  describe('Button Types', () => {
+    it('should use primary button color by default', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: { backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333', fontFamily: 'Arial', childrenIds: ['btn'] },
+        },
+        'btn': {
+          type: 'Button',
+          data: { props: { text: 'Primary', url: '#' }, style: {} },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      expect(html).toContain('email-btn-primary');
+      expect(html).toContain('#FF6B35');
+    });
+
+    it('should use secondary button color for secondary type', () => {
+      const theme: EmailTheme = {
+        backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333',
+        headingColor: '#000', linkColor: '#000', buttonBackgroundColor: '#FF0000',
+        buttonTextColor: '#FFF', buttonBorderRadius: 6, fontFamily: 'Arial',
+        secondaryButtonBackgroundColor: '#00FF00', secondaryButtonTextColor: '#000',
+        darkBackdropColor: '#111', darkCanvasColor: '#222', darkTextColor: '#EEE', darkHeadingColor: '#FFF',
+      };
+
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: { backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333', fontFamily: 'Arial', childrenIds: ['btn'] },
+        },
+        'btn': {
+          type: 'Button',
+          data: { props: { text: 'Secondary', url: '#', buttonType: 'secondary' }, style: {} },
+        },
+      };
+
+      const html = jsonToHtml(doc, theme);
+      expect(html).toContain('email-btn-secondary');
+      expect(html).toContain('#00FF00');
+    });
+
+    it('should allow explicit style.backgroundColor override', () => {
+      const doc = {
+        root: {
+          type: 'EmailLayout' as const,
+          data: { backdropColor: '#F5F5F5', canvasColor: '#FFF', textColor: '#333', fontFamily: 'Arial', childrenIds: ['btn'] },
+        },
+        'btn': {
+          type: 'Button',
+          data: { props: { text: 'Custom', url: '#' }, style: { backgroundColor: '#ABCDEF' } },
+        },
+      };
+
+      const html = jsonToHtml(doc);
+      expect(html).toContain('#ABCDEF');
+    });
+  });
+
+  describe('Dark Mode Support', () => {
+    it('should include dark mode CSS in rendered email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('prefers-color-scheme: dark');
+      expect(result.html).toContain('color-scheme');
+      expect(result.html).toContain('class="shell"');
+      expect(result.html).toContain('.shell');
+    });
+
+    it('should include MSO conditional comments for Outlook', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('[if mso]');
+    });
+  });
+
+  describe('Logo Sizing', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
+    it('should use proper logo sizing constraints', async () => {
+      const service = new EmailTemplateService();
+      
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Test',
+          siteNameAccent: '',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('height: 36px');
+      expect(result.html).toContain('max-width: 100px');
+    });
+  });
+
+  describe('Header Design (no colored header bar)', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
+    it('should NOT have a colored header bar background', async () => {
+      const service = new EmailTemplateService();
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).not.toMatch(/background-color:\s*#FF6B35/i);
+      expect(result.html).not.toContain('color: #FFFFFF; font-size: 22px');
+    });
+
+    it('should show siteName as subtle muted text when logo is set', async () => {
+      const service = new EmailTemplateService();
+
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Poll',
+          siteNameAccent: 'y',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('hdr-site');
+      expect(result.html).toContain('color: #6b7280');
+    });
+
+    it('should include logo as base64 data URI when logoUrl is set', async () => {
+      const service = new EmailTemplateService();
+      const testDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
+      
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: testDataUri,
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain(testDataUri);
+      expect(result.html).toContain('PollyVote');
+    });
+
+    it('should embed logo from /uploads/ relative path as base64', async () => {
+      const service = new EmailTemplateService();
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      try { await fs.mkdir(uploadsDir, { recursive: true }); } catch {}
+      const testLogoPath = path.join(uploadsDir, 'test-logo-email.png');
+      const pngHeader = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        0x00, 0x00, 0x00, 0x01, 0x49, 0x48, 0x44, 0x52
+      ]);
+      await fs.writeFile(testLogoPath, pngHeader);
+
+      try {
+        await storage.setCustomizationSettings({
+          branding: {
+            siteName: 'Polly',
+            siteNameAccent: 'Vote',
+            logoUrl: '/uploads/test-logo-email.png',
+          }
+        });
+
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
+
+        expect(result.html).toContain('data:image/png;base64,');
+        expect(result.html).toContain('<img');
+      } finally {
+        await fs.unlink(testLogoPath).catch(() => {});
+      }
+    });
+
+    it('should fall back to text header when logo URL is unreachable', async () => {
+      const service = new EmailTemplateService();
+      
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: 'https://nonexistent.invalid/logo.png',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).not.toContain('<img');
+      expect(result.html).toContain('font-size: 18px');
+      expect(result.html).toContain('Polly');
+    });
+
+    it('should have dark mode class for header text', async () => {
+      const service = new EmailTemplateService();
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('.hdr-site');
+    });
+
+    it('should render only logo without text span when siteName is empty', async () => {
+      const service = new EmailTemplateService();
+
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: '',
+          siteNameAccent: '',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('<img');
+      expect(result.html).toContain('alt="Logo"');
+      expect(result.html).not.toContain('class="hdr-site"');
+      expect(result.html).not.toContain('class="hdr-accent"');
+    });
+
+    it('should not render empty accent span when siteNameAccent is empty', async () => {
+      const service = new EmailTemplateService();
+
+      await storage.setCustomizationSettings({
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: '',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        }
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('alt="Polly"');
+      expect(result.html).toContain('class="hdr-site"');
+      expect(result.html).not.toContain('class="hdr-accent"');
+    });
+
+    it('should preserve branding after full test cycle', async () => {
+      const before = await storage.getCustomizationSettings();
+
+      const service = new EmailTemplateService();
+      await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      const after = await storage.getCustomizationSettings();
+      expect(after.branding.logoUrl).toBe(before.branding.logoUrl);
+      expect(after.branding.siteName).toBe(before.branding.siteName);
+      expect(after.branding.siteNameAccent).toBe(before.branding.siteNameAccent);
+      expect(after.theme.primaryColor).toBe(before.theme.primaryColor);
+      expect(after.theme.secondaryColor).toBe(before.theme.secondaryColor);
+    });
+  });
+
+  describe('poll_created Template Structure', () => {
+    it('should have admin and public containers', () => {
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      const json = template.jsonContent as Record<string, unknown>;
+      
+      expect(json['admin-box']).toBeDefined();
+      expect(json['public-box']).toBeDefined();
+      
+      const adminBox = json['admin-box'] as { type: string; data: Record<string, unknown> };
+      expect(adminBox.type).toBe('Container');
+      
+      const publicBox = json['public-box'] as { type: string; data: Record<string, unknown> };
+      expect(publicBox.type).toBe('Container');
+    });
+
+    it('should have primary button in admin box and secondary in public box', () => {
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+      const json = template.jsonContent as Record<string, unknown>;
+      
+      const adminBtn = json['ab-btn'] as { type: string; data: { props: Record<string, unknown> } };
+      expect(adminBtn.type).toBe('Button');
+      
+      const publicBtn = json['pb-btn'] as { type: string; data: { props: Record<string, unknown> } };
+      expect(publicBtn.type).toBe('Button');
+      expect(publicBtn.data.props.buttonType).toBe('secondary');
+    });
+  });
+
+  describe('Button Text Contrast Auto-Correction', () => {
+    let savedCustomization: any;
+    let savedEmailTheme: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+      const svc = new EmailTemplateService();
+      savedEmailTheme = await svc.getEmailTheme();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+      const svc = new EmailTemplateService();
+      await svc.setEmailTheme(savedEmailTheme);
+    });
+
+    it('should keep white text on sufficiently dark backgrounds', () => {
+      expect(ensureButtonTextContrast('#7A3800', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('#123456', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('#000000', '#FFFFFF')).toBe('#FFFFFF');
+    });
+
+    it('should pick best contrast for medium-luminance backgrounds', () => {
+      expect(ensureButtonTextContrast('#FF6B35', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('#4A90A4', '#FFFFFF')).toBe('#1a1a1a');
+    });
+
+    it('should switch to dark text on light backgrounds', () => {
+      expect(ensureButtonTextContrast('#FDE4D2', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('#FFFFFF', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('#F0F0F0', '#FFFFFF')).toBe('#1a1a1a');
+    });
+
+    it('should handle shorthand hex colors (#fff)', () => {
+      expect(ensureButtonTextContrast('#fff', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('#000', '#FFFFFF')).toBe('#FFFFFF');
+    });
+
+    it('should handle rgb() and named colors', () => {
+      expect(ensureButtonTextContrast('rgb(253, 228, 210)', '#FFFFFF')).toBe('#1a1a1a');
+      expect(ensureButtonTextContrast('white', '#000000')).toBe('#000000');
+    });
+
+    it('should auto-correct rgb() colors', () => {
+      expect(ensureButtonTextContrast('rgb(255,0,0)', '#FFFFFF')).toBe('#1a1a1a');
+    });
+
+    it('should return preferred color for truly invalid input', () => {
+      expect(ensureButtonTextContrast('invalid', '#FFFFFF')).toBe('#FFFFFF');
+      expect(ensureButtonTextContrast('', '#FFFFFF')).toBe('#FFFFFF');
+    });
+
+    it('should auto-correct secondary button text in rendered email', async () => {
+      const service = new EmailTemplateService();
+
+      await service.resetTemplate('poll_created');
+      await storage.setCustomizationSettings({
+        theme: { primaryColor: '#7A3800', secondaryColor: '#FDE4D2' }
+      });
+      await service.resetEmailTheme();
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('btn-secondary');
+      expect(result.html).toContain('#FDE4D2');
+    });
+  });
+
+  describe('V3 Dark Mode Shell', () => {
+    let savedCustomization: any;
+    beforeEach(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+    afterEach(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
+    it('should include V3 dark mode CSS with shell and header classes', async () => {
+      const service = new EmailTemplateService();
+      await service.resetTemplate('poll_created');
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('.shell');
+      expect(result.html).toContain('.email-header');
+      expect(result.html).toContain('.btn-primary');
+      expect(result.html).toContain('.btn-secondary');
+      expect(result.html).toContain('.email-footer');
+    });
+
+    it('should include V3 body structure with tag, headline and sections', async () => {
+      const service = new EmailTemplateService();
+      await service.resetTemplate('poll_created');
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('survey-tag');
+      expect(result.html).toContain('headline');
+      expect(result.html).toContain('link-label');
+      expect(result.html).toContain('sec-divider');
+      expect(result.html).toContain('notice');
+    });
+  });
+
+  describe('poll_created Guest vs Registered User', () => {
+    it('should show guest notice when isRegisteredUser is empty', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test Poll',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: '',
+      });
+
+      expect(result.html).toContain('Bitte diese E-Mail aufbewahren.');
+      expect(result.html).toContain('Administratorlink');
+      expect(result.html).not.toContain('Meine Umfragen');
+    });
+
+    it('should show registered user notice when isRegisteredUser is true', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test Poll',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: 'true',
+      });
+
+      expect(result.html).toContain('Schnellzugriff');
+      expect(result.html).toContain('Meine Umfragen');
+      expect(result.html).not.toContain('Bitte diese E-Mail aufbewahren.');
+    });
+
+    it('should default to guest notice when isRegisteredUser is not provided', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test Poll',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+      });
+
+      expect(result.html).toContain('Bitte diese E-Mail aufbewahren.');
+      expect(result.html).not.toContain('Meine Umfragen');
+    });
+
+    it('should differentiate plain text for guest vs registered user', async () => {
+      const service = new EmailTemplateService();
+      const guestResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: '',
+      });
+      const registeredResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: 'true',
+      });
+
+      expect(guestResult.text).toContain('Administratorlink sicher aufbewahren');
+      expect(guestResult.text).not.toContain('Meine Umfragen');
+
+      expect(registeredResult.text).toContain('Schnellzugriff');
+      expect(registeredResult.text).toContain('Meine Umfragen');
+      expect(registeredResult.text).not.toContain('Administratorlink sicher aufbewahren');
+    });
+
+    it('should use neutral language without direct address (Sie/Du)', async () => {
+      const service = new EmailTemplateService();
+      const guestResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: '',
+      });
+      const registeredResult = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Test',
+        publicLink: 'https://example.com',
+        adminLink: 'https://example.com/admin',
+        isRegisteredUser: 'true',
+      });
+
+      for (const result of [guestResult, registeredResult]) {
+        const bodyAfterGreeting = result.html.replace(/Hallo[^<]*/g, '');
+        expect(bodyAfterGreeting).not.toMatch(/\bIhre\b/);
+        expect(bodyAfterGreeting).not.toMatch(/\bIhren\b/);
+        expect(bodyAfterGreeting).not.toMatch(/\bIhrem\b/);
+        expect(bodyAfterGreeting).not.toMatch(/\bSie\b(?![_-])/);
+      }
+    });
+  });
+
+  describe('Footer {{link:URL}} and {{siteUrl}} template syntax', () => {
+    afterEach(async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: EmailTemplateService.DEFAULT_FOOTER,
+        text: EmailTemplateService.DEFAULT_FOOTER,
+      });
+    });
+
+    it('should render {{link:URL|Label}} as clickable HTML link in footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Erstellt von {{siteName}} | {{link:https://example.com/privacy|Datenschutz}}',
+        text: 'Erstellt von {{siteName}} | {{link:https://example.com/privacy|Datenschutz}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('href="https://example.com/privacy"');
+      expect(result.html).toContain('target="_blank"');
+      expect(result.html).toContain('>Datenschutz</a>');
+    });
+
+    it('should render {{link:URL}} without label using domain as display text', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:https://example.com/page}}',
+        text: '{{link:https://example.com/page}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('href="https://example.com/page"');
+      expect(result.html).toContain('>example.com/page</a>');
+    });
+
+    it('should render plain-text footer with {{link:URL|Label}} as "Label (URL)"', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Kontakt: {{link:https://example.com/privacy|Datenschutz}}',
+        text: 'Kontakt: {{link:https://example.com/privacy|Datenschutz}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.text).toContain('Datenschutz (https://example.com/privacy)');
+    });
+
+    it('should render plain-text footer with {{link:URL}} as bare URL', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Info: {{link:https://example.com/info}}',
+        text: 'Info: {{link:https://example.com/info}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Link-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.text).toContain('https://example.com/info');
+      expect(result.text).not.toContain('{{link:');
+    });
+
+    it('should replace {{siteUrl}} variable in footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Besuche uns: {{link:{{siteUrl}}|Zur Website}}',
+        text: 'Besuche uns: {{link:{{siteUrl}}|Zur Website}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'SiteUrl-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).not.toContain('{{siteUrl}}');
+      expect(result.html).toContain('href=');
+      expect(result.html).toContain('>Zur Website</a>');
+    });
+
+    it('should render default footer with Datenschutz as plain text when no privacy URL configured', async () => {
+      const service = new EmailTemplateService();
+      const footer = await service.getEmailFooter();
+
+      expect(footer.html).toContain('{{link:#|Datenschutz}}');
+      expect(footer.html).toContain('{{siteName}}');
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Default-Footer-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).not.toContain('href="#"');
+      expect(result.html).toContain('Datenschutz');
+      expect(result.html).not.toContain('{{link:');
+      expect(result.html).not.toContain('{{siteName}}');
+    });
+
+    it('should handle multiple {{link:...}} in one footer line', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:https://a.com|Impressum}} | {{link:https://b.com|Datenschutz}}',
+        text: '{{link:https://a.com|Impressum}} | {{link:https://b.com|Datenschutz}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Multi-Link',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('href="https://a.com"');
+      expect(result.html).toContain('>Impressum</a>');
+      expect(result.html).toContain('href="https://b.com"');
+      expect(result.html).toContain('>Datenschutz</a>');
+    });
+
+    it('should strip unsafe URL schemes in {{link:...}} (no href rendered)', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:javascript:alert(1)|Click me}}',
+        text: '{{link:javascript:alert(1)|Click me}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'XSS-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).not.toContain('javascript:');
+      expect(result.html).not.toContain('href="javascript');
+      expect(result.html).toContain('Click me');
+    });
+
+    it('should XSS-escape malicious label text in {{link:...}}', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:https://safe.com|<script>alert(1)</script>}}',
+        text: '{{link:https://safe.com|<script>alert(1)</script>}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'XSS-Label-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).not.toContain('<script>');
+      expect(result.html).toContain('&lt;script&gt;');
+    });
+
+    it('should replace # placeholder with configured privacy URL', async () => {
+      const service = new EmailTemplateService();
+      const origCustomization = await storage.getCustomizationSettings();
+
+      try {
+        await service.setEmailFooter({
+          html: 'Footer text\n{{link:#|Datenschutz}}',
+          text: 'Footer text\n{{link:#|Datenschutz}}',
+        });
+        await storage.setCustomizationSettings({
+          ...origCustomization,
+          footer: {
+            ...(origCustomization.footer || {}),
+            supportLinks: [{ label: 'Datenschutz', url: 'https://example.com/privacy' }],
+          },
+        });
+
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Privacy-Replace',
+          publicLink: 'https://example.com/poll/test',
+          adminLink: 'https://example.com/admin/test',
+        });
+
+        expect(result.html).toContain('href="https://example.com/privacy"');
+        expect(result.html).toContain('>Datenschutz</a>');
+        const datenschutzCount = (result.html.match(/>Datenschutz</g) || []).length;
+        expect(datenschutzCount).toBe(1);
+      } finally {
+        await storage.setCustomizationSettings(origCustomization);
+      }
+    });
+
+    it('should strip unsafe URL scheme in plain-text footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: '{{link:javascript:alert(1)|Evil Link}}',
+        text: '{{link:javascript:alert(1)|Evil Link}}',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Plaintext-XSS',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.text).not.toContain('javascript:');
+      expect(result.text).toContain('Evil Link');
+    });
+
+    it('should render newlines as <br> in HTML footer', async () => {
+      const service = new EmailTemplateService();
+      await service.setEmailFooter({
+        html: 'Zeile 1\nZeile 2',
+        text: 'Zeile 1\nZeile 2',
+      });
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Umfrage',
+        pollTitle: 'Newline-Test',
+        publicLink: 'https://example.com/poll/test',
+        adminLink: 'https://example.com/admin/test',
+      });
+
+      expect(result.html).toContain('Zeile 1<br>Zeile 2');
     });
   });
 });

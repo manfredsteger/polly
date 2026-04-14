@@ -53,22 +53,51 @@ variables:
   GITHUB_REPO_URL: "https://github.com/manfredsteger/polly.git"
 
 # Reusable script for cloning from GitHub (avoids git init issues)
-# Note: Clears working directory first to avoid conflicts with downloaded artifacts
+# Preserves node_modules from build artifact if present, clears everything else
 # Uses GITHUB_REPO_URL variable - override in GitLab CI/CD settings for your fork
 .github_clone: &github_clone
+  - '[ -d node_modules ] && mv node_modules /tmp/_nm_preserve || true'
   - rm -rf /tmp/polly-src 2>/dev/null || true
   - find . -mindepth 1 -delete 2>/dev/null || rm -rf ./* ./.[!.]* 2>/dev/null || true
   - git clone --depth=1 "${GITHUB_REPO_URL}" /tmp/polly-src
+  - rm -rf /tmp/polly-src/.git
   - cp -r /tmp/polly-src/. .
   - rm -rf /tmp/polly-src
+  - '[ -d /tmp/_nm_preserve ] && mv /tmp/_nm_preserve node_modules || true'
 
-# Reusable script for npm install with cleanup (fixes error -116 and TAR_ENTRY_ERROR)
+# Reusable script for npm install with retry logic
+# Skips if node_modules already exists (from build artifact)
+# Retries up to 3 times with 10s pause to handle NFS/ESTALE errors on Kubernetes runners
 .npm_install: &npm_install
-  - rm -rf node_modules 2>/dev/null || true
-  - npm cache clean --force 2>/dev/null || true
-  - rm -rf /tmp/.npm 2>/dev/null || true
-  - mkdir -p /tmp/.npm
-  - npm ci --no-audit --no-fund
+  - |
+    if [ -d node_modules ] && [ "$(ls -A node_modules 2>/dev/null)" ]; then
+      echo "=== Using existing node_modules (from build artifact) ==="
+    else
+      echo "=== No node_modules found, running npm ci with retry ==="
+      npm_install_attempt=1
+      npm_install_max=3
+      while [ $npm_install_attempt -le $npm_install_max ]; do
+        echo "--- npm ci attempt $npm_install_attempt/$npm_install_max ---"
+        rm -rf node_modules 2>/dev/null || true
+        npm cache clean --force 2>/dev/null || true
+        rm -rf /tmp/.npm 2>/dev/null || true
+        mkdir -p /tmp/.npm
+        if npm ci --no-audit --no-fund; then
+          echo "--- npm ci succeeded on attempt $npm_install_attempt ---"
+          break
+        fi
+        echo "--- npm ci failed on attempt $npm_install_attempt ---"
+        if [ $npm_install_attempt -lt $npm_install_max ]; then
+          echo "Waiting 10s before retry..."
+          sleep 10
+        fi
+        npm_install_attempt=$((npm_install_attempt + 1))
+      done
+      if [ $npm_install_attempt -gt $npm_install_max ]; then
+        echo "=== npm ci failed after $npm_install_max attempts ==="
+        exit 1
+      fi
+    fi
 
 # Reusable script for waiting until PostgreSQL is ready (fixes flaky tests)
 .wait_for_postgres: &wait_for_postgres
@@ -109,7 +138,10 @@ build:
   image: node:${NODE_VERSION}
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -119,15 +151,20 @@ build:
   artifacts:
     paths:
       - dist/
+      - node_modules/
     expire_in: 1 hour
 
 typescript-check:
   stage: test
   image: node:${NODE_VERSION}
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -142,7 +179,9 @@ validate-translations:
   dependencies: []
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone
@@ -153,10 +192,14 @@ validate-translations:
 unit-tests:
   stage: test
   image: node:${NODE_VERSION}
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
     - *github_clone
@@ -183,10 +226,14 @@ unit-tests:
 integration-tests:
   stage: test
   image: node:${NODE_VERSION}
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
     - *github_clone
@@ -209,10 +256,14 @@ integration-tests:
 api-tests:
   stage: test
   image: node:${NODE_VERSION}
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
     - *github_clone
@@ -235,10 +286,14 @@ api-tests:
 auth-tests:
   stage: test
   image: node:${NODE_VERSION}
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
     - *github_clone
@@ -261,10 +316,14 @@ auth-tests:
 poll-tests:
   stage: test
   image: node:${NODE_VERSION}
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
     - *github_clone
@@ -287,17 +346,18 @@ poll-tests:
 e2e-tests:
   stage: test
   image: mcr.microsoft.com/playwright:v1.52.0-noble
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
-    - rm -rf /tmp/polly-src 2>/dev/null || true
-    - git clone --depth=1 "${GITHUB_REPO_URL}" /tmp/polly-src
-    - cp -r /tmp/polly-src/. .
-    - rm -rf /tmp/polly-src
+    - apt-get update && apt-get install -y git postgresql-client curl
+    - *github_clone
     - mkdir -p playwright-report test-results
-    - apt-get update && apt-get install -y postgresql-client curl
   services:
     - postgres:15
   variables:
@@ -311,16 +371,10 @@ e2e-tests:
     NODE_ENV: "test"
     npm_config_cache: "/tmp/.npm"
   script:
-    - rm -rf node_modules 2>/dev/null || true
-    - npm cache clean --force 2>/dev/null || true
-    - rm -rf /tmp/.npm 2>/dev/null || true
-    - mkdir -p /tmp/.npm
-    - npm ci --no-audit --no-fund
-    # Wait for PostgreSQL to be ready before db:push
+    - *npm_install
     - *wait_for_postgres
     - npm run db:push
     - npm run dev &
-    # Wait for dev server to be ready (replaces unreliable sleep 15)
     - *wait_for_server
     - npx playwright test --reporter=list --timeout=60000 || true
   artifacts:
@@ -334,10 +388,14 @@ e2e-tests:
 security-audit:
   stage: security
   image: node:${NODE_VERSION}
-  dependencies: []
+  dependencies:
+    - build
   retry:
     max: 2
-    when: unknown_failure
+    when:
+      - unknown_failure
+      - script_failure
+      - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
     - *github_clone

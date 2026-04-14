@@ -62,22 +62,35 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # Default: Built automatically from POSTGRES_* variables (for integrated docker-compose setup)
+      # External DB: Set DATABASE_URL directly in .env (POSTGRES_* variables will be ignored)
+      # Example: DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly
       DATABASE_URL: postgresql://${POSTGRES_USER:-polly}:${POSTGRES_PASSWORD:-polly_secret}@postgres:5432/${POSTGRES_DB:-polly}
       SESSION_SECRET: ${SESSION_SECRET:-change-this-in-production-to-a-secure-random-string}
       BASE_URL: ${BASE_URL:-http://localhost:3080}
       APP_URL: ${APP_URL:-http://localhost:3080}
       VITE_APP_URL: ${VITE_APP_URL:-http://localhost:3080}
+      # Email (SMTP)
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      EMAIL_FROM: ${EMAIL_FROM:-noreply@localhost}
+      FROM_EMAIL: ${FROM_EMAIL:-${EMAIL_FROM:-noreply@localhost}}
+      FROM_NAME: ${FROM_NAME:-Polly}
+      # Keycloak OIDC
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
       KEYCLOAK_AUTH_SERVER_URL: ${KEYCLOAK_AUTH_SERVER_URL:-}
+      KEYCLOAK_ISSUER_URL: ${KEYCLOAK_ISSUER_URL:-}
+      SSO_BUTTON_LABEL: ${SSO_BUTTON_LABEL:-}
+      HIDE_LOGIN_FORM: ${HIDE_LOGIN_FORM:-false}
+      # Runtime
       NODE_ENV: ${NODE_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      FORCE_HTTPS: ${FORCE_HTTPS:-false}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DOCKER_ENV: "true"
       # Initial Admin (created on first start, updated if changed)
@@ -88,6 +101,17 @@ services:
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-false}
       CLAMAV_HOST: ${CLAMAV_HOST:-localhost}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      # Security Scanning
+      PENTEST_TOOLS_API_TOKEN: ${PENTEST_TOOLS_API_TOKEN:-}
+      # AI Assistant (Optional) — see docs/SELF-HOSTING.md for details
+      # AI_API_URL: ${AI_API_URL:-}
+      # AI_API_KEY: ${AI_API_KEY:-}
+      # AI_API_KEY_FALLBACK: ${AI_API_KEY_FALLBACK:-}
+      # AI_MODEL: ${AI_MODEL:-llama-3.3-70b-instruct}
+      # E2E Testing
+      TEST_MODE_SECRET: ${TEST_MODE_SECRET:-polly-e2e-test-mode}
+      # WCAG Override
+      POLLY_WCAG_OVERRIDE: ${POLLY_WCAG_OVERRIDE:-false}
     ports:
       - "${APP_PORT:-3080}:5000"
     volumes:

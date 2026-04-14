@@ -23,7 +23,8 @@ export function NavButton({
   icon, 
   label, 
   testId, 
-  collapsed 
+  collapsed,
+  badge,
 }: { 
   active: boolean; 
   onClick: () => void; 
@@ -31,17 +32,30 @@ export function NavButton({
   label: string; 
   testId: string; 
   collapsed: boolean;
+  badge?: number;
 }) {
   const button = (
     <Button
       variant={active ? "default" : "ghost"}
-      className={`w-full ${collapsed ? 'justify-center px-2' : 'justify-start px-3'}`}
+      className={`w-full ${collapsed ? 'justify-center px-2' : 'justify-start px-3'} relative`}
       size={collapsed ? "icon" : "default"}
       onClick={onClick}
       data-testid={testId}
     >
-      {icon}
+      <span className="relative">
+        {icon}
+        {badge != null && badge > 0 && collapsed && (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+            {badge}
+          </span>
+        )}
+      </span>
       {!collapsed && <span className="ml-2 truncate">{label}</span>}
+      {!collapsed && badge != null && badge > 0 && (
+        <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+          {badge}
+        </span>
+      )}
     </Button>
   );
 

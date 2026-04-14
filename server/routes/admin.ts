@@ -15,7 +15,7 @@ import type { User } from "@shared/schema";
 import { apiRateLimitsSettingsSchema } from "@shared/schema";
 import { db } from "../db";
 import { testRuns } from "@shared/schema";
-import { eq, ne, or, and, desc } from "drizzle-orm";
+import { eq, or, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -136,6 +136,11 @@ router.post('/users', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Dieser Benutzername wird bereits verwendet.' });
     }
     
+    const validRoles = ['user', 'admin', 'manager'];
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({ error: `Ungültige Rolle. Erlaubte Rollen: ${validRoles.join(', ')}` });
+    }
+    
     const passwordHash = await bcrypt.hash(password, 12);
     
     const newUser = await storage.createUser({
@@ -144,7 +149,7 @@ router.post('/users', requireAdmin, async (req, res) => {
       username: username.toLowerCase().trim(),
       passwordHash,
       provider: 'local',
-      role: role && ['user', 'admin', 'manager'].includes(role) ? role : 'user',
+      role: role || 'user',
     });
     
     console.log(`[Admin] User created manually by admin: ${newUser.email} (ID: ${newUser.id})`);
@@ -159,7 +164,7 @@ router.post('/users', requireAdmin, async (req, res) => {
 router.patch('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, name, email, organization } = req.body;
+    const { role, name, email, organization, emailVerified } = req.body;
     
     const updates: Record<string, any> = {};
     if (role && ['user', 'admin', 'manager'].includes(role)) {
@@ -168,6 +173,7 @@ router.patch('/users/:id', requireAdmin, async (req, res) => {
     if (name) updates.name = name;
     if (email) updates.email = email;
     if (organization !== undefined) updates.organization = organization;
+    if (emailVerified === true) updates.emailVerified = true;
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
@@ -288,6 +294,12 @@ router.get('/polls', requireAdmin, async (req, res) => {
 router.patch('/polls/:id', requireAdmin, async (req, res) => {
   try {
     const pollId = req.params.id;
+    
+    const existing = await storage.getPoll(pollId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Umfrage nicht gefunden' });
+    }
+    
     const { isActive, title, description, expiresAt, resultsPublic } = req.body;
     
     const updates: Record<string, any> = {};
@@ -312,6 +324,12 @@ router.patch('/polls/:id', requireAdmin, async (req, res) => {
 router.delete('/polls/:id', requireAdmin, async (req, res) => {
   try {
     const pollId = req.params.id;
+    
+    const existing = await storage.getPoll(pollId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Umfrage nicht gefunden' });
+    }
+    
     await storage.deletePoll(pollId);
     res.json({ success: true, message: 'Umfrage gelöscht' });
   } catch (error) {
@@ -346,7 +364,7 @@ router.post('/settings', requireAdmin, async (req, res) => {
 router.delete('/settings/:key', requireAdmin, async (req, res) => {
   try {
     const key = req.params.key;
-    await storage.setSetting({ key, value: null, description: 'Deleted' });
+    await storage.deleteSetting(key);
     res.json({ success: true, message: 'Einstellung gelöscht' });
   } catch (error) {
     console.error('Error deleting setting:', error);
@@ -1652,12 +1670,12 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
     };
     
     const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
-    await emailService.sendCustomEmail(recipientEmail, rendered.subject, rendered.html, rendered.text);
+    await emailService.sendPreRenderedEmail(recipientEmail, rendered.subject, rendered.html, rendered.text);
     
     res.json({ success: true, message: 'Test-E-Mail gesendet' });
   } catch (error: any) {
     console.error('Error sending test email:', error);
-    res.status(500).json({ error: error.message || 'Fehler beim Senden der Test-E-Mail' });
+    res.status(500).json({ error: 'Fehler beim Senden der Test-E-Mail' });
   }
 });
 
@@ -1826,7 +1844,7 @@ router.post('/matrix/test', requireAdmin, async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error('Matrix connection test error:', error);
-    res.json({ success: false, error: error.message });
+    res.json({ success: false, error: 'Verbindungstest fehlgeschlagen' });
   }
 });
 
@@ -1884,21 +1902,7 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
     // For running tests, get live progress
     const liveProgress = testRunnerService.getLiveProgress();
     
-    // For running tests, use estimated total from last completed run if no results yet
     let estimatedTotal = currentRun.totalTests || 0;
-    if (currentRun.status === 'running' && estimatedTotal === 0) {
-      // Get last completed test run's total as estimate
-      const [lastRun] = await db
-        .select({ totalTests: testRuns.totalTests })
-        .from(testRuns)
-        .where(and(
-          ne(testRuns.id, currentRun.id),
-          or(eq(testRuns.status, 'completed'), eq(testRuns.status, 'failed'))
-        ))
-        .orderBy(desc(testRuns.id))
-        .limit(1);
-      estimatedTotal = lastRun?.totalTests || 320; // fallback estimate
-    }
     
     // Use live progress if test is running
     const passed = liveProgress ? liveProgress.passed : (currentRun.passed || 0);
@@ -1923,7 +1927,7 @@ router.get('/test-runs/current', requireAdmin, async (req, res) => {
         failed,
         skipped
       },
-      isEstimated: currentRun.status === 'running' && (currentRun.totalTests || 0) === 0,
+      isEstimated: false,
       liveProgress: liveProgress ? {
         currentTest: liveProgress.currentTest,
         currentFile: liveProgress.currentFile
@@ -1961,7 +1965,18 @@ router.post('/test-runs/stop', requireAdmin, async (req, res) => {
 
 // ============== LOGO UPLOAD (admin) ==============
 
-router.post('/customization/logo', requireAdmin, imageService.getUploadMiddleware().single('logo'), async (req, res) => {
+router.post('/customization/logo', requireAdmin, (req, res, next) => {
+  const upload = imageService.getUploadMiddleware().single('logo');
+  upload(req, res, (err: any) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Datei ist zu groß (max. 5 MB)' });
+      }
+      return res.status(400).json({ error: 'Upload fehlgeschlagen' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No logo file provided' });
@@ -1974,7 +1989,8 @@ router.post('/customization/logo', requireAdmin, imageService.getUploadMiddlewar
 
     if (!result.success) {
       let statusCode = 500;
-      if (result.virusName) statusCode = 422;
+      if (result.invalidFileType) statusCode = 400;
+      else if (result.virusName) statusCode = 422;
       else if (result.scannerUnavailable) statusCode = 503;
       return res.status(statusCode).json({
         error: result.error,

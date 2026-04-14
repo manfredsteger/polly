@@ -21,7 +21,7 @@ import {
   type CalendarSettings, calendarSettingsSchema
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, count, isNull, asc } from "drizzle-orm";
 
 // Export db for direct database access in routes
 export { db };
@@ -75,6 +75,7 @@ export interface IStorage {
   // System settings
   getSetting(key: string): Promise<SystemSetting | undefined>;
   setSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+  deleteSetting(key: string): Promise<void>;
   getSettings(): Promise<SystemSetting[]>;
 
   // Customization settings
@@ -319,6 +320,18 @@ export class DatabaseStorage implements IStorage {
     return { poll, adminToken, publicToken, options: createdOptions };
   }
 
+  private sortOptionsChronologically(options: PollOption[], pollType: string): PollOption[] {
+    if (pollType !== 'schedule') return options;
+    return [...options].sort((a, b) => {
+      const aTime = a.startTime ? new Date(a.startTime).getTime() : null;
+      const bTime = b.startTime ? new Date(b.startTime).getTime() : null;
+      if (aTime !== null && bTime !== null) return aTime - bTime;
+      if (aTime !== null) return -1;
+      if (bTime !== null) return 1;
+      return (a.order ?? a.id) - (b.order ?? b.id);
+    });
+  }
+
   async getPoll(id: string): Promise<PollWithOptions | undefined> {
     const [poll] = await db.select().from(polls).where(eq(polls.id, id));
     if (!poll) return undefined;
@@ -331,19 +344,31 @@ export class DatabaseStorage implements IStorage {
       [user] = await db.select().from(users).where(eq(users.id, poll.userId));
     }
 
-    return { ...poll, options, votes: allVotes, user };
+    return { ...poll, options: this.sortOptionsChronologically(options, poll.type), votes: allVotes, user };
   }
 
   async getPollByAdminToken(token: string): Promise<PollWithOptions | undefined> {
     const [poll] = await db.select().from(polls).where(eq(polls.adminToken, token));
     if (!poll) return undefined;
-    return this.getPoll(poll.id);
+    const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id)).orderBy(pollOptions.id);
+    const allVotes = await db.select().from(votes).where(eq(votes.pollId, poll.id));
+    let user: User | undefined;
+    if (poll.userId) {
+      [user] = await db.select().from(users).where(eq(users.id, poll.userId));
+    }
+    return { ...poll, options: this.sortOptionsChronologically(options, poll.type), votes: allVotes, user };
   }
 
   async getPollByPublicToken(token: string): Promise<PollWithOptions | undefined> {
     const [poll] = await db.select().from(polls).where(eq(polls.publicToken, token));
     if (!poll) return undefined;
-    return this.getPoll(poll.id);
+    const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id)).orderBy(pollOptions.id);
+    const allVotes = await db.select().from(votes).where(eq(votes.pollId, poll.id));
+    let user: User | undefined;
+    if (poll.userId) {
+      [user] = await db.select().from(users).where(eq(users.id, poll.userId));
+    }
+    return { ...poll, options: this.sortOptionsChronologically(options, poll.type), votes: allVotes, user };
   }
 
   async updatePoll(id: string, updates: Partial<InsertPoll>): Promise<Poll> {
@@ -352,9 +377,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePoll(id: string): Promise<void> {
-    await db.delete(votes).where(eq(votes.pollId, id));
-    await db.delete(pollOptions).where(eq(pollOptions.pollId, id));
-    await db.delete(polls).where(eq(polls.id, id));
+    await db.transaction(async (tx) => {
+      await tx.delete(votes).where(eq(votes.pollId, id));
+      await tx.delete(pollOptions).where(eq(pollOptions.pollId, id));
+      await tx.delete(polls).where(eq(polls.id, id));
+    });
   }
 
   async getUserPolls(userId: number): Promise<PollWithOptions[]> {
@@ -798,17 +825,21 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async deleteSetting(key: string): Promise<void> {
+    await db.delete(systemSettings).where(eq(systemSettings.key, key));
+  }
+
   async getSettings(): Promise<SystemSetting[]> {
     return await db.select().from(systemSettings);
   }
 
   async getCustomizationSettings(): Promise<CustomizationSettings> {
-    // Parallelize all 4 database queries for better performance
-    const [themeSetting, brandingSetting, footerSetting, wcagSetting] = await Promise.all([
+    const [themeSetting, brandingSetting, footerSetting, wcagSetting, languageSetting] = await Promise.all([
       this.getSetting('customization_theme'),
       this.getSetting('customization_branding'),
       this.getSetting('customization_footer'),
       this.getSetting('customization_wcag'),
+      this.getSetting('customization_language'),
     ]);
 
     const settings = {
@@ -816,6 +847,7 @@ export class DatabaseStorage implements IStorage {
       branding: brandingSetting?.value || {},
       footer: footerSetting?.value || {},
       wcag: wcagSetting?.value || {},
+      language: languageSetting?.value || {},
     };
 
     return customizationSettingsSchema.parse(settings);
@@ -833,6 +865,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (settings.wcag) {
       await this.setSetting({ key: 'customization_wcag', value: settings.wcag });
+    }
+    if (settings.language) {
+      await this.setSetting({ key: 'customization_language', value: settings.language });
     }
 
     return await this.getCustomizationSettings();
@@ -1345,39 +1380,45 @@ export class DatabaseStorage implements IStorage {
     let deletedOptions = 0;
     let deletedPolls = 0;
     
-    // Only proceed if there are test polls to delete
     if (testPollIds.length > 0) {
-      // Count votes before deletion
-      const [voteCount] = await db.select({ count: count() }).from(votes)
-        .where(sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
-      deletedVotes = voteCount.count;
+      const pollResult = await db.transaction(async (tx) => {
+        const [voteCount] = await tx.select({ count: count() }).from(votes)
+          .where(sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
+        
+        const [optionCount] = await tx.select({ count: count() }).from(pollOptions)
+          .where(sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
+        
+        await tx.delete(votes).where(
+          sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
+        );
+        
+        await tx.delete(pollOptions).where(
+          sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
+        );
+        
+        await tx.delete(polls).where(testPatternCondition);
+        
+        return { deletedVotes: voteCount.count, deletedOptions: optionCount.count };
+      });
       
-      // Count options before deletion
-      const [optionCount] = await db.select({ count: count() }).from(pollOptions)
-        .where(sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`);
-      deletedOptions = optionCount.count;
-      
-      // Delete in correct order: votes first, then options, then polls
-      await db.delete(votes).where(
-        sql`${votes.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
-      );
-      
-      await db.delete(pollOptions).where(
-        sql`${pollOptions.pollId} IN (SELECT id FROM polls WHERE ${testPatternCondition})`
-      );
-      
-      await db.delete(polls).where(testPatternCondition);
+      deletedVotes = pollResult.deletedVotes;
+      deletedOptions = pollResult.deletedOptions;
       deletedPolls = testPollIds.length;
     }
     
     // Delete test users (by flag or pattern) - with protection for users who have real data
     const testUserCondition = sql`
       is_test_data = true 
+      OR email LIKE '%@test.local'
+      OR email LIKE '%@test.de'
       OR email LIKE 'test-%@example.com' 
       OR email LIKE 'test\_%@example.com'
       OR email LIKE 'creator-%@example.com' 
       OR email LIKE 'voter-%@example.com'
       OR email LIKE 'fixtest-%@example.com'
+      OR email LIKE 'sessiontest-%@example.com'
+      OR email LIKE 'cookietest-%@example.com'
+      OR email LIKE 'reset-test-%@example.com'
       OR email LIKE 'e2e\_%@test.com'
       OR email LIKE 'e2e\_%@example.com'
       OR email LIKE 'e2etest\_%@example.com'
@@ -1385,14 +1426,19 @@ export class DatabaseStorage implements IStorage {
       OR email LIKE '%@test.example.com'
     `;
 
+    // Admin protection: resolve configured admin username from env (falls back to 'admin')
+    const configuredAdminUsername = process.env.ADMIN_USERNAME || 'admin';
+
     // Use a transaction to ensure atomicity - no user can be deleted between checks
     const userResult = await db.transaction(async (tx) => {
-      // Find protected user IDs: users who have votes in non-test polls or created non-test polls
+      // Find protected user IDs: admin users and users who have votes/polls in non-test data
       const protectedUserIds = await tx.execute(sql`
         SELECT DISTINCT u.id, u.email FROM users u
         WHERE (${testUserCondition})
         AND (
-          EXISTS (
+          (u.role = 'admin' AND u.is_test_data IS NOT TRUE)
+          OR u.username = ${configuredAdminUsername}
+          OR EXISTS (
             SELECT 1 FROM votes v 
             WHERE v.voter_email = u.email 
             AND v.poll_id NOT IN (SELECT p.id FROM polls p WHERE ${testPatternCondition})
@@ -1460,11 +1506,16 @@ export class DatabaseStorage implements IStorage {
     // Count users matching test patterns (same as purgeTestData)
     const testUserCondition = sql`
       is_test_data = true 
+      OR email LIKE '%@test.local'
+      OR email LIKE '%@test.de'
       OR email LIKE 'test-%@example.com' 
       OR email LIKE 'test\_%@example.com'
       OR email LIKE 'creator-%@example.com' 
       OR email LIKE 'voter-%@example.com'
       OR email LIKE 'fixtest-%@example.com'
+      OR email LIKE 'sessiontest-%@example.com'
+      OR email LIKE 'cookietest-%@example.com'
+      OR email LIKE 'reset-test-%@example.com'
       OR email LIKE 'e2e\_%@test.com'
       OR email LIKE 'e2e\_%@example.com'
       OR email LIKE 'e2etest\_%@example.com'

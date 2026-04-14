@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { InDevelopmentBadge } from "@/components/ui/InDevelopmentBadge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -268,10 +269,26 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     },
   });
 
+  const stripBase64Images = (obj: unknown): unknown => {
+    if (typeof obj === 'string' && obj.startsWith('data:image/')) {
+      return '[image-removed]';
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(stripBase64Images);
+    }
+    if (obj && typeof obj === 'object') {
+      return Object.fromEntries(
+        Object.entries(obj as Record<string, unknown>).map(([k, v]) => [k, stripBase64Images(v)])
+      );
+    }
+    return obj;
+  };
+
   const handleThemeJsonPreview = () => {
     try {
       const parsed = JSON.parse(themeJsonInput);
-      previewThemeMutation.mutate(parsed);
+      const cleaned = stripBase64Images(parsed);
+      previewThemeMutation.mutate(cleaned);
     } catch {
       toast({ title: t('admin.emailTemplates.toasts.invalidJson'), description: t('admin.emailTemplates.toasts.invalidJsonDescription'), variant: 'destructive' });
     }
@@ -320,16 +337,20 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
       {!selectedTemplate ? (
         <>
-          <Card className="polly-card">
+          <Card className="polly-card relative">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 opacity-50">
                   <div className="p-2 bg-primary/10 rounded-lg text-primary">
                     <Palette className="w-5 h-5" />
                   </div>
                   <div>
                     <CardTitle className="text-lg">{t('admin.emailTemplates.emailTheme')}</CardTitle>
                     <CardDescription>{t('admin.emailTemplates.themeDescription')}</CardDescription>
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Info className="w-3 h-3 shrink-0" />
+                      {t('admin.emailTemplates.themeHint')}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -343,20 +364,32 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     <RotateCcw className="w-4 h-4 mr-1" />
                     {t('admin.emailTemplates.resetTheme')}
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowThemeImport(true)}
-                    data-testid="button-import-theme"
-                  >
-                    <Upload className="w-4 h-4 mr-1" />
-                    {t('admin.emailTemplates.importTheme')}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="inline-flex items-center gap-2 cursor-default" data-testid="button-import-theme">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled
+                          className="pointer-events-none opacity-50"
+                          tabIndex={-1}
+                        >
+                          <Upload className="w-4 h-4 mr-1" />
+                          {t('admin.emailTemplates.importTheme')}
+                        </Button>
+                        <InDevelopmentBadge />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t('admin.emailTemplates.importThemeDisabledHint')}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               {emailTheme && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 opacity-50">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">{t('admin.emailTemplates.backdrop')}</Label>
                     <div className="flex items-center space-x-2">
@@ -453,7 +486,8 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                   onClick={() => {
                     try {
                       const parsed = JSON.parse(themeJsonInput);
-                      confirmThemeImportMutation.mutate(parsed);
+                      const cleaned = stripBase64Images(parsed);
+                      confirmThemeImportMutation.mutate(cleaned);
                     } catch {
                       toast({ title: t('admin.emailTemplates.toasts.invalidJson'), description: t('admin.emailTemplates.toasts.invalidJsonDescription'), variant: 'destructive' });
                     }

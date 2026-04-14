@@ -58,7 +58,10 @@ import {
   ArrowLeft,
   Loader2,
   Eye,
-  Vote
+  Vote,
+  CheckCircle,
+  XCircle,
+  ShieldCheck
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { getDateLocale } from "@/lib/i18n";
@@ -442,6 +445,7 @@ function UserDetailView({
   isDeprovisionEnabled: boolean;
 }) {
   const { t } = useTranslation();
+  const { toast } = useToast();
 
   return (
     <div className="space-y-6">
@@ -483,6 +487,20 @@ function UserDetailView({
               <Label>{t('admin.users.provider')}</Label>
               <Badge variant="outline">{user.provider}</Badge>
             </div>
+            <div className="flex items-center justify-between">
+              <Label>{t('admin.users.emailStatus')}</Label>
+              {user.emailVerified ? (
+                <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-500/10">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  {t('admin.users.emailVerified')}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-red-500 border-red-500/30 bg-red-500/10">
+                  <XCircle className="w-3 h-3 mr-1" />
+                  {t('admin.users.emailNotVerified')}
+                </Badge>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -491,6 +509,32 @@ function UserDetailView({
             <CardTitle>{t('admin.users.management')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!user.emailVerified && user.provider === 'local' && (
+              <div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    apiRequest('PATCH', `/api/v1/admin/users/${user.id}`, { emailVerified: true })
+                      .then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
+                        toast({
+                          title: t('admin.users.emailVerifiedSuccess'),
+                          description: t('admin.users.emailVerifiedDescription'),
+                        });
+                      })
+                      .catch(() => {
+                        toast({ title: t('admin.users.saveError'), variant: 'destructive' });
+                      });
+                  }}
+                  data-testid="button-verify-email"
+                >
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  {t('admin.users.verifyEmail')}
+                </Button>
+              </div>
+            )}
+
             <div>
               <Label>{t('admin.users.changeRole')}</Label>
               <Select

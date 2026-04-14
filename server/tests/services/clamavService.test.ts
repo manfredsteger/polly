@@ -13,26 +13,23 @@ export const testMeta = {
 
 describe('ClamAV Security - Fail-Secure Behavior', () => {
   let app: Express;
+  let originalConfig: any;
 
   beforeAll(async () => {
+    const setting = await storage.getSetting('clamav_config');
+    originalConfig = setting?.value || null;
     app = await createTestApp();
   });
 
+  afterAll(async () => {
+    if (originalConfig !== null) {
+      await storage.setSetting({ key: 'clamav_config', value: originalConfig });
+    } else {
+      await storage.deleteSetting('clamav_config');
+    }
+  });
+
   describe('Fail-Secure: Scanner enabled but unreachable', () => {
-    let originalConfig: any;
-
-    beforeEach(async () => {
-      const setting = await storage.getSetting('clamav_config');
-      originalConfig = setting?.value || null;
-    });
-
-    afterAll(async () => {
-      if (originalConfig) {
-        await storage.setSetting({ key: 'clamav_config', value: originalConfig });
-      } else {
-        await storage.setSetting({ key: 'clamav_config', value: { enabled: false, host: 'localhost', port: 3310, timeout: 5000, maxFileSize: 25 * 1024 * 1024 } });
-      }
-    });
 
     it('should BLOCK uploads when ClamAV is enabled but daemon is unreachable (ECONNREFUSED)', async () => {
       await storage.setSetting({
@@ -178,8 +175,11 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
 
       const mockFile = {
         originalname: 'clamav-test-log-verify.jpg',
-        buffer: Buffer.from('test content for logging'),
-        size: 24,
+        buffer: Buffer.from([
+          0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46,
+          0x49, 0x46, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        ]),
+        size: 16,
         mimetype: 'image/jpeg',
         fieldname: 'image',
         encoding: '7bit',

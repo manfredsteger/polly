@@ -19,7 +19,8 @@ import {
   Sun,
   Monitor,
   RotateCcw,
-  Loader2
+  Loader2,
+  Globe
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -70,6 +71,10 @@ export function CustomizePanel() {
     supportLinks: [] as FooterLink[],
   });
 
+  const [languageSettings, setLanguageSettings] = useState({
+    defaultLanguage: 'en' as 'de' | 'en',
+  });
+
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
@@ -101,6 +106,9 @@ export function CustomizePanel() {
         copyrightText: customization.footer?.copyrightText || '',
         supportLinks: customization.footer?.supportLinks || [],
       });
+      setLanguageSettings({
+        defaultLanguage: customization.language?.defaultLanguage || 'en',
+      });
       setInitialDataLoaded(true);
     }
   }, [customization, initialDataLoaded]);
@@ -113,6 +121,7 @@ export function CustomizePanel() {
     onSuccess: () => {
       toast({ title: t('admin.toasts.saved'), description: t('admin.toasts.customizationSaved') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
     },
     onError: () => {
       toast({ title: t('errors.generic'), description: t('admin.toasts.customizationSaveError'), variant: "destructive" });
@@ -142,6 +151,7 @@ export function CustomizePanel() {
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = '';
 
     setIsUploading(true);
     const formData = new FormData();
@@ -173,14 +183,16 @@ export function CustomizePanel() {
           });
           return;
         }
-        throw new Error('Upload failed');
+        throw new Error(errorData.error || 'Upload failed');
       }
       
       const data = await response.json();
       setBrandingSettings({ ...brandingSettings, logoUrl: data.logoUrl });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
       toast({ title: t('admin.toasts.logoUploaded'), description: t('admin.toasts.logoUploadedDescription') });
-    } catch (error) {
-      toast({ title: t('errors.generic'), description: t('admin.toasts.logoUploadError'), variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: t('errors.generic'), description: error?.message || t('admin.toasts.logoUploadError'), variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
@@ -194,6 +206,8 @@ export function CustomizePanel() {
       });
       if (!response.ok) throw new Error('Delete failed');
       setBrandingSettings({ ...brandingSettings, logoUrl: null });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
       toast({ title: t('admin.toasts.logoDeleted'), description: t('admin.toasts.logoDeletedDescription') });
     } catch (error) {
       toast({ title: t('errors.generic'), description: t('admin.toasts.logoDeleteError'), variant: "destructive" });
@@ -271,15 +285,27 @@ export function CustomizePanel() {
                 </div>
               )}
               <div>
-                <Input
+                <input
+                  id="logo-upload-input"
                   type="file"
                   accept="image/*"
                   onChange={handleLogoUpload}
                   disabled={isUploading}
-                  className="max-w-xs"
+                  className="sr-only"
                   data-testid="input-logo-upload"
                 />
-                {isUploading && <p className="text-xs text-muted-foreground mt-1">{t('common.uploading')}</p>}
+                <label
+                  htmlFor="logo-upload-input"
+                  className={`inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground cursor-pointer ${isUploading ? 'pointer-events-none opacity-50' : ''}`}
+                  data-testid="button-logo-upload"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {isUploading ? t('admin.customization.uploading') : t('admin.customize.uploadLogo')}
+                </label>
               </div>
             </div>
           </div>
@@ -291,7 +317,7 @@ export function CustomizePanel() {
                 id="siteName"
                 value={brandingSettings.siteName}
                 onChange={(e) => setBrandingSettings({ ...brandingSettings, siteName: e.target.value })}
-                placeholder="Polly"
+                placeholder="Poll"
                 data-testid="input-site-name"
               />
             </div>
@@ -301,7 +327,7 @@ export function CustomizePanel() {
                 id="siteNameAccent"
                 value={brandingSettings.siteNameAccent}
                 onChange={(e) => setBrandingSettings({ ...brandingSettings, siteNameAccent: e.target.value })}
-                placeholder="Poll"
+                placeholder="y"
                 data-testid="input-site-name-accent"
               />
             </div>
@@ -315,6 +341,47 @@ export function CustomizePanel() {
           >
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {t('admin.customize.saveBranding')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Language Settings */}
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="w-5 h-5" />
+            {t('admin.customize.languageSection')}
+          </CardTitle>
+          <CardDescription>{t('admin.customize.languageDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="mb-2 block">{t('admin.customize.defaultLanguage')}</Label>
+            <p className="text-sm text-muted-foreground mb-3">{t('admin.customize.defaultLanguageHint')}</p>
+            <RadioGroup
+              value={languageSettings.defaultLanguage}
+              onValueChange={(value) => setLanguageSettings({ defaultLanguage: value as 'de' | 'en' })}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="de" id="lang-de" />
+                <Label htmlFor="lang-de">Deutsch</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="en" id="lang-en" />
+                <Label htmlFor="lang-en">English</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <Button 
+            onClick={() => saveMutation.mutate({ language: languageSettings })}
+            disabled={saveMutation.isPending}
+            data-testid="button-save-language"
+            className="bg-polly-orange hover:bg-polly-orange/90 text-white font-medium"
+          >
+            {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {t('admin.customize.saveLanguage')}
           </Button>
         </CardContent>
       </Card>

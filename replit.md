@@ -6,10 +6,25 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ## User Preferences
 - **Communication**: Simple, everyday language (German).
 - **Git Commits**: Aussagekräftige, beschreibende Commit-Nachrichten auf Englisch (kein "saved progress"). Format: Kurzer Titel + optionale Details zu den Änderungen.
-
-## CRITICAL Rules (MUST check every time)
-- **Makefile MUST use TAB indentation** — NEVER spaces. GNU Make requires TABs for recipe lines. Every time the Makefile is edited, verify with `python3 -c "..." ` that indentation bytes are `\t` (0x09), not spaces (0x20). The `write`/`edit` tools may silently convert tabs to spaces — always verify and fix after editing.
-- **Git Sync Flow**: Replit → GitHub (source of truth) → GitLab (read-only mirror). GitLab NEVER pushes to GitHub. One-way only!
+- **Admin Credentials (MANDATORY)**: Admin credentials are stored in Replit Secrets/Env Vars: `ADMIN_USERNAME` (env var), `ADMIN_EMAIL` (env var), `ADMIN_PASSWORD` (secret). **In the Replit environment, always read credentials from `process.env`** — never hardcode usernames, emails, or passwords. For E2E testing and login, use `$ADMIN_USERNAME` and `$ADMIN_PASSWORD` from the environment. For backend test files: `server/tests/testCredentials.ts` reads env vars with Docker fallbacks. For Docker seeding: `server/seed-admin.ts` reads env vars. **No test file may hardcode its own credentials** — always import from `testCredentials.ts`. The `dockerSmokeTest.ts` reads env vars directly (no fallback, exits with error if missing — it runs in Docker where env vars are always set). Docker/CI fallback passwords exist only for containerized environments — they are irrelevant in Replit.
+- **Test Discipline (MANDATORY)**: When adding a new feature, fixing a bug, or changing existing functionality:
+  1. First check if tests already exist for the affected code (search `server/tests/`).
+  2. If no tests exist, always create or extend tests to cover the change.
+  3. If tests exist but don't cover the new behavior, extend them.
+  4. Ask the user for confirmation only if the test scope is unclear — by default, tests should be written.
+  5. All existing tests must still pass after changes (`npx vitest run`).
+- **Test-Cleanup (MANDATORY)**: When a test modifies database settings (`storage.setCustomizationSettings()`, `storage.setSetting()`, `service.saveTemplate()` etc.), it MUST save and restore the original state:
+  1. `beforeAll`: Read the current state into a variable (e.g. `origCustomization = await storage.getCustomizationSettings();`)
+  2. `afterAll`: Restore the saved state (e.g. `await storage.setCustomizationSettings(origCustomization);`). `afterAll` runs even when tests fail.
+  3. Tests must NOT pollute production DB — after a test run, all settings must be identical to before.
+  4. Pattern: `const orig = await storage.getCustomizationSettings(); ... afterAll: await storage.setCustomizationSettings(orig);`
+  5. **Template cleanup**: Any `describe` block that calls `service.saveTemplate()` MUST call `service.resetTemplate(type)` for all modified types in its `afterEach`. Without this, test crashes leave custom templates in the DB, breaking V3 rendering (templates with `htmlContent` set → `isDefault=false` → V3 body builder is skipped).
+- **i18n Discipline (MANDATORY)**: Every user-visible string in the frontend MUST use `t()` from react-i18next. When adding, changing, or removing any UI text:
+  1. Always add/update the key in BOTH `client/src/locales/de.json` AND `client/src/locales/en.json`.
+  2. If a text is modified, update the translation in both locale files immediately.
+  3. If a new key is added, both German and English translations must be provided — never leave one language empty or missing.
+  4. Run `node scripts/validate-translations.cjs` after locale changes to verify key parity, no duplicates, and no empty values.
+  5. The i18n regression test suite (`server/tests/ui/i18n-hardcoded-strings.test.ts`, 152 tests) must pass before any PR or deployment.
 
 ## System Architecture
 
@@ -18,148 +33,77 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 -   **Frontend**: React 18 with TypeScript, Vite, Shadcn/ui (Radix UI) + Tailwind CSS, TanStack Query v5, Wouter
 -   **Backend**: Express.js server with TypeScript
 -   **Database**: PostgreSQL with Drizzle ORM
--   **API Routing**: Modular structure in `server/routes/` with 156 endpoints:
-    -   `admin.ts` (89): Admin dashboard, tests, security, Pentest-Tools
-    -   `auth.ts` (15): Login, registration, Keycloak, password reset
-    -   `polls.ts` (17): Poll CRUD, options, invitations, reminders
-    -   `votes.ts` (7): Voting, bulk votes, edit tokens
-    -   `users.ts` (9): Profile, language, device tokens, user polls
-    -   `system.ts` (11): Health, theme, Matrix, upload, customization
-    -   `export.ts` (8): PDF, CSV, ICS, QR code, calendar feed
-    -   `common.ts`: Shared middleware, schemas, auth helpers
+-   **API Routing**: Modular structure in `server/routes/` with endpoints for admin, authentication, polls, votes, users, system, export, and common utilities.
 
 ### Key Features
 - **Poll Types**: Terminumfrage (Schedule), Umfrage (Survey), Orga-Liste (Organization/Booking).
-- **Vote Management**: Configurable vote editing, unique edit links, and results visibility (public/private).
-- **Authentication**: Anonymous token-based, local email/password, and optional Keycloak OIDC with role-based access.
+- **Schedule Poll Voting**: Time slots sorted chronologically and grouped by day with compact card layout. Dark-mode-safe voting buttons.
+- **Schedule Poll Editing**: End time auto-adjusts to Start + 30 minutes when Start >= End. Time defaults: Start=09:00, End=09:30.
+- **Vote Management**: Configurable vote editing, unique edit links, and results visibility.
+- **Authentication**: Anonymous token-based, local email/password, and optional Keycloak OIDC with role-based access. `HIDE_LOGIN_FORM=true` hides local form when SSO is primary (safety: auto-shows if SSO unavailable).
 - **Data Export**: CSV and PDF export of results, including QR code sharing for polls.
 - **Customization**: Admin panel for branding (theme, logo, site name) and dark mode settings.
 - **Multi-Language Support**: German (de) and English (en) with automatic browser detection and per-user preference storage.
-- **API Versioning**: `/api/v1/` endpoints with redirects from legacy paths.
-- **Notification System**: Configurable email reminders (expiry, manual), with spam protection and rate limiting.
+- **API Versioning**: `/api/v1/` endpoints.
+- **Notification System**: Configurable email reminders with spam protection and rate limiting.
 - **Profile Security**: Secure password reset, email change, and GDPR-compliant account deletion request flow.
 - **Live Voting**: Real-time vote tracking via WebSocket with fullscreen presentation mode.
-- **Admin Tools**: User management, email template customization, security scanning integration (ClamAV, npm audit, Pentest-Tools.com), and system package monitoring (Nix).
-- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls with dynamic status prefixes (Tentative/Confirmed) and automatic cleanup when creator sets final date.
-- **Test Data Isolation**: `isTestData` flags in database for development and purging.
-    -   **Test Mode Header**: API requests with `X-Test-Mode: polly-e2e-test-mode` header automatically set `isTestData: true` on created polls, votes, and users
-    -   **Middleware**: `testModeMiddleware` in `server/routes/common.ts` sets `req.isTestMode = true`
-    -   **Secret Override**: Set `TEST_MODE_SECRET` env var to customize the header value
-    -   **Admin Purge**: Admin dashboard "Tests" panel has "Testdaten löschen" to remove all test data
+- **AI Auto-Enable**: AI chat is automatically enabled if `AI_API_KEY` is set unless explicitly disabled by admin.
+- **Voice Input (AI Chat)**: Microphone button records audio, transcodes to text via Whisper API, and inserts into chat.
+- **Admin Tools**: User management (incl. manual email verification), email template customization, security scanning integration, and system package monitoring.
+- **Post-Login Flow**: Regular users land on Home (`/`) with AI chat front and center; admins redirect to `/admin`.
+- **Meine Umfragen**: Consolidated poll management with stat cards (active/total/participations/this week), inline action buttons (stats/share/edit/delete), and archive tab for expired/closed polls. Dashboard page removed.
+- **Calendar Integration**: ICS export and webcal:// subscription for schedule polls. Finalization optionally closes the poll and sends notification emails with ICS calendar attachment to all participants. Optional video conference URL (Zoom, Teams, Google Meet) stored per schedule poll, shown as LOCATION in ICS/CalDAV, in finalization emails, and on the results page.
+- **Test Data Isolation**: `isTestData` flags for development and purging, with specific API header for test mode.
+- **Real-Time Slot Reservation (Orga-Listen)**: Uses transactional locking and advisory locks with WebSocket updates for capacity management.
 
 ### Technical Implementations
-- **Timezone Handling**: Schedule poll times stored in UTC, frontend displays and converts to local time.
-- **PDF Export**: Utilizes Puppeteer (Headless Chrome) for high-quality HTML/CSS-based PDF generation.
-- **Email Templates**: JSON-based, customizable templates with variable substitution and admin preview/test functionality.
-- **Internationalization (i18n)**:
-    -   **Library**: react-i18next with i18next-browser-languagedetector
-    -   **Languages**: German (de), English (en) - fallback
-    -   **Translation Files**: `client/src/locales/de.json`, `client/src/locales/en.json`
-    -   **Configuration**: `client/src/lib/i18n.ts`
-    -   **Language Switcher**: Globe icon in navigation bar
-    -   **User Preference**: Stored in database (`users.language_preference`), synced with localStorage
-    -   **API Endpoint**: `PATCH /api/v1/users/me/language` for updating preference
-    -   **Detection Order**: localStorage → browser navigator → fallback to English
-    -   **Coverage**: Complete frontend localization including:
-        -   All UI components (date-picker, time-picker, datetime-picker, CalendarPicker)
-        -   Large components (LiveResultsView, VotingInterface, OrganizationSlotVoting, AdminDashboard)
-        -   All poll creation pages (create-poll, create-survey, create-organization)
-        -   All poll viewing pages (poll, my-polls, poll-success, vote-success)
-    -   **Translation Key Structure**: Organized by component/page (e.g., `pollCreation.*`, `admin.*`, `liveResults.*`)
-- **WCAG 2.1 AA Color Contrast**:
-    -   **Audit**: Admin panel checks all theme colors against BOTH Light (#ffffff) and Dark (#0f172a) backgrounds
-    -   **Per-Mode Issues**: Reports separate issues for Light Mode and Dark Mode (no combined "worst of both")
-    -   **Per-Mode Corrections**: Stores separate color overrides per mode (e.g., `primaryColorLight`, `primaryColorDark`)
-    -   **CustomizationContext**: Uses per-mode overrides based on current dark/light mode; MutationObserver re-applies on mode toggle
-    -   **No Infinite Loop**: After applying corrections and re-auditing, all colors pass (verified by automated test)
-    -   **Schema Fields**: `themeSettingsSchema` has 8 optional per-mode override fields; `wcagAuditIssueSchema` includes `mode` and `bgColor`
-    -   **Endpoints**: `POST /api/v1/admin/wcag/audit`, `POST /api/v1/admin/wcag/apply-corrections`, `PUT /api/v1/admin/wcag/settings`
-- **Security Scanning**:
-    -   **ClamAV**: On-the-fly virus scanning of file uploads using `multer.memoryStorage`. Fail-secure: blocks uploads when enabled but daemon unreachable.
-    -   **ClamAV Scan Logs**: Stored in `clamav_scan_logs` table with context (userId, email, IP) for forensic analysis
-    -   **npm Audit**: Local scanning for dependency vulnerabilities with severity and impact labels.
-    -   **Pentest-Tools.com**: Integration for automated vulnerability scanning with real-time results.
-- **System Package Monitoring**: Displays Nix package information and versions for core dependencies.
-- **Session Management**:
-    -   **Store**: PostgreSQL (connect-pg-simple) when DATABASE_URL is set, MemoryStore fallback otherwise
-    -   **Cookie**: `polly.sid`, httpOnly, secure='auto' (adapts to HTTPS/HTTP), sameSite=lax
-    -   **Proxy Trust**: Auto-detected via REPL_ID, REPLIT_DEV_DOMAIN environment variables
-    -   **Session Save**: Explicit `req.session.save()` before response in login/register/callback endpoints
-    -   **Table**: `session` table auto-created by connect-pg-simple with pruning every 15 minutes
-    -   **Persistence**: Sessions survive server restarts when using PostgreSQL store
-- **Rate Limiting**:
-    -   **Login Endpoint**: 5 failed attempts per IP/Account → 15 Minuten Sperre (HTTP 429)
-    -   **Implementation**: `server/services/rateLimiterService.ts` mit In-Memory-Speicher
-    -   **Logging**: Gesperrte Konten werden mit IP-Adresse protokolliert
-    -   **Test Coverage**: Automatisierte Tests verifizieren Rate-Limit-Durchsetzung
-    -   **Production Note**: Rate-Limiter-Status geht bei Server-Neustart verloren; Redis empfohlen für Produktion
-- **Real-Time Slot Reservation (Orga-Listen)**:
-    -   **Transactional Locking**: `storage.vote()` für Organization Polls nutzt PostgreSQL `db.transaction()` mit `SELECT ... FOR UPDATE` Row-Level Locking
-    -   **Advisory Locks**: `pg_advisory_xact_lock()` basierend auf Poll+Voter-Email verhindert Race Conditions beim gleichzeitigen Buchen
-    -   **Überbuchungsschutz**: Kapazitätsprüfung innerhalb der Transaktion garantiert, dass maxCapacity nie überschritten wird
-    -   **WebSocket slot_update**: Nach jeder Buchung/Stornierung werden aktuelle Platzzahlen per WebSocket an alle verbundenen Clients gesendet
-    -   **Frontend Live-Updates**: `useLiveVoting` Hook empfängt `slot_update` Events, `VotingInterface` nutzt `liveSlotUpdates` State für Echtzeit-Anzeige
-    -   **Error Codes**: `SLOT_FULL` (HTTP 409), `ALREADY_SIGNED_UP` (HTTP 409) mit lokalisierten Fehlermeldungen
+- **Timezone Handling**: Schedule poll times stored in UTC, frontend converts to local time.
+- **PDF Export**: Utilizes Puppeteer for HTML/CSS-based PDF generation.
+- **Email Templates (V3)**: Single-HTML-template system with `{{VARIABLE}}` substitution. All 10 email types (poll_created, invitation, vote_confirmation, reminder, password_reset, email_change, password_changed, welcome, test_report, poll_finalized) render via `emailTemplateService.renderEmail()` using `v3Shell()` + per-type body builders. V3 design: beige outer (#f0ede8), white card (border-radius: 10px), compact header (logo|separator|wordmark), structured body (tag + headline + subline + link sections + notice), **centralized footer** (loaded from `getEmailFooter()` with `{{siteName}}` and `{{siteUrl}}` variable substitution, `{{link:URL}}` and `{{link:URL|Label}}` template syntax for clickable links rendered via `renderFooterMarkup()` — XSS-safe with URL protocol validation (only http/https/#/mailto allowed), newlines converted to `<br>`, plain-text version via `stripFooterMarkupToText()`. Default footer includes Datenschutz placeholder: `{{link:#|Datenschutz}}`. Privacy link from customization supportLinks shown separately). **Dark mode**: `@media (prefers-color-scheme: dark)` CSS with named classes (.shell, .email-header, .btn-primary, .btn-secondary, .notice, .email-footer). **Logo embedding**: Logos fetched and converted to base64 data URIs at render time (5-min cache, SSRF-safe URL validation, strict data URI MIME validation, fallback to text-only header). **Button contrast**: `ensureButtonTextContrast()` auto-selects dark/light text based on background luminance. XSS protection: `htmlEscape()` for all user-supplied variables, strict data URI validation for logos. Custom templates wrapped in V3 shell via `buildV3GenericBody()`. `wrapWithEmailTheme()` also uses V3 shell for ad-hoc emails. **Subject cleanup**: Empty `[]` prefix auto-removed when siteName is not configured. **Privacy URL**: `resolvePrivacyUrl()` returns empty string (no fallback) when no privacy link configured in customization supportLinks — Datenschutz link hidden in footer.
+- **Internationalization (i18n)**: React-i18next for localization, covering all UI components and pages, with language preference stored in the database.
+- **WCAG 2.1 AA Color Contrast**: Admin panel audits theme colors against accessibility standards, with separate corrections for light and dark modes.
+- **Security Scanning**: ClamAV for file uploads, npm audit for dependencies, and Pentest-Tools.com integration for vulnerability scanning.
+- **System Package Monitoring**: Displays Nix package information for core dependencies.
+- **Session Management**: PostgreSQL-backed sessions with `polly.sid` cookie, secure and sameSite configuration, proxy trust detection, session regeneration on login/register (session fixation prevention), role-based idle timeout middleware (admin/manager/user), and `lastActivity` tracking.
+- **Rate Limiting**: In-memory rate limiter for login attempts (5 failed attempts per IP/Account → 15 min lockout).
+- **Security Hardening**: Force-password-change for default admin credentials (`isInitialAdmin` middleware blocks API until password changed), Cache-Control `no-store` on all API responses, generic error messages (no `error.message` leaks), JSON body limit 1MB, field-level input length validation (voter names 100, option text 500, description 5000, email 254), `autocomplete="off"` on all password fields, `X-Powered-By` disabled.
 
-## API Documentation
+### API Documentation
+-   **API-Dokumentation (Pentest-tauglich)**: `docs/API-DOCUMENTATION.md` — vollständige REST-API-Referenz mit allen Endpunkten, Schemas, Auth-Mechanismen, Rate Limiting und Fehlercodes. **Muss bei jeder API-Änderung aktualisiert werden.**
+-   **OpenAPI Spec**: `docs/openapi.yaml` provides a full API specification for Flutter/Mobile integration.
+-   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` for mobile app integration.
+-   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` for Docker/Production Deployment.
 
--   **OpenAPI Spec**: `docs/openapi.yaml` - Vollständige API-Spezifikation im OpenAPI 3.0 Format
--   **Flutter Integration**: `docs/FLUTTER_INTEGRATION.md` - Detaillierte Dokumentation für Mobile App Integration
--   **Self-Hosting Guide**: `docs/SELF-HOSTING.md` - Anleitung für Docker/Production Deployment
+### Docker Migration Path
+Schema changes involve updating `shared/schema.ts`, `server/scripts/ensureSchema.ts`, and migration files. `ensureSchema.ts` automatically adds missing columns and indexes on startup.
 
-## Docker Migration Path
+### Database Indexes
+Token tables (`password_reset_tokens`, `email_verification_tokens`, `email_change_tokens`) have indexes on `token` and `user_id`. `notification_logs` is indexed on `poll_id` and `type`. `votes` is indexed on `poll_id`, `option_id`, `voter_email`, `voter_key`, and `voter_edit_token`.
 
-When schema changes are made (new columns in `shared/schema.ts`), existing Docker databases need to be updated:
+### Test Coverage (454+ tests)
+- **API**: 174 tests (admin CRUD, user profile/theme/language, poll CRUD/voting/export, email templates, security, validation)
+- **Auth**: 55 tests (login, registration, password reset, session persistence, cookie security)
+- **Polls**: 30 tests (CRUD, voting, finalize, types)
+- **Data/Storage**: 40 tests (settings, branding, storage, test data)
+- **Unit**: 34 tests (validation, token service, QR service)
+- **Services**: 132+ tests (email templates 63, email integration 13, live voting WebSocket multi-user 19, image upload file types 16, ClamAV, ICS, PDF, WCAG audit)
+- **Security**: 31 tests (WebSocket presenter escalation, poll token validation, email HTML escaping/XSS, deprovision Basic Auth, timing attack resistance)
+- **E2E/Integration**: 49 tests (poll flow, multi-voter, Docker build, deployment readiness, DB migration)
 
-### For Developers Adding New Schema Columns
-1. Add the column to `shared/schema.ts` (Drizzle schema)
-2. Add matching entry to `server/scripts/ensureSchema.ts` in `COLUMN_UPDATES` array
-3. Update `migrations/0000_old_vance_astro.sql` for fresh installs
-4. Update `createCoreTables()` fallback function in `ensureSchema.ts`
+### Release & CI/CD
+-   **GitHub Actions**: Workflows for CI (lint, type check, tests, build, E2E, security audit) and Release (Docker image build/push to Docker Hub, GitHub Release, GitLab mirror).
+-   **Docker Image**: `manfredsteger/polly` with beta and stable tags.
 
-### For Users Updating Existing Docker Installations
-After pulling new code with schema changes:
-```bash
-docker compose down
-docker compose build --no-cache app
-make complete
-```
-
-The `ensureSchema.ts` script automatically adds missing columns via `ALTER TABLE ADD COLUMN IF NOT EXISTS`.
-
-### Fresh Install (No Existing Data)
-```bash
-docker compose down -v  # Removes database volumes
-make complete
-```
-
-## Release & CI/CD
-
-### GitHub Actions Workflows
--   **CI** (`.github/workflows/ci.yml`): Runs on push/PR to main/develop — lint, type check, unit tests, build, E2E tests, security audit
--   **Release** (`.github/workflows/release.yml`): Triggered by `v*` tags — validates, builds Docker image, pushes to Docker Hub (`manfredsteger/polly`), creates GitHub Release, mirrors tags to GitLab
-
-### Release Process
-1. Create annotated tag: `git tag -a v0.1.0-beta.1 -m "Beta Release"`
-2. Push tag: `git push origin v0.1.0-beta.1`
-3. Pipeline runs automatically: validate → Docker build+push → Docker Hub README sync → GitHub Release → GitLab mirror
-4. Required GitHub Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, optionally `GITLAB_TOKEN`
-
-### Docker Image: `manfredsteger/polly`
-- Beta tags: `manfredsteger/polly:0.1.0-beta.1` + `manfredsteger/polly:beta`
-- Stable tags: `manfredsteger/polly:1.0.0` + `manfredsteger/polly:latest`
-
-### Makefile
-- Default `IMAGE_NAME`: `manfredsteger/polly`
-- `make publish` — Build + push to Docker Hub
-- `make release` — Interactive version prompt, build + push versioned + latest tags
-- Full documentation: `docs/RELEASING.md`
+### Docker Deployment
+-   **APP_URL**: Single environment variable for the public application URL, used for OIDC redirects, email links, and sharing.
+-   **Entrypoint**: `docker-entrypoint.sh` parses `DATABASE_URL` and handles `pg_isready` checks.
 
 ## External Dependencies
 
--   **PostgreSQL**: Main database for all application data.
--   **Keycloak OIDC**: Optional OpenID Connect provider for enterprise SSO.
--   **SMTP Service**: For sending application emails (notifications, password resets).
--   **Chromium**: Required for PDF export functionality (used by Puppeteer).
--   **ClamAV**: External antivirus engine for file upload scanning.
+-   **PostgreSQL**: Main database.
+-   **Keycloak OIDC**: Optional OpenID Connect provider.
+-   **SMTP Service**: For sending application emails.
+-   **Chromium**: Used by Puppeteer for PDF export.
+-   **ClamAV**: External antivirus engine for file uploads.
 -   **Pentest-Tools.com Pro API**: For automated security vulnerability scanning.

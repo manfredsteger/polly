@@ -16,10 +16,25 @@ fi
 # =========================================
 # Step 1: Wait for PostgreSQL
 # =========================================
-echo "[DB] Waiting for PostgreSQL..."
+
+# Extract host and port from DATABASE_URL using Node.js URL parser
+# This safely handles special characters in passwords (: @ # etc.)
+if [ -n "$DATABASE_URL" ]; then
+  DB_HOST=$(node -e "try { console.log(new URL(process.env.DATABASE_URL).hostname) } catch(e) { console.error('[DB] ERROR: Invalid DATABASE_URL format'); process.exit(1) }")
+  DB_PORT=$(node -e "try { console.log(new URL(process.env.DATABASE_URL).port || '5432') } catch(e) { process.exit(1) }")
+  if [ -z "$DB_HOST" ]; then
+    echo "[DB] ERROR: Could not parse DATABASE_URL — check the format (postgresql://user:pass@host:port/dbname)"
+    exit 1
+  fi
+else
+  DB_HOST=${POSTGRES_HOST:-postgres}
+  DB_PORT=${POSTGRES_PORT:-5432}
+fi
+
+echo "[DB] Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT}..."
 MAX_RETRIES=60
 RETRY_COUNT=0
-until pg_isready -h postgres -U ${POSTGRES_USER:-polly} -d ${POSTGRES_DB:-polly} 2>/dev/null; do
+until pg_isready -h "$DB_HOST" -p "$DB_PORT" 2>/dev/null; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
     echo "[DB] ERROR: Connection timeout after ${MAX_RETRIES} seconds"

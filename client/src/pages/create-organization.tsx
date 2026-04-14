@@ -11,13 +11,31 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer } from "lucide-react";
+import { ArrowLeft, ClipboardList, Plus, Trash2, Users, Clock, Info, Mail, CheckCircle, QrCode, Link as LinkIcon, CalendarDays, Bell, Sparkles, Coffee, Repeat, Timer, ChevronDown, GripVertical } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface OrgaSlot {
+  id: string;
   text: string;
   startTime?: string;
   endTime?: string;
@@ -50,6 +68,150 @@ interface OrgaFormData {
   dayModeDates?: string[];
 }
 
+interface SortableSlotItemProps {
+  slot: OrgaSlot;
+  index: number;
+  slotsLength: number;
+  isDayMode: boolean;
+  updateSlot: (index: number, updates: Partial<OrgaSlot>) => void;
+  removeSlot: (index: number) => void;
+  t: (key: string) => string;
+}
+
+function SortableSlotItem({ slot, index, slotsLength, isDayMode, updateSlot, removeSlot, t }: SortableSlotItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: slot.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border rounded-lg p-4 bg-muted/30"
+      data-testid={`slot-${index}`}
+    >
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          className="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+          aria-label="Verschieben"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <div className="flex-1 space-y-4">
+          <div>
+            <Label>{t('createOrganization.slotDescription')}</Label>
+            <Input
+              value={slot.text}
+              onChange={(e) => updateSlot(index, { text: e.target.value })}
+              placeholder={t('createOrganization.slotDescriptionPlaceholder')}
+              className="mt-1"
+              data-testid={`input-slot-text-${index}`}
+            />
+          </div>
+
+          {isDayMode ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>{t('createOrganization.fromTime')}</Label>
+                <div className="mt-1">
+                  <TimePicker
+                    time={slot.startTime}
+                    onTimeChange={(time) => updateSlot(index, { startTime: time })}
+                    placeholder={t('createOrganization.startTime')}
+                    data-testid={`input-slot-start-${index}`}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>{t('createOrganization.toTime')}</Label>
+                <div className="mt-1">
+                  <TimePicker
+                    time={slot.endTime}
+                    onTimeChange={(time) => updateSlot(index, { endTime: time })}
+                    placeholder={t('createOrganization.endTime')}
+                    data-testid={`input-slot-end-${index}`}
+                  />
+                </div>
+                {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
+                  <p className="text-xs text-destructive mt-1">{t('createOrganization.timesMustDiffer')}</p>
+                )}
+              </div>
+              <div>
+                <Label>{t('createOrganization.maxSpots')}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={slot.maxCapacity ?? ""}
+                  onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
+                  placeholder={t('createOrganization.unlimitedPlaceholder')}
+                  className="mt-1"
+                  data-testid={`input-slot-capacity-${index}`}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>{t('createOrganization.fromOptional')}</Label>
+                <div className="mt-1">
+                  <DateTimePicker
+                    value={slot.startTime}
+                    onChange={(value) => updateSlot(index, { startTime: value })}
+                    placeholder={t('createOrganization.dateTimePlaceholder')}
+                    data-testid={`input-slot-start-${index}`}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>{t('createOrganization.toOptional')}</Label>
+                <div className="mt-1">
+                  <DateTimePicker
+                    value={slot.endTime}
+                    onChange={(value) => updateSlot(index, { endTime: value })}
+                    placeholder={t('createOrganization.dateTimePlaceholder')}
+                    data-testid={`input-slot-end-${index}`}
+                  />
+                </div>
+                {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
+                  <p className="text-xs text-destructive mt-1">{t('createOrganization.timesMustDiffer')}</p>
+                )}
+              </div>
+              <div>
+                <Label>{t('createOrganization.maxSpots')}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={slot.maxCapacity ?? ""}
+                  onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
+                  placeholder={t('createOrganization.unlimitedPlaceholder')}
+                  className="mt-1"
+                  data-testid={`input-slot-capacity-${index}`}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {slotsLength > 1 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeSlot(index)}
+            className="text-destructive hover:text-destructive mt-1"
+            aria-label={t('createOrganization.removeSlot')}
+            data-testid={`button-remove-slot-${index}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CreateOrganization() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -66,13 +228,31 @@ export default function CreateOrganization() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [isDayMode, setIsDayMode] = useState(false);
   const [dayModeDate, setDayModeDate] = useState<string>("");
   const [dayModeDates, setDayModeDates] = useState<string[]>([]);
   const [slotDuration, setSlotDuration] = useState(30);
+  const nextSlotIdRef = useRef(1);
   const [slots, setSlots] = useState<OrgaSlot[]>([
-    { text: "", maxCapacity: undefined, order: 0 }
+    { id: "0", text: "", maxCapacity: undefined, order: 0 }
   ]);
+
+  const slotSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleSlotDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSlots((items) => {
+        const oldIndex = items.findIndex((s) => s.id === active.id);
+        const newIndex = items.findIndex((s) => s.id === over.id);
+        return arrayMove(items, oldIndex, newIndex).map((s, idx) => ({ ...s, order: idx }));
+      });
+    }
+  };
 
   const formPersistence = useFormPersistence<OrgaFormData>({ key: 'create-organization' });
   const hasRestoredRef = useRef(false);
@@ -95,7 +275,9 @@ export default function CreateOrganization() {
       setDayModeDate(stored.data.dayModeDate ?? "");
       setDayModeDates(stored.data.dayModeDates ?? (stored.data.dayModeDate ? [stored.data.dayModeDate] : []));
       if (stored.data.slots && stored.data.slots.length >= 1) {
-        setSlots(stored.data.slots);
+        const restored = stored.data.slots.map((s: OrgaSlot, i: number) => ({ ...s, id: s.id ?? String(i) }));
+        nextSlotIdRef.current = restored.length;
+        setSlots(restored);
       }
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
@@ -108,6 +290,107 @@ export default function CreateOrganization() {
         });
       }
     }
+  }, []);
+
+  // Read AI suggestion from sessionStorage if present
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ai-suggestion");
+    if (!raw) return;
+    try {
+      const suggestion = JSON.parse(raw);
+      if (suggestion.pollType !== "organization") return;
+      sessionStorage.removeItem("ai-suggestion");
+      if (suggestion.title) setTitle(suggestion.title);
+      if (suggestion.description) setDescription(suggestion.description);
+      if (Array.isArray(suggestion.options) && suggestion.options.length >= 1) {
+        const DATE_PREFIX_RE = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+/;
+
+        type RawSlot = { id: string; text: string; startTime?: string; endTime?: string; maxCapacity?: number; order: number; _isoDate?: string };
+
+        const optionTexts: string[] = suggestion.options.map((opt: any) =>
+          typeof opt === "string" ? opt : opt.text || ""
+        );
+        const aiBaseId = nextSlotIdRef.current;
+        nextSlotIdRef.current += optionTexts.length;
+
+        const toIso = (date: string, time: string): string | undefined => {
+          if (!date || !time) return undefined;
+          try {
+            const combined = new Date(`${date}T${time}`);
+            if (isNaN(combined.getTime())) return undefined;
+            return combined.toISOString();
+          } catch { return undefined; }
+        };
+
+        const rawParsed: RawSlot[] = optionTexts.map((text: string, i: number) => {
+          const dateMatch = text.match(DATE_PREFIX_RE);
+          const timeMatch = text.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+          const capMatch = text.match(/\(max\.?\s*(\d+)/i);
+
+          let isoDate: string | undefined;
+          if (dateMatch) {
+            const [, dd, mm, yyyy] = dateMatch;
+            isoDate = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+          }
+
+          let cleanText = text;
+          if (dateMatch) {
+            cleanText = text.replace(DATE_PREFIX_RE, '');
+          }
+          if (timeMatch) {
+            const timeIndex = cleanText.indexOf(timeMatch[0]);
+            const before = cleanText.substring(0, timeIndex).trim();
+            cleanText = before || cleanText;
+          }
+          cleanText = cleanText.replace(/\(max\.?\s*\d+[^)]*\)/gi, '').trim() || text;
+
+          return {
+            id: String(aiBaseId + i),
+            text: cleanText,
+            startTime: timeMatch ? timeMatch[1] : undefined,
+            endTime: timeMatch ? timeMatch[2] : undefined,
+            maxCapacity: capMatch ? parseInt(capMatch[1]) : undefined,
+            order: i,
+            _isoDate: isoDate,
+          };
+        });
+
+        const datesFound = rawParsed.map((s: RawSlot) => s._isoDate).filter(Boolean) as string[];
+        const uniqueDates = [...new Set(datesFound)];
+        const allSameDate = datesFound.length === rawParsed.length && uniqueDates.length === 1;
+        const hasAnyTimes = rawParsed.some((s: RawSlot) => s.startTime || s.endTime);
+
+        if (allSameDate) {
+          const sharedDate = uniqueDates[0];
+          setIsDayMode(true);
+          setDayModeDate(sharedDate);
+          setDayModeDates([sharedDate]);
+        } else if (datesFound.length > 0) {
+          for (const slot of rawParsed) {
+            if (slot._isoDate) {
+              if (slot.startTime) {
+                slot.startTime = toIso(slot._isoDate, slot.startTime) || slot.startTime;
+              }
+              if (slot.endTime) {
+                slot.endTime = toIso(slot._isoDate, slot.endTime) || slot.endTime;
+              }
+            }
+          }
+        } else if (hasAnyTimes) {
+          setIsDayMode(true);
+        }
+
+        const parsedSlots = rawParsed.map(({ _isoDate: _d, ...slot }: RawSlot) => slot);
+        setSlots(parsedSlots);
+      }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.allowMultipleSlots === "boolean") setAllowMultipleSlots(s.allowMultipleSlots);
+      }
+    } catch (_) {}
   }, []);
 
   const combineDateTime = (date: string, time: string): string | undefined => {
@@ -156,21 +439,25 @@ export default function CreateOrganization() {
         startTimeISO = combineDateTime(dayDate, slot.startTime || "");
         endTimeISO = combineDateTime(dayDate, slot.endTime || "");
       } else if (!useDayMode && slot.startTime) {
-        if (slot.startTime.includes('T')) {
-          try {
-            const parsed = new Date(slot.startTime);
-            if (!isNaN(parsed.getTime())) {
-              startTimeISO = parsed.toISOString();
-            }
-          } catch {}
-        }
-        if (slot.endTime && slot.endTime.includes('T')) {
-          try {
-            const parsed = new Date(slot.endTime);
-            if (!isNaN(parsed.getTime())) {
-              endTimeISO = parsed.toISOString();
-            }
-          } catch {}
+        const parseTimeField = (val: string): string | undefined => {
+          if (val.includes('T')) {
+            try {
+              const parsed = new Date(val);
+              if (!isNaN(parsed.getTime())) return parsed.toISOString();
+            } catch {}
+          }
+          if (/^\d{2}:\d{2}$/.test(val)) {
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const fallback = new Date(`${today}T${val}`);
+              if (!isNaN(fallback.getTime())) return fallback.toISOString();
+            } catch {}
+          }
+          return undefined;
+        };
+        startTimeISO = parseTimeField(slot.startTime);
+        if (slot.endTime) {
+          endTimeISO = parseTimeField(slot.endTime);
         }
       }
       
@@ -293,6 +580,7 @@ export default function CreateOrganization() {
   };
 
   const addSlot = () => {
+    const id = String(nextSlotIdRef.current++);
     const lastSlot = slots[slots.length - 1];
     if (isDayMode && lastSlot?.endTime) {
       const [h, m] = lastSlot.endTime.split(':').map(Number);
@@ -300,15 +588,24 @@ export default function CreateOrganization() {
       const endMin = startMin + slotDuration;
       const newStart = `${Math.floor(startMin / 60).toString().padStart(2, '0')}:${(startMin % 60).toString().padStart(2, '0')}`;
       const newEnd = `${Math.floor(endMin / 60).toString().padStart(2, '0')}:${(endMin % 60).toString().padStart(2, '0')}`;
-      setSlots([...slots, { text: "", startTime: newStart, endTime: newEnd, maxCapacity: undefined, order: slots.length }]);
+      setSlots([...slots, { id, text: "", startTime: newStart, endTime: newEnd, maxCapacity: undefined, order: slots.length }]);
     } else {
-      setSlots([...slots, { text: "", maxCapacity: undefined, order: slots.length }]);
+      setSlots([...slots, { id, text: "", maxCapacity: undefined, order: slots.length }]);
     }
+  };
+
+  const addSlotTop = () => {
+    const id = String(nextSlotIdRef.current++);
+    const newSlot: OrgaSlot = { id, text: "", maxCapacity: undefined, order: 0 };
+    setSlots([newSlot, ...slots.map((s, i) => ({ ...s, order: i + 1 }))]);
   };
 
   const applyTemplate = (templateId: string) => {
     const templateSlots = getTemplateSlots(templateId);
+    const baseId = nextSlotIdRef.current;
+    nextSlotIdRef.current += templateSlots.length;
     const newSlots: OrgaSlot[] = templateSlots.map((s, idx) => ({
+      id: String(baseId + idx),
       text: s.description,
       startTime: s.startTime,
       endTime: s.endTime,
@@ -334,6 +631,7 @@ export default function CreateOrganization() {
       const endH = Math.floor(endMin / 60).toString().padStart(2, '0');
       const endM = (endMin % 60).toString().padStart(2, '0');
       newSlots.push({
+        id: `gen-${idx}`,
         text: `${description} ${idx + 1}`,
         startTime: `${startH}:${startM}`,
         endTime: `${endH}:${endM}`,
@@ -639,73 +937,262 @@ export default function CreateOrganization() {
         </Card>
 
         <Card className="polly-card">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Users className="w-5 h-5 mr-2 text-green-600" />
-              {t('createOrganization.settings')}
-            </CardTitle>
+          <CardHeader className={settingsExpanded ? "pb-0" : ""}>
+            <button
+              type="button"
+              onClick={() => setSettingsExpanded(p => !p)}
+              className="flex items-center justify-between w-full text-left"
+              aria-expanded={settingsExpanded}
+            >
+              <CardTitle className="flex items-center">
+                <Users className="w-5 h-5 mr-2 text-green-600" />
+                {t('createOrganization.settings')}
+              </CardTitle>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${settingsExpanded ? "rotate-180" : ""}`} />
+            </button>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t('createOrganization.allowMultipleSlots')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('createOrganization.allowMultipleSlotsDescription')}
-                </p>
+          {settingsExpanded && (
+            <CardContent className="space-y-6 pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('createOrganization.allowMultipleSlots')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createOrganization.allowMultipleSlotsDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={allowMultipleSlots}
+                  onCheckedChange={setAllowMultipleSlots}
+                  data-testid="switch-multiple-slots"
+                  aria-label={t('createOrganization.allowMultipleSlots')}
+                />
               </div>
-              <Switch
-                checked={allowMultipleSlots}
-                onCheckedChange={setAllowMultipleSlots}
-                data-testid="switch-multiple-slots"
-                aria-label={t('createOrganization.allowMultipleSlots')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteEdit')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('createOrganization.allowEntryEditDescription')}
-                </p>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('pollCreation.allowVoteEdit')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createOrganization.allowEntryEditDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={allowVoteEdit}
+                  onCheckedChange={setAllowVoteEdit}
+                  data-testid="switch-allow-vote-edit"
+                  aria-label={t('pollCreation.allowVoteEdit')}
+                />
               </div>
-              <Switch
-                checked={allowVoteEdit}
-                onCheckedChange={setAllowVoteEdit}
-                data-testid="switch-allow-vote-edit"
-                aria-label={t('pollCreation.allowVoteEdit')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('createOrganization.allowEntryWithdrawalDescription')}
-                </p>
+              
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="space-y-0.5">
+                  <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createOrganization.allowEntryWithdrawalDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={allowVoteWithdrawal}
+                  onCheckedChange={setAllowVoteWithdrawal}
+                  data-testid="switch-allow-vote-withdrawal"
+                  aria-label={t('pollCreation.allowVoteWithdrawal')}
+                />
               </div>
-              <Switch
-                checked={allowVoteWithdrawal}
-                onCheckedChange={setAllowVoteWithdrawal}
-                data-testid="switch-allow-vote-withdrawal"
-                aria-label={t('pollCreation.allowVoteWithdrawal')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.resultsPublic')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.resultsPublicDescription')}
-                </p>
+              
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="space-y-0.5">
+                  <Label>{t('pollCreation.resultsPublic')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('pollCreation.resultsPublicDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={resultsPublic}
+                  onCheckedChange={setResultsPublic}
+                  data-testid="switch-results-public"
+                  aria-label={t('pollCreation.resultsPublic')}
+                />
               </div>
-              <Switch
-                checked={resultsPublic}
-                onCheckedChange={setResultsPublic}
-                data-testid="switch-results-public"
-                aria-label={t('pollCreation.resultsPublic')}
-              />
-            </div>
-          </CardContent>
+
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <div className="flex items-center gap-3">
+                    <CalendarDays className="w-5 h-5 text-blue-600" />
+                    <div className="space-y-0.5">
+                      <Label className="font-medium">{t('createOrganization.dayOrganization')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('createOrganization.dayOrganizationDescription')}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isDayMode}
+                    onCheckedChange={(checked) => {
+                      setIsDayMode(checked);
+                      if (checked) {
+                        const extractTime = (dt: string | undefined): string | undefined => {
+                          if (!dt) return undefined;
+                          if (dt.includes('T')) {
+                            const timePart = dt.split('T')[1];
+                            return timePart ? timePart.substring(0, 5) : undefined;
+                          }
+                          return dt.length === 5 ? dt : undefined;
+                        };
+                        setSlots(slots.map(s => ({
+                          ...s,
+                          startTime: extractTime(s.startTime),
+                          endTime: extractTime(s.endTime)
+                        })));
+                      } else {
+                        setDayModeDate("");
+                        setDayModeDates([]);
+                      }
+                    }}
+                    data-testid="switch-day-mode"
+                    aria-label={t('createOrganization.dayOrganization')}
+                  />
+                </div>
+
+                {isDayMode && (
+                  <div className="space-y-4 mt-4">
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <Label className="flex items-center gap-2 mb-3">
+                        <Timer className="w-4 h-4" />
+                        {t('createOrganization.slotDuration')}
+                      </Label>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="slider-duration">
+                        {DURATION_OPTIONS.map(d => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => {
+                              setSlotDuration(d);
+                              recalcSlotTimes(d);
+                            }}
+                            className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
+                              slotDuration === d
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'bg-background border-border hover:border-primary/50 hover:bg-accent/50 text-foreground'
+                            }`}
+                            data-testid={`duration-btn-${d}`}
+                          >
+                            <span data-testid={d === slotDuration ? "duration-value" : undefined}>
+                              {d} {t('createOrganization.minutes')}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <Label className="flex items-center gap-2 mb-2">
+                        <CalendarDays className="w-4 h-4" />
+                        {t('createOrganization.dateForAllSlots')}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {t('createOrganization.multiDateHint')}
+                      </p>
+                      <div className="flex gap-2 items-start">
+                        <DatePicker
+                          date={null}
+                          onDateChange={(date) => {
+                            if (date) {
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              const dateStr = `${year}-${month}-${day}`;
+                              if (!dayModeDates.includes(dateStr)) {
+                                const updated = [...dayModeDates, dateStr].sort();
+                                setDayModeDates(updated);
+                                setDayModeDate(updated[0]);
+                              }
+                            }
+                          }}
+                          minDate={new Date()}
+                          placeholder={t('createOrganization.addDate')}
+                          showClearButton={false}
+                          data-testid="input-day-mode-date"
+                        />
+                      </div>
+                      {dayModeDates.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {[...dayModeDates].sort().map((dateStr) => {
+                            const [y, m, d] = dateStr.split('-').map(Number);
+                            const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+                            const label = dateObj.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+                            return (
+                              <span
+                                key={dateStr}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20"
+                                data-testid={`date-chip-${dateStr}`}
+                              >
+                                <CalendarDays className="w-3 h-3" />
+                                {label}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = dayModeDates.filter(dd => dd !== dateStr);
+                                    setDayModeDates(updated);
+                                    setDayModeDate(updated[0] || "");
+                                  }}
+                                  className="ml-1 hover:text-destructive transition-colors"
+                                  aria-label={t('createOrganization.removeDate')}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {dayModeDates.length > 1 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                          {t('createOrganization.multiDateInfo', { count: dayModeDates.length })}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {t('createOrganization.templates.subtitle')}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {orgaTemplateDefinitions.map((template) => {
+                          const Icon = template.icon;
+                          return (
+                            <button
+                              key={template.id}
+                              type="button"
+                              onClick={() => applyTemplate(template.id)}
+                              className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
+                              data-testid={`template-${template.id}`}
+                            >
+                              <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
+                              <div>
+                                <p className="font-medium text-sm">{t(template.nameKey)}</p>
+                                <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
+                        💡 {t('createOrganization.templates.tip')}
+                      </div>
+                    </div>
+
+                    <Button type="button" onClick={addSlotTop} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-day">
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('createOrganization.addSlot')}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         <Card className="polly-card">
@@ -715,7 +1202,7 @@ export default function CreateOrganization() {
                 <Clock className="w-5 h-5 mr-2 text-green-600" />
                 {t('createOrganization.slots')}
               </span>
-              <Button type="button" onClick={addSlot} variant="outline" size="sm" data-testid="button-add-slot">
+              <Button type="button" onClick={addSlotTop} variant="outline" size="sm" data-testid="button-add-slot">
                 <Plus className="w-4 h-4 mr-2" />
                 {t('createOrganization.addSlot')}
               </Button>
@@ -728,311 +1215,22 @@ export default function CreateOrganization() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="w-5 h-5 text-blue-600" />
-                <div className="space-y-0.5">
-                  <Label className="font-medium">{t('createOrganization.dayOrganization')}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t('createOrganization.dayOrganizationDescription')}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={isDayMode}
-                onCheckedChange={(checked) => {
-                  setIsDayMode(checked);
-                  if (checked) {
-                    const extractTime = (dt: string | undefined): string | undefined => {
-                      if (!dt) return undefined;
-                      if (dt.includes('T')) {
-                        const timePart = dt.split('T')[1];
-                        return timePart ? timePart.substring(0, 5) : undefined;
-                      }
-                      return dt.length === 5 ? dt : undefined;
-                    };
-                    setSlots(slots.map(s => ({ 
-                      ...s, 
-                      startTime: extractTime(s.startTime),
-                      endTime: extractTime(s.endTime)
-                    })));
-                  } else {
-                    setDayModeDate("");
-                    setDayModeDates([]);
-                    setSlots(slots.map(s => ({ ...s, startTime: undefined, endTime: undefined })));
-                  }
-                }}
-                data-testid="switch-day-mode"
-                aria-label={t('createOrganization.dayOrganization')}
-              />
-            </div>
-            
-            <div className="p-4 border rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <Label className="font-medium">{t('createOrganization.templates.title')}</Label>
-              </div>
-              <p className="text-sm text-muted-foreground mb-3">
-                {t('createOrganization.templates.subtitle')}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {orgaTemplateDefinitions.map((template) => {
-                  const Icon = template.icon;
-                  return (
-                    <button
-                      key={template.id}
-                      type="button"
-                      onClick={() => {
-                        if (!isDayMode) {
-                          setIsDayMode(true);
-                        }
-                        applyTemplate(template.id);
-                      }}
-                      className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group"
-                      data-testid={`template-${template.id}`}
-                    >
-                      <Icon className="w-5 h-5 mt-0.5 text-amber-500 group-hover:text-amber-400 shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">{t(template.nameKey)}</p>
-                        <p className="text-xs text-muted-foreground">{t(template.descriptionKey)}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
-                💡 {t('createOrganization.templates.tip')}
-              </div>
-            </div>
-
-            {isDayMode && (
-              <>
-                <div className="p-4 border rounded-lg bg-muted/30">
-                  <Label className="flex items-center gap-2 mb-2">
-                    <CalendarDays className="w-4 h-4" />
-                    {t('createOrganization.dateForAllSlots')}
-                  </Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {t('createOrganization.multiDateHint')}
-                  </p>
-                  <div className="flex gap-2 items-start">
-                    <DatePicker
-                      date={null}
-                      onDateChange={(date) => {
-                        if (date) {
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const dateStr = `${year}-${month}-${day}`;
-                          if (!dayModeDates.includes(dateStr)) {
-                            const updated = [...dayModeDates, dateStr].sort();
-                            setDayModeDates(updated);
-                            setDayModeDate(updated[0]);
-                          }
-                        }
-                      }}
-                      minDate={new Date()}
-                      placeholder={t('createOrganization.addDate')}
-                      showClearButton={false}
-                      data-testid="input-day-mode-date"
-                    />
-                  </div>
-                  {dayModeDates.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {[...dayModeDates].sort().map((dateStr) => {
-                        const [y, m, d] = dateStr.split('-').map(Number);
-                        const dateObj = new Date(y, m - 1, d, 12, 0, 0);
-                        const label = dateObj.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
-                        return (
-                          <span
-                            key={dateStr}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20"
-                            data-testid={`date-chip-${dateStr}`}
-                          >
-                            <CalendarDays className="w-3 h-3" />
-                            {label}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = dayModeDates.filter(dd => dd !== dateStr);
-                                setDayModeDates(updated);
-                                setDayModeDate(updated[0] || "");
-                              }}
-                              className="ml-1 hover:text-destructive transition-colors"
-                              aria-label={t('createOrganization.removeDate')}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {dayModeDates.length > 1 && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                      {t('createOrganization.multiDateInfo', { count: dayModeDates.length })}
-                    </p>
-                  )}
-                </div>
-
-                <div className="p-4 border rounded-lg bg-muted/30">
-                  <Label className="flex items-center gap-2 mb-3">
-                    <Timer className="w-4 h-4" />
-                    {t('createOrganization.slotDuration')}
-                  </Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="slider-duration">
-                    {DURATION_OPTIONS.map(d => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          setSlotDuration(d);
-                          recalcSlotTimes(d);
-                        }}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                          slotDuration === d 
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
-                            : 'bg-background border-border hover:border-primary/50 hover:bg-accent/50 text-foreground'
-                        }`}
-                        data-testid={`duration-btn-${d}`}
-                      >
-                        <span data-testid={d === slotDuration ? "duration-value" : undefined}>
-                          {d} {t('createOrganization.minutes')}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <Button type="button" onClick={addSlot} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-day">
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('createOrganization.addSlot')}
-                </Button>
-              </>
-            )}
-            
-            {slots.map((slot, index) => (
-              <div 
-                key={index} 
-                className="border rounded-lg p-4 bg-muted/30"
-                data-testid={`slot-${index}`}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex-1 space-y-4">
-                    <div>
-                      <Label>{t('createOrganization.slotDescription')}</Label>
-                      <Input
-                        value={slot.text}
-                        onChange={(e) => updateSlot(index, { text: e.target.value })}
-                        placeholder={t('createOrganization.slotDescriptionPlaceholder')}
-                        className="mt-1"
-                        data-testid={`input-slot-text-${index}`}
-                      />
-                    </div>
-                    
-                    {isDayMode ? (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label>{t('createOrganization.fromTime')}</Label>
-                          <div className="mt-1">
-                            <TimePicker
-                              time={slot.startTime}
-                              onTimeChange={(time) => updateSlot(index, { startTime: time })}
-                              placeholder={t('createOrganization.startTime')}
-                              data-testid={`input-slot-start-${index}`}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.toTime')}</Label>
-                          <div className="mt-1">
-                            <TimePicker
-                              time={slot.endTime}
-                              onTimeChange={(time) => updateSlot(index, { endTime: time })}
-                              placeholder={t('createOrganization.endTime')}
-                              data-testid={`input-slot-end-${index}`}
-                            />
-                          </div>
-                          {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
-                            <p className="text-xs text-destructive mt-1">
-                              {t('createOrganization.timesMustDiffer')}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.maxSpots')}</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={slot.maxCapacity ?? ""}
-                            onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
-                            placeholder={t('createOrganization.unlimitedPlaceholder')}
-                            className="mt-1"
-                            data-testid={`input-slot-capacity-${index}`}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label>{t('createOrganization.fromOptional')}</Label>
-                          <div className="mt-1">
-                            <DateTimePicker
-                              value={slot.startTime}
-                              onChange={(value) => updateSlot(index, { startTime: value })}
-                              placeholder={t('createOrganization.dateTimePlaceholder')}
-                              data-testid={`input-slot-start-${index}`}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.toOptional')}</Label>
-                          <div className="mt-1">
-                            <DateTimePicker
-                              value={slot.endTime}
-                              onChange={(value) => updateSlot(index, { endTime: value })}
-                              placeholder={t('createOrganization.dateTimePlaceholder')}
-                              data-testid={`input-slot-end-${index}`}
-                            />
-                          </div>
-                          {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
-                            <p className="text-xs text-destructive mt-1">
-                              {t('createOrganization.timesMustDiffer')}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <Label>{t('createOrganization.maxSpots')}</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={slot.maxCapacity ?? ""}
-                            onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
-                            placeholder={t('createOrganization.unlimitedPlaceholder')}
-                            className="mt-1"
-                            data-testid={`input-slot-capacity-${index}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {slots.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeSlot(index)}
-                      className="text-destructive hover:text-destructive"
-                      aria-label={t('createOrganization.removeSlot')}
-                      data-testid={`button-remove-slot-${index}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+            <DndContext sensors={slotSensors} collisionDetection={closestCenter} onDragEnd={handleSlotDragEnd}>
+              <SortableContext items={slots.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                {slots.map((slot, index) => (
+                  <SortableSlotItem
+                    key={slot.id}
+                    slot={slot}
+                    index={index}
+                    slotsLength={slots.length}
+                    isDayMode={isDayMode}
+                    updateSlot={updateSlot}
+                    removeSlot={removeSlot}
+                    t={t}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
             <Button type="button" onClick={addSlot} variant="outline" size="sm" className="w-full" data-testid="button-add-slot-bottom">
               <Plus className="w-4 h-4 mr-2" />

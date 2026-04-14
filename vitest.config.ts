@@ -13,7 +13,15 @@ export default defineConfig({
     hookTimeout: 30000,
     teardownTimeout: 10000,
     pool: 'forks' as const,
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     isolate: false,
+    sequence: {
+      concurrent: false,
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

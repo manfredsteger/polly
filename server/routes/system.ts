@@ -4,6 +4,8 @@ import { requireAuth, requireAdmin } from "./common";
 import { matrixService } from "../services/matrixService";
 import { imageService } from "../services/imageService";
 import { emailService } from "../services/emailService";
+import { authService } from "../services/authService";
+import { getBaseUrl } from "../utils/baseUrl";
 
 const router = Router();
 
@@ -16,6 +18,24 @@ router.get('/email-status', (req, res) => {
   res.json({ smtpConfigured: emailService.smtpConfigured });
 });
 
+router.get('/smtp-config', requireAdmin, (req, res) => {
+  res.json(emailService.getDisplayConfig());
+});
+
+router.post('/smtp-test', requireAdmin, async (req, res) => {
+  const result = await emailService.testConnection();
+  res.json(result);
+});
+
+router.get('/oidc-config', requireAdmin, (req, res) => {
+  res.json(authService.getDisplayConfig());
+});
+
+router.post('/oidc-test', requireAdmin, async (req, res) => {
+  const result = await authService.testOidcConnection();
+  res.json(result);
+});
+
 // Public endpoint for theme/branding (for frontend to apply without auth)
 router.get('/customization', async (req, res) => {
   try {
@@ -24,6 +44,18 @@ router.get('/customization', async (req, res) => {
   } catch (error) {
     console.error('Error fetching public customization settings:', error);
     res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// Public endpoint for system default language (lightweight, no auth required)
+router.get('/system/language', async (req, res) => {
+  try {
+    const setting = await storage.getSetting('customization_language');
+    const lang = (setting?.value as Record<string, string>)?.defaultLanguage || 'en';
+    res.json({ defaultLanguage: lang });
+  } catch (error) {
+    console.error('Error fetching system language:', error);
+    res.json({ defaultLanguage: 'en' });
   }
 });
 
@@ -52,11 +84,11 @@ router.get('/settings/accessibility', async (req, res) => {
 router.get('/customization/mobile', async (req, res) => {
   try {
     const settings = await storage.getCustomizationSettings();
-    const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || `https://${req.get('host')}`;
+    const baseUrl = getBaseUrl();
     
-    const siteName = settings.branding?.siteName || 'Polly';
-    const siteNameAccent = settings.branding?.siteNameAccent || 'y';
-    const siteNameFirst = siteName.replace(siteNameAccent, '').trim();
+    const siteName = settings.branding?.siteName || '';
+    const siteNameAccent = settings.branding?.siteNameAccent || '';
+    const siteNameFirst = siteNameAccent ? siteName.replace(siteNameAccent, '').trim() : siteName;
     
     const mobileTheme = {
       branding: {
@@ -123,7 +155,7 @@ router.get('/matrix/users/search', requireAuth, async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error('Matrix user search error:', error);
-    res.status(500).json({ error: error.message || 'Suche fehlgeschlagen' });
+    res.status(500).json({ error: 'Suche fehlgeschlagen' });
   }
 });
 
@@ -149,7 +181,7 @@ router.post('/polls/:token/invite/matrix', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung' });
     }
 
-    const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || `https://${req.get('host')}`;
+    const baseUrl = getBaseUrl();
     const pollUrl = `${baseUrl}/poll/${poll.publicToken}`;
 
     const result = await matrixService.sendPollInvitation(
@@ -167,7 +199,7 @@ router.post('/polls/:token/invite/matrix', requireAuth, async (req, res) => {
     });
   } catch (error: any) {
     console.error('Matrix invitation error:', error);
-    res.status(500).json({ error: error.message || 'Einladung fehlgeschlagen' });
+    res.status(500).json({ error: 'Einladung fehlgeschlagen' });
   }
 });
 
@@ -179,7 +211,7 @@ router.post('/matrix/test', requireAdmin, async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error('Matrix connection test error:', error);
-    res.json({ success: false, error: error.message });
+    res.json({ success: false, error: 'Matrix-Verbindungstest fehlgeschlagen' });
   }
 });
 
@@ -267,7 +299,8 @@ router.post('/upload/image', imageService.getUploadMiddleware().single('image'),
   
   if (!result.success) {
     let statusCode = 500;
-    if (result.virusName) statusCode = 422;
+    if (result.invalidFileType) statusCode = 400;
+    else if (result.virusName) statusCode = 422;
     else if (result.scannerUnavailable) statusCode = 503;
     return res.status(statusCode).json({ 
       error: result.error,

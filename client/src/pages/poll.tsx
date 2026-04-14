@@ -2,6 +2,7 @@ import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation, Trans } from 'react-i18next';
+import i18n from 'i18next';
 import { VotingInterface } from "@/components/VotingInterface";
 import { ResultsChart } from "@/components/ResultsChart";
 import { LiveResultsView } from "@/components/LiveResultsView";
@@ -97,6 +98,21 @@ const extractTimeFromISO = (isoStr: string | null | undefined): string => {
   return `${hours}:${minutes}`;
 };
 
+const addMinutesToTime = (time: string, minutes: number): string => {
+  const [h, m] = time.split(':').map(Number);
+  const totalMinutes = Math.min(h * 60 + m + minutes, 23 * 60 + 59);
+  const newH = Math.floor(totalMinutes / 60);
+  const newM = totalMinutes % 60;
+  return `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
+};
+
+const ensureEndTimeAfterStart = (startTime: string, endTime: string): string => {
+  if (startTime >= endTime) {
+    return addMinutesToTime(startTime, 30);
+  }
+  return endTime;
+};
+
 const combineDateAndTime = (date: Date | null, time: string): string | undefined => {
   if (!date) return undefined;
   const dateOnly = date.toDateString();
@@ -108,7 +124,7 @@ const generateOptionText = (startTime: string | undefined, endTime: string | und
   const startDate = new Date(startTime);
   const endDate = new Date(endTime);
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '';
-  const dateStr = startDate.toLocaleDateString('de-DE');
+  const dateStr = startDate.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US');
   const startTimeStr = extractTimeFromISO(startTime);
   const endTimeStr = extractTimeFromISO(endTime);
   return `${dateStr} ${startTimeStr} - ${endTimeStr}`;
@@ -127,7 +143,7 @@ export default function Poll() {
   const [activeTab, setActiveTab] = useState("vote");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [authError, setAuthError] = useState<{ type: 'unauthorized' | 'forbidden'; message: string } | null>(null);
   
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -193,13 +209,16 @@ export default function Poll() {
     queryKey: [endpoint],
     enabled: !!token,
     retry: (failureCount, error: any) => {
-      // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {
         return false;
       }
       return failureCount < 3;
     },
   });
+
+  const isOwner = !!(user && poll?.userId === user.id);
+  const isEffectiveAdmin = isAdminAccess || isOwner;
+  const effectiveAdminToken = isAdminAccess ? token : (isOwner ? poll?.adminToken : undefined);
   
   // Handle auth errors from query
   useEffect(() => {
@@ -264,8 +283,9 @@ export default function Poll() {
   }, [poll, editDialogOpen]);
   
   const updatePollMutation = useMutation({
-    mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean }) => {
-      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${token}`, updates);
+    mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean }) => {
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}`, updates);
       return response.json();
     },
     onSuccess: () => {
@@ -281,7 +301,8 @@ export default function Poll() {
 
   const addOptionMutation = useMutation({
     mutationFn: async (option: { text: string; startTime?: string; endTime?: string; maxCapacity?: number }) => {
-      const response = await apiRequest("POST", `/api/v1/polls/admin/${token}/options`, option);
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("POST", `/api/v1/polls/admin/${effectiveAdminToken}/options`, option);
       return response.json();
     },
     onSuccess: () => {
@@ -291,7 +312,8 @@ export default function Poll() {
 
   const updateOptionMutation = useMutation({
     mutationFn: async ({ optionId, updates }: { optionId: number; updates: Record<string, any> }) => {
-      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${token}/options/${optionId}`, updates);
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}/options/${optionId}`, updates);
       return response.json();
     },
     onSuccess: () => {
@@ -301,7 +323,8 @@ export default function Poll() {
 
   const deleteOptionMutation = useMutation({
     mutationFn: async (optionId: number) => {
-      const response = await apiRequest("DELETE", `/api/v1/polls/admin/${token}/options/${optionId}`);
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("DELETE", `/api/v1/polls/admin/${effectiveAdminToken}/options/${optionId}`);
       return response.json();
     },
     onSuccess: () => {
@@ -642,7 +665,7 @@ export default function Poll() {
             )}
           </div>
           
-          {isAdminAccess && (
+          {isEffectiveAdmin && (
             <div className="flex space-x-2 ml-4">
               <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)} data-testid="button-edit-poll">
                 <Settings className="w-4 h-4 mr-2" />
@@ -670,12 +693,12 @@ export default function Poll() {
           )}
           <span className="flex items-center">
             <Clock className="w-4 h-4 mr-1" />
-            {t('pollView.created')}: {new Date(poll.createdAt).toLocaleDateString('de-DE')}
+            {t('pollView.created')}: {new Date(poll.createdAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
           </span>
           {poll.expiresAt && (
             <span className="flex items-center">
               <Calendar className="w-4 h-4 mr-1" />
-              {t('pollView.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString('de-DE')}
+              {t('pollView.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
             </span>
           )}
           {results && (
@@ -700,14 +723,14 @@ export default function Poll() {
         </TabsList>
 
         <TabsContent value="vote" className="space-y-6">
-          <VotingInterface poll={poll} isAdminAccess={isAdminAccess} />
+          <VotingInterface poll={poll} isAdminAccess={isEffectiveAdmin} />
         </TabsContent>
 
         <TabsContent value="live" className="space-y-6">
           <LiveResultsView 
             poll={poll} 
             publicToken={poll.publicToken}
-            isAdminAccess={isAdminAccess}
+            isAdminAccess={isEffectiveAdmin}
           />
         </TabsContent>
 
@@ -732,10 +755,16 @@ export default function Poll() {
             <ResultsChart 
               results={results} 
               publicToken={poll.publicToken}
-              isAdminAccess={isAdminAccess}
-              onCapacityUpdate={isAdminAccess ? async (optionId, newCapacity) => {
+              adminToken={isEffectiveAdmin ? poll.adminToken : undefined}
+              isAdminAccess={isEffectiveAdmin}
+              isOwner={isOwner}
+              onCapacityUpdate={isEffectiveAdmin ? async (optionId, newCapacity) => {
                 await updateOptionMutation.mutateAsync({ optionId, updates: { maxCapacity: newCapacity === null ? null : newCapacity } });
               } : undefined}
+              onFinalize={() => {
+                queryClient.invalidateQueries({ queryKey: [endpoint] });
+                queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${token}/results`] });
+              }}
             />
           ) : (
             <Card>
@@ -848,11 +877,33 @@ export default function Poll() {
                   <Download className="w-4 h-4 mr-2" />
                   {t('pollView.exportPdf')}
                 </Button>
-                {poll.type === 'schedule' && (
+                {poll.type === 'schedule' && poll.finalOptionId != null && poll.finalOptionId > 0 && (
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
-                    onClick={() => window.open(`/api/v1/polls/${poll.publicToken}/export/ics`, '_blank')}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/v1/polls/${poll.publicToken}/export/ics?lang=${i18n.language}`);
+                        if (!response.ok) {
+                          const data = await response.json().catch(() => null);
+                          toast({ title: t('pollView.toasts.error'), description: data?.error || t('results.icsExportError'), variant: "destructive" });
+                          return;
+                        }
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const disposition = response.headers.get('Content-Disposition');
+                        const match = disposition?.match(/filename="?([^"]+)"?/);
+                        a.download = match?.[1] || 'poll.ics';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch {
+                        toast({ title: t('pollView.toasts.error'), description: t('results.icsExportError'), variant: "destructive" });
+                      }
+                    }}
                     data-testid="button-export-ics"
                   >
                     <Calendar className="w-4 h-4 mr-2" />
@@ -863,7 +914,7 @@ export default function Poll() {
             </Card>
 
             {/* Admin Tools - only visible for poll owner or admin access */}
-            {isAdminAccess && (
+            {isEffectiveAdmin && (
               <Card className="polly-card md:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -943,7 +994,7 @@ export default function Poll() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t('pollView.adminLink')}: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/poll/{poll.adminToken}</code>
+                    {t('pollView.adminLink')}: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/admin/{poll.adminToken}</code>
                   </p>
                 </CardContent>
               </Card>
@@ -1134,7 +1185,8 @@ export default function Poll() {
                               date={extractDateFromISO(newOptionForm.startTime)}
                               onDateChange={(date) => {
                                 const currentStartTime = extractTimeFromISO(newOptionForm.startTime) || '09:00';
-                                const currentEndTime = extractTimeFromISO(newOptionForm.endTime) || '10:00';
+                                const rawEndTime = extractTimeFromISO(newOptionForm.endTime) || '09:30';
+                                const currentEndTime = ensureEndTimeAfterStart(currentStartTime, rawEndTime);
                                 const newStartTime = date ? combineDateAndTime(date, currentStartTime) : '';
                                 const newEndTime = date ? combineDateAndTime(date, currentEndTime) : '';
                                 const newText = isAutoGeneratedText(newOptionForm.text) || !newOptionForm.text
@@ -1155,10 +1207,14 @@ export default function Poll() {
                                 onChange={(time) => {
                                   const currentDate = extractDateFromISO(newOptionForm.startTime);
                                   const newStartTime = currentDate ? combineDateAndTime(currentDate, time) : '';
+                                  const currentEndTime = extractTimeFromISO(newOptionForm.endTime) || '09:30';
+                                  const adjustedEndTime = ensureEndTimeAfterStart(time, currentEndTime);
+                                  const endDate = extractDateFromISO(newOptionForm.endTime) || currentDate;
+                                  const newEndTime = endDate ? combineDateAndTime(endDate, adjustedEndTime) : '';
                                   const newText = isAutoGeneratedText(newOptionForm.text) || !newOptionForm.text
-                                    ? generateOptionText(newStartTime, newOptionForm.endTime)
+                                    ? generateOptionText(newStartTime, newEndTime)
                                     : newOptionForm.text;
-                                  setNewOptionForm({ ...newOptionForm, startTime: newStartTime || '', text: newText });
+                                  setNewOptionForm({ ...newOptionForm, startTime: newStartTime || '', endTime: newEndTime || '', text: newText });
                                 }}
                                 data-testid="new-option-start"
                               />
@@ -1166,7 +1222,7 @@ export default function Poll() {
                             <div>
                               <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
                               <TimePickerDropdown
-                                value={extractTimeFromISO(newOptionForm.endTime) || '10:00'}
+                                value={extractTimeFromISO(newOptionForm.endTime) || '09:30'}
                                 onChange={(time) => {
                                   const currentDate = extractDateFromISO(newOptionForm.endTime);
                                   const newEndTime = currentDate ? combineDateAndTime(currentDate, time) : '';
@@ -1271,7 +1327,8 @@ export default function Poll() {
                                           onDateChange={(date) => {
                                             const updated = [...editingOptions];
                                             const currentStartTime = extractTimeFromISO(option.startTime) || '09:00';
-                                            const currentEndTime = extractTimeFromISO(option.endTime) || '17:00';
+                                            const rawEndTime = extractTimeFromISO(option.endTime) || '09:30';
+                                            const currentEndTime = ensureEndTimeAfterStart(currentStartTime, rawEndTime);
                                             const newStartTime = date ? combineDateAndTime(date, currentStartTime) : '';
                                             const newEndTime = date ? combineDateAndTime(date, currentEndTime) : '';
                                             const newText = isAutoGeneratedText(option.text) 
@@ -1299,12 +1356,17 @@ export default function Poll() {
                                               const updated = [...editingOptions];
                                               const currentDate = extractDateFromISO(option.startTime);
                                               const newStartTime = currentDate ? combineDateAndTime(currentDate, time) : '';
+                                              const currentEndTime = extractTimeFromISO(option.endTime) || '09:30';
+                                              const adjustedEndTime = ensureEndTimeAfterStart(time, currentEndTime);
+                                              const endDate = extractDateFromISO(option.endTime) || currentDate;
+                                              const newEndTime = endDate ? combineDateAndTime(endDate, adjustedEndTime) : '';
                                               const newText = isAutoGeneratedText(option.text) 
-                                                ? generateOptionText(newStartTime, option.endTime) 
+                                                ? generateOptionText(newStartTime, newEndTime) 
                                                 : option.text;
                                               updated[index] = { 
                                                 ...updated[index], 
                                                 startTime: newStartTime,
+                                                endTime: newEndTime,
                                                 text: newText
                                               };
                                               setEditingOptions(updated);
@@ -1315,7 +1377,7 @@ export default function Poll() {
                                         <div>
                                           <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
                                           <TimePickerDropdown
-                                            value={extractTimeFromISO(option.endTime) || '17:00'}
+                                            value={extractTimeFromISO(option.endTime) || '09:30'}
                                             onChange={(time) => {
                                               const updated = [...editingOptions];
                                               const currentDate = extractDateFromISO(option.endTime);
@@ -1519,7 +1581,7 @@ export default function Poll() {
                     id="invite-emails"
                     value={inviteEmails}
                     onChange={(e) => setInviteEmails(e.target.value)}
-                    placeholder="max@example.de, anna@example.de"
+                    placeholder={t('pollView.inviteEmailsPlaceholder')}
                     rows={4}
                     data-testid="input-invite-emails"
                   />
@@ -1655,7 +1717,7 @@ export default function Poll() {
                   id="invite-emails"
                   value={inviteEmails}
                   onChange={(e) => setInviteEmails(e.target.value)}
-                  placeholder="max@example.de, anna@example.de"
+                  placeholder={t('pollView.inviteEmailsPlaceholder')}
                   rows={4}
                   data-testid="input-invite-emails"
                 />
@@ -1720,19 +1782,19 @@ export default function Poll() {
                 </Button>
               </div>
             </div>
-            {isAdminAccess && (
+            {isEffectiveAdmin && poll.adminToken && (
               <div className="space-y-2">
                 <Label>{t('pollView.adminLinkForYou')}</Label>
                 <div className="flex">
                   <Input
-                    value={`${window.location.origin}/admin/${token}`}
+                    value={`${window.location.origin}/admin/${poll.adminToken}`}
                     readOnly
                     className="rounded-r-none"
                   />
                   <Button 
                     variant="outline" 
                     className="rounded-l-none"
-                    onClick={() => handleCopyLink(`${window.location.origin}/admin/${token}`, 'admin')}
+                    onClick={() => handleCopyLink(`${window.location.origin}/admin/${poll.adminToken}`, 'admin')}
                   >
                     {copiedLink === 'admin' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </Button>
@@ -1866,7 +1928,8 @@ export default function Poll() {
               onClick={() => {
                 updatePollMutation.mutate({ 
                   isActive: false, 
-                  resultsPublic: endPollResultsPublic 
+                  resultsPublic: endPollResultsPublic,
+                  notifyParticipants: endPollNotifyParticipants,
                 });
               }}
               disabled={updatePollMutation.isPending}

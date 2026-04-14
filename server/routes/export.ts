@@ -264,6 +264,13 @@ router.get('/polls/:token/export/ics', async (req, res) => {
         voterEmail,
       }
     );
+
+    if (!icsContent.includes('BEGIN:VEVENT')) {
+      const errorMsg = language === 'de'
+        ? 'Keine exportierbaren Termine vorhanden. Die Umfrageoptionen enthalten keine gültigen Datums-/Uhrzeitwerte.'
+        : 'No exportable calendar events found. The poll options do not contain valid date/time values.';
+      return res.status(400).json({ error: errorMsg });
+    }
     
     const sanitizedTitle = poll.title.replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g, '_').substring(0, 50);
     

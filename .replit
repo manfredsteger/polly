@@ -39,6 +39,10 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5904
+externalPort = 3000
+
 [agent]
 integrations = ["javascript_sendgrid:1.0.0"]
 
@@ -47,3 +51,9 @@ integrations = ["javascript_sendgrid:1.0.0"]
 [userenv.shared]
 ADMIN_USERNAME = "manfredsteger"
 ADMIN_EMAIL = "manfred.steger@ifp.bayern.de"
+AI_API_URL = "https://saia.gwdg.de/v1"
+AI_MODEL = "llama-3.3-70b-instruct"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000

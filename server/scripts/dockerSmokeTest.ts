@@ -1,9 +1,14 @@
 #!/usr/bin/env npx tsx
 import http from 'http';
+import { getBaseUrl } from '../utils/baseUrl';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+const BASE_URL = getBaseUrl();
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error('[Smoke Test] ADMIN_EMAIL and ADMIN_PASSWORD must be set as environment variables.');
+  process.exit(1);
+}
 const MAX_RETRIES = 30;
 const RETRY_DELAY_MS = 2000;
 

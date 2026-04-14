@@ -30,7 +30,10 @@ export const emailVerificationTokens = pgTable("email_verification_tokens", {
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("email_verification_tokens_token_idx").on(table.token),
+  index("email_verification_tokens_user_id_idx").on(table.userId),
+]);
 
 export const polls = pgTable("polls", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -52,6 +55,7 @@ export const polls = pgTable("polls", {
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at"),
+  videoConferenceUrl: text("video_conference_url"),
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports
   enableExpiryReminder: boolean("enable_expiry_reminder").default(false).notNull(),
   expiryReminderHours: integer("expiry_reminder_hours").default(24), // hours before expiry to send reminder
@@ -74,6 +78,7 @@ export const pollOptions = pgTable("poll_options", {
   startTime: timestamp("start_time"), // for schedule polls
   endTime: timestamp("end_time"), // for schedule polls
   maxCapacity: integer("max_capacity"), // for organization polls: max signups per slot (null = unlimited)
+  isFreeText: boolean("is_free_text").default(false).notNull(), // for survey polls: marks this option as an open-ended question
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
@@ -89,8 +94,9 @@ export const votes = pgTable("votes", {
   userId: integer("user_id"), // null for anonymous votes
   voterKey: text("voter_key"), // Unique voter identifier: "user:123" or "device:abc123" (for deduplication)
   voterSource: text("voter_source"), // "user" (logged in) or "device" (guest with device token)
-  response: text("response").notNull(), // "yes", "maybe", "no", or "signup" for organization polls
+  response: text("response").notNull(), // "yes", "maybe", "no", "freetext", or "signup" for organization polls
   comment: text("comment"), // optional comment (e.g., contact info, which cake they bring)
+  freeTextAnswer: text("free_text_answer"), // for survey free-text questions: the voter's typed answer
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes
   isTestData: boolean("is_test_data").default(false).notNull(), // Test votes excluded from stats
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -100,6 +106,7 @@ export const votes = pgTable("votes", {
   index("votes_option_id_idx").on(table.optionId),
   index("votes_voter_email_idx").on(table.voterEmail),
   index("votes_voter_key_idx").on(table.voterKey),
+  index("votes_voter_edit_token_idx").on(table.voterEditToken),
 ]);
 
 export const systemSettings = pgTable("system_settings", {
@@ -114,14 +121,17 @@ export const systemSettings = pgTable("system_settings", {
 export const notificationLogs = pgTable("notification_logs", {
   id: serial("id").primaryKey(),
   pollId: uuid("poll_id").notNull(),
-  type: text("type").notNull(), // "expiry_reminder", "manual_reminder", "vote_confirmation", "poll_created"
+  type: text("type").notNull(),
   recipientEmail: text("recipient_email").notNull(),
-  sentBy: text("sent_by"), // user id or "system" for automatic reminders
+  sentBy: text("sent_by"),
   sentByGuest: boolean("sent_by_guest").default(false).notNull(),
   success: boolean("success").default(true).notNull(),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("notification_logs_poll_id_idx").on(table.pollId),
+  index("notification_logs_type_idx").on(table.type),
+]);
 
 // Password reset tokens - for secure password reset workflow
 export const passwordResetTokens = pgTable("password_reset_tokens", {
@@ -129,9 +139,12 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   userId: integer("user_id").notNull(),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"), // null if not yet used
+  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("password_reset_tokens_token_idx").on(table.token),
+  index("password_reset_tokens_user_id_idx").on(table.userId),
+]);
 
 // Email change tokens - for secure email change confirmation workflow
 export const emailChangeTokens = pgTable("email_change_tokens", {
@@ -140,9 +153,12 @@ export const emailChangeTokens = pgTable("email_change_tokens", {
   newEmail: text("new_email").notNull(),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"), // null if not yet used
+  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("email_change_tokens_token_idx").on(table.token),
+  index("email_change_tokens_user_id_idx").on(table.userId),
+]);
 
 // Test runs - for storing automated test execution history
 export const testRuns = pgTable("test_runs", {
@@ -392,6 +408,7 @@ export const EMAIL_TEMPLATE_TYPES = [
   'password_changed',
   'test_report',
   'welcome',
+  'poll_finalized',
 ] as const;
 
 export type EmailTemplateType = typeof EMAIL_TEMPLATE_TYPES[number];
@@ -460,6 +477,15 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'userName', description: 'Name des Benutzers' },
     { key: 'userEmail', description: 'E-Mail-Adresse des Benutzers' },
     { key: 'verificationLink', description: 'Link zur E-Mail-Verifizierung' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  poll_finalized: [
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'confirmedDate', description: 'Bestätigter Termin (formatiert)' },
+    { key: 'confirmedTime', description: 'Uhrzeit des Termins (falls vorhanden)' },
+    { key: 'videoConferenceUrl', description: 'Videokonferenz-Link als URL (falls vorhanden)' },
+    { key: 'videoConferenceHtml', description: 'Videokonferenz-Link als klickbarer HTML-Link (falls vorhanden)' },
+    { key: 'pollLink', description: 'Link zur Umfrage' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
 };
@@ -662,12 +688,17 @@ export type WcagAuditIssue = z.infer<typeof wcagAuditIssueSchema>;
 export type WcagAuditResult = z.infer<typeof wcagAuditResultSchema>;
 export type WcagSettings = z.infer<typeof wcagSettingsSchema>;
 
+export const languageSettingsSchema = z.object({
+  defaultLanguage: z.enum(['de', 'en']).default('en'),
+});
+
 export const customizationSettingsSchema = z.object({
   theme: themeSettingsSchema.default({}),
   branding: brandingSettingsSchema.default({}),
   footer: footerSettingsSchema.default({}),
   matrix: matrixSettingsSchema.default({}),
   wcag: wcagSettingsSchema.default({}),
+  language: languageSettingsSchema.default({}),
 });
 
 export type ThemeSettings = z.infer<typeof themeSettingsSchema>;
@@ -675,8 +706,51 @@ export type BrandingSettings = z.infer<typeof brandingSettingsSchema>;
 export type FooterLink = z.infer<typeof footerLinkSchema>;
 export type MatrixSettings = z.infer<typeof matrixSettingsSchema>;
 export type FooterSettings = z.infer<typeof footerSettingsSchema>;
+export type LanguageSettings = z.infer<typeof languageSettingsSchema>;
 export type CustomizationSettings = z.infer<typeof customizationSettingsSchema>;
 
+// ============================================================
+// AI Feature Schema (feature/ai-agent)
+// ============================================================
+
+export const aiUsageLogs = pgTable("ai_usage_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"), // null for guests
+  sessionId: text("session_id"), // anonymous session tracking
+  endpoint: text("endpoint").notNull(), // e.g. 'create-poll'
+  model: text("model").notNull(),
+  promptTokens: integer("prompt_tokens"),
+  completionTokens: integer("completion_tokens"),
+  success: boolean("success").notNull().default(true),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogs).omit({ id: true, createdAt: true });
+export type AiUsageLog = typeof aiUsageLogs.$inferSelect;
+export type InsertAiUsageLog = z.infer<typeof insertAiUsageLogSchema>;
+
+// AI Settings Schema — stored in system_settings as key 'ai_settings'
+export const aiRoleLimitSchema = z.object({
+  enabled: z.boolean().default(false), // whether this role can use AI
+  requestsPerHour: z.number().nullable().default(5), // null = unlimited, 0 = disabled
+});
+
+export const aiSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  model: z.string().default("llama-3.3-70b-instruct"),
+  apiUrl: z.string().default("https://saia.gwdg.de/v1"),
+  apiKey: z.string().default(""),
+  apiKeyFallback: z.string().default(""),
+  guestLimits: aiRoleLimitSchema.default({ enabled: false, requestsPerHour: 0 }),
+  userLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: 5 }),
+  adminLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: null }),
+});
+
+export type AiSettings = z.infer<typeof aiSettingsSchema>;
+export type AiRoleLimit = z.infer<typeof aiRoleLimitSchema>;
+
+// ============================================================
 // Extended types for API responses
 export type PollWithOptions = Poll & {
   options: PollOption[];

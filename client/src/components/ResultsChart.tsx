@@ -1,6 +1,17 @@
+import { MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -18,7 +29,13 @@ import {
   Mail,
   Pencil,
   Save,
-  ClipboardList
+  ClipboardList,
+  Lock,
+  Unlock,
+  CalendarCheck,
+  Loader2,
+  Video,
+  ExternalLink
 } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -27,6 +44,7 @@ import { useTranslation } from 'react-i18next';
 import { Table } from "lucide-react";
 import type { PollResults } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { formatScheduleOptionWithWeekday } from "@/lib/utils";
 
 function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string; startTime?: Date | string | null; locale?: string }) {
@@ -41,11 +59,14 @@ function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string;
 interface ResultsChartProps {
   results: PollResults;
   publicToken?: string;
+  adminToken?: string;
   isAdminAccess?: boolean;
+  isOwner?: boolean;
   onCapacityUpdate?: (optionId: number, newCapacity: number | null) => Promise<void>;
+  onFinalize?: () => void;
 }
 
-export function ResultsChart({ results, publicToken, isAdminAccess = false, onCapacityUpdate }: ResultsChartProps) {
+export function ResultsChart({ results, publicToken, adminToken, isAdminAccess = false, isOwner = false, onCapacityUpdate, onFinalize }: ResultsChartProps) {
   const { poll, options, stats, participantCount } = results;
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
@@ -57,6 +78,81 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
   const [capacityError, setCapacityError] = useState<string>("");
 
   const isOrganization = poll.type === 'organization';
+  const isSchedule = poll.type === 'schedule';
+  const isFinalized = poll.finalOptionId != null && poll.finalOptionId > 0;
+  const [isFinalizingOption, setIsFinalizingOption] = useState<number | null>(null);
+  const [confirmDialogOptionId, setConfirmDialogOptionId] = useState<number | null>(null);
+  const [finalizeClosePoll, setFinalizeClosePoll] = useState(true);
+  const [finalizeNotify, setFinalizeNotify] = useState(true);
+
+  const handleFinalize = async (optionId: number) => {
+    if (!adminToken) return;
+    setIsFinalizingOption(optionId);
+    try {
+      await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, {
+        optionId,
+        closePoll: finalizeClosePoll,
+        notifyParticipants: finalizeNotify,
+      });
+      const parts: string[] = [isSchedule ? t('resultsChart.dateConfirmed') : t('resultsChart.resultConfirmed')];
+      if (finalizeClosePoll) parts.push(t('resultsChart.pollClosed'));
+      if (finalizeNotify) parts.push(t('resultsChart.participantsNotified'));
+      toast({ title: t('common.success'), description: parts.join(' ') });
+      onFinalize?.();
+    } catch (error) {
+      toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
+    } finally {
+      setIsFinalizingOption(null);
+      setConfirmDialogOptionId(null);
+    }
+  };
+
+  const handleUnfinalize = async () => {
+    if (!adminToken) return;
+    setIsFinalizingOption(0);
+    try {
+      await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, { optionId: 0 });
+      toast({ title: t('common.success'), description: isSchedule ? t('resultsChart.dateUnconfirmed') : t('resultsChart.resultUnconfirmed') });
+      onFinalize?.();
+    } catch (error) {
+      toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
+    } finally {
+      setIsFinalizingOption(null);
+    }
+  };
+
+  const handleExportICS = async () => {
+    if (!publicToken) return;
+    try {
+      const response = await fetch(`/api/v1/polls/${publicToken}/export/ics?lang=${i18n.language}`);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        toast({
+          title: t('common.error'),
+          description: data?.error || t('results.icsExportError'),
+          variant: "destructive",
+        });
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = response.headers.get('Content-Disposition');
+      const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+      a.download = filenameMatch?.[1] || 'poll.ics';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({
+        title: t('common.error'),
+        description: t('results.icsExportError'),
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleEditCapacity = (optionId: number, currentCapacity: number | null | undefined) => {
     setEditingCapacity(optionId);
@@ -177,24 +273,30 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-foreground">
-            {isOrganization ? 'Eintragungen' : 'Ergebnisse'}
+            {isOrganization ? t('results.entries') : t('results.resultsTitle')}
           </h2>
           <p className="text-muted-foreground">
             {isOrganization 
-              ? `${participantCount} ${participantCount === 1 ? 'Person hat' : 'Personen haben'} sich eingetragen`
-              : `${participantCount} ${participantCount === 1 ? 'Person hat' : 'Personen haben'} abgestimmt`
+              ? (participantCount === 1 ? t('results.personSignedUpSingular', { count: participantCount }) : t('results.personSignedUpPlural', { count: participantCount }))
+              : (participantCount === 1 ? t('results.personVotedSingular', { count: participantCount }) : t('results.personVotedPlural', { count: participantCount }))
             }
           </p>
         </div>
         <div className="flex space-x-3">
           <Button variant="outline" onClick={handleExportCSV}>
             <FileText className="w-4 h-4 mr-2" />
-            CSV Export
+            {t('results.csvExport')}
           </Button>
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="w-4 h-4 mr-2" />
-            PDF Export
+            {t('results.pdfExport')}
           </Button>
+          {isSchedule && isFinalized && (
+            <Button variant="outline" onClick={handleExportICS}>
+              <CalendarCheck className="w-4 h-4 mr-2" />
+              {t('results.icsExport')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -203,32 +305,86 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">
-              {isOrganization ? 'Gesamte Eintragungen' : 'Gesamte Abstimmungen'}
+              {isOrganization ? t('results.totalEntries') : t('results.totalVotes')}
             </span>
             <span className="text-sm font-medium text-foreground">
               {isOrganization 
-                ? `${results.votes.length} ${results.votes.length === 1 ? 'Eintragung' : 'Eintragungen'}`
-                : `${participantCount} ${participantCount === 1 ? 'Stimme' : 'Stimmen'}`
+                ? `${results.votes.length} ${results.votes.length === 1 ? t('results.entrySingular') : t('results.entriesPlural')}`
+                : `${participantCount} ${participantCount === 1 ? t('results.voteSingular') : t('results.votesPlural')}`
               }
             </span>
           </div>
           <div className="flex items-center space-x-4 mt-4">
             <div className="flex items-center space-x-2">
               <Users className="w-4 h-4 text-polly-blue" />
-              <span className="text-sm text-muted-foreground">Teilnehmer: {participantCount}</span>
+              <span className="text-sm text-muted-foreground">{t('results.participantsLabel', { count: participantCount })}</span>
             </div>
             <div className="flex items-center space-x-2">
               <Check className="w-4 h-4 text-green-600" />
               <span className="text-sm text-muted-foreground">
                 {isOrganization 
-                  ? `Gesamte Eintragungen: ${results.votes.length}`
-                  : `Gesamte Stimmen: ${results.votes.length}`
+                  ? t('results.totalEntriesCount', { count: results.votes.length })
+                  : t('results.totalVotesCount', { count: results.votes.length })
                 }
               </span>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Finalized Option Banner */}
+      {isFinalized && (() => {
+        const finalOption = options.find(opt => opt.id === poll.finalOptionId);
+        if (!finalOption) return null;
+        return (
+          <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-950/30 dark:border-green-600">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Lock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <div>
+                    <h3 className="font-semibold text-green-900 dark:text-green-100">
+                      {isSchedule ? t('resultsChart.confirmedDate') : t('resultsChart.confirmedResult')}
+                    </h3>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      <FormattedOptionText text={finalOption.text} startTime={finalOption.startTime} locale={i18n.language} />
+                    </p>
+                    {poll.videoConferenceUrl && (
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                        <Video className="w-3 h-3 inline mr-1" />
+                        <a href={poll.videoConferenceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-green-800 dark:hover:text-green-200">
+                          {t('resultsChart.videoConferenceLink')}
+                          <ExternalLink className="w-3 h-3 inline ml-1" />
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {isSchedule && (
+                    <Button variant="outline" size="sm" onClick={handleExportICS} className="border-green-500 text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-900">
+                      <CalendarCheck className="w-4 h-4 mr-1" />
+                      {t('results.icsExport')}
+                    </Button>
+                  )}
+                  {(isAdminAccess || isOwner) && adminToken && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleUnfinalize}
+                      disabled={isFinalizingOption !== null}
+                      className="border-orange-400 text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-900"
+                    >
+                      {isFinalizingOption === 0 ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Unlock className="w-4 h-4 mr-1" />}
+                      {t('resultsChart.undoConfirmation')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Best Option Highlight */}
       {bestOptionData && (
@@ -240,17 +396,17 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           <CardContent className="p-6">
             <div className="flex items-center space-x-3 mb-2">
               <Crown className={poll.type === 'schedule' ? 'w-5 h-5 text-orange-600 dark:text-orange-400' : 'w-5 h-5 text-teal-600 dark:text-teal-400'} />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Beliebteste Option</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t('results.bestOption')}</h3>
               <Badge className={
                 poll.type === 'schedule' ? 'polly-badge-schedule-solid' : 
                 poll.type === 'organization' ? 'polly-badge-organization-solid' :
                 'polly-badge-survey-solid'
               }>
-                {bestOption.score} Punkte
+                {t('results.points', { count: bestOption.score })}
               </Badge>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-              Bewertung: Ja = 2 Punkte, Vielleicht = 1 Punkt, Nein = 0 Punkte
+              {t('results.scoringDescription')}
             </p>
             <div className="flex items-center space-x-3 mb-2">
               {bestOptionData.imageUrl && (
@@ -274,23 +430,59 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
             {bestOptionData.startTime && bestOptionData.endTime && (
               <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                 <Calendar className="w-4 h-4 mr-1" />
-                {new Date(bestOptionData.startTime).toLocaleDateString('de-DE')}
+                {new Date(bestOptionData.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
                 <Clock className="w-4 h-4 ml-3 mr-1" />
-                {new Date(bestOptionData.startTime).toLocaleTimeString('de-DE', { 
+                {new Date(bestOptionData.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                   hour: '2-digit', 
                   minute: '2-digit' 
-                })} - {new Date(bestOptionData.endTime).toLocaleTimeString('de-DE', { 
+                })} - {new Date(bestOptionData.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                   hour: '2-digit', 
                   minute: '2-digit' 
                 })}
+              </div>
+            )}
+            {poll.videoConferenceUrl && (
+              <div className="flex items-center text-sm text-gray-700 dark:text-gray-300 mt-1">
+                <Video className="w-4 h-4 mr-1" />
+                <a href={poll.videoConferenceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-900 dark:hover:text-gray-100">
+                  {t('resultsChart.videoConferenceLink')}
+                  <ExternalLink className="w-3 h-3 inline ml-1" />
+                </a>
+              </div>
+            )}
+            {(isAdminAccess || isOwner) && adminToken && (
+              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
+                {isFinalized && poll.finalOptionId === bestOptionData.id ? (
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <Lock className="w-3 h-3 mr-1" />
+                    {t('resultsChart.confirmed')}
+                  </Badge>
+                ) : !isFinalized ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmDialogOptionId(bestOptionData.id)}
+                    disabled={isFinalizingOption !== null}
+                    className={poll.type === 'schedule' 
+                      ? 'border-orange-500 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-950' 
+                      : 'border-teal-500 text-teal-700 hover:bg-teal-100 dark:border-teal-600 dark:text-teal-400 dark:hover:bg-teal-950'}
+                  >
+                    {isFinalizingOption === bestOptionData.id ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <CalendarCheck className="w-4 h-4 mr-1" />
+                    )}
+                    {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
+                  </Button>
+                ) : null}
               </div>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Matrix View - Participants as rows, Options as columns */}
-      {!isOrganization && participants.length > 0 && (
+      {/* Matrix View - Participants as rows, Options as columns (only non-freetext options) */}
+      {!isOrganization && participants.length > 0 && options.filter((o: any) => !o.isFreeText).length > 0 && (
         <Card className="polly-card">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -306,7 +498,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     <th className="text-right py-2 px-3 font-medium text-foreground border-b border-border min-w-[150px]">
                       {t('voting.participant')}
                     </th>
-                    {options.map((option) => {
+                    {options.filter((o: any) => !o.isFreeText).map((option) => {
                       const isSchedule = poll.type === 'schedule' && option.startTime && option.endTime;
                       return (
                         <th 
@@ -316,17 +508,17 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                           {isSchedule ? (
                             <div className="flex flex-col items-center text-xs">
                               <span className="font-semibold">
-                                {new Date(option.startTime!).toLocaleDateString('de-DE', { 
+                                {new Date(option.startTime!).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   weekday: 'short',
                                   day: '2-digit',
                                   month: '2-digit'
                                 })}
                               </span>
                               <span className="text-muted-foreground">
-                                {new Date(option.startTime!).toLocaleTimeString('de-DE', { 
+                                {new Date(option.startTime!).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
-                                })} - {new Date(option.endTime!).toLocaleTimeString('de-DE', { 
+                                })} - {new Date(option.endTime!).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
                                 })}
@@ -350,7 +542,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                       <td className="text-right py-2 px-3 font-medium text-foreground border-r border-border">
                         {participant.name}
                       </td>
-                      {options.map((option) => {
+                      {options.filter((o: any) => !o.isFreeText).map((option) => {
                         const vote = participant.votes.find((v: any) => v.optionId === option.id);
                         const response = vote?.response;
                         
@@ -387,7 +579,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     <td className="text-right py-2 px-3 text-sm text-muted-foreground">
                       {t('results.total')}
                     </td>
-                    {options.map((option) => {
+                    {options.filter((o: any) => !o.isFreeText).map((option) => {
                       const stat = stats.find(s => s.optionId === option.id);
                       const yesCount = stat?.yesCount || 0;
                       return (
@@ -405,6 +597,45 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Free-text answers section for survey polls */}
+      {poll.type === 'survey' && options.some((o: any) => o.isFreeText) && (
+        <div className="space-y-4">
+          {options.filter((o: any) => o.isFreeText).map((option: any) => {
+            const answers = results.votes
+              .filter((v: any) => v.optionId === option.id && v.response === 'freetext' && v.freeTextAnswer)
+              .map((v: any) => ({ name: v.voterName, text: v.freeTextAnswer as string }));
+            return (
+              <Card key={option.id} className="polly-card border-l-4 border-l-primary/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-base">
+                    <MessageSquare className="w-4 h-4 mr-2 text-primary/70" />
+                    {option.text}
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">{t('results.openAnswers')} · {answers.length} {answers.length === 1 ? t('voting.participant') : t('polls.participants')}</p>
+                </CardHeader>
+                <CardContent>
+                  {answers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">{t('results.noAnswersYet')}</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {answers.map((a, i) => (
+                        <li key={i} className="text-sm bg-muted/30 rounded-lg px-4 py-2">
+                          <span className="font-medium text-foreground/70 text-xs mr-2">{i + 1}.</span>
+                          {poll.resultsPublic && (
+                            <span className="text-xs text-muted-foreground mr-2">[{a.name}]</span>
+                          )}
+                          {a.text}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Matrix View for Organization Polls - Participants as rows, Slots as columns */}
@@ -439,16 +670,16 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                             <span className="font-semibold"><FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} /></span>
                             {option.startTime && option.endTime && (
                               <span className="text-muted-foreground">
-                                {new Date(option.startTime).toLocaleDateString('de-DE', { 
+                                {new Date(option.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   weekday: 'short',
                                   day: '2-digit',
                                   month: '2-digit'
                                 })}
                                 <br />
-                                {new Date(option.startTime).toLocaleTimeString('de-DE', { 
+                                {new Date(option.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
-                                })} - {new Date(option.endTime).toLocaleTimeString('de-DE', { 
+                                })} - {new Date(option.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
                                 })}
@@ -508,7 +739,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                   ) : (
                     <tr>
                       <td colSpan={options.length + 1} className="py-4 text-center text-muted-foreground text-sm italic">
-                        Noch keine Eintragungen vorhanden
+                        {t('results.noEntriesYet')}
                       </td>
                     </tr>
                   )}
@@ -516,7 +747,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 <tfoot>
                   <tr className="border-t-2 border-border font-medium">
                     <td className="text-left py-2 px-3 text-sm text-muted-foreground">
-                      Gesamt
+                      {t('results.total')}
                     </td>
                     {options.map((option) => {
                       const slotVotes = results.votes.filter(v => v.optionId === option.id && v.response === 'yes');
@@ -541,7 +772,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       {isOrganization ? (
         <Card className="polly-card">
           <CardHeader>
-            <CardTitle>Slots und Eintragungen</CardTitle>
+            <CardTitle>{t('results.slotsAndEntries')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -646,7 +877,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                           <>
                             <Badge className={isFull ? "bg-red-100 text-red-900" : "bg-green-100 text-green-900"}>
                               {signupCount} / {capacity || '∞'}
-                              {isFull && <span className="ml-1">voll</span>}
+                              {isFull && <span className="ml-1">{t('results.full')}</span>}
                             </Badge>
                             {isAdminAccess && onCapacityUpdate && (
                               <Button
@@ -688,7 +919,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic">{t('organizationSlot.noEntries', 'Noch keine Eintragungen')}</p>
+                      <p className="text-sm text-muted-foreground italic">{t('results.noEntriesYet')}</p>
                     )}
                   </div>
                 );
@@ -699,7 +930,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
       ) : (
         <Card className="polly-card">
           <CardHeader>
-            <CardTitle>Detaillierte Ergebnisse</CardTitle>
+            <CardTitle>{t('results.detailedResults')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -707,34 +938,39 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 font-medium text-foreground">
-                      Option
+                      {t('results.option')}
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-24">
                       <div className="flex items-center justify-center space-x-1">
                         <Check className="w-4 h-4 text-green-600" />
-                        <span>Ja</span>
+                        <span>{t('voting.yes')}</span>
                       </div>
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-24">
                       <div className="flex items-center justify-center space-x-1">
                         <HelpCircle className="w-4 h-4 text-yellow-600" />
-                        <span>Vielleicht</span>
+                        <span>{t('voting.maybe')}</span>
                       </div>
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-24">
                       <div className="flex items-center justify-center space-x-1">
                         <X className="w-4 h-4 text-red-600" />
-                        <span>Nein</span>
+                        <span>{t('voting.no')}</span>
                       </div>
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-foreground w-32">
                       <div className="flex flex-col items-center">
-                        <span>Punkte</span>
+                        <span>{t('results.pointsHeader')}</span>
                         <span className="text-xs text-muted-foreground font-normal">
-                          (Ja=2, Vielleicht=1, Nein=0)
+                          ({t('voting.yes')}=2, {t('voting.maybe')}=1, {t('voting.no')}=0)
                         </span>
                       </div>
                     </th>
+                    {(isAdminAccess || isOwner) && adminToken && (
+                      <th className="text-center py-3 px-4 font-medium text-foreground w-36">
+                        {isSchedule ? t('resultsChart.confirmColumn') : t('resultsChart.setResultColumn')}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -746,9 +982,10 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     const yesPercent = total > 0 ? (stat.yesCount / total) * 100 : 0;
                     const maybePercent = total > 0 ? (stat.maybeCount / total) * 100 : 0;
                     const noPercent = total > 0 ? (stat.noCount / total) * 100 : 0;
+                    const isFinalOption = isFinalized && poll.finalOptionId === stat.optionId;
 
                     return (
-                      <tr key={stat.optionId} className="hover:bg-muted/50">
+                      <tr key={stat.optionId} className={isFinalOption ? "bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500" : "hover:bg-muted/50"}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             {/* Show image if available */}
@@ -772,11 +1009,11 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                               </div>
                               {option.startTime && option.endTime && (
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  {new Date(option.startTime).toLocaleDateString('de-DE')} • {' '}
-                                  {new Date(option.startTime).toLocaleTimeString('de-DE', { 
+                                  {new Date(option.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} • {' '}
+                                  {new Date(option.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                     hour: '2-digit', 
                                     minute: '2-digit' 
-                                  })} - {new Date(option.endTime).toLocaleTimeString('de-DE', { 
+                                  })} - {new Date(option.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                                     hour: '2-digit', 
                                     minute: '2-digit' 
                                   })}
@@ -842,6 +1079,31 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                             )}
                           </div>
                         </td>
+                        {(isAdminAccess || isOwner) && adminToken && (
+                          <td className="py-4 px-4 text-center">
+                            {isFinalOption ? (
+                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <Lock className="w-3 h-3 mr-1" />
+                                {t('resultsChart.confirmed')}
+                              </Badge>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setConfirmDialogOptionId(stat.optionId)}
+                                disabled={isFinalizingOption !== null}
+                                className="text-xs"
+                              >
+                                {isFinalizingOption === stat.optionId ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <CalendarCheck className="w-3 h-3 mr-1" />
+                                )}
+                                {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
+                              </Button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -970,7 +1232,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     }}>
                       <span style={{ fontSize: '24px', color: '#10b981' }}>✓</span>
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.yesCount}</span>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#10b981' }}>Ja</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#10b981' }}>{t('voting.yes')}</span>
                     </div>
                     
                     {/* Vielleicht Button Style */}
@@ -987,7 +1249,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     }}>
                       <span style={{ fontSize: '24px', color: '#f59e0b' }}>~</span>
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.maybeCount}</span>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#f59e0b' }}>Vielleicht</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#f59e0b' }}>{t('voting.maybe')}</span>
                     </div>
                     
                     {/* Nein Button Style */}
@@ -1004,7 +1266,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     }}>
                       <span style={{ fontSize: '24px', color: '#ef4444' }}>✗</span>
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.noCount}</span>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#ef4444' }}>Nein</span>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#ef4444' }}>{t('voting.no')}</span>
                     </div>
                   </div>
                   
@@ -1018,7 +1280,7 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
                     borderRadius: '8px'
                   }}>
                     <span style={{ fontSize: '16px', fontWeight: '600', color: '#fbbf24' }}>
-                      Punkte: {currentStat.score}
+                      {t('results.pointsLabel', { count: currentStat.score })}
                     </span>
                   </div>
                 </div>
@@ -1032,6 +1294,65 @@ export function ResultsChart({ results, publicToken, isAdminAccess = false, onCa
           },
         }}
       />
+
+      <AlertDialog open={confirmDialogOptionId !== null} onOpenChange={(open) => { if (!open) setConfirmDialogOptionId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{isSchedule ? t('resultsChart.confirmDialogTitle') : t('resultsChart.confirmResultDialogTitle')}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  {(() => {
+                    if (confirmDialogOptionId === null) return '';
+                    const opt = options.find(o => o.id === confirmDialogOptionId);
+                    if (!opt) return '';
+                    const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
+                    const dateStr = opt.startTime ? new Date(opt.startTime).toLocaleDateString(localeCode, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : opt.text;
+                    const timeStr = opt.startTime && opt.endTime 
+                      ? `${new Date(opt.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} – ${new Date(opt.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`
+                      : '';
+                    return isSchedule 
+                      ? t('resultsChart.confirmDialogDescription', { date: dateStr, time: timeStr })
+                      : t('resultsChart.confirmResultDialogDescription', { option: opt.text });
+                  })()}
+                </p>
+                <div className="space-y-2 pt-2 border-t">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={finalizeClosePoll}
+                      onChange={(e) => setFinalizeClosePoll(e.target.checked)}
+                      className="rounded border-gray-300 w-4 h-4 accent-primary"
+                    />
+                    <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>{t('resultsChart.closePollOption')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={finalizeNotify}
+                      onChange={(e) => setFinalizeNotify(e.target.checked)}
+                      className="rounded border-gray-300 w-4 h-4 accent-primary"
+                    />
+                    <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>{t('resultsChart.notifyParticipantsOption')}</span>
+                  </label>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (confirmDialogOptionId !== null) handleFinalize(confirmDialogOptionId); }}
+              disabled={isFinalizingOption !== null}
+            >
+              {isFinalizingOption !== null ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CalendarCheck className="w-4 h-4 mr-1" />}
+              {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

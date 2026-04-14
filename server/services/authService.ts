@@ -2,6 +2,7 @@ import * as client from 'openid-client';
 import bcrypt from 'bcryptjs';
 import { storage } from '../storage';
 import type { User } from '@shared/schema';
+import { getBaseUrl } from '../utils/baseUrl';
 
 let oidcConfig: client.Configuration | null = null;
 
@@ -86,7 +87,7 @@ interface KeycloakConfig {
 
 const getKeycloakConfig = (): KeycloakConfig | null => {
   const realm = process.env.KEYCLOAK_REALM;
-  const serverUrl = process.env.KEYCLOAK_URL;
+  const serverUrl = process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL;
   const clientId = process.env.KEYCLOAK_CLIENT_ID;
   const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
 
@@ -94,16 +95,12 @@ const getKeycloakConfig = (): KeycloakConfig | null => {
     return null;
   }
 
-  const baseUrl = process.env.BASE_URL 
-    || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : null)
-    || 'http://localhost:5000';
-
   return {
     realm,
     serverUrl,
     clientId,
     clientSecret,
-    redirectUri: `${baseUrl}/api/v1/auth/keycloak/callback`
+    redirectUri: `${getBaseUrl()}/api/v1/auth/keycloak/callback`
   };
 };
 
@@ -130,20 +127,96 @@ export const authService = {
     return oidcConfig !== null;
   },
 
-  getKeycloakAuthUrl(state: string): { url: string; codeVerifier: string } | null {
+  getDisplayConfig(): {
+    configured: boolean;
+    enabled: boolean;
+    issuerUrl: string;
+    clientId: string;
+    hasClientSecret: boolean;
+    callbackUrl: string;
+  } {
+    const config = getKeycloakConfig();
+    const issuerUrl = config ? `${config.serverUrl}/realms/${config.realm}` : '';
+
+    return {
+      configured: config !== null,
+      enabled: oidcConfig !== null,
+      issuerUrl,
+      clientId: config?.clientId || '',
+      hasClientSecret: !!(config?.clientSecret),
+      callbackUrl: config?.redirectUri || '',
+    };
+  },
+
+  async testOidcConnection(): Promise<{ success: boolean; error?: string; details?: string }> {
+    const config = getKeycloakConfig();
+    if (!config) {
+      return { success: false, error: 'Keycloak not configured' };
+    }
+    try {
+      const wellKnownUrl = `${config.serverUrl}/realms/${config.realm}/.well-known/openid-configuration`;
+      const discoveryResponse = await fetch(wellKnownUrl, { signal: AbortSignal.timeout(10000) });
+      if (!discoveryResponse.ok) {
+        return { success: false, error: `Discovery endpoint: HTTP ${discoveryResponse.status} ${discoveryResponse.statusText}` };
+      }
+      const discoveryData = await discoveryResponse.json();
+      if (!discoveryData.issuer) {
+        return { success: false, error: 'Invalid OpenID Configuration: missing issuer' };
+      }
+
+      if (config.clientSecret && discoveryData.token_endpoint) {
+        try {
+          const tokenResponse = await fetch(discoveryData.token_endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              grant_type: 'client_credentials',
+              client_id: config.clientId,
+              client_secret: config.clientSecret,
+            }),
+            signal: AbortSignal.timeout(10000),
+          });
+          let tokenData: any;
+          try {
+            tokenData = await tokenResponse.json();
+          } catch {
+            return { success: true, details: `Discovery OK, token endpoint returned non-JSON (HTTP ${tokenResponse.status})` };
+          }
+          if (tokenResponse.ok && tokenData.access_token) {
+            return { success: true, details: 'Discovery OK, client credentials verified' };
+          }
+          if (tokenData.error === 'invalid_client') {
+            return { success: false, error: `Client authentication failed: ${tokenData.error_description || tokenData.error}` };
+          }
+          if (tokenData.error === 'unauthorized_client' || tokenData.error === 'unsupported_grant_type') {
+            return { success: true, details: 'Discovery OK, client_credentials grant not enabled (normal for authorization-code clients)' };
+          }
+          return { success: true, details: `Discovery OK, token endpoint responded: ${tokenData.error || 'unknown'}` };
+        } catch (tokenError: any) {
+          return { success: false, error: `Discovery OK, but token endpoint unreachable: ${tokenError.message}` };
+        }
+      }
+
+      return { success: true, details: 'Discovery OK (no client secret configured for credential verification)' };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Connection failed' };
+    }
+  },
+
+  async getKeycloakAuthUrl(state: string): Promise<{ url: string; codeVerifier: string } | null> {
     if (!oidcConfig) return null;
 
     const config = getKeycloakConfig();
     if (!config) return null;
 
     const codeVerifier = client.randomPKCECodeVerifier();
-    const codeChallenge = client.calculatePKCECodeChallenge(codeVerifier);
+    const codeChallenge = await client.calculatePKCECodeChallenge(codeVerifier);
     
     const parameters: Record<string, string> = {
       redirect_uri: config.redirectUri,
       scope: 'openid email profile',
       state,
-      code_challenge: codeChallenge as unknown as string,
+      code_challenge: codeChallenge,
       code_challenge_method: 'S256',
     };
 
@@ -154,7 +227,7 @@ export const authService = {
 
   async initiateKeycloakLogin(req: any): Promise<{ authUrl: string; codeVerifier: string; state: string }> {
     const state = Math.random().toString(36).substring(7);
-    const result = this.getKeycloakAuthUrl(state);
+    const result = await this.getKeycloakAuthUrl(state);
     if (!result) {
       throw new Error('Keycloak not configured');
     }
@@ -208,8 +281,8 @@ export const authService = {
           const updateData: Record<string, any> = {
             keycloakId,
             provider: 'keycloak',
+            emailVerified: true,
           };
-          // Only update role if Keycloak provides one
           if (keycloakRole) {
             updateData.role = keycloakRole;
           }
@@ -223,13 +296,20 @@ export const authService = {
             role: keycloakRole || 'user',
             keycloakId,
             provider: 'keycloak',
+            emailVerified: true,
           });
           await storage.updateUserLastLogin(user.id);
         }
       } else {
-        // Sync role from Keycloak on every login (if role is provided in token)
+        const syncData: Record<string, any> = {};
         if (keycloakRole && user.role !== keycloakRole) {
-          user = await storage.updateUser(user.id, { role: keycloakRole });
+          syncData.role = keycloakRole;
+        }
+        if (!user.emailVerified) {
+          syncData.emailVerified = true;
+        }
+        if (Object.keys(syncData).length > 0) {
+          user = await storage.updateUser(user.id, syncData);
         }
         await storage.updateUserLastLogin(user.id);
       }
@@ -277,7 +357,7 @@ export const authService = {
       return null;
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await storage.createUser({
       username,
@@ -293,7 +373,7 @@ export const authService = {
   },
 
   async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
+    return bcrypt.hash(password, 12);
   },
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {

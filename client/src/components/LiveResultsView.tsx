@@ -18,7 +18,8 @@ import {
   Eye,
   Clock,
   User,
-  Trophy
+  Trophy,
+  Lock
 } from 'lucide-react';
 import { useLiveVoting } from '@/hooks/useLiveVoting';
 import type { PollWithOptions, PollResults } from '@shared/schema';
@@ -79,6 +80,7 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
   } = useLiveVoting({
     pollToken: publicToken,
     isPresenter: true,
+    adminToken: poll.adminToken,
     onResultsRefresh: handleResultsRefresh,
     onVoteFinalized: handleVoteFinalized,
   });
@@ -305,19 +307,24 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                   </th>
                   {poll.options.map(option => {
                     const isWinner = winningOptionIds.has(option.id);
+                    const isFinalOption = poll.finalOptionId != null && poll.finalOptionId > 0 && poll.finalOptionId === option.id;
                     return (
                       <th 
                         key={option.id} 
                         className={cn(
                           'text-center font-medium p-3 min-w-[120px] transition-all duration-500',
                           isFullscreen && 'p-4 min-w-[180px]',
-                          isWinner && 'bg-green-500/20 border-x-2 border-t-2 border-green-500/50'
+                          isFinalOption 
+                            ? 'bg-green-500/30 border-x-2 border-t-2 border-green-500/70'
+                            : isWinner && 'bg-green-500/20 border-x-2 border-t-2 border-green-500/50'
                         )}
                       >
                         <div className="flex flex-col items-center gap-1">
-                          {isWinner && (
+                          {isFinalOption ? (
+                            <Lock className={cn('text-green-600', isFullscreen ? 'w-5 h-5' : 'w-4 h-4')} />
+                          ) : isWinner ? (
                             <Trophy className={cn('text-green-600 animate-pulse', isFullscreen ? 'w-5 h-5' : 'w-4 h-4')} />
-                          )}
+                          ) : null}
                           <div 
                             className={cn(
                               isFullscreen ? 'text-sm whitespace-normal leading-tight' : 'truncate max-w-[150px] text-xs'
@@ -326,6 +333,11 @@ export function LiveResultsView({ poll, publicToken, isAdminAccess = false }: Li
                           >
                             <FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} />
                           </div>
+                          {isFinalOption && (
+                            <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              {t('resultsChart.confirmed')}
+                            </Badge>
+                          )}
                         </div>
                       </th>
                     );

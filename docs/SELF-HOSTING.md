@@ -153,12 +153,49 @@ npm start
 | `DATABASE_URL` | PostgreSQL connection URL | `postgresql://user:pass@host:5432/db` |
 | `SESSION_SECRET` | Session encryption key (min 32 chars) | `your-secure-random-string` |
 
-### Application URLs
+### External Database (Managed PostgreSQL)
+
+If you use a managed or external PostgreSQL instance (e.g. AWS RDS, Azure Database, GWDG, Hetzner), you only need to set the `DATABASE_URL` environment variable. The entrypoint script automatically parses host and port from the URL using Node.js — special characters in passwords (`:`, `@`, `#`, URL-encoded like `%40`) are handled correctly.
+
+```bash
+# .env
+DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly
+SESSION_SECRET=your-secure-random-string
+```
+
+- **PostgreSQL 14+ recommended**
+- The `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` variables are only used by the bundled docker-compose PostgreSQL service — they are ignored when `DATABASE_URL` is set directly
+- SSL connections are supported via query parameters: `?sslmode=require`
+
+#### Using docker-compose with an external database
+
+To use an external database, start only the `app` service (skip the bundled `postgres` container) and pass `DATABASE_URL` directly:
+
+```bash
+DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly \
+  docker compose up -d app
+```
+
+Alternatively, create a `docker-compose.override.yml` to override the database connection:
+
+```yaml
+# docker-compose.override.yml
+services:
+  app:
+    depends_on: []
+    environment:
+      DATABASE_URL: postgresql://user:pass@your-db-host:5432/polly
+```
+
+Then start with `docker compose up -d app` (omit the `postgres` service).
+
+### Application URL
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `APP_URL` | Public URL of your application | `https://poll.example.com` |
-| `VITE_APP_URL` | Same as APP_URL (for frontend) | `https://poll.example.com` |
+| `APP_URL` | Public URL of your application (required for OIDC, emails, sharing) | `https://poll.example.com` |
+
+> **Note:** `BASE_URL` and `VITE_APP_URL` are supported as deprecated aliases for backward compatibility. Use `APP_URL` for new deployments.
 
 ### Email Configuration (Optional)
 
@@ -166,10 +203,27 @@ npm start
 |----------|-------------|---------|
 | `SMTP_HOST` | SMTP server hostname | `smtp.example.com` |
 | `SMTP_PORT` | SMTP port | `587` |
-| `SMTP_SECURE` | Use TLS | `false` |
+| `SMTP_SECURE` | Use TLS (`true`/`false`) | `false` |
 | `SMTP_USER` | SMTP username | `user@example.com` |
 | `SMTP_PASSWORD` | SMTP password | `password` |
-| `EMAIL_FROM` | From address | `noreply@example.com` |
+| `FROM_EMAIL` | Sender address for outgoing emails | `noreply@example.com` |
+| `FROM_NAME` | Sender display name | `Polly` |
+
+> **Legacy aliases:** `EMAIL_FROM` (same as `FROM_EMAIL`), `SMTP_PASS` (same as `SMTP_PASSWORD`)
+
+### Initial Admin Account (Docker)
+
+When running via Docker, the admin account is automatically created or updated on each start.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ADMIN_USERNAME` | Admin username | `admin` |
+| `ADMIN_EMAIL` | Admin email address | `admin@polly.local` |
+| `ADMIN_PASSWORD` | Admin password | `Admin123!` |
+| `SITE_NAME` | Website name (main part) | `Poll` |
+| `SITE_NAME_ACCENT` | Accented part of the site name | `y` |
+
+> **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
 
 ### Keycloak OIDC (Optional)
 
@@ -179,6 +233,11 @@ npm start
 | `KEYCLOAK_CLIENT_ID` | Client ID | `polly` |
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
 | `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
+| `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived from realm + server URL if not set) | `https://keycloak.example.com/realms/myrealm` |
+| `SSO_BUTTON_LABEL` | Custom login button text (default: "Login with Keycloak"). Also configurable in Admin → Authentication | `Kita Hub Login` |
+| `HIDE_LOGIN_FORM` | Hide the local username+password login form. Set to `true` when SSO is the primary login method | `false` |
+
+> **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
 
 ### ClamAV Virus Scanning (Optional)
 
@@ -236,6 +295,35 @@ env:
     value: "3310"
   - name: CLAMAV_ENABLED
     value: "true"
+```
+
+### AI Assistant (Optional)
+
+Polly includes an optional AI assistant that helps users create polls through natural language. It uses any OpenAI-compatible API (recommended: GWDG SAIA).
+
+#### Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `AI_API_URL` | OpenAI-compatible API endpoint | `https://saia.2.rahtiapp.fi/v1` |
+| `AI_API_KEY` | API key. When set via ENV, AI chat is **auto-enabled** without admin toggle | `your-api-key` |
+| `AI_API_KEY_FALLBACK` | Fallback key (used on HTTP 429 rate limit) | `your-fallback-key` |
+| `AI_MODEL` | AI model name | `llama-3.3-70b-instruct` |
+
+#### Voice Input
+
+The Docker image includes ffmpeg for voice input (WebM → MP3 audio conversion). No additional setup required.
+
+#### GDPR Compliance
+
+When using GWDG SAIA, all AI processing stays within European data centers (GDPR-compliant).
+
+#### Docker Compose Example
+
+```yaml
+environment:
+  - AI_API_URL=https://saia.2.rahtiapp.fi/v1
+  - AI_API_KEY=your-api-key
 ```
 
 ### Instance-Specific Branding
@@ -319,6 +407,21 @@ npm run dev  # or docker compose restart
 #### Environment Override
 
 Set `POLLY_WCAG_OVERRIDE=true` to disable default theme enforcement without creating a local config file.
+
+### Advanced Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port inside the container | `5000` |
+| `NODE_ENV` | Node environment (`production`, `development`) | `production` |
+| `DATABASE_SSL` | Enable SSL for database connections (e.g., managed PostgreSQL with TLS) | `false` |
+| `FORCE_HTTPS` | Force secure cookies even when `APP_URL` is not HTTPS (behind TLS-terminating proxy) | auto-detect from `APP_URL` |
+| `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
+| `SEED_DEMO_DATA` | Seed demo polls showing all three poll types on first start | `false` |
+| `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export (set automatically in Docker image) | auto-detected |
+| `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
+| `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
+| `TEST_MODE_SECRET` | Custom header value for E2E test mode (`X-Test-Mode` header) | `polly-e2e-test-mode` |
 
 ---
 
@@ -493,8 +596,11 @@ docker compose logs app
 ### Database Connection Issues
 
 ```bash
-# Test connection from app container
-docker compose exec app sh -c "pg_isready -h postgres -U polly"
+# Test connection from app container (bundled PostgreSQL)
+docker compose exec app sh -c "pg_isready -h postgres -p 5432"
+
+# Test connection to external database
+docker compose exec app sh -c "pg_isready -h your-db-host -p 5432"
 
 # Check environment variable
 docker compose exec app sh -c "echo \$DATABASE_URL"

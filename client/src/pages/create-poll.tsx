@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
 import { formatScheduleOptionText } from "@/lib/utils";
-import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, Video } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -42,12 +42,13 @@ interface PollFormData {
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   expiresAt: string | null;
+  videoConferenceUrl?: string;
 }
 
 export default function CreatePoll() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAuthenticated } = useAuth();
   
   const [title, setTitle] = useState("");
@@ -59,6 +60,8 @@ export default function CreatePoll() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [videoConferenceUrl, setVideoConferenceUrl] = useState("");
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<PollOption[]>([]);
   
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -84,6 +87,7 @@ export default function CreatePoll() {
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setVideoConferenceUrl(stored.data.videoConferenceUrl || "");
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
       }
@@ -95,6 +99,43 @@ export default function CreatePoll() {
         });
       }
     }
+  }, []);
+
+  // Read AI suggestion from sessionStorage if present
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ai-suggestion");
+    if (!raw) return;
+    try {
+      const suggestion = JSON.parse(raw);
+      if (suggestion.pollType !== "schedule") return;
+      sessionStorage.removeItem("ai-suggestion");
+      if (suggestion.title) setTitle(suggestion.title);
+      if (suggestion.description) setDescription(suggestion.description);
+      if (Array.isArray(suggestion.options) && suggestion.options.length > 0) {
+        const parsed: PollOption[] = [];
+        suggestion.options.forEach((rawOpt: any, i: number) => {
+          const opt = typeof rawOpt === "string" ? rawOpt : rawOpt.text || "";
+          const match = opt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+          if (match) {
+            const [, day, month, year, startH, endH] = match;
+            const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            parsed.push({
+              text: `${dateObj.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} ${startH} - ${endH}`,
+              startTime: new Date(dateObj.toDateString() + " " + startH).toISOString(),
+              endTime: new Date(dateObj.toDateString() + " " + endH).toISOString(),
+              order: i,
+            });
+          }
+        });
+        if (parsed.length > 0) setOptions(parsed);
+      }
+      const s = suggestion.settings;
+      if (s && typeof s === "object") {
+        if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
+        if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+      }
+    } catch (_) {}
   }, []);
 
   useEffect(() => {
@@ -123,6 +164,7 @@ export default function CreatePoll() {
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
+          videoConferenceUrl: videoConferenceUrl.trim() || undefined,
           options: options.map((option) => {
             const opt: any = {
               text: option.text,
@@ -183,7 +225,7 @@ export default function CreatePoll() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null, videoConferenceUrl: videoConferenceUrl || undefined },
           '/create-poll'
         );
         
@@ -198,7 +240,7 @@ export default function CreatePoll() {
   const addTimeSlot = (date: Date, startTime: string, endTime: string) => {
     setOptions((prevOptions) => {
       const option: PollOption = {
-        text: `${date.toLocaleDateString('de-DE')} ${startTime} - ${endTime}`,
+        text: `${date.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} ${startTime} - ${endTime}`,
         startTime: new Date(date.toDateString() + ' ' + startTime).toISOString(),
         endTime: new Date(date.toDateString() + ' ' + endTime).toISOString(),
         order: prevOptions.length,
@@ -240,7 +282,7 @@ export default function CreatePoll() {
         if (i === editIndex) {
           return {
             ...opt,
-            text: `${editDate.toLocaleDateString('de-DE')} ${editStartTime} - ${editEndTime}`,
+            text: `${editDate.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} ${editStartTime} - ${editEndTime}`,
             startTime: new Date(editDate.toDateString() + ' ' + editStartTime).toISOString(),
             endTime: new Date(editDate.toDateString() + ' ' + editEndTime).toISOString(),
           };
@@ -293,6 +335,7 @@ export default function CreatePoll() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
+      videoConferenceUrl: videoConferenceUrl.trim() || undefined,
       options: options.map((option) => {
         const opt: any = {
           text: option.text,
@@ -377,6 +420,24 @@ export default function CreatePoll() {
               </p>
             </div>
 
+            <div>
+              <Label htmlFor="videoConferenceUrl" className="flex items-center gap-2">
+                <Video className="w-4 h-4 text-polly-orange" />
+                {t('pollCreation.videoConferenceLabel')}
+              </Label>
+              <Input
+                id="videoConferenceUrl"
+                type="url"
+                value={videoConferenceUrl}
+                onChange={(e) => setVideoConferenceUrl(e.target.value)}
+                placeholder={t('pollCreation.videoConferencePlaceholder')}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('pollCreation.videoConferenceHint')}
+              </p>
+            </div>
+
             {expiresAt && (() => {
               const hoursUntilExpiry = Math.max(0, (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60));
               const isTooShort = hoursUntilExpiry < 6;
@@ -432,49 +493,70 @@ export default function CreatePoll() {
               );
             })()}
             
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteEdit')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.allowVoteEditDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={allowVoteEdit}
-                onCheckedChange={setAllowVoteEdit}
-                data-testid="switch-allow-vote-edit"
-                aria-label={t('pollCreation.allowVoteEdit')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.allowVoteWithdrawalDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={allowVoteWithdrawal}
-                onCheckedChange={setAllowVoteWithdrawal}
-                data-testid="switch-allow-vote-withdrawal"
-                aria-label={t('pollCreation.allowVoteWithdrawal')}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="space-y-0.5">
-                <Label>{t('pollCreation.resultsPublic')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('pollCreation.resultsPublicDescription')}
-                </p>
-              </div>
-              <Switch
-                checked={resultsPublic}
-                onCheckedChange={setResultsPublic}
-                data-testid="switch-results-public"
-                aria-label={t('pollCreation.resultsPublic')}
-              />
+            <div className="pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setSettingsExpanded(p => !p)}
+                className="flex items-center justify-between w-full text-left"
+                aria-expanded={settingsExpanded}
+              >
+                <span className="text-sm font-medium text-muted-foreground">{t('pollCreation.settings')}</span>
+                <div className="flex items-center gap-2">
+                  {!settingsExpanded && (
+                    <div className="flex gap-1">
+                      {allowVoteEdit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.allowVoteEdit')}</span>}
+                      {!resultsPublic && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('pollCreation.resultsPrivate')}</span>}
+                    </div>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${settingsExpanded ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+              {settingsExpanded && (
+                <div className="space-y-4 mt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowVoteEdit')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowVoteEditDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoteEdit}
+                      onCheckedChange={setAllowVoteEdit}
+                      data-testid="switch-allow-vote-edit"
+                      aria-label={t('pollCreation.allowVoteEdit')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.allowVoteWithdrawal')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.allowVoteWithdrawalDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoteWithdrawal}
+                      onCheckedChange={setAllowVoteWithdrawal}
+                      data-testid="switch-allow-vote-withdrawal"
+                      aria-label={t('pollCreation.allowVoteWithdrawal')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.resultsPublic')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.resultsPublicDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={resultsPublic}
+                      onCheckedChange={setResultsPublic}
+                      data-testid="switch-results-public"
+                      aria-label={t('pollCreation.resultsPublic')}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -631,7 +713,7 @@ export default function CreatePoll() {
             <DialogDescription>
               {editDate && (
                 <span className="font-medium text-foreground">
-                  {editDate.toLocaleDateString('de-DE', { 
+                  {editDate.toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
                     month: 'long', 

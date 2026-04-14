@@ -9,6 +9,8 @@ interface CalendarEvent {
   location?: string;
   organizer?: string;
   url?: string;
+  status?: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED';
+  sequence?: number;
 }
 
 export interface CalendarExportContext {
@@ -24,6 +26,33 @@ function escapeIcsText(text: string): string {
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
     .replace(/\n/g, '\\n');
+}
+
+function foldLine(line: string): string {
+  const bytes = Buffer.from(line, 'utf8');
+  if (bytes.length <= 75) return line;
+
+  const result: string[] = [];
+  let offset = 0;
+
+  while (offset < bytes.length) {
+    const limit = offset === 0 ? 75 : 74;
+    let end = offset + limit;
+
+    if (end >= bytes.length) {
+      result.push(bytes.slice(offset).toString('utf8'));
+      break;
+    }
+
+    while (end > offset && (bytes[end] & 0xC0) === 0x80) {
+      end--;
+    }
+
+    result.push(bytes.slice(offset, end).toString('utf8'));
+    offset = end;
+  }
+
+  return result.join('\r\n ');
 }
 
 function formatIcsDate(date: Date): string {
@@ -96,7 +125,8 @@ function buildEventTitle(
   baseTitle: string,
   poll: Poll,
   optionId: number,
-  context: CalendarExportContext
+  context: CalendarExportContext,
+  overrideFinalized?: boolean
 ): string {
   const { settings, language, userVotedOptionIds } = context;
   const prefixes = getLocalizedPrefixes(settings, language);
@@ -106,52 +136,60 @@ function buildEventTitle(
     parts.push(prefixes.myChoice);
   }
 
+  parts.push(baseTitle);
+
   if (settings.prefixEnabled) {
-    // Use confirmed prefix if: poll is completed OR poll has a final option selected
-    const isConfirmed = isPollCompleted(poll) || isPollFinalized(poll);
+    const isConfirmed = overrideFinalized !== undefined ? overrideFinalized : isPollFinalized(poll);
     if (isConfirmed) {
-      parts.push(`${prefixes.confirmed}:`);
+      parts.push(`(${prefixes.confirmed})`);
     } else {
-      parts.push(`${prefixes.tentative}:`);
+      parts.push(`(${prefixes.tentative})`);
     }
   }
 
-  parts.push(baseTitle);
   return parts.join(' ');
 }
 
 function generateEvent(event: CalendarEvent): string {
   const lines: string[] = [
     'BEGIN:VEVENT',
-    `UID:${event.uid}`,
-    `DTSTAMP:${formatIcsDate(new Date())}`,
-    `DTSTART:${formatIcsDate(event.startTime)}`,
+    foldLine(`UID:${event.uid}`),
+    foldLine(`DTSTAMP:${formatIcsDate(new Date())}`),
+    foldLine(`DTSTART:${formatIcsDate(event.startTime)}`),
   ];
 
   if (event.endTime) {
-    lines.push(`DTEND:${formatIcsDate(event.endTime)}`);
+    lines.push(foldLine(`DTEND:${formatIcsDate(event.endTime)}`));
   } else {
     const endTime = new Date(event.startTime);
     endTime.setHours(endTime.getHours() + 1);
-    lines.push(`DTEND:${formatIcsDate(endTime)}`);
+    lines.push(foldLine(`DTEND:${formatIcsDate(endTime)}`));
   }
 
-  lines.push(`SUMMARY:${escapeIcsText(event.title)}`);
+  lines.push(foldLine(`SUMMARY:${escapeIcsText(event.title)}`));
+
+  if (event.status) {
+    lines.push(`STATUS:${event.status}`);
+  }
 
   if (event.description) {
-    lines.push(`DESCRIPTION:${escapeIcsText(event.description)}`);
+    lines.push(foldLine(`DESCRIPTION:${escapeIcsText(event.description)}`));
   }
 
   if (event.location) {
-    lines.push(`LOCATION:${escapeIcsText(event.location)}`);
+    lines.push(foldLine(`LOCATION:${escapeIcsText(event.location)}`));
   }
 
   if (event.url) {
-    lines.push(`URL:${event.url}`);
+    lines.push(foldLine(`URL:${event.url}`));
   }
 
   if (event.organizer) {
-    lines.push(`ORGANIZER:${escapeIcsText(event.organizer)}`);
+    lines.push(foldLine(`ORGANIZER:${event.organizer}`));
+  }
+
+  if (event.sequence !== undefined) {
+    lines.push(`SEQUENCE:${event.sequence}`);
   }
 
   lines.push('END:VEVENT');
@@ -165,7 +203,7 @@ function generateCalendar(events: CalendarEvent[], calendarName: string = 'Polly
     'PRODID:-//Polly//Polling System//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
+    foldLine(`X-WR-CALNAME:${escapeIcsText(calendarName)}`),
     'X-WR-TIMEZONE:Europe/Berlin',
   ];
 
@@ -212,7 +250,7 @@ export function getDefaultCalendarSettings(): CalendarSettings {
 }
 
 export function generatePollIcs(
-  poll: Poll,
+  poll: Poll & { user?: { displayName?: string; email?: string } | null },
   options: PollOption[],
   votes: Vote[],
   baseUrl: string,
@@ -237,30 +275,57 @@ export function generatePollIcs(
 
   const events: CalendarEvent[] = [];
 
-  for (const option of options) {
-    // Use unified filter: auto-filters to final option when poll is finalized
-    if (!shouldIncludeOption(option, poll, effectiveContext)) {
-      continue;
-    }
+  const isFinalized = isPollFinalized(poll);
 
+  const organizerValue = poll.user?.email 
+    ? `MAILTO:${poll.user.email}`
+    : poll.creatorEmail 
+      ? `MAILTO:${poll.creatorEmail}`
+      : undefined;
+
+  for (const option of options) {
     const dateTime = parseOptionDateTime(option);
     if (!dateTime) continue;
 
     const { startTime, endTime } = dateTime;
+    const uid = `poll-${poll.id}-option-${option.id}@polly`;
+    const isFinalOption = isFinalized && option.id === poll.finalOptionId;
+
+    if (isFinalized && !isFinalOption) {
+      events.push({
+        uid,
+        title: `${poll.title}: ${option.text}`,
+        startTime,
+        endTime,
+        status: 'CANCELLED',
+        sequence: 1,
+        organizer: organizerValue,
+      });
+      continue;
+    }
+
+    if (!shouldIncludeOption(option, poll, effectiveContext)) {
+      continue;
+    }
 
     const yesCount = votes.filter(v => v.optionId === option.id && v.response === 'yes').length;
     const maybeCount = votes.filter(v => v.optionId === option.id && v.response === 'maybe').length;
-    const uid = `poll-${poll.id}-option-${option.id}@polly`;
 
     const votesLabel = language === 'de' 
       ? `Stimmen: ${yesCount} Ja, ${maybeCount} Vielleicht`
       : `Votes: ${yesCount} Yes, ${maybeCount} Maybe`;
 
-    const description = poll.description
-      ? `${poll.description}\n\n${votesLabel}`
-      : votesLabel;
+    const pollUrl = `${baseUrl}/poll/${poll.publicToken}`;
+    const descriptionParts: string[] = [];
+    if (poll.description) descriptionParts.push(poll.description);
+    descriptionParts.push(votesLabel);
+    if (!isFinalOption) {
+      const votingLabel = language === 'de' ? 'Abstimmung' : 'Vote';
+      descriptionParts.push(`${votingLabel}: ${pollUrl}`);
+    }
+    const description = descriptionParts.join('\n\n');
 
-    const baseTitle = `${poll.title}: ${option.text}`;
+    const baseTitle = isFinalOption ? poll.title : `${poll.title}: ${option.text}`;
     const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext);
 
     events.push({
@@ -269,7 +334,11 @@ export function generatePollIcs(
       description,
       startTime,
       endTime,
-      url: `${baseUrl}/poll/${poll.publicToken}`,
+      location: poll.videoConferenceUrl || undefined,
+      url: pollUrl,
+      status: isFinalOption ? 'CONFIRMED' : 'TENTATIVE',
+      sequence: isFinalized ? 1 : undefined,
+      organizer: organizerValue,
     });
   }
 
@@ -297,8 +366,6 @@ export function generateUserCalendarFeed(
       userVotedOptionIds,
     };
 
-    // When poll is finalized, show only the final option (even if user didn't vote for it)
-    // This prevents calendar clutter and shows only the confirmed date
     if (isPollFinalized(poll)) {
       const finalOption = options.find(o => o.id === poll.finalOptionId);
       if (finalOption) {
@@ -320,14 +387,33 @@ export function generateUserCalendarFeed(
             description: poll.description || undefined,
             startTime,
             endTime,
+            location: poll.videoConferenceUrl || undefined,
             url: `${baseUrl}/poll/${poll.publicToken}`,
+            status: 'CONFIRMED',
+            sequence: 1,
           });
         }
       }
-      continue; // Skip to next poll, don't add individual vote entries
+
+      for (const vote of userVotes) {
+        const option = options.find(o => o.id === vote.optionId);
+        if (!option) continue;
+        const dateTime = parseOptionDateTime(option);
+        if (!dateTime) continue;
+
+        events.push({
+          uid: `participation-${poll.id}-${vote.id}@polly`,
+          title: poll.title,
+          startTime: dateTime.startTime,
+          endTime: dateTime.endTime,
+          status: 'CANCELLED',
+          sequence: 1,
+        });
+      }
+
+      continue;
     }
 
-    // For non-finalized polls, include user's yes votes
     for (const vote of userVotes) {
       const option = options.find(o => o.id === vote.optionId);
       if (!option) continue;
@@ -347,6 +433,7 @@ export function generateUserCalendarFeed(
       const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext);
 
       const commentLabel = language === 'de' ? 'Ihr Kommentar' : 'Your comment';
+      const votingLabel = language === 'de' ? 'Abstimmung' : 'Vote';
 
       events.push({
         uid,
@@ -354,10 +441,13 @@ export function generateUserCalendarFeed(
         description: [
           poll.description,
           vote.comment ? `${commentLabel}: ${vote.comment}` : null,
+          `${votingLabel}: ${baseUrl}/poll/${poll.publicToken}`,
         ].filter(Boolean).join('\n\n') || undefined,
         startTime,
         endTime,
+        location: poll.videoConferenceUrl || undefined,
         url: `${baseUrl}/poll/${poll.publicToken}`,
+        status: 'TENTATIVE',
       });
     }
   }
@@ -373,7 +463,8 @@ export function generateSingleEventIcs(
   poll: Poll,
   option: PollOption,
   baseUrl: string,
-  context?: CalendarExportContext
+  context?: CalendarExportContext,
+  isFinalized?: boolean
 ): string {
   const settings = context?.settings || getDefaultCalendarSettings();
   const language = context?.language || 'de';
@@ -392,7 +483,7 @@ export function generateSingleEventIcs(
   const { startTime, endTime } = dateTime;
 
   const baseTitle = `${poll.title}: ${option.text}`;
-  const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext);
+  const title = buildEventTitle(baseTitle, poll, option.id, effectiveContext, isFinalized);
 
   const event: CalendarEvent = {
     uid: `poll-${poll.id}-option-${option.id}@polly`,
@@ -400,7 +491,9 @@ export function generateSingleEventIcs(
     description: poll.description || undefined,
     startTime,
     endTime,
+    location: poll.videoConferenceUrl || undefined,
     url: `${baseUrl}/poll/${poll.publicToken}`,
+    status: isFinalized ? 'CONFIRMED' : undefined,
   };
 
   return generateCalendar([event], poll.title);

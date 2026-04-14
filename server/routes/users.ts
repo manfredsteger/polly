@@ -5,31 +5,12 @@ import { deviceTokenService } from "../services/deviceTokenService";
 
 const router = Router();
 
-// Get user dashboard data
-router.get('/users/:userId/dashboard', async (req, res) => {
+router.get('/user/profile', requireAuth, async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
-    const userPolls = await storage.getUserPolls(userId);
-    const sharedPolls = await storage.getSharedPolls(userId);
-    
-    res.json({
-      userPolls,
-      sharedPolls,
-    });
-  } catch (error) {
-    console.error('Error fetching dashboard:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    const userId = await extractUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Nicht angemeldet' });
 
-// Get user profile
-router.get('/user/profile', async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Nicht angemeldet' });
-    }
-    
-    const user = await storage.getUser(req.session.userId);
+    const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
@@ -54,13 +35,11 @@ router.get('/user/profile', async (req, res) => {
   }
 });
 
-// Update user profile
-router.put('/user/profile', async (req, res) => {
+router.put('/user/profile', requireAuth, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Nicht angemeldet' });
-    }
-    
+    const userId = await extractUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Nicht angemeldet' });
+
     const { name, organization, themePreference, languagePreference } = req.body;
     const updates: Record<string, any> = {};
     
@@ -77,7 +56,7 @@ router.put('/user/profile', async (req, res) => {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
     }
     
-    const user = await storage.updateUser(req.session.userId, updates);
+    const user = await storage.updateUser(userId, updates);
     res.json({
       id: user.id,
       username: user.username,
@@ -97,19 +76,17 @@ router.put('/user/profile', async (req, res) => {
   }
 });
 
-// Update user language preference (dedicated endpoint)
-router.patch('/users/me/language', async (req, res) => {
+router.patch('/users/me/language', requireAuth, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Nicht angemeldet' });
-    }
-    
+    const userId = await extractUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Nicht angemeldet' });
+
     const { language } = req.body;
     if (!language || !['de', 'en'].includes(language)) {
       return res.status(400).json({ error: 'Ungültige Sprache. Erlaubt: de, en' });
     }
     
-    const user = await storage.updateUser(req.session.userId, { languagePreference: language });
+    const user = await storage.updateUser(userId, { languagePreference: language });
     res.json({
       languagePreference: user.languagePreference || 'de',
     });
@@ -119,13 +96,10 @@ router.patch('/users/me/language', async (req, res) => {
   }
 });
 
-// Register device token for push notifications
 router.post('/users/me/device-tokens', requireAuth, async (req, res) => {
   try {
     const userId = await extractUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: 'Nicht angemeldet' });
-    }
+    if (!userId) return res.status(401).json({ error: 'Nicht angemeldet' });
 
     const { token, platform } = req.body;
     if (!token || !platform) {
@@ -144,13 +118,10 @@ router.post('/users/me/device-tokens', requireAuth, async (req, res) => {
   }
 });
 
-// Remove device token
 router.delete('/users/me/device-tokens', requireAuth, async (req, res) => {
   try {
     const userId = await extractUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: 'Nicht angemeldet' });
-    }
+    if (!userId) return res.status(401).json({ error: 'Nicht angemeldet' });
 
     const { token } = req.body;
     if (!token) {
@@ -165,20 +136,12 @@ router.delete('/users/me/device-tokens', requireAuth, async (req, res) => {
   }
 });
 
-// Get user's created polls
 router.get('/user/polls', requireAuth, async (req, res) => {
   try {
-    const userId = req.session.userId;
-    if (!userId) {
-      console.error('[SECURITY] /user/polls called without userId in session');
-      return res.status(401).json({ error: 'Nicht authentifiziert' });
-    }
+    const userId = await extractUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
     
     const polls = await storage.getUserPolls(userId);
-    
-    // SECURITY: Log for debugging cross-account data issues
-    console.log(`[USER-POLLS] userId=${userId} returned ${polls.length} polls`);
-    
     res.json(polls);
   } catch (error) {
     console.error('Error getting user polls:', error);
@@ -186,20 +149,12 @@ router.get('/user/polls', requireAuth, async (req, res) => {
   }
 });
 
-// Get polls user has participated in
 router.get('/user/participations', requireAuth, async (req, res) => {
   try {
-    const userId = req.session.userId;
-    if (!userId) {
-      console.error('[SECURITY] /user/participations called without userId in session');
-      return res.status(401).json({ error: 'Nicht authentifiziert' });
-    }
+    const userId = await extractUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
     
     const polls = await storage.getUserParticipatedPolls(userId);
-    
-    // SECURITY: Log for debugging cross-account data issues
-    console.log(`[USER-PARTICIPATIONS] userId=${userId} returned ${polls.length} participations`);
-    
     res.json(polls);
   } catch (error) {
     console.error('Error getting user participations:', error);
@@ -207,19 +162,17 @@ router.get('/user/participations', requireAuth, async (req, res) => {
   }
 });
 
-// Update user theme preference
-router.put('/user/theme', async (req, res) => {
+router.put('/user/theme', requireAuth, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Nicht angemeldet' });
-    }
-    
+    const userId = await extractUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Nicht angemeldet' });
+
     const { themePreference } = req.body;
     if (!themePreference || !['light', 'dark', 'system'].includes(themePreference)) {
       return res.status(400).json({ error: 'Ungültige Theme-Einstellung' });
     }
     
-    const user = await storage.updateUser(req.session.userId, { themePreference });
+    const user = await storage.updateUser(userId, { themePreference });
     res.json({ success: true, themePreference: user.themePreference });
   } catch (error) {
     console.error('Error updating theme preference:', error);

@@ -36,6 +36,9 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'votes', column: 'voter_source', definition: 'TEXT' },
   { table: 'votes', column: 'comment', definition: 'TEXT' },
   { table: 'users', column: 'email_verified', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'poll_options', column: 'is_free_text', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'votes', column: 'free_text_answer', definition: 'TEXT' },
+  { table: 'polls', column: 'video_conference_url', definition: 'TEXT' },
 ];
 
 async function ensureSchema(): Promise<void> {
@@ -146,6 +149,29 @@ async function ensureSchema(): Promise<void> {
       await client.query(`
         CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
       `);
+
+      console.log('🔧 Ensuring indexes...');
+      const indexStatements = [
+        'CREATE INDEX IF NOT EXISTS "password_reset_tokens_token_idx" ON "password_reset_tokens" ("token")',
+        'CREATE INDEX IF NOT EXISTS "password_reset_tokens_user_id_idx" ON "password_reset_tokens" ("user_id")',
+        'CREATE INDEX IF NOT EXISTS "email_change_tokens_token_idx" ON "email_change_tokens" ("token")',
+        'CREATE INDEX IF NOT EXISTS "email_change_tokens_user_id_idx" ON "email_change_tokens" ("user_id")',
+        'CREATE INDEX IF NOT EXISTS "email_verification_tokens_token_idx" ON "email_verification_tokens" ("token")',
+        'CREATE INDEX IF NOT EXISTS "email_verification_tokens_user_id_idx" ON "email_verification_tokens" ("user_id")',
+        'CREATE INDEX IF NOT EXISTS "notification_logs_poll_id_idx" ON "notification_logs" ("poll_id")',
+        'CREATE INDEX IF NOT EXISTS "notification_logs_type_idx" ON "notification_logs" ("type")',
+        'CREATE INDEX IF NOT EXISTS "votes_voter_edit_token_idx" ON "votes" ("voter_edit_token")',
+      ];
+      for (const stmt of indexStatements) {
+        try {
+          await client.query(stmt);
+        } catch (err: any) {
+          if (!err.message?.includes('already exists')) {
+            console.warn(`  ⚠️ Index warning: ${err.message?.substring(0, 100)}`);
+          }
+        }
+      }
+      console.log('✅ Indexes ensured');
     } finally {
       client.release();
     }
@@ -203,6 +229,7 @@ async function createCoreTables(client: any): Promise<void> {
       allow_maybe BOOLEAN NOT NULL DEFAULT TRUE,
       is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
       expires_at TIMESTAMP,
+      video_conference_url TEXT,
       final_option_id INTEGER,
       enable_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
       expiry_reminder_hours INTEGER DEFAULT 24,

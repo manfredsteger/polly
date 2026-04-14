@@ -28,6 +28,7 @@ interface UseLiveVotingOptions {
   pollToken: string;
   voterName?: string;
   isPresenter?: boolean;
+  adminToken?: string;
   onResultsRefresh?: () => void;
   onVoteFinalized?: (voterName: string) => void;
   onSlotUpdate?: (slotUpdates: Record<number, SlotUpdate>) => void;
@@ -37,6 +38,7 @@ export function useLiveVoting({
   pollToken,
   voterName,
   isPresenter = false,
+  adminToken,
   onResultsRefresh,
   onVoteFinalized,
   onSlotUpdate,
@@ -55,6 +57,7 @@ export function useLiveVoting({
   const voterNameRef = useRef<string | undefined>(voterName);
   const pollTokenRef = useRef<string>(pollToken);
   const isPresenterRef = useRef<boolean>(isPresenter);
+  const adminTokenRef = useRef<string | undefined>(adminToken);
   const onResultsRefreshRef = useRef(onResultsRefresh);
   const onVoteFinalizedRef = useRef(onVoteFinalized);
 
@@ -115,6 +118,10 @@ export function useLiveVoting({
         }
         break;
 
+      case 'error':
+        console.warn('[LiveVoting] Server error:', message.code, message.message);
+        break;
+
       case 'pong':
         break;
 
@@ -137,13 +144,16 @@ export function useLiveVoting({
         console.log('[LiveVoting] Connected to WebSocket');
         setState(prev => ({ ...prev, isConnected: true }));
 
-        ws.send(JSON.stringify({
+        const joinMessage: Record<string, unknown> = {
           type: 'join_poll',
           pollToken: pollTokenRef.current,
           voterName: voterNameRef.current,
           sessionId: sessionIdRef.current,
-          isPresenter: isPresenterRef.current,
-        }));
+        };
+        if (adminTokenRef.current) {
+          joinMessage.adminToken = adminTokenRef.current;
+        }
+        ws.send(JSON.stringify(joinMessage));
 
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -161,17 +171,20 @@ export function useLiveVoting({
         }
       };
 
-      ws.onclose = () => {
-        console.log('[LiveVoting] WebSocket closed');
+      ws.onclose = (event) => {
+        console.log('[LiveVoting] WebSocket closed', event.code);
         setState(prev => ({ ...prev, isConnected: false }));
         
         if (pingIntervalRef.current) {
           clearInterval(pingIntervalRef.current);
         }
 
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
-        }, 3000);
+        const terminalCodes = [4404, 4403, 4401];
+        if (!terminalCodes.includes(event.code)) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, 3000);
+        }
       };
 
       ws.onerror = (error) => {
@@ -228,6 +241,7 @@ export function useLiveVoting({
   useEffect(() => {
     pollTokenRef.current = pollToken;
     isPresenterRef.current = isPresenter;
+    adminTokenRef.current = adminToken;
     
     if (pollToken) {
       connect();
@@ -236,7 +250,7 @@ export function useLiveVoting({
     return () => {
       disconnect();
     };
-  }, [pollToken, isPresenter, connect, disconnect]);
+  }, [pollToken, isPresenter, adminToken, connect, disconnect]);
 
   return {
     ...state,

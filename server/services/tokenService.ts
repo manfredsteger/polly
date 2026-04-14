@@ -99,7 +99,7 @@ function getKeycloakConfig() {
   const realm = process.env.KEYCLOAK_REALM;
   const clientId = process.env.KEYCLOAK_CLIENT_ID;
   const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
-  const serverUrl = process.env.KEYCLOAK_URL || process.env.KEYCLOAK_AUTH_SERVER_URL;
+  const serverUrl = process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL;
 
   if (!realm || !clientId || !serverUrl) {
     return null;
@@ -211,6 +211,7 @@ export const tokenService = {
           const updateData: Record<string, any> = { 
             keycloakId: claims.sub,
             provider: 'keycloak',
+            emailVerified: true,
           };
           if (keycloakRole) {
             updateData.role = keycloakRole;
@@ -230,11 +231,18 @@ export const tokenService = {
           role: keycloakRole || 'user',
           keycloakId: claims.sub,
           provider: 'keycloak',
+          emailVerified: true,
         });
       } else {
-        // Sync role from Keycloak on every API call (if role is provided in token)
+        const syncData: Record<string, any> = {};
         if (keycloakRole && user.role !== keycloakRole) {
-          user = await storage.updateUser(user.id, { role: keycloakRole });
+          syncData.role = keycloakRole;
+        }
+        if (!user.emailVerified) {
+          syncData.emailVerified = true;
+        }
+        if (Object.keys(syncData).length > 0) {
+          user = await storage.updateUser(user.id, syncData);
         }
       }
 

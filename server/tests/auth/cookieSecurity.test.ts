@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 import bcrypt from 'bcryptjs';
 import type { Express } from 'express';
 import { storage } from '../../storage';
+import { loginRateLimiter } from '../../services/rateLimiterService';
 
 export const testMeta = {
   category: 'security' as const,
@@ -14,7 +15,7 @@ export const testMeta = {
 };
 
 async function createUserAndLogin(app: Express) {
-  const email = `cookietest-${nanoid(8)}@example.com`;
+  const email = `cookietest-${nanoid(8)}@test.local`;
   const password = 'TestPassword123!';
   const username = `cookieuser_${nanoid(8)}`;
   const passwordHash = await bcrypt.hash(password, 10);
@@ -31,6 +32,7 @@ async function createUserAndLogin(app: Express) {
   
   const loginResponse = await request(app)
     .post('/api/v1/auth/login')
+    .set('X-Test-Mode', 'polly-e2e-test-mode')
     .send({
       usernameOrEmail: email,
       password: password,
@@ -50,6 +52,8 @@ describe('Cookie Security - CRITICAL', () => {
   beforeAll(async () => {
     app = await createTestApp();
   });
+
+
 
   describe('Cookie Attributes', () => {
     it('should set httpOnly flag on session cookie', async () => {
@@ -103,8 +107,9 @@ describe('Cookie Security - CRITICAL', () => {
     });
 
     it('should verify production config sets secure=true for proxied environments', () => {
+      const resolvedUrl = process.env.APP_URL || process.env.BASE_URL || '';
       const isProxied = process.env.NODE_ENV === 'production' || 
-                        process.env.BASE_URL?.includes('replit') ||
+                        resolvedUrl.includes('replit') ||
                         process.env.REPLIT_DEV_DOMAIN ||
                         process.env.REPL_ID;
       
@@ -174,7 +179,7 @@ describe('Cookie Security - CRITICAL', () => {
       
       expect(response1.body.user).toBeNull();
       
-      const email = `fixtest-${nanoid(8)}@example.com`;
+      const email = `fixtest-${nanoid(8)}@test.local`;
       const password = 'TestPassword123!';
       const username = `fixuser_${nanoid(8)}`;
       const passwordHash = await bcrypt.hash(password, 10);
@@ -186,7 +191,7 @@ describe('Cookie Security - CRITICAL', () => {
         passwordHash,
         role: 'user',
         provider: 'local',
-        isTestData: false,
+        isTestData: true,
       });
       
       const loginResponse = await request(app)
@@ -210,25 +215,31 @@ describe('Cookie Security - CRITICAL', () => {
 
   describe('Session Isolation', () => {
     it('should not leak session data between different sessions', async () => {
+      loginRateLimiter.clearAll();
+
       const { email: email1, password: password1 } = await createUserAndLogin(app);
       const { email: email2, password: password2 } = await createUserAndLogin(app);
 
       const agent1 = request.agent(app);
       const agent2 = request.agent(app);
 
-      await agent1.post('/api/v1/auth/login').send({
+      const loginRes1 = await agent1.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
         usernameOrEmail: email1,
         password: password1,
       });
+      expect(loginRes1.status).toBe(200);
 
-      await agent2.post('/api/v1/auth/login').send({
+      const loginRes2 = await agent2.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
         usernameOrEmail: email2,
         password: password2,
       });
+      expect(loginRes2.status).toBe(200);
 
       const response1 = await agent1.get('/api/v1/auth/me');
       const response2 = await agent2.get('/api/v1/auth/me');
 
+      expect(response1.body.user).not.toBeNull();
+      expect(response2.body.user).not.toBeNull();
       expect(response1.body.user.email).toBe(email1);
       expect(response2.body.user.email).toBe(email2);
       expect(response1.body.user.id).not.toBe(response2.body.user.id);
@@ -238,7 +249,7 @@ describe('Cookie Security - CRITICAL', () => {
       const agent = request.agent(app);
       const { email, password } = await createUserAndLogin(app);
 
-      await agent.post('/api/v1/auth/login').send({
+      await agent.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
         usernameOrEmail: email,
         password: password,
       });
@@ -295,7 +306,7 @@ describe('Cookie Security - CRITICAL', () => {
       const agent = request.agent(app);
       const { email, password } = await createUserAndLogin(app);
 
-      await agent.post('/api/v1/auth/login').send({
+      await agent.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
         usernameOrEmail: email,
         password: password,
       });

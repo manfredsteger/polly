@@ -41,6 +41,8 @@ docker run -d \
 - **Admin Dashboard**: User management, branding, security scanning, email templates
 - **WCAG 2.1 AA**: Automatic color contrast auditing and correction
 - **ClamAV Integration**: Optional virus scanning for file uploads
+- **AI Poll Assistant**: Create polls via natural language with GWDG SAIA (OpenAI-compatible API)
+- **Voice Input**: Speech-to-text for AI chat using Whisper
 - **GDPR Compliant**: All data stays on your server, no external tracking
 
 ## Available Tags
@@ -50,7 +52,7 @@ docker run -d \
 | `manfredsteger/polly:latest` | Latest stable release |
 | `manfredsteger/polly:beta` | Latest beta release |
 | `manfredsteger/polly:rc` | Latest release candidate |
-| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.1`) |
+| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.2`) |
 
 ## Environment Variables
 
@@ -60,6 +62,9 @@ docker run -d \
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | Auto-configured in Docker Compose |
 | `SESSION_SECRET` | Session encryption key (min 32 chars) | Change in production! |
+
+> **External / Managed PostgreSQL:** Set `DATABASE_URL` directly (e.g. `postgresql://user:pass@your-db-host:5432/polly`) — the entrypoint automatically parses host and port from it. Special characters in passwords are supported (URL-encoded).
+> The `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, and `POSTGRES_HOST` variables are only used by the integrated Docker Compose setup and are ignored when `DATABASE_URL` is set.
 
 ### Application
 
@@ -104,6 +109,15 @@ Start with ClamAV:
 ```bash
 docker compose --profile clamav up -d
 ```
+
+### AI Assistant (Optional)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AI_API_URL` | OpenAI-compatible API endpoint | — |
+| `AI_API_KEY` | API key for AI services | — |
+| `AI_API_KEY_FALLBACK` | Fallback key (on HTTP 429) | — |
+| `AI_MODEL` | AI model name | `llama-3.3-70b-instruct` |
 
 ## Docker Compose
 

@@ -9,6 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
 import { bootstrapBranding } from "./scripts/applyBranding";
 import { errorHandler } from "./lib/errorHandler";
+import { getBaseUrl, warnIfLocalhostInProduction } from "./utils/baseUrl";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -20,15 +21,17 @@ app.disable('x-powered-by');
 
 // Trust proxy - required for secure cookies behind reverse proxy (Replit, Heroku, etc.)
 // Enable always when running behind a proxy (detected via common proxy headers or explicit config)
+const resolvedAppUrl = getBaseUrl();
+warnIfLocalhostInProduction();
 const isProxied = process.env.NODE_ENV === 'production' || 
-                  process.env.BASE_URL?.includes('replit') ||
+                  resolvedAppUrl.includes('replit') ||
                   process.env.REPLIT_DEV_DOMAIN ||
                   process.env.REPL_ID;
 if (isProxied) {
   app.set('trust proxy', 1);
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
@@ -41,15 +44,13 @@ app.use((req, res, next) => {
   
   // Check if app is actually running over HTTPS
   const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || 
-    (process.env.BASE_URL && process.env.BASE_URL.startsWith('https://'));
+    (resolvedAppUrl && resolvedAppUrl.startsWith('https://'));
   
   const cspDirectives = [
     "default-src 'self'",
-    // In production: no unsafe-eval (Vite bundles everything)
-    // In development: unsafe-eval needed for Vite HMR
     isDev 
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" 
-      : "script-src 'self' 'unsafe-inline'",
+      : "script-src 'self'",
     "style-src 'self' 'unsafe-inline'", // Required for Tailwind CSS - cannot be avoided
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
@@ -80,7 +81,7 @@ app.use((req, res, next) => {
   // Permissions-Policy - Restricts browser features
   res.setHeader('Permissions-Policy', [
     'camera=()',
-    'microphone=()',
+    'microphone=(self)',
     'geolocation=()',
     'payment=()',
   ].join(', '));
@@ -129,7 +130,7 @@ app.use(session({
   saveUninitialized: false,
   name: 'polly.sid',
   cookie: {
-    secure: 'auto',
+    secure: isProxied ? true : false,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',
@@ -137,6 +138,81 @@ app.use(session({
   },
   store: createSessionStore(),
 }));
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
+app.use(async (req, res, next) => {
+  if (!req.session?.userId) return next();
+
+  const now = Date.now();
+
+  try {
+    const { storage } = await import('./storage');
+
+    if (req.session.lastActivity) {
+      const setting = await storage.getSetting('session_timeout_settings');
+      const config = setting?.value as { enabled?: boolean; adminTimeoutMinutes?: number; managerTimeoutMinutes?: number; userTimeoutMinutes?: number } | null;
+
+      if (config?.enabled) {
+        const user = await storage.getUser(req.session.userId);
+        if (user) {
+          let timeoutMs: number;
+          if (user.role === 'admin') {
+            timeoutMs = (config.adminTimeoutMinutes || 480) * 60 * 1000;
+          } else if (user.role === 'manager') {
+            timeoutMs = (config.managerTimeoutMinutes || 240) * 60 * 1000;
+          } else {
+            timeoutMs = (config.userTimeoutMinutes || 60) * 60 * 1000;
+          }
+
+          const elapsed = now - req.session.lastActivity;
+          if (elapsed > timeoutMs) {
+            return req.session.destroy((err) => {
+              if (err) console.error('Session timeout destroy error:', err);
+              res.status(401).json({ error: 'Session abgelaufen', code: 'SESSION_EXPIRED' });
+            });
+          }
+        }
+      }
+    }
+
+    req.session.lastActivity = now;
+  } catch (err) {
+    console.error('Session timeout middleware error:', err);
+  }
+
+  next();
+});
+
+app.use(async (req, res, next) => {
+  if (!req.session?.userId) return next();
+  if (!req.path.startsWith('/api/')) return next();
+
+  const allowedPaths = ['/api/v1/auth/me', '/api/v1/auth/logout', '/api/v1/auth/change-password'];
+  if (allowedPaths.some(p => req.path === p)) return next();
+
+  try {
+    const { storage } = await import('./storage');
+    const user = await storage.getUser(req.session.userId);
+    if (user?.isInitialAdmin) {
+      return res.status(403).json({
+        error: 'Passwortänderung erforderlich',
+        code: 'PASSWORD_CHANGE_REQUIRED',
+      });
+    }
+  } catch (err) {
+    console.error('Force password change middleware error:', err);
+  }
+
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

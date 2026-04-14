@@ -407,6 +407,11 @@
     @apply !bg-red-100 !text-red-900 !border-red-400 dark:!bg-red-900/30 dark:!text-red-300 dark:!border-red-700;
   }
 
+  /* "In Development / Coming Soon" badge */
+  .polly-badge-in-development {
+    @apply !bg-amber-100 !text-amber-800 !border-amber-300 dark:!bg-amber-900/30 dark:!text-amber-300 dark:!border-amber-700;
+  }
+
   /* Impact badges - solid backgrounds, WCAG AA 4.5:1 contrast with white text */
   .polly-badge-dev-only {
     @apply !bg-gray-800 !text-white !border-transparent;

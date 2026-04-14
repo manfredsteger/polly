@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import { nanoid } from 'nanoid';
@@ -14,12 +14,12 @@ export const testMeta = {
 };
 
 async function createTestUserDirectly() {
-  const email = `sessiontest-${nanoid(8)}@example.com`;
+  const email = `sessiontest-${nanoid(8)}@test.local`;
   const password = 'TestPassword123!';
   const username = `sessuser_${nanoid(8)}`;
   const passwordHash = await bcrypt.hash(password, 10);
-  
-  await storage.createUser({
+
+  const user = await storage.createUser({
     email,
     username,
     name: 'Session Test User',
@@ -28,23 +28,36 @@ async function createTestUserDirectly() {
     provider: 'local',
     isTestData: true,
   });
-  
-  return { email, password, username, name: 'Session Test User' };
+
+  return { id: user.id, email, password, username, name: 'Session Test User' };
 }
 
 describe('Session Persistence - CRITICAL', () => {
   let app: Express;
-  let testUser: { email: string; password: string; username: string; name: string };
+  let testUser: { id: number; email: string; password: string; username: string; name: string };
+  const createdUserIds: number[] = [];
 
   beforeAll(async () => {
     app = await createTestApp();
     testUser = await createTestUserDirectly();
+    createdUserIds.push(testUser.id);
   });
+
+  afterAll(async () => {
+    for (const id of createdUserIds) {
+      try {
+        await storage.deleteUser(id);
+      } catch {
+      }
+    }
+  });
+
 
   describe('Login Session Creation', () => {
     it('should create a valid session on successful login', async () => {
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -69,6 +82,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       const loginResponse = await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -90,6 +104,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -108,6 +123,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -130,6 +146,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -149,6 +166,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -184,11 +202,13 @@ describe('Session Persistence - CRITICAL', () => {
     it('should maintain separate sessions for different users', async () => {
       const agent1 = request.agent(app);
       const agent2 = request.agent(app);
-      
+
       const user2 = await createTestUserDirectly();
+      createdUserIds.push(user2.id);
 
       await agent1
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: testUser.email,
           password: testUser.password,
@@ -196,6 +216,7 @@ describe('Session Persistence - CRITICAL', () => {
 
       await agent2
         .post('/api/v1/auth/login')
+        .set('X-Test-Mode', 'polly-e2e-test-mode')
         .send({
           usernameOrEmail: user2.email,
           password: user2.password,

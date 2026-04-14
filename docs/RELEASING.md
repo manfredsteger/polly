@@ -19,6 +19,8 @@ Für automatisches Tag-Mirroring zu GitLab:
 |--------|-------------|
 | `GITLAB_TOKEN` | GitLab Personal Access Token mit `write_repository` Berechtigung |
 
+---
+
 ## Release erstellen
 
 ### Automatisch (empfohlen)
@@ -26,15 +28,23 @@ Für automatisches Tag-Mirroring zu GitLab:
 Der Release-Prozess wird über Git-Tags gesteuert. Sobald ein Tag mit dem Prefix `v` gepusht wird, startet die Pipeline automatisch.
 
 ```bash
-# 1. Sicherstellen, dass main aktuell ist
+# 1. feature/ai-agent → main mergen (falls noch nicht geschehen)
 git checkout main
 git pull origin main
+git merge --no-ff feature/ai-agent -m "Merge feature/ai-agent into main for v0.1.0-beta.2"
+git push origin main
 
-# 2. Tag erstellen
-git tag -a v0.1.0-beta.1 -m "Beta Release 0.1.0-beta.1"
+# 2. Version in package.json manuell auf 0.1.0-beta.2 setzen, committen
+#    (package.json → "version": "0.1.0-beta.2")
+git add package.json
+git commit -m "chore: bump version to 0.1.0-beta.2"
+git push origin main
 
-# 3. Tag pushen → Pipeline startet automatisch
-git push origin v0.1.0-beta.1
+# 3. Tag erstellen
+git tag -a v0.1.0-beta.2 -m "Beta Release 0.1.0-beta.2"
+
+# 4. Tag pushen → Pipeline startet automatisch
+git push origin v0.1.0-beta.2
 ```
 
 ### Was die Pipeline macht
@@ -51,7 +61,7 @@ Je nach Versionstyp werden automatisch zusätzliche Tags gesetzt:
 
 | Version | Image Tags |
 |---------|-----------|
-| `v0.1.0-beta.1` | `manfredsteger/polly:0.1.0-beta.1` + `manfredsteger/polly:beta` |
+| `v0.1.0-beta.2` | `manfredsteger/polly:0.1.0-beta.2` + `manfredsteger/polly:beta` |
 | `v0.1.0-rc.1` | `manfredsteger/polly:0.1.0-rc.1` + `manfredsteger/polly:rc` |
 | `v1.0.0` | `manfredsteger/polly:1.0.0` + `manfredsteger/polly:latest` |
 
@@ -65,12 +75,14 @@ docker login
 
 # Image bauen und pushen
 make release
-# → Fragt nach der Version (z.B. 0.1.0-beta.1)
+# → Fragt nach der Version (z.B. 0.1.0-beta.2)
 # → Baut, taggt und pusht automatisch
 
 # Oder mit expliziter Version:
-IMAGE_TAG=0.1.0-beta.1 make publish
+IMAGE_TAG=0.1.0-beta.2 make publish
 ```
+
+---
 
 ## Versionierung
 
@@ -80,20 +92,29 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 - **Release Candidate**: `0.x.y-rc.z` — Feature-vollständig, letzte Tests
 - **Stable**: `x.y.z` — Produktionsreif
 
-### Nächste Schritte nach Beta
+### Aktuelle Versionsfolge
 
 ```
 0.1.0-beta.1  →  0.1.0-beta.2  →  ...  →  0.1.0-rc.1  →  0.1.0
 ```
 
+---
+
 ## Checkliste vor einem Release
 
+- [ ] Branch `feature/ai-agent` in `main` gemergt
+- [ ] `git pull origin main` — lokaler Stand aktuell
 - [ ] Alle Tests bestehen (`make test`)
 - [ ] TypeScript kompiliert fehlerfrei (`npx tsc --noEmit`)
 - [ ] Übersetzungen vollständig (`make validate-translations`)
 - [ ] Docker Build funktioniert lokal (`make build`)
-- [ ] Changelog / Release Notes vorbereitet
-- [ ] SELF-HOSTING.md aktuell
+- [ ] `CHANGELOG.md` vorbereitet (Unreleased-Abschnitt abgeschlossen)
+- [ ] `ROADMAP.md` aktuell
+- [ ] `package.json` Version gesetzt (z.B. `0.1.0-beta.2`)
+- [ ] `SELF-HOSTING.md` aktuell
+- [ ] Tag erstellt und gepusht
+
+---
 
 ## Fehlerbehebung
 
@@ -109,8 +130,8 @@ Docker Hub erlaubt das Überschreiben bestehender Tags. Falls ein Tag nochmal ge
 
 ```bash
 # Tag lokal löschen und neu erstellen
-git tag -d v0.1.0-beta.1
-git push origin :refs/tags/v0.1.0-beta.1
-git tag -a v0.1.0-beta.1 -m "Beta Release 0.1.0-beta.1 (fixed)"
-git push origin v0.1.0-beta.1
+git tag -d v0.1.0-beta.2
+git push origin :refs/tags/v0.1.0-beta.2
+git tag -a v0.1.0-beta.2 -m "Beta Release 0.1.0-beta.2 (fixed)"
+git push origin v0.1.0-beta.2
 ```

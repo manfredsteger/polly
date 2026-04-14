@@ -253,6 +253,7 @@ export default function ResetPassword() {
               <Input
                 id="newPassword"
                 type="password"
+                autoComplete="off"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="mt-1"
@@ -264,6 +265,7 @@ export default function ResetPassword() {
               <Input
                 id="confirmPassword"
                 type="password"
+                autoComplete="off"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="mt-1"

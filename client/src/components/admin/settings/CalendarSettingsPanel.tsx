@@ -37,15 +37,15 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
   
   const [settings, setSettings] = useState<CalendarSettings>({
     prefixEnabled: true,
-    tentativePrefix: 'Vorläufig',
-    confirmedPrefix: 'Bestätigt',
-    myChoicePrefix: '[Meine Wahl]',
+    tentativePrefix: t('admin.calendar.defaults.tentativePrefix'),
+    confirmedPrefix: t('admin.calendar.defaults.confirmedPrefix'),
+    myChoicePrefix: t('admin.calendar.defaults.myChoicePrefix'),
     exportScope: 'all',
     markOwnChoices: false,
     highlightFinalDate: true,
     prefixesLocalized: {
-      de: { tentative: 'Vorläufig', confirmed: 'Bestätigt', myChoice: '[Meine Wahl]' },
-      en: { tentative: 'Tentative', confirmed: 'Confirmed', myChoice: '[My Choice]' },
+      de: { tentative: t('admin.calendar.defaults.deTentative'), confirmed: t('admin.calendar.defaults.deConfirmed'), myChoice: t('admin.calendar.defaults.deMyChoice') },
+      en: { tentative: t('admin.calendar.defaults.enTentative'), confirmed: t('admin.calendar.defaults.enConfirmed'), myChoice: t('admin.calendar.defaults.enMyChoice') },
     },
   });
 
@@ -145,7 +145,7 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
                           id="de-tentative"
                           value={settings.prefixesLocalized.de?.tentative || ''}
                           onChange={(e) => updateLocalizedPrefix('de', 'tentative', e.target.value)}
-                          placeholder="Vorläufig"
+                          placeholder={t('admin.calendar.placeholders.deTentative')}
                         />
                       </div>
                       <div>
@@ -154,7 +154,7 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
                           id="de-confirmed"
                           value={settings.prefixesLocalized.de?.confirmed || ''}
                           onChange={(e) => updateLocalizedPrefix('de', 'confirmed', e.target.value)}
-                          placeholder="Bestätigt"
+                          placeholder={t('admin.calendar.placeholders.deConfirmed')}
                         />
                       </div>
                       <div>
@@ -163,7 +163,7 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
                           id="de-myChoice"
                           value={settings.prefixesLocalized.de?.myChoice || ''}
                           onChange={(e) => updateLocalizedPrefix('de', 'myChoice', e.target.value)}
-                          placeholder="[Meine Wahl]"
+                          placeholder={t('admin.calendar.placeholders.deMyChoice')}
                         />
                       </div>
                     </div>
@@ -177,7 +177,7 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
                           id="en-tentative"
                           value={settings.prefixesLocalized.en?.tentative || ''}
                           onChange={(e) => updateLocalizedPrefix('en', 'tentative', e.target.value)}
-                          placeholder="Tentative"
+                          placeholder={t('admin.calendar.placeholders.enTentative')}
                         />
                       </div>
                       <div>
@@ -186,7 +186,7 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
                           id="en-confirmed"
                           value={settings.prefixesLocalized.en?.confirmed || ''}
                           onChange={(e) => updateLocalizedPrefix('en', 'confirmed', e.target.value)}
-                          placeholder="Confirmed"
+                          placeholder={t('admin.calendar.placeholders.enConfirmed')}
                         />
                       </div>
                       <div>
@@ -195,7 +195,7 @@ export function CalendarSettingsPanel({ onBack }: { onBack: () => void }) {
                           id="en-myChoice"
                           value={settings.prefixesLocalized.en?.myChoice || ''}
                           onChange={(e) => updateLocalizedPrefix('en', 'myChoice', e.target.value)}
-                          placeholder="[My Choice]"
+                          placeholder={t('admin.calendar.placeholders.enMyChoice')}
                         />
                       </div>
                     </div>

@@ -11,6 +11,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   FlaskConical, 
   Play, 
@@ -25,7 +27,11 @@ import {
   ShieldAlert,
   ExternalLink,
   Trash2,
-  Database
+  Database,
+  Mail,
+  Save,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -74,6 +80,17 @@ interface TestRun {
   } | null;
 }
 
+interface ScheduleConfig {
+  enabled: boolean;
+  intervalDays: number;
+  runTime: string;
+  notifyEmail?: string;
+}
+
+interface SmtpStatus {
+  smtpConfigured: boolean;
+}
+
 interface TestsPanelProps {
   onBack: () => void;
 }
@@ -104,8 +121,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     if (currentRunError && isRunning) {
       setIsRunning(false);
       toast({
-        title: t('admin.tests.error', 'Verbindungsfehler'),
-        description: t('admin.tests.pollingStoppedError', 'Statusabfrage wurde gestoppt. Bitte Seite neu laden.'),
+        title: t('admin.tests.error'),
+        description: t('admin.tests.pollingStoppedError'),
         variant: 'destructive',
       });
     }
@@ -113,6 +130,44 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
 
   const { data: pentestStatus } = useQuery<PentestStatus>({
     queryKey: ['/api/v1/admin/pentest-tools/status'],
+  });
+
+  const { data: scheduleConfig } = useQuery<ScheduleConfig>({
+    queryKey: ['/api/v1/admin/tests/schedule'],
+  });
+
+  const { data: smtpStatus } = useQuery<SmtpStatus>({
+    queryKey: ['/api/v1/email-status'],
+  });
+
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [emailDirty, setEmailDirty] = useState(false);
+
+  useEffect(() => {
+    if (scheduleConfig && !emailDirty) {
+      setNotifyEmail(scheduleConfig.notifyEmail || '');
+    }
+  }, [scheduleConfig, emailDirty]);
+
+  const saveEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      await apiRequest('PUT', '/api/v1/admin/tests/schedule', { notifyEmail: email || '' });
+    },
+    onSuccess: (_data, email) => {
+      setEmailDirty(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/schedule'] });
+      toast({
+        title: email
+          ? t('admin.tests.notificationEmailSaved')
+          : t('admin.tests.notificationEmailCleared'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('admin.tests.error'),
+        variant: 'destructive',
+      });
+    },
   });
 
   const { data: testDataStats, refetch: refetchTestDataStats } = useQuery<{
@@ -218,8 +273,10 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
   };
 
   const calculateProgress = (run: TestRun) => {
-    if (run.summary.total === 0) return 0;
-    return ((run.summary.passed + run.summary.failed + run.summary.skipped) / run.summary.total) * 100;
+    const processed = run.summary.passed + run.summary.failed + run.summary.skipped;
+    const total = run.summary.total;
+    if (total === 0) return processed > 0 ? 99 : 0;
+    return Math.min((processed / total) * 100, 100);
   };
 
   return (
@@ -298,7 +355,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 <span className="text-green-500">✓ {currentRun.summary.passed}</span>
                 <span className="text-red-500">✗ {currentRun.summary.failed}</span>
                 <span className="text-amber-500">○ {currentRun.summary.skipped}</span>
-                <span>/ {currentRun.summary.total}</span>
+                <span>/ {currentRun.summary.total > 0 ? currentRun.summary.total : t('common.loading')}</span>
               </div>
               {currentRun.liveProgress?.currentTest && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
@@ -454,6 +511,72 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
               );
               })}
             </Accordion>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Email Notification */}
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="w-5 h-5" />
+            {t('admin.tests.notificationEmail')}
+          </CardTitle>
+          <CardDescription>{t('admin.tests.notificationEmailHint')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {smtpStatus && !smtpStatus.smtpConfigured && (
+            <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{t('admin.tests.smtpNotConfigured')}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Label htmlFor="notify-email" className="sr-only">{t('admin.tests.notificationEmail')}</Label>
+              <Input
+                id="notify-email"
+                type="email"
+                placeholder={t('admin.tests.notificationEmailPlaceholder')}
+                value={notifyEmail}
+                onChange={(e) => { setNotifyEmail(e.target.value); setEmailDirty(true); }}
+                data-testid="input-notify-email"
+              />
+            </div>
+            <Button
+              size="sm"
+              onClick={() => saveEmailMutation.mutate(notifyEmail)}
+              disabled={saveEmailMutation.isPending || notifyEmail === (scheduleConfig?.notifyEmail || '')}
+              data-testid="button-save-notify-email"
+            >
+              {saveEmailMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-1" />
+              )}
+              {t('admin.tests.saveEmail')}
+            </Button>
+            {scheduleConfig?.notifyEmail && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setNotifyEmail('');
+                  setEmailDirty(false);
+                  saveEmailMutation.mutate('');
+                }}
+                disabled={saveEmailMutation.isPending}
+                data-testid="button-clear-notify-email"
+              >
+                <X className="w-4 h-4 mr-1" />
+                {t('admin.tests.clearEmail')}
+              </Button>
+            )}
+          </div>
+          {!scheduleConfig?.notifyEmail && (
+            <p className="text-xs text-muted-foreground">
+              {t('admin.tests.noEmailConfigured')}
+            </p>
           )}
         </CardContent>
       </Card>

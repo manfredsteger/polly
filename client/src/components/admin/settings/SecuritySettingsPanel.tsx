@@ -742,7 +742,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
 
               <div className={`grid grid-cols-2 gap-4 ${!clamavEnabled ? 'opacity-50' : ''}`}>
                 <div className="space-y-2">
-                  <Label htmlFor="clamav-host">ClamAV Host</Label>
+                  <Label htmlFor="clamav-host">{t('admin.security.clamavHost')}</Label>
                   <Input id="clamav-host" value={clamavHost} onChange={(e) => setClamavHost(e.target.value)} disabled={!clamavEnabled} placeholder="localhost" data-testid="input-clamav-host" />
                   <p className="text-xs text-muted-foreground">{t('admin.security.clamdServerAddress')}</p>
                 </div>

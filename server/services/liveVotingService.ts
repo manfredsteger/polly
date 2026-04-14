@@ -1,5 +1,12 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
+import { timingSafeEqual } from 'crypto';
+import { storage } from '../storage';
+
+function safeCompareTokens(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
 
 interface LiveVoter {
   odId: string;
@@ -23,6 +30,23 @@ class LiveVotingService {
   private pollRooms: Map<string, PollRoom> = new Map();
   private wsToSession: Map<WebSocket, { pollToken: string; sessionId: string; isPresenter: boolean }> = new Map();
   private inactivityCheckInterval: NodeJS.Timeout | null = null;
+
+  /** Close all connections and reset state — for test teardown only */
+  cleanup() {
+    if (this.inactivityCheckInterval) {
+      clearInterval(this.inactivityCheckInterval);
+      this.inactivityCheckInterval = null;
+    }
+    this.wsToSession.forEach((_session, ws) => {
+      try { ws.terminate(); } catch {}
+    });
+    this.wsToSession.clear();
+    this.pollRooms.clear();
+    if (this.wss) {
+      try { this.wss.close(); } catch {}
+      this.wss = null;
+    }
+  }
 
   // Use noServer mode to avoid interfering with Vite's HMR WebSocket
   initializeWithUpgrade(server: Server) {
@@ -161,8 +185,17 @@ class LiveVotingService {
     }
   }
 
-  private handleJoinPoll(ws: WebSocket, message: { pollToken: string; voterName?: string; sessionId: string; isPresenter?: boolean }) {
-    const { pollToken, voterName, sessionId, isPresenter = false } = message;
+  private async handleJoinPoll(ws: WebSocket, message: { pollToken: string; voterName?: string; sessionId: string; isPresenter?: boolean; adminToken?: string }) {
+    const { pollToken, voterName, sessionId } = message;
+
+    const poll = await storage.getPollByPublicToken(pollToken);
+    if (!poll) {
+      ws.send(JSON.stringify({ type: 'error', code: 'POLL_NOT_FOUND', message: 'Umfrage nicht gefunden' }));
+      ws.close(4404, 'Poll not found');
+      return;
+    }
+
+    const isPresenter = safeCompareTokens(poll.adminToken, message.adminToken);
 
     let room = this.pollRooms.get(pollToken);
     if (!room) {
@@ -283,16 +316,22 @@ class LiveVotingService {
     console.log(`[LiveVoting] Vote submitted by ${message.voterName} in poll ${pollToken}`);
   }
 
-  private handleStartPresenting(ws: WebSocket, message: { pollToken: string }) {
+  private async handleStartPresenting(ws: WebSocket, message: { pollToken: string; adminToken?: string }) {
     const session = this.wsToSession.get(ws);
-    if (session) {
-      session.isPresenter = true;
-      const room = this.pollRooms.get(session.pollToken);
-      if (room) {
-        const viewer = room.viewers.get(session.sessionId);
-        if (viewer) {
-          viewer.isPresenter = true;
-        }
+    if (!session) return;
+
+    const poll = await storage.getPollByPublicToken(session.pollToken);
+    if (!poll || !safeCompareTokens(poll.adminToken, message.adminToken)) {
+      ws.send(JSON.stringify({ type: 'error', code: 'FORBIDDEN', message: 'Presenter-Berechtigung fehlt' }));
+      return;
+    }
+
+    session.isPresenter = true;
+    const room = this.pollRooms.get(session.pollToken);
+    if (room) {
+      const viewer = room.viewers.get(session.sessionId);
+      if (viewer) {
+        viewer.isPresenter = true;
       }
     }
   }

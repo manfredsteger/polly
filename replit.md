@@ -6,6 +6,12 @@ Polly is an open-source, full-stack polling and scheduling platform designed for
 ## User Preferences
 - **Communication**: Simple, everyday language (German).
 - **Git Commits**: Aussagekräftige, beschreibende Commit-Nachrichten auf Englisch (kein "saved progress"). Format: Kurzer Titel + optionale Details zu den Änderungen.
+- **Branch-Strategie (MANDATORY — NIEMALS VERLETZEN)**:
+  - **Aktiver Arbeitsbranch ist immer `release`**. Alle Änderungen werden dort entwickelt, committed und gepusht.
+  - **`main` ist GESPERRT**. Es wird unter keinen Umständen selbstständig auf `main` gemerged, gepusht oder `main` verändert — weder direkt noch über `git merge`, `git push origin main`, `git push gitlab main` o. Ä.
+  - **Merges nach `main` darf ausschließlich der Benutzer selbst durchführen** (per Pull Request, manuell oder nach expliziter schriftlicher Anweisung in der aktuellen Konversation).
+  - Vor jedem Push immer prüfen: `git branch` → nur pushen wenn der aktive Branch `release` ist.
+  - Diese Regel gilt auch dann, wenn ein Task oder ein Plan-Dokument einen Merge nach `main` vorsieht — der Agent fragt zuerst nach.
 - **Admin Credentials (MANDATORY)**: Admin credentials are stored in Replit Secrets/Env Vars: `ADMIN_USERNAME` (env var), `ADMIN_EMAIL` (env var), `ADMIN_PASSWORD` (secret). **In the Replit environment, always read credentials from `process.env`** — never hardcode usernames, emails, or passwords. For E2E testing and login, use `$ADMIN_USERNAME` and `$ADMIN_PASSWORD` from the environment. For backend test files: `server/tests/testCredentials.ts` reads env vars with Docker fallbacks. For Docker seeding: `server/seed-admin.ts` reads env vars. **No test file may hardcode its own credentials** — always import from `testCredentials.ts`. The `dockerSmokeTest.ts` reads env vars directly (no fallback, exits with error if missing — it runs in Docker where env vars are always set). Docker/CI fallback passwords exist only for containerized environments — they are irrelevant in Replit.
 - **Test Discipline (MANDATORY)**: When adding a new feature, fixing a bug, or changing existing functionality:
   1. First check if tests already exist for the affected code (search `server/tests/`).

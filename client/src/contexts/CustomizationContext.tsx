@@ -202,6 +202,13 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
     return () => observer.disconnect();
   }, [settings]);
 
+  useEffect(() => {
+    const faviconUrl = settings?.branding?.faviconUrl;
+    if (!faviconUrl) return;
+    const links = document.querySelectorAll<HTMLLinkElement>('link[rel*="icon"]');
+    links.forEach((link) => { link.href = faviconUrl; });
+  }, [settings?.branding?.faviconUrl]);
+
   return (
     <CustomizationContext.Provider value={{ settings: settings || null, customization: settings || null, isLoading }}>
       {children}

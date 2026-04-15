@@ -2030,6 +2030,73 @@ router.delete('/customization/logo', requireAdmin, async (req, res) => {
   }
 });
 
+// ============== FAVICON UPLOAD (admin) ==============
+
+router.post('/customization/favicon', requireAdmin, (req, res, next) => {
+  const upload = imageService.getUploadMiddleware().single('favicon');
+  upload(req, res, (err: any) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Datei ist zu groß (max. 5 MB)' });
+      }
+      return res.status(400).json({ error: 'Upload fehlgeschlagen' });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No favicon file provided' });
+    }
+
+    const result = await imageService.processUpload(req.file, {
+      userId: (req as any).user?.id,
+      email: (req as any).user?.email,
+    });
+
+    if (!result.success) {
+      let statusCode = 500;
+      if (result.invalidFileType) statusCode = 400;
+      else if (result.virusName) statusCode = 422;
+      else if (result.scannerUnavailable) statusCode = 503;
+      return res.status(statusCode).json({
+        error: result.error,
+        virusName: result.virusName,
+        scannerUnavailable: result.scannerUnavailable,
+      });
+    }
+
+    const settings = await storage.getCustomizationSettings();
+    const updatedBranding = {
+      ...settings.branding,
+      faviconUrl: result.imageUrl || null,
+    };
+    await storage.setCustomizationSettings({ branding: updatedBranding });
+
+    res.json({ faviconUrl: result.imageUrl });
+  } catch (error) {
+    console.error('Error uploading favicon:', error);
+    res.status(500).json({ error: 'Favicon upload failed' });
+  }
+});
+
+// ============== FAVICON DELETE (admin) ==============
+
+router.delete('/customization/favicon', requireAdmin, async (req, res) => {
+  try {
+    const settings = await storage.getCustomizationSettings();
+    const updatedBranding = {
+      ...settings.branding,
+      faviconUrl: null,
+    };
+    await storage.setCustomizationSettings({ branding: updatedBranding });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting favicon:', error);
+    res.status(500).json({ error: 'Favicon deletion failed' });
+  }
+});
+
 // ============== BRANDING RESET (admin) ==============
 
 router.post('/branding/reset', requireAdmin, async (req, res) => {

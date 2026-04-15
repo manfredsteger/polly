@@ -76,6 +76,7 @@ export function CustomizePanel() {
   });
 
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
 
   useEffect(() => {
     if (customization && !initialDataLoaded) {
@@ -214,6 +215,63 @@ export function CustomizePanel() {
     }
   };
 
+  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+
+    setIsUploadingFavicon(true);
+    const formData = new FormData();
+    formData.append('favicon', file);
+
+    try {
+      const response = await fetch('/api/v1/admin/customization/favicon', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.virusName) {
+          toast({ title: t('imageUpload.virusDetected'), description: t('imageUpload.virusBlocked', { virusName: errorData.virusName }), variant: "destructive", duration: 8000 });
+          return;
+        }
+        if (errorData.scannerUnavailable || response.status === 503) {
+          toast({ title: t('imageUpload.scannerUnavailable'), description: t('imageUpload.scannerUnavailableDescription'), variant: "destructive" });
+          return;
+        }
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setBrandingSettings({ ...brandingSettings, faviconUrl: data.faviconUrl });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
+      toast({ title: t('admin.toasts.faviconUploaded'), description: t('admin.toasts.faviconUploadedDescription') });
+    } catch (error: any) {
+      toast({ title: t('errors.generic'), description: error?.message || t('admin.toasts.faviconUploadError'), variant: "destructive" });
+    } finally {
+      setIsUploadingFavicon(false);
+    }
+  };
+
+  const handleFaviconDelete = async () => {
+    try {
+      const response = await fetch('/api/v1/admin/customization/favicon', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Delete failed');
+      setBrandingSettings({ ...brandingSettings, faviconUrl: null });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/customization'] });
+      toast({ title: t('admin.toasts.faviconDeleted'), description: t('admin.toasts.faviconDeletedDescription') });
+    } catch (error) {
+      toast({ title: t('errors.generic'), description: t('admin.toasts.faviconDeleteError'), variant: "destructive" });
+    }
+  };
+
   const addFooterLink = () => {
     setFooterSettings({
       ...footerSettings,
@@ -308,6 +366,55 @@ export function CustomizePanel() {
                 </label>
               </div>
             </div>
+          </div>
+
+          <div>
+            <Label>{t('admin.customize.favicon')}</Label>
+            <div className="flex items-center gap-4 mt-2">
+              {brandingSettings.faviconUrl ? (
+                <div className="relative group">
+                  <img src={brandingSettings.faviconUrl} alt="Favicon" className="h-8 w-8 rounded object-contain bg-muted p-0.5" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
+                    onClick={handleFaviconDelete}
+                    data-testid="button-favicon-delete"
+                    aria-label={t('admin.customize.deleteFavicon')}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="h-8 w-8 bg-muted rounded flex items-center justify-center">
+                  <Image className="w-4 h-4 text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <input
+                  id="favicon-upload-input"
+                  type="file"
+                  accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml,image/webp"
+                  onChange={handleFaviconUpload}
+                  disabled={isUploadingFavicon}
+                  className="sr-only"
+                  data-testid="input-favicon-upload"
+                />
+                <label
+                  htmlFor="favicon-upload-input"
+                  className={`inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground cursor-pointer ${isUploadingFavicon ? 'pointer-events-none opacity-50' : ''}`}
+                  data-testid="button-favicon-upload"
+                >
+                  {isUploadingFavicon ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {isUploadingFavicon ? t('admin.customization.uploading') : t('admin.customize.uploadFavicon')}
+                </label>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{t('admin.customize.faviconHint')}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

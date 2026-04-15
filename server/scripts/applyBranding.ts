@@ -45,6 +45,7 @@ export interface BrandingConfig {
     siteName?: string;
     siteNameAccent?: string;
     logoUrl?: string | null;
+    faviconUrl?: string | null;
   };
   footer?: {
     description?: string;
@@ -161,18 +162,29 @@ async function isDatabaseEmpty(storage: any): Promise<boolean> {
 
 /**
  * Build branding overrides from environment variables.
- * Supported: SITE_NAME, SITE_NAME_ACCENT
+ * Supported: SITE_NAME, SITE_NAME_ACCENT, FAVICON_URL, LOGO_URL, PRIMARY_COLOR
  */
 function getEnvBrandingOverrides(): Partial<BrandingConfig> {
   const overrides: Partial<BrandingConfig> = {};
+
   const envSiteName = process.env.SITE_NAME;
   const envSiteNameAccent = process.env.SITE_NAME_ACCENT;
+  const envFaviconUrl = process.env.FAVICON_URL;
+  const envLogoUrl = process.env.LOGO_URL;
 
-  if (envSiteName !== undefined || envSiteNameAccent !== undefined) {
+  if (envSiteName !== undefined || envSiteNameAccent !== undefined || envFaviconUrl !== undefined || envLogoUrl !== undefined) {
     overrides.branding = {};
     if (envSiteName !== undefined) overrides.branding.siteName = envSiteName;
     if (envSiteNameAccent !== undefined) overrides.branding.siteNameAccent = envSiteNameAccent;
+    if (envFaviconUrl !== undefined) overrides.branding.faviconUrl = envFaviconUrl || null;
+    if (envLogoUrl !== undefined) overrides.branding.logoUrl = envLogoUrl || null;
   }
+
+  const envPrimaryColor = process.env.PRIMARY_COLOR;
+  if (envPrimaryColor !== undefined) {
+    overrides.theme = { primaryColor: envPrimaryColor };
+  }
+
   return overrides;
 }
 

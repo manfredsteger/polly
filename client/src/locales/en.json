@@ -1430,6 +1430,10 @@
       "logo": "Logo",
       "deleteLogo": "Delete logo",
       "uploadLogo": "Upload logo",
+      "favicon": "Favicon",
+      "uploadFavicon": "Upload favicon",
+      "deleteFavicon": "Delete favicon",
+      "faviconHint": "Recommended: PNG or ICO, 32×32 px or 64×64 px",
       "resetDefaults": "Reset to Defaults",
       "saveBranding": "Save Branding",
       "saveFooter": "Save Footer",
@@ -2150,6 +2154,12 @@
       "logoDeleted": "Logo Deleted",
       "logoDeletedDescription": "The logo has been successfully removed.",
       "logoDeleteError": "Logo could not be deleted.",
+      "faviconUploaded": "Favicon uploaded",
+      "faviconUploadedDescription": "The favicon has been uploaded successfully.",
+      "faviconUploadError": "Favicon could not be uploaded.",
+      "faviconDeleted": "Favicon deleted",
+      "faviconDeletedDescription": "The favicon has been successfully removed.",
+      "faviconDeleteError": "Favicon could not be deleted.",
       "uploadFailed": "Upload failed"
     },
     "time": {

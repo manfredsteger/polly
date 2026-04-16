@@ -40,6 +40,10 @@ router.post('/oidc-test', requireAdmin, async (req, res) => {
 router.get('/customization', async (req, res) => {
   try {
     const settings = await storage.getCustomizationSettings();
+    const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
+    if (envCopyright) {
+      settings.footer.copyrightText = envCopyright;
+    }
     res.json(settings);
   } catch (error) {
     console.error('Error fetching public customization settings:', error);

@@ -1208,6 +1208,10 @@ router.put('/customization', requireAdmin, async (req, res) => {
     }
     if (updates.footer) {
       delete updates.footer.copyrightEnvLocked;
+      if (envCopyright && updates.footer.copyrightText === undefined) {
+        const current = await storage.getCustomizationSettings();
+        updates.footer.copyrightText = current.footer?.copyrightText || '';
+      }
     }
 
     if (updates.theme && (

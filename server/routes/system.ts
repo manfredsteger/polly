@@ -43,6 +43,7 @@ router.get('/customization', async (req, res) => {
     const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
     if (envCopyright) {
       settings.footer.copyrightText = envCopyright;
+      settings.footer.copyrightEnvLocked = true;
     }
     res.json(settings);
   } catch (error) {

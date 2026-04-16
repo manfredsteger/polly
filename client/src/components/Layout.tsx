@@ -243,7 +243,9 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           
           <div className="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
-            {footerCopyright ? (
+            {settings?.footer?.copyrightEnvLocked ? (
+              <p dangerouslySetInnerHTML={{ __html: footerCopyright }} />
+            ) : footerCopyright ? (
               <p>{footerCopyright}</p>
             ) : (
               <p>

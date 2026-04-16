@@ -139,7 +139,10 @@ export function CustomizePanel() {
   };
 
   const handleSaveFooter = () => {
-    saveMutation.mutate({ footer: footerSettings });
+    const payload = customization?.footer?.copyrightEnvLocked
+      ? ({ description: footerSettings.description, supportLinks: footerSettings.supportLinks } as typeof footerSettings)
+      : footerSettings;
+    saveMutation.mutate({ footer: payload });
   };
 
   const handleResetTheme = () => {

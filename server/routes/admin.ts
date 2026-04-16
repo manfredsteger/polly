@@ -1203,10 +1203,10 @@ router.put('/customization', requireAdmin, async (req, res) => {
     const updates = req.body;
 
     const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
-    if (envCopyright && updates.footer?.copyrightText !== undefined) {
-      return res.status(400).json({ error: 'Copyright-Text ist über Umgebungsvariable POLLY_COPYRIGHT_TEXT gesperrt und kann hier nicht geändert werden.' });
-    }
     if (updates.footer) {
+      if (envCopyright) {
+        delete updates.footer.copyrightText;
+      }
       delete updates.footer.copyrightEnvLocked;
     }
 

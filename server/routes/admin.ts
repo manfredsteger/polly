@@ -1186,6 +1186,11 @@ router.put('/deprovision-settings', requireAdmin, async (req, res) => {
 router.get('/customization', requireAdmin, async (req, res) => {
   try {
     const settings = await storage.getCustomizationSettings();
+    const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
+    if (envCopyright) {
+      settings.footer.copyrightText = envCopyright;
+      settings.footer.copyrightEnvLocked = true;
+    }
     res.json(settings);
   } catch (error) {
     console.error('Error fetching customization settings:', error);
@@ -1196,7 +1201,15 @@ router.get('/customization', requireAdmin, async (req, res) => {
 router.put('/customization', requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
-    
+
+    const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
+    if (envCopyright && updates.footer?.copyrightText !== undefined) {
+      delete updates.footer.copyrightText;
+    }
+    if (updates.footer) {
+      delete updates.footer.copyrightEnvLocked;
+    }
+
     if (updates.theme && (
       updates.theme.primaryColor ||
       updates.theme.secondaryColor ||

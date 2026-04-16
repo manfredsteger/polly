@@ -546,7 +546,8 @@ export const footerLinkSchema = z.object({
 
 export const footerSettingsSchema = z.object({
   description: z.string().default('Die Open-Source Abstimmungsplattform für Teams. Sicher, einfach und DSGVO-konform.'),
-  copyrightText: z.string().default('© 2025 Polly. Open Source unter MIT-Lizenz.'),
+  copyrightText: z.string().default(''),
+  copyrightEnvLocked: z.boolean().optional(),
   supportLinks: z.array(footerLinkSchema).default([
     { label: 'Hilfe & FAQ', url: '#' },
     { label: 'Kontakt', url: '#' },

@@ -2296,7 +2296,11 @@
     "surveys": "Surveys",
     "orgLists": "Organization Lists",
     "defaultDescription": "The professional open-source voting platform for teams. Secure, simple and GDPR-compliant.",
-    "defaultCopyright": "© 2025 Polly. Open-source software under MIT license."
+    "defaultCopyright": "© 2025 Polly. Open-source software under MIT license.",
+    "mitLicense": "Open source under the MIT License",
+    "githubAriaLabel": "View Polly on GitHub",
+    "madeInBavaria": "Made with ❤️ in Bavaria",
+    "copyrightEnvLockedHint": "Locked via environment variable POLLY_COPYRIGHT_TEXT"
   },
   "theme": {
     "switchToDark": "Switch to Dark",

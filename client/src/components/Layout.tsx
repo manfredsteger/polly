@@ -67,7 +67,7 @@ export default function Layout({ children }: LayoutProps) {
   const hasSiteTitle = !!(siteName || siteNameAccent);
   const logoUrl = settings?.branding?.logoUrl;
   const footerDescription = settings?.footer?.description || t('footer.defaultDescription');
-  const footerCopyright = settings?.footer?.copyrightText || t('footer.defaultCopyright');
+  const footerCopyright = settings?.footer?.copyrightText || '';
   const footerLinks = settings?.footer?.supportLinks || [
     { label: t('footer.privacy'), url: '#' },
     { label: t('footer.imprint'), url: '#' },
@@ -243,7 +243,44 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           
           <div className="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
-            <p>{footerCopyright}</p>
+            {footerCopyright ? (
+              <p>{footerCopyright}</p>
+            ) : (
+              <p>
+                Polly © 2025 ·{' '}
+                <a
+                  href="https://opensource.org/licenses/MIT"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white underline"
+                >
+                  {t('footer.mitLicense')}
+                </a>
+                {' · '}
+                <a
+                  href="https://github.com/manfredsteger/polly"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t('footer.githubAriaLabel')}
+                  className="inline-flex items-center hover:text-white"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    style={{ verticalAlign: 'text-bottom', marginRight: '4px' }}
+                    aria-hidden="true"
+                  >
+                    <path d="M12 0C5.37 0 0 5.37 0 12a12 12 0 0 0 8.21 11.39c.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.41-4.04-1.41-.55-1.38-1.34-1.75-1.34-1.75-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.08 1.84 2.82 1.31 3.5 1 .11-.79.42-1.31.76-1.61-2.67-.31-5.47-1.34-5.47-5.95 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.56.12-3.25 0 0 1.01-.32 3.3 1.23A11.5 11.5 0 0 1 12 5.8c1.02.01 2.05.14 3.01.41 2.29-1.55 3.29-1.23 3.29-1.23.66 1.69.24 2.94.12 3.25.77.84 1.24 1.91 1.24 3.22 0 4.62-2.81 5.64-5.49 5.94.43.38.82 1.12.82 2.26v3.35c0 .32.22.7.83.58A12 12 0 0 0 24 12c0-6.63-5.37-12-12-12Z" />
+                  </svg>
+                  GitHub
+                </a>
+                {' · '}
+                {t('footer.madeInBavaria')}
+              </p>
+            )}
           </div>
         </div>
       </footer>

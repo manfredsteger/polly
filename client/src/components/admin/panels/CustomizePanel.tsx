@@ -20,7 +20,8 @@ import {
   Monitor,
   RotateCcw,
   Loader2,
-  Globe
+  Globe,
+  Lock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -601,14 +602,28 @@ export function CustomizePanel() {
           </div>
 
           <div>
-            <Label htmlFor="copyrightText">{t('admin.customize.copyrightText')}</Label>
+            <Label htmlFor="copyrightText" className="flex items-center gap-1">
+              {t('admin.customize.copyrightText')}
+              {customization?.footer?.copyrightEnvLocked && (
+                <Lock className="w-3 h-3 text-muted-foreground" />
+              )}
+            </Label>
             <Input
               id="copyrightText"
               value={footerSettings.copyrightText}
               onChange={(e) => setFooterSettings({ ...footerSettings, copyrightText: e.target.value })}
               placeholder="© 2024 Your Company"
               data-testid="input-copyright"
+              readOnly={!!customization?.footer?.copyrightEnvLocked}
+              disabled={!!customization?.footer?.copyrightEnvLocked}
+              className={customization?.footer?.copyrightEnvLocked ? 'opacity-60 cursor-not-allowed' : ''}
             />
+            {customization?.footer?.copyrightEnvLocked && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                {t('footer.copyrightEnvLockedHint')}
+              </p>
+            )}
           </div>
 
           <div>

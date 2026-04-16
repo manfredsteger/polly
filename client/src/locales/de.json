@@ -2296,7 +2296,11 @@
     "surveys": "Umfragen",
     "orgLists": "Orga-Listen",
     "defaultDescription": "Die professionelle Open-Source Abstimmungsplattform für Teams. Sicher, einfach und DSGVO-konform.",
-    "defaultCopyright": "© 2025 Polly. Open-Source Software unter MIT-Lizenz."
+    "defaultCopyright": "© 2025 Polly. Open-Source Software unter MIT-Lizenz.",
+    "mitLicense": "Open Source unter der MIT-Lizenz",
+    "githubAriaLabel": "Polly auf GitHub",
+    "madeInBavaria": "Mit ❤️ in Bayern gemacht",
+    "copyrightEnvLockedHint": "Über Umgebungsvariable POLLY_COPYRIGHT_TEXT gesperrt"
   },
   "theme": {
     "switchToDark": "Wechseln zu Dunkel",

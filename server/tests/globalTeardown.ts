@@ -69,11 +69,15 @@ export default async function globalSetup() {
 
   // Return teardown function that runs ONCE after all tests complete
   return async () => {
-    try {
-      const { storage: storageTeardown } = await import('../storage');
-      await storageTeardown.purgeTestData();
-    } catch {
-      // Ignore errors
+    // Skip auto-purge when invoked from the in-app test runner so admins can
+    // inspect and manually clean up test data afterwards via the UI button.
+    if (process.env.RUN_VIA_INAPP !== '1') {
+      try {
+        const { storage: storageTeardown } = await import('../storage');
+        await storageTeardown.purgeTestData();
+      } catch {
+        // Ignore errors
+      }
     }
 
     try {

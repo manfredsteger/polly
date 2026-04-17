@@ -415,11 +415,13 @@ async function runTestsInBackground(runId: number, config: ResolvedTestConfig): 
     }
     
     const totalSkipped = (parsed.numSkippedTests || 0) + e2eTestsToSkip.length;
+    const reconciledTotal = parsed.numPassedTests + parsed.numFailedTests + totalSkipped;
     
     const completedAt = new Date();
     await db.update(testRuns)
       .set({
         status: (parsed.numFailedTests === 0 && parsed.numTotalTests > 0) ? 'completed' : 'failed',
+        totalTests: reconciledTotal,
         passed: parsed.numPassedTests,
         failed: parsed.numFailedTests,
         skipped: totalSkipped,
@@ -602,7 +604,7 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     // Disable ANSI colors for reliable parsing
     const child = spawn(localVitest, args, {
       cwd: process.cwd(),
-      env: { ...process.env, NODE_ENV: 'test', CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0' },
+      env: { ...process.env, NODE_ENV: 'test', CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0', RUN_VIA_INAPP: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

@@ -31,6 +31,18 @@ if (isProxied) {
   app.set('trust proxy', 1);
 }
 
+// Secure cookies require HTTPS. Only enable when the app is actually served
+// over HTTPS — either via FORCE_HTTPS=true, an https:// APP_URL, or a known
+// HTTPS-terminating platform (Replit). Otherwise browsers silently drop the
+// session cookie (e.g. plain HTTP Docker on http://localhost:3080), causing
+// login to appear successful while the next request has no session.
+const useSecureCookies =
+  process.env.FORCE_HTTPS === 'true' ||
+  resolvedAppUrl.startsWith('https://') ||
+  resolvedAppUrl.includes('replit') ||
+  !!process.env.REPLIT_DEV_DOMAIN ||
+  !!process.env.REPL_ID;
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -130,7 +142,7 @@ app.use(session({
   saveUninitialized: false,
   name: 'polly.sid',
   cookie: {
-    secure: isProxied ? true : false,
+    secure: useSecureCookies,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',

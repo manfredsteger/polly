@@ -1717,7 +1717,13 @@
       "targetSynced": "Target synchronisiert",
       "targetSyncedDescription": "Polly wurde als Scan-Ziel registriert.",
       "tokenSaveError": "Token konnte nicht gespeichert werden.",
-      "testDataDeleteError": "Testdaten konnten nicht gelöscht werden."
+      "testDataDeleteError": "Testdaten konnten nicht gelöscht werden.",
+      "clearHistory": "Historie löschen",
+      "clearHistoryConfirmTitle": "Test-Historie wirklich löschen?",
+      "clearHistoryConfirmDescription": "Alle vergangenen Testläufe und deren Ergebnisse werden unwiderruflich aus der Datenbank entfernt. Laufende Testläufe bleiben erhalten. Die eigentlichen Testdaten (Polls, Benutzer, Stimmen) sind davon nicht betroffen.",
+      "historyCleared": "Test-Historie gelöscht",
+      "historyClearedDescription": "{{count}} Testlauf-Einträge wurden entfernt.",
+      "historyClearError": "Test-Historie konnte nicht gelöscht werden."
     },
     "oidc": {
       "backToSettings": "Zurück zu Einstellungen",

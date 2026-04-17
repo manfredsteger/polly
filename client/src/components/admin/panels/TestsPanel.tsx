@@ -204,6 +204,27 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     },
   });
 
+  const clearHistoryMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', '/api/v1/admin/test-runs');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: t('admin.tests.historyCleared'),
+        description: t('admin.tests.historyClearedDescription', { count: data.deletedRuns ?? 0 }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/test-runs'] });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.tests.historyClearError'),
+        variant: "destructive",
+      });
+    },
+  });
+
   // Sync isRunning state with backend - check if any test is actually running
   useEffect(() => {
     if (testRuns && testRuns.length > 0) {
@@ -438,8 +459,43 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       {/* Test History */}
       <Card className="polly-card">
         <CardHeader>
-          <CardTitle>{t('admin.tests.history')}</CardTitle>
-          <CardDescription>{t('admin.tests.historyDescription')}</CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>{t('admin.tests.history')}</CardTitle>
+              <CardDescription>{t('admin.tests.historyDescription')}</CardDescription>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={!testRuns || testRuns.length === 0 || isRunning || clearHistoryMutation.isPending}
+                  data-testid="button-clear-test-history"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {t('admin.tests.clearHistory')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('admin.tests.clearHistoryConfirmTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('admin.tests.clearHistoryConfirmDescription')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => clearHistoryMutation.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    data-testid="button-confirm-clear-history"
+                  >
+                    {t('admin.tests.clearHistory')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (

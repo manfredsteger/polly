@@ -1035,6 +1035,28 @@ router.delete('/tests/purge-data', requireAdmin, async (req, res) => {
   }
 });
 
+router.delete('/test-runs', requireAdmin, async (req, res) => {
+  try {
+    const { testResults } = await import('@shared/schema');
+    const { isNotNull } = await import('drizzle-orm');
+    const deletedResults = await db.delete(testResults).returning({ id: testResults.id });
+    const deletedRuns = await db
+      .delete(testRuns)
+      .where(isNotNull(testRuns.completedAt))
+      .returning({ id: testRuns.id });
+    console.log(`[TestHistory] Cleared ${deletedRuns.length} test run(s) and ${deletedResults.length} result(s)`);
+    res.json({
+      success: true,
+      message: 'Test-Historie erfolgreich gelöscht',
+      deletedRuns: deletedRuns.length,
+      deletedResults: deletedResults.length,
+    });
+  } catch (error) {
+    console.error('Error clearing test history:', error);
+    res.status(500).json({ error: 'Interner Fehler beim Löschen der Test-Historie' });
+  }
+});
+
 // ============== NOTIFICATIONS ==============
 
 router.get('/notifications', requireAdmin, async (req, res) => {

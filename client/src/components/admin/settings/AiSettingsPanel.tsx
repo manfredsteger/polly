@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity, Key, Globe, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity, Key, Globe, Trash2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AiSettings } from "@shared/schema";
+import kisskiLogo from "@assets/image_1776403063235.png";
 
 const GWDG_MODELS = [
   { id: "llama-3.3-70b-instruct", name: "LLaMA 3.3 70B", noteKey: "modelRecommended" },
@@ -343,6 +344,33 @@ export function AiSettingsPanel({ onBack }: Props) {
                   </p>
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-emerald-500/60 bg-emerald-50/60 dark:bg-emerald-950/20 dark:border-emerald-500/40">
+          <CardContent className="p-4 flex items-center gap-4">
+            <img
+              src={kisskiLogo}
+              alt="KISSKI"
+              className="h-12 w-auto flex-shrink-0 object-contain"
+            />
+            <div className="flex-1 min-w-0 space-y-1">
+              <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                {t('admin.aiSettings.kisskiTitle')}
+              </h3>
+              <p className="text-xs text-emerald-900/80 dark:text-emerald-200/80">
+                {t('admin.aiSettings.kisskiDescription')}
+              </p>
+              <a
+                href="https://kisski.gwdg.de/en/ueber-uns/kontakt/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
+              >
+                {t('admin.aiSettings.kisskiContact')}
+                <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
           </CardContent>
         </Card>

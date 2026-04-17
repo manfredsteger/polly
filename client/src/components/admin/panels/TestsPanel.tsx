@@ -240,6 +240,13 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       // Delay to prevent race condition
       setTimeout(() => {
         refetch();
+        // Test runs create polls/users/votes flagged as test data — refresh
+        // the Testdaten-Verwaltung counters and any list views that may now
+        // include the newly-created (but filtered) test rows.
+        refetchTestDataStats();
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/polls'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
       }, 500);
     } else if (currentRun && currentRun.status === 'running') {
       setIsRunning(true);

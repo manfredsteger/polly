@@ -602,7 +602,7 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     // Disable ANSI colors for reliable parsing
     const child = spawn(localVitest, args, {
       cwd: process.cwd(),
-      env: { ...process.env, CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0' },
+      env: { ...process.env, NODE_ENV: 'test', CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../../services/emailTemplateService';
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
@@ -813,19 +813,33 @@ describe('EmailTemplateService', () => {
 
     it('should reset theme using primary color from branding settings', async () => {
       const service = new EmailTemplateService();
-      
-      await storage.setCustomizationSettings({
-        theme: { primaryColor: '#123456', secondaryColor: '#654321' }
-      });
-      
-      const resetTheme = await service.resetEmailTheme();
-      
-      expect(resetTheme.headingColor).toBe('#123456');
-      expect(resetTheme.linkColor).toBe('#123456');
-      expect(resetTheme.buttonBackgroundColor).toBe('#123456');
-      expect(resetTheme.secondaryButtonBackgroundColor).toBe('#654321');
-      expect(resetTheme.backdropColor).toBe('#F5F5F5');
-      expect(resetTheme.canvasColor).toBe('#FFFFFF');
+
+      // Stub storage.getCustomizationSettings for this test only.
+      // Without the stub, parallel test workers (sharing the same Postgres
+      // database) can race-overwrite the theme between our setCustomizationSettings
+      // call and resetEmailTheme()'s internal read, making this test flaky.
+      const stub = vi
+        .spyOn(storage, 'getCustomizationSettings')
+        .mockResolvedValue({
+          theme: { primaryColor: '#123456', secondaryColor: '#654321' },
+          branding: {},
+          footer: {},
+          wcag: {},
+          language: {},
+        } as any);
+
+      try {
+        const resetTheme = await service.resetEmailTheme();
+
+        expect(resetTheme.headingColor).toBe('#123456');
+        expect(resetTheme.linkColor).toBe('#123456');
+        expect(resetTheme.buttonBackgroundColor).toBe('#123456');
+        expect(resetTheme.secondaryButtonBackgroundColor).toBe('#654321');
+        expect(resetTheme.backdropColor).toBe('#F5F5F5');
+        expect(resetTheme.canvasColor).toBe('#FFFFFF');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should use default orange when primary color not set', async () => {

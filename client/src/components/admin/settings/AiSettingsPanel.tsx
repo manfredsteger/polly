@@ -14,6 +14,9 @@ import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity, Key, Globe, 
 import { useToast } from "@/hooks/use-toast";
 import type { AiSettings } from "@shared/schema";
 import kisskiLogo from "@/assets/kisski-logo.png";
+import { getServicePartner } from "@shared/servicePartners";
+
+const KISSKI_PARTNER = getServicePartner("kisski")!;
 
 const GWDG_MODELS = [
   { id: "llama-3.3-70b-instruct", name: "LLaMA 3.3 70B", noteKey: "modelRecommended" },
@@ -363,7 +366,7 @@ export function AiSettingsPanel({ onBack }: Props) {
                 {t('admin.aiSettings.kisskiDescription')}
               </p>
               <a
-                href="https://kisski.gwdg.de/en/ueber-uns/kontakt/"
+                href={KISSKI_PARTNER.contactUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"

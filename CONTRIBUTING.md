@@ -272,11 +272,37 @@ describe('Feature/Component Name', () => {
 
 ## Pull Requests
 
+### Branch-Strategie
+
+Polly nutzt einen klassischen Release-Branch-Workflow:
+
+| Branch | Zweck |
+|--------|-------|
+| `main` | Nur getaggte stabile Releases. Keine direkten Commits. |
+| `release` | Integrationsbranch für die nächste Version. **PRs immer hierhin.** |
+| `feature/<name>` | Dein Feature-Branch, abgezweigt von `release`. |
+
+**Workflow:**
+
+```bash
+# Aktuellen release-Stand holen
+git fetch origin release
+git checkout -b feature/mein-feature origin/release
+
+# … arbeiten, committen …
+
+git push origin feature/mein-feature
+# PR auf GitHub gegen Branch `release` öffnen
+```
+
+Maintainer kümmern sich um den Merge `release → main` und das Tagging am Release-Tag.
+
 ### Vor dem Einreichen
 
 1. **Tests ausführen**: `npx vitest run`
 2. **Type-Check**: `npx tsc --noEmit`
 3. **Lokale Funktionsprüfung**: Testen Sie die Änderung manuell
+4. **Doku aktualisieren**: `README.md`, `CHANGELOG.md` (`[Unreleased]`-Abschnitt) und `.env.example` bei neuen Konfigurationsvariablen
 
 ### PR-Beschreibung
 

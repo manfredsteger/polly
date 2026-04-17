@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-*(no pending changes)*
+### Added
+- **Branding**: Favicon upload directly in the admin panel and `FAVICON_URL` ENV-Var support
+- **Footer**: New rich default footer with MIT-License link, GitHub repository icon and "Made in Bayern" tagline
+- **Footer**: `POLLY_COPYRIGHT_TEXT` ENV-Var locks the copyright line and disables the form field in the admin panel
+- **Footer**: Copyright year is rendered dynamically from the current date
+- **Admin AI Settings**: KISSKI service-partner block with logo, GDPR notice (DE/EN) and contact link
+- **Service Partners**: Centralised in `shared/servicePartners.ts` so README and admin panel stay in sync
+
+### Fixed
+- **Auth (Docker)**: Session cookie was marked `Secure` whenever `NODE_ENV=production`, which silently broke login on plain-HTTP Docker deployments (`http://localhost:3080`). Browsers dropped the cookie and bounced users back to the login page with no error. Cookies are now only marked `Secure` when the app is actually served over HTTPS (`FORCE_HTTPS=true`, `https://` `APP_URL`, or Replit hosting). Covered by `server/tests/unit/sessionConfig.test.ts`.
+- **Docker**: KISSKI logo moved from `attached_assets/` (excluded from Docker context) to `client/src/assets/` so the production image builds successfully
+
+### Documentation
+- README roadmap section synchronised with `ROADMAP.md` (Beta runs Q1 2025 – Q2 2026, AI/Voice Control + OpenAI-compatible API marked as done)
+- Project structure section updated to reflect the modular `server/routes/` layout
+- New `Branding (ENV)` section in README and `.env.example` covering `SITE_NAME`, `SITE_NAME_ACCENT`, `FAVICON_URL`, `LOGO_URL`, `PRIMARY_COLOR`, `POLLY_COPYRIGHT_TEXT`
+- Contributing guide clarifies the branch strategy: PRs target `release`, never `main` directly
+
+### Tests
+- `packageMeta.test.ts` — guards `name` and `version` in `package.json`
+- `changelogSync.test.ts` — fails when `[Unreleased]` is empty without a matching version block
+- `depsHygiene.test.ts` — flags accidental re-introduction of unused dependencies (passport)
+- `envDocsSync.test.ts` — every `process.env.X` read in server code must be documented
+- `loginCookieFlow.test.ts` — full login + `/me` round-trip on plain HTTP (Docker scenario)
+- `sessionConfig.test.ts` — secure-cookie decision for HTTPS / HTTP / Replit / Docker
+- `openapiSync.test.ts` — flags routes missing from `docs/openapi.yaml`
 
 ---
 

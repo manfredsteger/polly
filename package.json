@@ -1,6 +1,6 @@
 {
-  "name": "rest-express",
-  "version": "1.0.0",
+  "name": "polly",
+  "version": "0.1.0-beta.3",
   "type": "module",
   "license": "MIT",
   "scripts": {

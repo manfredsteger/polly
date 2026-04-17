@@ -1,11 +1,12 @@
 # Polly 🗳️
 
 [![Build Status](https://github.com/manfredsteger/polly/actions/workflows/ci.yml/badge.svg)](https://github.com/manfredsteger/polly/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0--beta.3-blueviolet.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/)
 [![Changelog](https://img.shields.io/badge/Changelog-Keep%20a%20Changelog-E05735.svg)](CHANGELOG.md)
-[![Roadmap](https://img.shields.io/badge/Roadmap-2025-00B4D8.svg)](ROADMAP.md)
+[![Roadmap](https://img.shields.io/badge/Roadmap-2025--2026-00B4D8.svg)](ROADMAP.md)
 
 **Open-source alternative to Doodle, Calendly, and LettuceMeet**
 
@@ -272,6 +273,19 @@ npm run dev
 | `CLAMAV_PORT` | ClamAV daemon port | `3310` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token | — |
 
+### Branding — Optional
+
+These values can also be edited from the Admin Panel after first start. When set via ENV, the corresponding form field becomes read-only (lock icon).
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SITE_NAME` | Site name shown in the navbar/title | `Poll` |
+| `SITE_NAME_ACCENT` | Accented part of the site name (highlighted letter) | `y` |
+| `FAVICON_URL` | Public URL of the favicon (PNG/ICO/SVG) | `https://example.com/favicon.png` |
+| `LOGO_URL` | Public URL of the site logo | `https://example.com/logo.png` |
+| `PRIMARY_COLOR` | Primary brand colour (hex) | `#F97316` |
+| `POLLY_COPYRIGHT_TEXT` | Footer copyright text. Limited HTML supported (links, basic markup). When set, the admin field is locked. | `© 2026 My Org` |
+
 ### Docker / Initial Admin — Optional
 
 | Variable | Description | Default |
@@ -280,6 +294,7 @@ npm run dev
 | `ADMIN_EMAIL` | Initial admin email | `admin@polly.local` |
 | `ADMIN_PASSWORD` | Initial admin password | `Admin123!` |
 | `SEED_DEMO_DATA` | Seed demo polls on first start | `false` |
+| `DOCKER_ENV` | Marker that the app runs inside the bundled Docker image (auto-set by `docker-compose.yml`) | `true` (in Docker) |
 | `POSTGRES_USER` | Bundled PostgreSQL user (docker-compose only) | `polly` |
 | `POSTGRES_PASSWORD` | Bundled PostgreSQL password (docker-compose only) | `polly_secret` |
 | `POSTGRES_DB` | Bundled PostgreSQL database (docker-compose only) | `polly` |
@@ -306,26 +321,45 @@ npm run dev
 | **State** | TanStack Query v5 |
 | **Backend** | Express.js, TypeScript |
 | **Database** | PostgreSQL, Drizzle ORM |
-| **Auth** | Passport.js, express-session |
-| **AI** | GWDG SAIA (OpenAI-compatible), Whisper |
+| **Auth** | bcrypt + express-session (local), `openid-client` (Keycloak OIDC) |
+| **AI** | GWDG KISSKI / SAIA (OpenAI-compatible), Whisper for speech-to-text |
 
 ## 📁 Project Structure
 
 ```
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/    # Reusable UI components
-│   │   ├── pages/         # Route components
-│   │   ├── hooks/         # Custom React hooks
-│   │   └── lib/           # Utilities
-├── server/                 # Express backend
-│   ├── routes.ts          # API endpoints
-│   ├── storage.ts         # Database operations
-│   └── auth.ts            # Authentication
-├── shared/                 # Shared types
-│   └── schema.ts          # Drizzle schemas
-├── Dockerfile             # Production container
-└── docker-compose.yml     # Local development
+├── client/                       # React frontend (Vite)
+│   └── src/
+│       ├── components/          # Reusable UI + admin panels
+│       ├── pages/               # Route components (wouter)
+│       ├── hooks/               # Custom React hooks
+│       ├── contexts/            # Auth, theme, language providers
+│       ├── lib/                 # queryClient, helpers
+│       ├── locales/             # i18n JSON (de, en)
+│       └── assets/              # Bundled images & logos
+├── server/                       # Express backend
+│   ├── index.ts                 # App bootstrap, session, security headers
+│   ├── routes/                  # Modular route files
+│   │   ├── index.ts             # Mount all routers under /api/v1
+│   │   ├── auth.ts              # Local login, register, password reset
+│   │   ├── polls.ts             # Poll CRUD & voting
+│   │   ├── votes.ts             # Vote management
+│   │   ├── users.ts             # User self-service endpoints
+│   │   ├── admin.ts             # Admin panel API (settings, users, polls)
+│   │   ├── ai.ts                # AI chat / transcription proxy
+│   │   ├── export.ts            # CSV / PDF / ICS export
+│   │   ├── system.ts            # Public branding / health
+│   │   └── common.ts            # Shared middleware
+│   ├── services/                # authService, emailService, AI, rate limiter
+│   ├── scripts/                 # ensureSchema, applyBranding bootstrap
+│   ├── seed-admin.ts            # Initial admin seeder
+│   ├── storage.ts               # Drizzle data-access layer
+│   └── tests/                   # Vitest unit / integration / api / e2e
+├── shared/                       # Code shared by client + server
+│   ├── schema.ts                # Drizzle schema + Zod insert schemas
+│   └── servicePartners.ts       # Single source of truth for GWDG/KISSKI
+├── docs/                         # API spec, architecture, self-hosting guide
+├── Dockerfile                    # Production container (multi-stage)
+└── docker-compose.yml            # Zero-config production setup
 ```
 
 ## 🛠️ Development Commands
@@ -463,15 +497,18 @@ Connect to `/ws` for live vote updates during presentations. Events: `vote_updat
 
 ## 🗺️ Roadmap
 
-Polly is currently in **Beta Phase** (Q1-Q2 2025). Our focus areas:
+Polly is currently in **Beta Phase** (Q1 2025 – Q2 2026). Our focus areas:
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 🔐 | **Keycloak SSO (OIDC)** - Enterprise single sign-on integration | In Progress |
-| 🤖 | **AI Voice Control** - Create polls via speech with GWDG KISSKI Free Tier | ✅ Done |
-| 🔌 | **OpenAI-Compatible API** - Support for custom AI providers | Planned |
-| 💬 | **Matrix / Element Chatbot** - Create and manage polls directly from Matrix chat | Version 1.0 |
-| 🇪🇺 | **European DC Focus** - Simplified deployment for EU data centers | Version 1.0 |
+| 🤖 | **AI Voice & Agentic Poll Creation** – GWDG KISSKI Free Tier, Whisper STT | ✅ Released (beta.2) |
+| 🗓️ | **Schedule Poll Enhancements** – video conf URL, ICS labels, finalize UX | ✅ Released (beta.2) |
+| ✉️ | **Notifications** – End-Poll mails for all poll types, voter cancellation | ✅ Released (beta.2) |
+| 🐳 | **Docker Zero-Config** – fixed plain-HTTP cookie regression | ✅ Released (beta.3) |
+| 🔐 | **Keycloak SSO (OIDC)** – Enterprise single sign-on, full E2E coverage | In Progress |
+| 🔌 | **OpenAI-Compatible Provider Slots** – swap in custom inference endpoints | Planned (1.0) |
+| 💬 | **Matrix / Element Chatbot** – manage polls from Matrix chat | Planned (1.0) |
+| 🇪🇺 | **European DC Focus** – simplified deployment for EU data centers | Planned (1.0) |
 
 👉 **[View Full Roadmap →](ROADMAP.md)**
 
@@ -515,21 +552,29 @@ KISSKI is a BMBF-funded AI service center operated by the GWDG, providing free A
 
 ## 👥 Contributing
 
-We welcome contributions! Please follow these steps:
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+**Branch strategy:**
+
+- `main` – tagged stable releases only
+- `release` – integration branch for the next release; **PRs should target `release`**
+- `feature/<name>` – your topic branch, branched off `release`
+
+Quick steps:
+
+1. Fork the repository and clone your fork
+2. Create a feature branch off `release`: `git checkout -b feature/amazing-feature release`
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+4. Push to your fork (`git push origin feature/amazing-feature`)
+5. Open a Pull Request **against `release`**
 
 ### Development Guidelines
 
 - Follow existing code style and conventions
 - Write TypeScript with proper types
 - Use Tailwind CSS for styling
-- Test changes before submitting PR
-- Update documentation as needed
+- Add or extend tests for every behaviour change (see [CONTRIBUTING.md](CONTRIBUTING.md#tests-schreiben))
+- Update documentation (`README.md`, `CHANGELOG.md`, `.env.example`) as needed
 
 ## 📄 License
 
@@ -537,10 +582,13 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## 🙏 Acknowledgments
 
-- Built with [Shadcn/ui](https://ui.shadcn.com/)
+- Built with [Shadcn/ui](https://ui.shadcn.com/) and [Radix UI](https://www.radix-ui.com/)
 - Icons by [Lucide](https://lucide.dev/)
-- Hosted on [Replit](https://replit.com/)
+- AI services provided by [GWDG KISSKI](https://kisski.gwdg.de/) (free tier for self-hosters)
+- Hosting infrastructure for the reference deployment by [GWDG](https://gwdg.de/)
+- Self-hostable on any Docker-capable host – see [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md)
+- Originally prototyped on [Replit](https://replit.com/)
 
 ---
 
-Made with ❤️ for teams everywhere
+Made with ❤️ for teams everywhere – self-hosted, GDPR-friendly, open source.

@@ -249,7 +249,7 @@ export default function Layout({ children }: LayoutProps) {
               <p>{footerCopyright}</p>
             ) : (
               <p>
-                Polly © 2025 ·{' '}
+                Polly © {new Date().getFullYear()} ·{' '}
                 <a
                   href="https://opensource.org/licenses/MIT"
                   target="_blank"

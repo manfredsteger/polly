@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity, Key, Globe, Trash2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AiSettings } from "@shared/schema";
-import kisskiLogo from "@assets/image_1776403063235.png";
+import kisskiLogo from "@/assets/kisski-logo.png";
 
 const GWDG_MODELS = [
   { id: "llama-3.3-70b-instruct", name: "LLaMA 3.3 70B", noteKey: "modelRecommended" },

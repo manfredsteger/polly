@@ -408,6 +408,21 @@ npm run dev  # or docker compose restart
 
 Set `POLLY_WCAG_OVERRIDE=true` to disable default theme enforcement without creating a local config file.
 
+### Progressive Web App (PWA)
+
+Polly is installable as a PWA on Chrome, Edge, and Safari/iOS. The web manifest is served dynamically from `/site.webmanifest` and reflects your admin-configured branding:
+
+| Manifest field | Source |
+|----------------|--------|
+| `name` / `short_name` | `branding.siteName` + `branding.siteNameAccent` |
+| `theme_color` | `theme.primaryColor` |
+| `background_color` (splash) | `#FFFFFF` (or `#0f172a` when `defaultThemeMode=dark`) |
+| Icons (`any` and `maskable`) | bundled `android-chrome-*.png` files |
+
+A vanilla service worker (`/sw.js`) registers in production builds only, caches the app shell, and falls back to `/offline.html` for navigation requests when the network is unreachable. No build configuration required — both the manifest and service worker work out of the box for self-hosters.
+
+If you ship custom icons, replace `client/public/android-chrome-*.png` (and the `-maskable-*.png` variants — these need a safe-zone padding so Android's adaptive-icon mask doesn't crop your logo).
+
 ### Advanced Settings
 
 | Variable | Description | Default |

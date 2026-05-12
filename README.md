@@ -382,6 +382,10 @@ Access the admin panel at `/admin` to customize:
 - **Registration**: Enable/disable user registration
 - **Email Settings**: Configure SMTP for notifications
 
+### Install as a PWA
+
+Polly ships as an installable Progressive Web App. Chrome, Edge, and Safari/iOS users can add it to their homescreen for a native-feeling launcher and offline fallback page. The web manifest at `/site.webmanifest` is rendered dynamically from your admin settings, so the homescreen icon name, splash-screen background, and accent color reflect the **siteName**, **default theme mode**, and **primary color** you configure in the admin panel — no rebuild needed. A service worker caches the app shell and shows a friendly offline page when the network is unreachable.
+
 ### Feature Colors
 
 | Feature | Default Color | Description |

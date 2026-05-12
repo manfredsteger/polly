@@ -41,7 +41,10 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin !== self.location.origin) return;
 
-  // Never cache API, websocket, manifest, or auth-related paths.
+  // Never cache API, websocket, or user uploads. The web manifest is
+  // intentionally skipped too: it's branding-driven and re-rendered server-side
+  // on every admin change, so we let the HTTP `Cache-Control: max-age=300`
+  // header own its freshness rather than holding it in the SW cache.
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/ws') ||
@@ -51,10 +54,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: network-first with offline fallback.
+  // Navigation requests: network-first with cached app-shell fallback, then
+  // the static offline page as a last resort. This lets the installed PWA
+  // boot from the last-good HTML shell when the network is unreachable
+  // (e.g. on a flaky train connection) instead of going straight to the
+  // offline placeholder.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match(OFFLINE_URL))
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => cache.put('/', copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const shell = await caches.match('/');
+          return shell || caches.match(OFFLINE_URL);
+        })
     );
     return;
   }

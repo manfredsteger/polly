@@ -26,9 +26,7 @@
     }
   } catch (e) {}
 
-  // PWA branding preload — sync iOS/standalone meta tags from cached settings
-  // BEFORE React mounts, so the installed homescreen launcher and iOS status
-  // bar reflect the self-hoster's brand on first paint instead of "Polly".
+  // PWA meta preload — sync iOS/standalone tags from cached settings before React mounts.
   try {
     var pwa = localStorage.getItem('polly-pwa-meta');
     if (pwa) {

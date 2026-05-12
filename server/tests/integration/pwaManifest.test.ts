@@ -5,6 +5,13 @@ import { storage } from '../../storage';
 import type { Express } from 'express';
 import type { CustomizationSettings } from '@shared/schema';
 
+interface ManifestIcon {
+  src: string;
+  sizes: string;
+  type: string;
+  purpose: 'any' | 'maskable' | 'monochrome';
+}
+
 export const testMeta = {
   category: 'integration' as const,
   name: 'PWA Manifest endpoint',
@@ -55,9 +62,10 @@ describe('PWA - /site.webmanifest', () => {
 
     // Icons: at least one 192x192 and one 512x512, plus a maskable variant
     expect(Array.isArray(manifest.icons)).toBe(true);
-    const has192 = manifest.icons.some((i: any) => i.sizes === '192x192' && i.purpose === 'any');
-    const has512 = manifest.icons.some((i: any) => i.sizes === '512x512' && i.purpose === 'any');
-    const hasMaskable = manifest.icons.some((i: any) => i.purpose === 'maskable');
+    const icons = manifest.icons as ManifestIcon[];
+    const has192 = icons.some((i) => i.sizes === '192x192' && i.purpose === 'any');
+    const has512 = icons.some((i) => i.sizes === '512x512' && i.purpose === 'any');
+    const hasMaskable = icons.some((i) => i.purpose === 'maskable');
     expect(has192).toBe(true);
     expect(has512).toBe(true);
     expect(hasMaskable).toBe(true);

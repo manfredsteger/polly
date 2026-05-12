@@ -209,10 +209,7 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
     links.forEach((link) => { link.href = faviconUrl; });
   }, [settings?.branding?.faviconUrl]);
 
-  // Sync PWA / iOS-standalone meta tags with admin branding so installed
-  // homescreen launchers (apple-mobile-web-app-title, application-name) and
-  // the OS theme color (Android URL bar / iOS status bar) reflect the
-  // self-hoster's brand instead of the hardcoded "Polly" defaults.
+  // Sync PWA / iOS meta tags with admin branding.
   useEffect(() => {
     if (!settings) return;
     const siteName = `${settings.branding?.siteName ?? ''}${settings.branding?.siteNameAccent ?? ''}` || 'Polly';

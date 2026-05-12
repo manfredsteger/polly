@@ -25,20 +25,14 @@ export function registerRoutes(app: Express): Server {
     next();
   }, express.static(path.join(process.cwd(), 'uploads')));
 
-  // Service worker must never be cached by the browser or upstream proxies —
-  // otherwise users can stay pinned to an old SW for days. We set the header
-  // and let Vite (dev) / serveStatic (prod) serve the file body itself.
+  // Service worker: never cache, set scope header.
   app.use('/sw.js', (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Service-Worker-Allowed', '/');
     next();
   });
 
-  // Dynamic PWA manifest — reflects current branding (siteName, primary color,
-  // theme mode) so self-hosters see their own brand on the homescreen / splash
-  // screen after installing the app. Must be registered before the Vite
-  // middleware so the static `client/public/site.webmanifest` is replaced
-  // entirely.
+  // Dynamic PWA manifest — reflects current admin branding.
   app.get('/site.webmanifest', async (_req, res) => {
     try {
       const settings = await storage.getCustomizationSettings();

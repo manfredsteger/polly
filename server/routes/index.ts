@@ -46,6 +46,7 @@ export function registerRoutes(app: Express): Server {
       const primary = settings.theme.primaryColor || '#F97316';
       const themeMode = settings.theme.defaultThemeMode || 'system';
       const backgroundColor = themeMode === 'dark' ? '#0f172a' : '#FFFFFF';
+      const lang = settings.language?.defaultLanguage || 'de';
 
       const manifest = {
         id: '/',
@@ -59,7 +60,7 @@ export function registerRoutes(app: Express): Server {
         orientation: 'any',
         theme_color: primary,
         background_color: backgroundColor,
-        lang: 'de',
+        lang,
         dir: 'ltr',
         categories: ['productivity', 'business', 'utilities'],
         icons: [

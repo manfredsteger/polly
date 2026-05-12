@@ -50,6 +50,7 @@ describe('PWA - /site.webmanifest', () => {
     expect(manifest.id).toBeDefined();
     expect(Array.isArray(manifest.display_override)).toBe(true);
     expect(typeof manifest.lang).toBe('string');
+    expect(['de', 'en']).toContain(manifest.lang);
     expect(Array.isArray(manifest.categories)).toBe(true);
 
     // Icons: at least one 192x192 and one 512x512, plus a maskable variant
@@ -92,5 +93,27 @@ describe('PWA - /site.webmanifest', () => {
     if (current.theme.defaultThemeMode === 'dark') {
       expect(manifest.background_color.toLowerCase()).toMatch(/#0f172a|#000/);
     }
+  });
+
+  it('manifest lang reflects configured defaultLanguage', async () => {
+    const baseline = await storage.getCustomizationSettings();
+
+    await storage.setCustomizationSettings({
+      ...baseline,
+      language: { ...(baseline.language ?? { defaultLanguage: 'de' }), defaultLanguage: 'en' },
+    });
+    const enRes = await request(app).get('/site.webmanifest');
+    expect(enRes.status).toBe(200);
+    const enCurrent = await storage.getCustomizationSettings();
+    expect(enRes.body.lang).toBe(enCurrent.language?.defaultLanguage || 'en');
+
+    await storage.setCustomizationSettings({
+      ...baseline,
+      language: { ...(baseline.language ?? { defaultLanguage: 'de' }), defaultLanguage: 'de' },
+    });
+    const deRes = await request(app).get('/site.webmanifest');
+    expect(deRes.status).toBe(200);
+    const deCurrent = await storage.getCustomizationSettings();
+    expect(deRes.body.lang).toBe(deCurrent.language?.defaultLanguage || 'de');
   });
 });

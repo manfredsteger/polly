@@ -454,10 +454,17 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 ### Docker Hub
 
-Pull the official image:
+The official image is published as `manfredsteger/polly` on Docker Hub:
+
 ```bash
-docker pull yourusername/polly:latest
+# Latest beta tag
+docker pull manfredsteger/polly:beta
+
+# Specific version (recommended for production)
+docker pull manfredsteger/polly:0.1.0-beta.3
 ```
+
+See [`docs/SELF-HOSTING.md`](docs/SELF-HOSTING.md) for production deployment instructions.
 
 ## 📖 API Documentation
 

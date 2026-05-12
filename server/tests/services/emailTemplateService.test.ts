@@ -1096,53 +1096,63 @@ describe('EmailTemplateService', () => {
     it('should show siteName as subtle muted text when logo is set', async () => {
       const service = new EmailTemplateService();
 
-      await storage.setCustomizationSettings({
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Poll',
           siteNameAccent: 'y',
           logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain('hdr-site');
-      expect(result.html).toContain('color: #6b7280');
+        expect(result.html).toContain('hdr-site');
+        expect(result.html).toContain('color: #6b7280');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should include logo as base64 data URI when logoUrl is set', async () => {
       const service = new EmailTemplateService();
       const testDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-      
-      await storage.setCustomizationSettings({
+
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Polly',
           siteNameAccent: 'Vote',
           logoUrl: testDataUri,
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain(testDataUri);
-      expect(result.html).toContain('PollyVote');
+        expect(result.html).toContain(testDataUri);
+        expect(result.html).toContain('PollyVote');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should embed logo from /uploads/ relative path as base64', async () => {
       const service = new EmailTemplateService();
       const fs = await import('fs/promises');
       const path = await import('path');
-      
+
       const uploadsDir = path.join(process.cwd(), 'uploads');
       try { await fs.mkdir(uploadsDir, { recursive: true }); } catch {}
       const testLogoPath = path.join(uploadsDir, 'test-logo-email.png');
@@ -1152,15 +1162,16 @@ describe('EmailTemplateService', () => {
       ]);
       await fs.writeFile(testLogoPath, pngHeader);
 
-      try {
-        await storage.setCustomizationSettings({
-          branding: {
-            siteName: 'Polly',
-            siteNameAccent: 'Vote',
-            logoUrl: '/uploads/test-logo-email.png',
-          }
-        });
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: '/uploads/test-logo-email.png',
+        },
+      } as any);
 
+      try {
         const result = await service.renderEmail('poll_created', {
           pollType: 'Umfrage',
           pollTitle: 'Test',
@@ -1171,31 +1182,37 @@ describe('EmailTemplateService', () => {
         expect(result.html).toContain('data:image/png;base64,');
         expect(result.html).toContain('<img');
       } finally {
+        stub.mockRestore();
         await fs.unlink(testLogoPath).catch(() => {});
       }
     });
 
     it('should fall back to text header when logo URL is unreachable', async () => {
       const service = new EmailTemplateService();
-      
-      await storage.setCustomizationSettings({
+
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Polly',
           siteNameAccent: 'Vote',
           logoUrl: 'https://nonexistent.invalid/logo.png',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).not.toContain('<img');
-      expect(result.html).toContain('font-size: 18px');
-      expect(result.html).toContain('Polly');
+        expect(result.html).not.toContain('<img');
+        expect(result.html).toContain('font-size: 18px');
+        expect(result.html).toContain('Polly');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should have dark mode class for header text', async () => {
@@ -1214,48 +1231,58 @@ describe('EmailTemplateService', () => {
     it('should render only logo without text span when siteName is empty', async () => {
       const service = new EmailTemplateService();
 
-      await storage.setCustomizationSettings({
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: '',
           siteNameAccent: '',
           logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain('<img');
-      expect(result.html).toContain('alt="Logo"');
-      expect(result.html).not.toContain('class="hdr-site"');
-      expect(result.html).not.toContain('class="hdr-accent"');
+        expect(result.html).toContain('<img');
+        expect(result.html).toContain('alt="Logo"');
+        expect(result.html).not.toContain('class="hdr-site"');
+        expect(result.html).not.toContain('class="hdr-accent"');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should not render empty accent span when siteNameAccent is empty', async () => {
       const service = new EmailTemplateService();
 
-      await storage.setCustomizationSettings({
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Polly',
           siteNameAccent: '',
           logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain('alt="Polly"');
-      expect(result.html).toContain('class="hdr-site"');
-      expect(result.html).not.toContain('class="hdr-accent"');
+        expect(result.html).toContain('alt="Polly"');
+        expect(result.html).toContain('class="hdr-site"');
+        expect(result.html).not.toContain('class="hdr-accent"');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should preserve branding after full test cycle', async () => {

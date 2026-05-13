@@ -1286,22 +1286,38 @@ describe('EmailTemplateService', () => {
     });
 
     it('should preserve branding after full test cycle', async () => {
-      const before = await storage.getCustomizationSettings();
-
       const service = new EmailTemplateService();
-      await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
 
-      const after = await storage.getCustomizationSettings();
-      expect(after.branding.logoUrl).toBe(before.branding.logoUrl);
-      expect(after.branding.siteName).toBe(before.branding.siteName);
-      expect(after.branding.siteNameAccent).toBe(before.branding.siteNameAccent);
-      expect(after.theme.primaryColor).toBe(before.theme.primaryColor);
-      expect(after.theme.secondaryColor).toBe(before.theme.secondaryColor);
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {},
+        footer: {},
+        wcag: {},
+        language: {},
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        },
+      } as any);
+
+      try {
+        const before = await storage.getCustomizationSettings();
+        await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
+
+        const after = await storage.getCustomizationSettings();
+        expect(after.branding.logoUrl).toBe(before.branding.logoUrl);
+        expect(after.branding.siteName).toBe(before.branding.siteName);
+        expect(after.branding.siteNameAccent).toBe(before.branding.siteNameAccent);
+        expect(after.theme.primaryColor).toBe(before.theme.primaryColor);
+        expect(after.theme.secondaryColor).toBe(before.theme.secondaryColor);
+      } finally {
+        stub.mockRestore();
+      }
     });
   });
 

@@ -243,7 +243,12 @@ export function UsersPanel({
       <UserDetailView 
         user={selectedUser}
         polls={userPolls}
-        onBack={onBackToUsers}
+        onBack={() => {
+          setEditingUser(null);
+          setPasswordUser(null);
+          setPasswordForm({ password: '', confirmPassword: '' });
+          onBackToUsers();
+        }}
         onPollClick={onPollClick}
         onUpdateRole={(userId, role) => updateUserMutation.mutate({ userId, updates: { role } })}
         onUpdateUser={(userId, updates) => updateUserMutation.mutate({ userId, updates })}
@@ -331,7 +336,7 @@ export function UsersPanel({
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>{t('admin.users.actions')}</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpenMenuUserId(null); onUserClick(user); }}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpenMenuUserId(null); setEditingUser(null); setPasswordUser(null); onUserClick(user); }}>
                               <Eye className="w-4 h-4 mr-2" />
                               {t('admin.users.viewDetails')}
                             </DropdownMenuItem>

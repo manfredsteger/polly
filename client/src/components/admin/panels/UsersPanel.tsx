@@ -140,6 +140,7 @@ export function UsersPanel({
         user={selectedUser}
         polls={userPolls}
         onBack={onBackToUsers}
+        onPollClick={onPollClick}
         isDeprovisionEnabled={isDeprovisionEnabled}
       />
     );
@@ -334,11 +335,13 @@ function UserDetailView({
   user,
   polls,
   onBack,
+  onPollClick,
   isDeprovisionEnabled,
 }: {
   user: User;
   polls: PollWithOptions[];
   onBack: () => void;
+  onPollClick: (poll: PollWithOptions) => void;
   isDeprovisionEnabled: boolean;
 }) {
   const { t } = useTranslation();
@@ -486,6 +489,7 @@ function UserDetailView({
                 id="detail-name"
                 value={editForm.name}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                disabled={!isLocal}
                 data-testid="input-edit-user-name"
               />
             </div>
@@ -495,6 +499,7 @@ function UserDetailView({
                 id="detail-username"
                 value={editForm.username}
                 onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                disabled={!isLocal}
                 data-testid="input-edit-user-username"
               />
             </div>
@@ -505,6 +510,7 @@ function UserDetailView({
                 type="email"
                 value={editForm.email}
                 onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                disabled={!isLocal}
                 data-testid="input-edit-user-email"
               />
             </div>
@@ -542,7 +548,7 @@ function UserDetailView({
               <Button
                 className="w-full"
                 onClick={() => updateProfileMutation.mutate(editForm)}
-                disabled={updateProfileMutation.isPending}
+                disabled={updateProfileMutation.isPending || !isLocal}
                 data-testid="button-save-user-profile"
               >
                 {updateProfileMutation.isPending ? (
@@ -769,7 +775,7 @@ function UserDetailView({
                 <div
                   key={poll.id}
                   className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80"
-                  onClick={() => window.open(`/results/${poll.id}`, '_blank')}
+                  onClick={() => onPollClick(poll)}
                 >
                   <div>
                     <p className="font-medium">{poll.title}</p>

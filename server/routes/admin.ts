@@ -211,9 +211,13 @@ router.post('/users/:id/send-password-reset', requireAdmin, async (req, res) => 
     const baseUrl = getBaseUrl();
     const resetLink = `${baseUrl}/passwort-zuruecksetzen/${resetToken.token}`;
 
-    emailService.sendPasswordResetEmail(user.email, resetLink, user.name || undefined)
-      .then(() => console.log(`[Admin Password Reset] Email sent to ${user.email}`))
-      .catch((emailError) => console.error(`[Admin Password Reset] Failed to send email to ${user.email}:`, emailError));
+    try {
+      await emailService.sendPasswordResetEmail(user.email, resetLink, user.name || undefined);
+      console.log(`[Admin Password Reset] Email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error(`[Admin Password Reset] Failed to send email to ${user.email}:`, emailError);
+      return res.status(502).json({ error: 'Passwort-Reset-E-Mail konnte nicht gesendet werden' });
+    }
 
     res.json({ success: true, message: 'Passwort-Reset-E-Mail wurde gesendet' });
   } catch (error) {

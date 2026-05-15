@@ -111,6 +111,15 @@ export function UsersPanel({
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [passwordForm, setPasswordForm] = useState({ password: '', confirmPassword: '' });
 
+  const passwordPolicy = (pw: string) => ({
+    minLength: pw.length >= 8,
+    upper: /[A-Z]/.test(pw),
+    lower: /[a-z]/.test(pw),
+    digit: /[0-9]/.test(pw),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pw),
+  });
+  const passwordPolicyValid = (pw: string) => Object.values(passwordPolicy(pw)).every(Boolean);
+
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUserForm) => {
       const response = await apiRequest("POST", `/api/v1/admin/users`, userData);
@@ -538,6 +547,27 @@ export function UsersPanel({
                 <p className="text-xs text-destructive mt-1">{t('admin.users.passwordMismatch')}</p>
               )}
             </div>
+            {passwordForm.password.length > 0 && (
+              <ul className="text-xs space-y-1 mt-2" data-testid="password-policy-list">
+                {(() => {
+                  const p = passwordPolicy(passwordForm.password);
+                  const item = (ok: boolean, key: string) => (
+                    <li key={key} className={ok ? 'text-green-600' : 'text-muted-foreground'}>
+                      {ok ? '✓' : '○'} {t(`auth.passwordRequirements.${key}`)}
+                    </li>
+                  );
+                  return (
+                    <>
+                      {item(p.minLength, 'minLength')}
+                      {item(p.upper, 'uppercase')}
+                      {item(p.lower, 'lowercase')}
+                      {item(p.digit, 'number')}
+                      {item(p.special, 'special')}
+                    </>
+                  );
+                })()}
+              </ul>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPasswordUser(null)}>
@@ -546,6 +576,14 @@ export function UsersPanel({
             <Button
               onClick={() => {
                 if (!passwordUser) return;
+                if (!passwordPolicyValid(passwordForm.password)) {
+                  toast({
+                    title: t('admin.users.passwordSetError'),
+                    description: t('auth.errors.passwordRequirements'),
+                    variant: 'destructive',
+                  });
+                  return;
+                }
                 if (passwordForm.password !== passwordForm.confirmPassword) {
                   toast({
                     title: t('admin.users.passwordSetError'),
@@ -558,7 +596,7 @@ export function UsersPanel({
               }}
               disabled={
                 setPasswordMutation.isPending ||
-                passwordForm.password.length === 0 ||
+                !passwordPolicyValid(passwordForm.password) ||
                 passwordForm.password !== passwordForm.confirmPassword
               }
               data-testid="button-set-password-save"

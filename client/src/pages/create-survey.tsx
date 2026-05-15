@@ -274,7 +274,7 @@ export default function CreateSurvey() {
       };
       sessionStorage.setItem('poll-success-data', JSON.stringify(successData));
       
-      setLocation("/success");
+      setLocation(`/success/${data.adminToken}`);
     },
     onError: async (error: any) => {
       let errorMessage = t('createSurvey.createError');

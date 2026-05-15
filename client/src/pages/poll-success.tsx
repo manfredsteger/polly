@@ -1,29 +1,66 @@
 import { useEffect, useState } from 'react';
-import { useLocation, Link } from 'wouter';
+import { useRoute, Link } from 'wouter';
 import { useTranslation, Trans } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy, Mail, Calendar, Vote, ExternalLink, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function PollSuccess() {
   const { t } = useTranslation();
-  const [location] = useLocation();
+  const [, params] = useRoute('/success/:adminToken?');
+  const adminToken = params?.adminToken;
   const { toast } = useToast();
   const [pollData, setPollData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Scroll to top when page loads
     window.scrollTo(0, 0);
-    
-    // Get poll data from session storage (set during creation)
-    const storedData = sessionStorage.getItem('poll-success-data');
-    if (storedData) {
-      setPollData(JSON.parse(storedData));
-      // Clear it after using
-      sessionStorage.removeItem('poll-success-data');
-    }
-  }, []);
+    let cancelled = false;
+
+    const load = async () => {
+      const storedData = sessionStorage.getItem('poll-success-data');
+      if (storedData && adminToken) {
+        try {
+          const parsed = JSON.parse(storedData);
+          if (parsed?.poll?.adminToken === adminToken || parsed?.adminLink?.endsWith(`/${adminToken}`)) {
+            sessionStorage.removeItem('poll-success-data');
+            if (!cancelled) {
+              setPollData(parsed);
+              setLoading(false);
+            }
+            return;
+          }
+        } catch {}
+      }
+
+      if (!adminToken) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await apiRequest('GET', `/api/v1/polls/admin/${adminToken}`);
+        const poll = await response.json();
+        if (cancelled) return;
+        const pollType = poll.type === 'schedule' ? 'schedule' : poll.type === 'organization' ? 'organization' : 'survey';
+        setPollData({
+          poll,
+          publicLink: `/poll/${poll.publicToken}`,
+          adminLink: `/admin/${poll.adminToken}`,
+          pollType,
+        });
+      } catch (err) {
+        console.error('[PollSuccess] Failed to load poll by admin token:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [adminToken]);
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -40,6 +77,14 @@ export default function PollSuccess() {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+        <div className="text-muted-foreground">{t('common.loading')}</div>
+      </div>
+    );
+  }
 
   if (!pollData) {
     return (

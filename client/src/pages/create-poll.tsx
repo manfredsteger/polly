@@ -199,7 +199,7 @@ export default function CreatePoll() {
       };
       sessionStorage.setItem('poll-success-data', JSON.stringify(successData));
       
-      setLocation("/success");
+      setLocation(`/success/${data.adminToken}`);
     },
     onError: async (error: any) => {
       let errorMessage = t('createPoll.createError');

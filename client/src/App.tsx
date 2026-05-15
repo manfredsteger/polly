@@ -56,7 +56,7 @@ function Router() {
         <Route path="/create-organization" component={CreateOrganization} />
         <Route path="/poll/:token" component={Poll} />
         <Route path="/admin/:token" component={Poll} />
-        <Route path="/success" component={PollSuccess} />
+        <Route path="/success/:adminToken?" component={PollSuccess} />
         <Route path="/vote-success" component={VoteSuccess} />
         <Route path="/edit/:editToken" component={VoteEdit} />
         <Route path="/admin" component={Admin} />

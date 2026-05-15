@@ -78,6 +78,7 @@ interface UsersPanelProps {
   selectedUser: User | null;
   onUserClick: (user: User) => void;
   onBackToUsers: () => void;
+  onUserUpdated?: (user: User) => void;
   isDeprovisionEnabled: boolean;
 }
 
@@ -87,6 +88,7 @@ export function UsersPanel({
   selectedUser,
   onUserClick,
   onBackToUsers,
+  onUserUpdated,
   isDeprovisionEnabled,
 }: UsersPanelProps) {
   const { t } = useTranslation();
@@ -139,6 +141,7 @@ export function UsersPanel({
         user={selectedUser}
         polls={userPolls}
         onBack={onBackToUsers}
+        onUserUpdated={onUserUpdated}
         isDeprovisionEnabled={isDeprovisionEnabled}
       />
     );
@@ -374,15 +377,19 @@ function UserDetailView({
   user,
   polls,
   onBack,
+  onUserUpdated,
   isDeprovisionEnabled,
 }: {
   user: User;
   polls: PollWithOptions[];
   onBack: () => void;
+  onUserUpdated?: (user: User) => void;
   isDeprovisionEnabled: boolean;
 }) {
   const { t } = useTranslation();
   const { toast } = useToast();
+
+  const [localRole, setLocalRole] = useState(user.role);
 
   const [editForm, setEditForm] = useState({
     name: user.name || '',
@@ -428,7 +435,9 @@ function UserDetailView({
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedUser: User, role: string) => {
+      setLocalRole(role);
+      onUserUpdated?.(updatedUser);
       toast({ title: t('admin.toast.userUpdated'), description: t('admin.toast.userUpdatedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
     },
@@ -554,7 +563,7 @@ function UserDetailView({
 
             <div className="flex items-center justify-between pt-1">
               <Label>{t('admin.users.role')}</Label>
-              <RoleBadge role={user.role} />
+              <RoleBadge role={localRole} />
             </div>
             <div className="flex items-center justify-between">
               <Label>{t('admin.users.joined')}</Label>
@@ -634,7 +643,7 @@ function UserDetailView({
             <div>
               <Label>{t('admin.users.changeRole')}</Label>
               <Select
-                value={user.role}
+                value={localRole}
                 onValueChange={(value) => updateRoleMutation.mutate(value)}
                 disabled={updateRoleMutation.isPending}
               >

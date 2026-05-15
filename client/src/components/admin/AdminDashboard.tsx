@@ -286,6 +286,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               selectedUser={selectedUser}
               onUserClick={setSelectedUser}
               onBackToUsers={() => setSelectedUser(null)}
+              onUserUpdated={setSelectedUser}
               isDeprovisionEnabled={isDeprovisionEnabled}
             />
           )}

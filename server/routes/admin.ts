@@ -187,6 +187,74 @@ router.patch('/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: send password reset email to a local user
+router.post('/users/:id/send-password-reset', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    if (user.provider !== 'local') {
+      return res.status(400).json({ error: 'Passwort-Reset ist nur für lokale Konten möglich' });
+    }
+    if (!user.email) {
+      return res.status(400).json({ error: 'Benutzer hat keine E-Mail-Adresse hinterlegt' });
+    }
+
+    const resetToken = await storage.createPasswordResetToken(user.id);
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const resetLink = `${baseUrl}/passwort-zuruecksetzen/${resetToken.token}`;
+
+    emailService.sendPasswordResetEmail(user.email, resetLink, user.name || undefined)
+      .then(() => console.log(`[Admin Password Reset] Email sent to ${user.email}`))
+      .catch((emailError) => console.error(`[Admin Password Reset] Failed to send email to ${user.email}:`, emailError));
+
+    res.json({ success: true, message: 'Passwort-Reset-E-Mail wurde gesendet' });
+  } catch (error) {
+    console.error('Admin password reset send error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// Admin: directly set a local user's password
+router.post('/users/:id/set-password', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+
+    const { password } = req.body ?? {};
+    const { passwordSchema } = await import('./common');
+    const parsed = passwordSchema.safeParse(password);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0]?.message || 'Passwort erfüllt nicht die Anforderungen' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    if (user.provider !== 'local') {
+      return res.status(400).json({ error: 'Passwort kann nur für lokale Konten gesetzt werden' });
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data, 12);
+    await storage.updateUser(userId, { passwordHash });
+
+    res.json({ success: true, message: 'Passwort wurde aktualisiert' });
+  } catch (error) {
+    console.error('Admin set password error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
 router.delete('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);

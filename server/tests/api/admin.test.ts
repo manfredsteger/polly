@@ -1,6 +1,10 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import bcrypt from 'bcryptjs';
+import { nanoid } from 'nanoid';
 import { createTestApp } from '../testApp';
+import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
+import { storage } from '../../storage';
 import type { Express } from 'express';
 
 export const testMeta = {
@@ -103,5 +107,126 @@ describe('API - Admin Endpoints', () => {
       .post('/api/v1/admin/deletion-requests/1/reject');
     
     expect(response.status).toBe(401);
+  });
+});
+
+describe('API - Admin Password Management', () => {
+  let app: Express;
+  let agent: ReturnType<typeof request.agent>;
+  let localUserId: number;
+  let oidcUserId: number;
+  let originalPasswordHash: string;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+    agent = request.agent(app);
+    await agent
+      .post('/api/v1/auth/login')
+      .send({ usernameOrEmail: ADMIN_USERNAME, password: ADMIN_PASSWORD });
+
+    const suffix = nanoid(8);
+    originalPasswordHash = await bcrypt.hash('OriginalPass123!', 10);
+
+    const localUser = await storage.createUser({
+      email: `pwd-local-${suffix}@test.local`,
+      username: `pwd_local_${suffix}`,
+      name: 'Password Test Local',
+      passwordHash: originalPasswordHash,
+      role: 'user',
+      provider: 'local',
+      isTestData: true,
+    });
+    localUserId = localUser.id;
+
+    const oidcUser = await storage.createUser({
+      email: `pwd-oidc-${suffix}@test.local`,
+      username: `pwd_oidc_${suffix}`,
+      name: 'Password Test OIDC',
+      role: 'user',
+      provider: 'keycloak',
+      isTestData: true,
+    });
+    oidcUserId = oidcUser.id;
+  });
+
+  afterAll(async () => {
+    for (const id of [localUserId, oidcUserId]) {
+      try { await storage.deleteUser(id); } catch {}
+    }
+  });
+
+  describe('POST /admin/users/:id/send-password-reset', () => {
+    it('rejects unauthenticated requests', async () => {
+      const res = await request(app).post(`/api/v1/admin/users/${localUserId}/send-password-reset`);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 404 for unknown user', async () => {
+      const res = await agent.post('/api/v1/admin/users/9999999/send-password-reset');
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects non-local users', async () => {
+      const res = await agent.post(`/api/v1/admin/users/${oidcUserId}/send-password-reset`);
+      expect(res.status).toBe(400);
+    });
+
+    it('succeeds for valid local user with email', async () => {
+      const res = await agent.post(`/api/v1/admin/users/${localUserId}/send-password-reset`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+  });
+
+  describe('POST /admin/users/:id/set-password', () => {
+    it('rejects unauthenticated requests', async () => {
+      const res = await request(app)
+        .post(`/api/v1/admin/users/${localUserId}/set-password`)
+        .send({ password: 'NewSecurePass123!' });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 404 for unknown user', async () => {
+      const res = await agent
+        .post('/api/v1/admin/users/9999999/set-password')
+        .send({ password: 'NewSecurePass123!' });
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects weak password', async () => {
+      const res = await agent
+        .post(`/api/v1/admin/users/${localUserId}/set-password`)
+        .send({ password: 'short' });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects missing password', async () => {
+      const res = await agent
+        .post(`/api/v1/admin/users/${localUserId}/set-password`)
+        .send({});
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects non-local users', async () => {
+      const res = await agent
+        .post(`/api/v1/admin/users/${oidcUserId}/set-password`)
+        .send({ password: 'NewSecurePass123!' });
+      expect(res.status).toBe(400);
+    });
+
+    it('updates password for valid local user', async () => {
+      const newPassword = 'NewSecurePass456!';
+      const res = await agent
+        .post(`/api/v1/admin/users/${localUserId}/set-password`)
+        .send({ password: newPassword });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+
+      const updated = await storage.getUser(localUserId);
+      expect(updated?.passwordHash).toBeTruthy();
+      expect(updated?.passwordHash).not.toBe(originalPasswordHash);
+      const matches = await bcrypt.compare(newPassword, updated!.passwordHash!);
+      expect(matches).toBe(true);
+    });
   });
 });

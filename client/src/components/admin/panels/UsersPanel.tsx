@@ -61,7 +61,9 @@ import {
   Vote,
   CheckCircle,
   XCircle,
-  ShieldCheck
+  ShieldCheck,
+  KeyRound,
+  Mail
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { getDateLocale } from "@/lib/i18n";
@@ -105,6 +107,9 @@ export function UsersPanel({
     name: '',
     email: '',
   });
+  const [openMenuUserId, setOpenMenuUserId] = useState<number | null>(null);
+  const [passwordUser, setPasswordUser] = useState<User | null>(null);
+  const [passwordForm, setPasswordForm] = useState({ password: '', confirmPassword: '' });
 
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUserForm) => {
@@ -138,6 +143,48 @@ export function UsersPanel({
     },
     onError: () => {
       toast({ title: t('admin.toast.error'), description: t('admin.toast.userUpdateError'), variant: "destructive" });
+    },
+  });
+
+  const sendPasswordResetMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest("POST", `/api/v1/admin/users/${userId}/send-password-reset`, {});
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || t('admin.users.passwordResetError'));
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('admin.users.passwordResetSent'),
+        description: t('admin.users.passwordResetSentDescription'),
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('admin.users.passwordResetError'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const setPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
+      const response = await apiRequest("POST", `/api/v1/admin/users/${userId}/set-password`, { password });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || t('admin.users.passwordSetError'));
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('admin.users.passwordSet'),
+        description: t('admin.users.passwordSetDescription'),
+      });
+      setPasswordUser(null);
+      setPasswordForm({ password: '', confirmPassword: '' });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('admin.users.passwordSetError'), description: error.message, variant: 'destructive' });
     },
   });
 
@@ -263,23 +310,53 @@ export function UsersPanel({
                         {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true, locale: getDateLocale() })}
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
+                        <DropdownMenu
+                          open={openMenuUserId === user.id}
+                          onOpenChange={(open) => setOpenMenuUserId(open ? user.id : null)}
+                        >
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" data-testid={`button-user-actions-${user.id}`}>
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>{t('admin.users.actions')}</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUserClick(user); }}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpenMenuUserId(null); onUserClick(user); }}>
                               <Eye className="w-4 h-4 mr-2" />
                               {t('admin.users.viewDetails')}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditUser(user); }}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpenMenuUserId(null); setTimeout(() => handleEditUser(user), 0); }}>
                               <Edit2 className="w-4 h-4 mr-2" />
                               {t('admin.users.edit')}
                             </DropdownMenuItem>
+                            {user.provider === 'local' && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  disabled={!user.email || sendPasswordResetMutation.isPending}
+                                  onSelect={(e) => { e.preventDefault(); setOpenMenuUserId(null); sendPasswordResetMutation.mutate(user.id); }}
+                                  data-testid={`menu-send-password-reset-${user.id}`}
+                                >
+                                  <Mail className="w-4 h-4 mr-2" />
+                                  {t('admin.users.sendPasswordReset')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    setOpenMenuUserId(null);
+                                    setTimeout(() => {
+                                      setPasswordForm({ password: '', confirmPassword: '' });
+                                      setPasswordUser(user);
+                                    }, 0);
+                                  }}
+                                  data-testid={`menu-set-password-${user.id}`}
+                                >
+                                  <KeyRound className="w-4 h-4 mr-2" />
+                                  {t('admin.users.setPassword')}
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -412,6 +489,81 @@ export function UsersPanel({
               data-testid="button-save-user"
             >
               {updateUserMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!passwordUser}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordUser(null);
+            setPasswordForm({ password: '', confirmPassword: '' });
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t('admin.users.setPasswordTitle', { name: passwordUser?.name || passwordUser?.username || '' })}
+            </DialogTitle>
+            <DialogDescription>{t('admin.users.setPasswordDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="set-password-new">{t('admin.users.newPasswordLabel')}</Label>
+              <Input
+                id="set-password-new"
+                type="password"
+                autoComplete="new-password"
+                value={passwordForm.password}
+                onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })}
+                data-testid="input-set-password-new"
+              />
+              <p className="text-xs text-muted-foreground mt-1">{t('admin.users.passwordHint')}</p>
+            </div>
+            <div>
+              <Label htmlFor="set-password-confirm">{t('admin.users.confirmPasswordLabel')}</Label>
+              <Input
+                id="set-password-confirm"
+                type="password"
+                autoComplete="new-password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                data-testid="input-set-password-confirm"
+              />
+              {passwordForm.confirmPassword.length > 0 && passwordForm.password !== passwordForm.confirmPassword && (
+                <p className="text-xs text-destructive mt-1">{t('admin.users.passwordMismatch')}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordUser(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (!passwordUser) return;
+                if (passwordForm.password !== passwordForm.confirmPassword) {
+                  toast({
+                    title: t('admin.users.passwordSetError'),
+                    description: t('admin.users.passwordMismatch'),
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                setPasswordMutation.mutate({ userId: passwordUser.id, password: passwordForm.password });
+              }}
+              disabled={
+                setPasswordMutation.isPending ||
+                passwordForm.password.length === 0 ||
+                passwordForm.password !== passwordForm.confirmPassword
+              }
+              data-testid="button-set-password-save"
+            >
+              {setPasswordMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {t('common.save')}
             </Button>
           </DialogFooter>

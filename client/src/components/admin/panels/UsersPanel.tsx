@@ -329,6 +329,47 @@ export function UsersPanel({
   );
 }
 
+const POLLS_PREVIEW_COUNT = 5;
+
+function UserPollList({ polls }: { polls: PollWithOptions[] }) {
+  const { t } = useTranslation();
+  const [showAll, setShowAll] = useState(false);
+
+  const visiblePolls = showAll ? polls : polls.slice(0, POLLS_PREVIEW_COUNT);
+
+  return (
+    <div className="space-y-2">
+      {visiblePolls.map((poll) => (
+        <div
+          key={poll.id}
+          className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80"
+          onClick={() => window.open(`/results/${poll.id}`, '_blank', 'noopener,noreferrer')}
+        >
+          <div>
+            <p className="font-medium">{poll.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatDistanceToNow(new Date(poll.createdAt), { addSuffix: true, locale: getDateLocale() })}
+            </p>
+          </div>
+          <Badge variant={poll.isActive ? "default" : "secondary"}>
+            {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
+          </Badge>
+        </div>
+      ))}
+      {polls.length > POLLS_PREVIEW_COUNT && (
+        <button
+          className="w-full text-sm text-muted-foreground hover:text-foreground py-1 transition-colors"
+          onClick={() => setShowAll((v) => !v)}
+        >
+          {showAll
+            ? t('admin.users.showLessPolls')
+            : t('admin.users.showAllPolls', { count: polls.length })}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function UserDetailView({
   user,
   polls,
@@ -766,25 +807,7 @@ function UserDetailView({
           {polls.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">{t('admin.users.noPolls')}</p>
           ) : (
-            <div className="space-y-2">
-              {polls.slice(0, 5).map((poll) => (
-                <div
-                  key={poll.id}
-                  className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80"
-                  onClick={() => window.open(`/results/${poll.id}`, '_blank', 'noopener,noreferrer')}
-                >
-                  <div>
-                    <p className="font-medium">{poll.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(poll.createdAt), { addSuffix: true, locale: getDateLocale() })}
-                    </p>
-                  </div>
-                  <Badge variant={poll.isActive ? "default" : "secondary"}>
-                    {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+            <UserPollList polls={polls} />
           )}
         </CardContent>
       </Card>

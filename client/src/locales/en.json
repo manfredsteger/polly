@@ -687,6 +687,8 @@
       "noPolls": "No Polls",
       "userPolls": "User Polls",
       "userPollsDescription": "Polls created by this user",
+      "showAllPolls": "Show all ({{count}})",
+      "showLessPolls": "Show less",
       "viewDetails": "View Details",
       "sendPasswordReset": "Send password reset",
       "setPassword": "Set password",

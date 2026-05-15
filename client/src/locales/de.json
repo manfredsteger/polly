@@ -687,6 +687,8 @@
       "noPolls": "Keine Umfragen",
       "userPolls": "Benutzer-Umfragen",
       "userPollsDescription": "Umfragen, die dieser Benutzer erstellt hat",
+      "showAllPolls": "Alle anzeigen ({{count}})",
+      "showLessPolls": "Weniger anzeigen",
       "viewDetails": "Details anzeigen",
       "sendPasswordReset": "Passwort-Reset senden",
       "setPassword": "Passwort setzen",

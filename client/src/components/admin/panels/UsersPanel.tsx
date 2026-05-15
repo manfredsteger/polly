@@ -78,7 +78,6 @@ interface UsersPanelProps {
   selectedUser: User | null;
   onUserClick: (user: User) => void;
   onBackToUsers: () => void;
-  onPollClick: (poll: PollWithOptions) => void;
   isDeprovisionEnabled: boolean;
 }
 
@@ -88,7 +87,6 @@ export function UsersPanel({
   selectedUser,
   onUserClick,
   onBackToUsers,
-  onPollClick,
   isDeprovisionEnabled,
 }: UsersPanelProps) {
   const { t } = useTranslation();
@@ -141,7 +139,6 @@ export function UsersPanel({
         user={selectedUser}
         polls={userPolls}
         onBack={onBackToUsers}
-        onPollClick={onPollClick}
         isDeprovisionEnabled={isDeprovisionEnabled}
       />
     );
@@ -336,13 +333,11 @@ function UserDetailView({
   user,
   polls,
   onBack,
-  onPollClick,
   isDeprovisionEnabled,
 }: {
   user: User;
   polls: PollWithOptions[];
   onBack: () => void;
-  onPollClick: (poll: PollWithOptions) => void;
   isDeprovisionEnabled: boolean;
 }) {
   const { t } = useTranslation();
@@ -776,7 +771,7 @@ function UserDetailView({
                 <div
                   key={poll.id}
                   className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80"
-                  onClick={() => window.open(`/results/${poll.id}`, '_blank')}
+                  onClick={() => window.open(`/results/${poll.id}`, '_blank', 'noopener,noreferrer')}
                 >
                   <div>
                     <p className="font-medium">{poll.title}</p>

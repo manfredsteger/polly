@@ -712,7 +712,8 @@
       "addUserTitle": "Neuen Benutzer hinzufügen",
       "addUserDescription": "Erstellen Sie ein neues Benutzerkonto für das System.",
       "totalCount": "{{count}} Benutzer",
-      "saveError": "Fehler beim Speichern des Benutzers"
+      "saveError": "Fehler beim Speichern des Benutzers",
+      "passwordSectionTitle": "Passwort verwalten"
     },
     "userManagement": "Benutzerverwaltung",
     "createUser": "Benutzer erstellen",

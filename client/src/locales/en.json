@@ -712,7 +712,8 @@
       "addUserTitle": "Add New User",
       "addUserDescription": "Create a new user account for the system.",
       "totalCount": "{{count}} Users",
-      "saveError": "Error saving user"
+      "saveError": "Error saving user",
+      "passwordSectionTitle": "Manage Password"
     },
     "userManagement": "User Management",
     "createUser": "Create User",

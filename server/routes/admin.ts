@@ -164,16 +164,27 @@ router.post('/users', requireAdmin, async (req, res) => {
 router.patch('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, name, email, organization, emailVerified } = req.body;
+    const { role, name, email, username, organization, emailVerified } = req.body;
     
     const updates: Record<string, any> = {};
     if (role && ['user', 'admin', 'manager'].includes(role)) {
       updates.role = role;
     }
-    if (name) updates.name = name;
-    if (email) updates.email = email;
+    if (name !== undefined) updates.name = name;
+    if (email !== undefined) updates.email = email;
     if (organization !== undefined) updates.organization = organization;
     if (emailVerified === true) updates.emailVerified = true;
+    if (username !== undefined) {
+      const trimmed = username.toLowerCase().trim();
+      if (trimmed.length < 3 || !/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+        return res.status(400).json({ error: 'Benutzername muss mindestens 3 Zeichen lang sein und darf nur Buchstaben, Zahlen und Unterstriche enthalten.' });
+      }
+      const existing = await storage.getUserByUsername(trimmed);
+      if (existing && existing.id !== userId) {
+        return res.status(409).json({ error: 'Dieser Benutzername wird bereits verwendet.' });
+      }
+      updates.username = trimmed;
+    }
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });

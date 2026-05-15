@@ -776,7 +776,7 @@ function UserDetailView({
                 <div
                   key={poll.id}
                   className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80"
-                  onClick={() => onPollClick(poll)}
+                  onClick={() => window.open(`/results/${poll.id}`, '_blank')}
                 >
                   <div>
                     <p className="font-medium">{poll.title}</p>

@@ -162,23 +162,6 @@ router.get('/admin/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          message: 'Diese Umfrage wurde von einem registrierten Benutzer erstellt. Bitte melden Sie sich an, um die Administrationsseite aufzurufen.',
-          requiresAuth: true
-        });
-      }
-      
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ 
-          error: 'Keine Berechtigung',
-          message: 'Sie können nur Ihre eigenen Umfragen verwalten.'
-        });
-      }
-    }
-    
     res.json(poll);
   } catch (error) {
     console.error('Error fetching poll:', error);
@@ -192,19 +175,6 @@ router.patch('/admin/:token', async (req, res) => {
     const poll = await storage.getPollByAdminToken(req.params.token);
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
-    }
-    
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          requiresAuth: true
-        });
-      }
-      
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
     }
     
     const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl, notifyParticipants } = req.body;
@@ -371,14 +341,7 @@ router.delete('/admin/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     await storage.deletePoll(poll.id);
     res.json({ success: true, message: 'Umfrage gelöscht' });
@@ -413,17 +376,7 @@ router.post('/admin/:token/finalize', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          requiresAuth: true
-        });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     if (optionId !== 0) {
       const optionExists = poll.options.some((o: { id: number }) => o.id === optionId);
@@ -528,14 +481,7 @@ router.post('/admin/:token/options', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { text, startTime, endTime, maxCapacity, imageUrl, altText, order } = req.body;
     
@@ -569,14 +515,7 @@ router.patch('/admin/:token/options/:optionId', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const optionId = parseInt(req.params.optionId);
     const existingOption = poll.options?.find(o => o.id === optionId);
@@ -611,14 +550,7 @@ router.delete('/admin/:token/options/:optionId', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const optionId = parseInt(req.params.optionId);
     const existingOption = poll.options?.find(o => o.id === optionId);
@@ -642,14 +574,7 @@ router.post('/admin/:token/invite', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { emails, customMessage } = req.body;
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
@@ -699,14 +624,7 @@ router.post('/admin/:token/remind', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { emails, customMessage } = req.body;
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
@@ -796,15 +714,7 @@ router.post('/:id/send-reminder', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    // Check authorization - must be poll creator or have admin token
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     // Extract unique emails from votes
     const votes = poll.votes || [];
@@ -984,17 +894,7 @@ router.get('/admin/:token/vote-count', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          requiresAuth: true
-        });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const totalVotes = poll.votes?.length || 0;
     const uniqueVoters = new Set(poll.votes?.map(v => v.voterEmail)).size;
@@ -1015,14 +915,7 @@ router.post('/:token/invite', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { emails, customMessage } = req.body;
     if (!emails || !Array.isArray(emails) || emails.length === 0) {

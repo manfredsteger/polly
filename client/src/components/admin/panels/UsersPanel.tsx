@@ -88,6 +88,7 @@ export function UsersPanel({
   selectedUser,
   onUserClick,
   onBackToUsers,
+  onPollClick,
   isDeprovisionEnabled,
 }: UsersPanelProps) {
   const { t } = useTranslation();

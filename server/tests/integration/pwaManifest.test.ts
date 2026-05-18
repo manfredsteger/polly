@@ -24,17 +24,27 @@ export const testMeta = {
 const BACKUP_KEY = '_test_pwa_backup';
 
 /**
- * Crash-safe save/restore pattern:
+ * Sentinel values written by the test cases — if these appear in the live DB
+ * it means a previous test run was interrupted before afterAll could clean up.
+ */
+const TEST_SENTINEL_SITE_NAME = 'Acme';
+const TEST_SENTINEL_COLOR = '#123456';
+
+/**
+ * Crash-safe save/restore strategy (two complementary layers):
  *
- * beforeAll:
- *   1. If BACKUP_KEY exists a previous afterAll never ran (process was killed).
- *      Restore from that backup so the live DB is clean again.
- *   2. Capture the (now-clean) live settings as `originalSettings`.
- *   3. Write BACKUP_KEY so afterAll can be skipped safely if this run also crashes.
+ * Layer 1 — backup key (covers runs that wrote the backup before crashing):
+ *   beforeAll checks for a stale BACKUP_KEY written by a previous interrupted
+ *   run, restores from it, and deletes the key before capturing originalSettings.
+ *   afterAll writes the restored value back and deletes BACKUP_KEY to signal
+ *   successful completion.
  *
- * afterAll:
- *   1. Restore `originalSettings` to the live DB.
- *   2. Delete BACKUP_KEY (signals that cleanup completed successfully).
+ * Layer 2 — sentinel detection (covers runs that left known test values without
+ *   a backup key, e.g. an older run predating this mechanism):
+ *   If the live DB contains the well-known test-only values (siteName='Acme',
+ *   primaryColor='#123456'), we know the DB is polluted and override
+ *   originalSettings with clean schema defaults before persisting the backup.
+ *   This breaks the self-reinforcing corruption loop even without a backup key.
  */
 describe('PWA - /site.webmanifest', () => {
   let app: Express;
@@ -43,9 +53,8 @@ describe('PWA - /site.webmanifest', () => {
   beforeAll(async () => {
     app = await createTestApp();
 
-    // Crash-safe: if a previous test run was killed before afterAll, a stale
-    // backup key exists.  Restore from it first so we don't keep perpetuating
-    // the corrupted state as the "original".
+    // Layer 1: if a previous run was killed after writing the backup key,
+    // restore from it so the live DB is correct before we take a new snapshot.
     const staleBackup = await storage.getSetting(BACKUP_KEY);
     if (staleBackup) {
       const recovered = customizationSettingsSchema.parse(staleBackup.value);
@@ -53,10 +62,26 @@ describe('PWA - /site.webmanifest', () => {
       await storage.deleteSetting(BACKUP_KEY);
     }
 
-    // Now read the (possibly just-restored) live settings as the true original.
-    originalSettings = await storage.getCustomizationSettings();
+    // Read the (possibly just-restored) live settings.
+    const liveSettings = await storage.getCustomizationSettings();
 
-    // Persist the backup so afterAll can recover it if this run crashes.
+    // Layer 2: detect known sentinel values left by an interrupted run that
+    // predates the backup-key mechanism, or one that crashed before writing it.
+    const isPolluted =
+      liveSettings.branding.siteName === TEST_SENTINEL_SITE_NAME ||
+      liveSettings.theme.primaryColor.toLowerCase() === TEST_SENTINEL_COLOR;
+
+    if (isPolluted) {
+      // Reset to schema defaults and use those clean defaults as the baseline
+      // to restore in afterAll.
+      const clean = customizationSettingsSchema.parse({});
+      await storage.setCustomizationSettings(clean);
+      originalSettings = await storage.getCustomizationSettings();
+    } else {
+      originalSettings = liveSettings;
+    }
+
+    // Persist backup so afterAll recovery works even if this run crashes.
     await storage.setSetting({ key: BACKUP_KEY, value: originalSettings });
   });
 
@@ -104,8 +129,8 @@ describe('PWA - /site.webmanifest', () => {
   });
 
   it('reflects custom branding from admin settings', async () => {
-    // Use fixed test values — NOT spread from originalSettings — so assertions
-    // are fully deterministic and don't depend on whatever was in the DB.
+    // Set sentinel branding/color values for this test and verify the manifest
+    // reflects them.  afterAll will restore originalSettings.
     await storage.setCustomizationSettings({
       ...originalSettings,
       branding: {

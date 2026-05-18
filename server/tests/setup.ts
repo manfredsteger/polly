@@ -2,6 +2,12 @@ import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { storage } from '../storage';
 import { customizationSettingsSchema } from '@shared/schema';
 
+// Sentinel values that the pwaManifest test writes into the shared DB.
+// If these appear in the live DB at test-suite startup, it means a previous
+// run was interrupted before afterAll could restore the originals.
+// NOTE: if someone genuinely configures siteName='Acme' or primaryColor='#123456'
+// in the dev DB they must change the sentinel values here AND in pwaManifest.test.ts
+// to avoid this guard replacing their real settings with schema defaults.
 const TEST_SENTINEL_SITE_NAME = 'Acme';
 const TEST_SENTINEL_COLOR = '#123456';
 

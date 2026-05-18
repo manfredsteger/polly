@@ -18,8 +18,8 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'users', column: 'username', definition: 'TEXT NOT NULL DEFAULT \'\'' },
   { table: 'users', column: 'is_test_data', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'users', column: 'is_initial_admin', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
-  { table: 'users', column: 'deletion_requested_at', definition: 'TIMESTAMP' },
-  { table: 'users', column: 'last_login_at', definition: 'TIMESTAMP' },
+  { table: 'users', column: 'deletion_requested_at', definition: 'TIMESTAMPTZ' },
+  { table: 'users', column: 'last_login_at', definition: 'TIMESTAMPTZ' },
   { table: 'users', column: 'theme_preference', definition: 'TEXT DEFAULT \'system\'' },
   { table: 'users', column: 'language_preference', definition: 'TEXT DEFAULT \'de\'' },
   { table: 'users', column: 'keycloak_id', definition: 'TEXT UNIQUE' },
@@ -138,6 +138,35 @@ async function ensureSchema(): Promise<void> {
 
       console.log('✅ Schema check complete');
 
+      // Migrate all TIMESTAMP WITHOUT TIME ZONE columns to TIMESTAMPTZ
+      // This fixes the "in etwa 2 Stunden" bug on servers running in non-UTC timezones.
+      // Safe for existing data: USING col AT TIME ZONE 'UTC' preserves values (they were always stored in UTC).
+      // Idempotent: only runs on columns that are still plain TIMESTAMP.
+      console.log('🔧 Migrating TIMESTAMP → TIMESTAMPTZ...');
+      const timestampCols = await client.query(`
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND data_type = 'timestamp without time zone'
+          AND table_name != 'session'
+        ORDER BY table_name, column_name
+      `);
+      if (timestampCols.rows.length > 0) {
+        for (const { table_name, column_name } of timestampCols.rows) {
+          try {
+            await client.query(
+              `ALTER TABLE "${table_name}" ALTER COLUMN "${column_name}" TYPE TIMESTAMPTZ USING "${column_name}" AT TIME ZONE 'UTC'`
+            );
+            console.log(`  ✅ Migrated ${table_name}.${column_name} → TIMESTAMPTZ`);
+          } catch (err: any) {
+            console.warn(`  ⚠️ Could not migrate ${table_name}.${column_name}: ${err.message?.substring(0, 100)}`);
+          }
+        }
+        console.log('✅ TIMESTAMP → TIMESTAMPTZ migration complete');
+      } else {
+        console.log('✓ All timestamp columns already TIMESTAMPTZ');
+      }
+
       await client.query(`
         CREATE TABLE IF NOT EXISTS "session" (
           "sid" varchar NOT NULL COLLATE "default",
@@ -201,9 +230,9 @@ async function createCoreTables(client: any): Promise<void> {
       calendar_token TEXT UNIQUE,
       is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
       is_initial_admin BOOLEAN NOT NULL DEFAULT FALSE,
-      deletion_requested_at TIMESTAMP,
-      last_login_at TIMESTAMP,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      deletion_requested_at TIMESTAMPTZ,
+      last_login_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -228,14 +257,14 @@ async function createCoreTables(client: any): Promise<void> {
       results_public BOOLEAN NOT NULL DEFAULT TRUE,
       allow_maybe BOOLEAN NOT NULL DEFAULT TRUE,
       is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
-      expires_at TIMESTAMP,
+      expires_at TIMESTAMPTZ,
       video_conference_url TEXT,
       final_option_id INTEGER,
       enable_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
       expiry_reminder_hours INTEGER DEFAULT 24,
       expiry_reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -247,11 +276,11 @@ async function createCoreTables(client: any): Promise<void> {
       text TEXT NOT NULL,
       image_url TEXT,
       alt_text TEXT,
-      start_time TIMESTAMP,
-      end_time TIMESTAMP,
+      start_time TIMESTAMPTZ,
+      end_time TIMESTAMPTZ,
       max_capacity INTEGER,
       "order" INTEGER NOT NULL DEFAULT 0,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -270,8 +299,8 @@ async function createCoreTables(client: any): Promise<void> {
       comment TEXT,
       voter_edit_token TEXT,
       is_test_data BOOLEAN NOT NULL DEFAULT FALSE,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -282,7 +311,7 @@ async function createCoreTables(client: any): Promise<void> {
       key TEXT NOT NULL UNIQUE,
       value JSONB NOT NULL,
       description TEXT,
-      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -301,8 +330,8 @@ async function createCoreTables(client: any): Promise<void> {
       uploader_email TEXT,
       request_ip TEXT,
       scan_duration_ms INTEGER,
-      admin_notified_at TIMESTAMP,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      admin_notified_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -319,8 +348,8 @@ async function createCoreTables(client: any): Promise<void> {
       variables JSONB NOT NULL DEFAULT '[]',
       is_default BOOLEAN NOT NULL DEFAULT FALSE,
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
-      updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
@@ -330,8 +359,8 @@ async function createCoreTables(client: any): Promise<void> {
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       token TEXT NOT NULL UNIQUE,
-      expires_at TIMESTAMP NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 

@@ -19,17 +19,17 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").default(false).notNull(), // Email address verified
   isTestData: boolean("is_test_data").default(false).notNull(), // Test accounts cannot log in
   isInitialAdmin: boolean("is_initial_admin").default(false).notNull(), // Initial admin created on first start - shows warning banner
-  deletionRequestedAt: timestamp("deletion_requested_at"), // GDPR: User requested account deletion
-  lastLoginAt: timestamp("last_login_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletionRequestedAt: timestamp("deletion_requested_at", { withTimezone: true }), // GDPR: User requested account deletion
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const emailVerificationTokens = pgTable("email_verification_tokens", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("email_verification_tokens_token_idx").on(table.token),
   index("email_verification_tokens_user_id_idx").on(table.userId),
@@ -54,14 +54,14 @@ export const polls = pgTable("polls", {
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
-  expiresAt: timestamp("expires_at"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
   videoConferenceUrl: text("video_conference_url"),
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports
   enableExpiryReminder: boolean("enable_expiry_reminder").default(false).notNull(),
   expiryReminderHours: integer("expiry_reminder_hours").default(24), // hours before expiry to send reminder
   expiryReminderSent: boolean("expiry_reminder_sent").default(false).notNull(), // has the expiry reminder been sent?
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("polls_user_id_idx").on(table.userId),
   index("polls_type_idx").on(table.type),
@@ -75,12 +75,12 @@ export const pollOptions = pgTable("poll_options", {
   text: text("text").notNull(),
   imageUrl: text("image_url"), // for uploaded images
   altText: text("alt_text"), // alt text for accessibility
-  startTime: timestamp("start_time"), // for schedule polls
-  endTime: timestamp("end_time"), // for schedule polls
+  startTime: timestamp("start_time", { withTimezone: true }), // for schedule polls
+  endTime: timestamp("end_time", { withTimezone: true }), // for schedule polls
   maxCapacity: integer("max_capacity"), // for organization polls: max signups per slot (null = unlimited)
   isFreeText: boolean("is_free_text").default(false).notNull(), // for survey polls: marks this option as an open-ended question
   order: integer("order").notNull().default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("poll_options_poll_id_idx").on(table.pollId),
 ]);
@@ -99,8 +99,8 @@ export const votes = pgTable("votes", {
   freeTextAnswer: text("free_text_answer"), // for survey free-text questions: the voter's typed answer
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes
   isTestData: boolean("is_test_data").default(false).notNull(), // Test votes excluded from stats
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("votes_poll_id_idx").on(table.pollId),
   index("votes_option_id_idx").on(table.optionId),
@@ -114,7 +114,7 @@ export const systemSettings = pgTable("system_settings", {
   key: text("key").notNull().unique(),
   value: jsonb("value").notNull(),
   description: text("description"),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Notification logs - tracks all sent notifications for rate limiting and audit
@@ -127,7 +127,7 @@ export const notificationLogs = pgTable("notification_logs", {
   sentByGuest: boolean("sent_by_guest").default(false).notNull(),
   success: boolean("success").default(true).notNull(),
   errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("notification_logs_poll_id_idx").on(table.pollId),
   index("notification_logs_type_idx").on(table.type),
@@ -138,9 +138,9 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("password_reset_tokens_token_idx").on(table.token),
   index("password_reset_tokens_user_id_idx").on(table.userId),
@@ -152,9 +152,9 @@ export const emailChangeTokens = pgTable("email_change_tokens", {
   userId: integer("user_id").notNull(),
   newEmail: text("new_email").notNull(),
   token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("email_change_tokens_token_idx").on(table.token),
   index("email_change_tokens_user_id_idx").on(table.userId),
@@ -170,8 +170,8 @@ export const testRuns = pgTable("test_runs", {
   failed: integer("failed").default(0),
   skipped: integer("skipped").default(0),
   duration: integer("duration"), // in milliseconds
-  startedAt: timestamp("started_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
 });
 
 // Test results - individual test results for each run
@@ -185,7 +185,7 @@ export const testResults = pgTable("test_results", {
   duration: integer("duration"), // in milliseconds
   error: text("error"),
   errorStack: text("error_stack"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Email templates - customizable email designs stored as JSON
@@ -200,8 +200,8 @@ export const emailTemplates = pgTable("email_templates", {
   variables: jsonb("variables").notNull().default([]), // Available variables for this template type
   isDefault: boolean("is_default").default(false).notNull(), // Is this the system default?
   isActive: boolean("is_active").default(true).notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Test configurations - stores which tests are enabled/disabled
@@ -215,9 +215,9 @@ export const testConfigurations = pgTable("test_configurations", {
   description: text("description"),
   enabled: boolean("enabled").notNull().default(true),
   lastStatus: text("last_status"), // passed, failed, skipped, null
-  lastRunAt: timestamp("last_run_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // ClamAV scan logs - audit trail for all virus scans
@@ -234,8 +234,8 @@ export const clamavScanLogs = pgTable("clamav_scan_logs", {
   uploaderEmail: text("uploader_email"), // email of uploader (guest or user)
   requestIp: text("request_ip"), // IP address of request
   scanDurationMs: integer("scan_duration_ms"), // scan duration in milliseconds
-  adminNotifiedAt: timestamp("admin_notified_at"), // when admin was notified (if applicable)
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  adminNotifiedAt: timestamp("admin_notified_at", { withTimezone: true }), // when admin was notified (if applicable)
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Relations
@@ -724,7 +724,7 @@ export const aiUsageLogs = pgTable("ai_usage_logs", {
   completionTokens: integer("completion_tokens"),
   success: boolean("success").notNull().default(true),
   errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogs).omit({ id: true, createdAt: true });

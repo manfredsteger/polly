@@ -4,6 +4,7 @@ import { createTestApp } from '../testApp';
 import { storage } from '../../storage';
 import type { Express } from 'express';
 import type { CustomizationSettings } from '@shared/schema';
+import { customizationSettingsSchema } from '@shared/schema';
 
 interface ManifestIcon {
   src: string;
@@ -20,18 +21,49 @@ export const testMeta = {
   severity: 'medium' as const,
 };
 
+const BACKUP_KEY = '_test_pwa_backup';
+
+/**
+ * Crash-safe save/restore pattern:
+ *
+ * beforeAll:
+ *   1. If BACKUP_KEY exists a previous afterAll never ran (process was killed).
+ *      Restore from that backup so the live DB is clean again.
+ *   2. Capture the (now-clean) live settings as `originalSettings`.
+ *   3. Write BACKUP_KEY so afterAll can be skipped safely if this run also crashes.
+ *
+ * afterAll:
+ *   1. Restore `originalSettings` to the live DB.
+ *   2. Delete BACKUP_KEY (signals that cleanup completed successfully).
+ */
 describe('PWA - /site.webmanifest', () => {
   let app: Express;
   let originalSettings: CustomizationSettings;
 
   beforeAll(async () => {
     app = await createTestApp();
+
+    // Crash-safe: if a previous test run was killed before afterAll, a stale
+    // backup key exists.  Restore from it first so we don't keep perpetuating
+    // the corrupted state as the "original".
+    const staleBackup = await storage.getSetting(BACKUP_KEY);
+    if (staleBackup) {
+      const recovered = customizationSettingsSchema.parse(staleBackup.value);
+      await storage.setCustomizationSettings(recovered);
+      await storage.deleteSetting(BACKUP_KEY);
+    }
+
+    // Now read the (possibly just-restored) live settings as the true original.
     originalSettings = await storage.getCustomizationSettings();
+
+    // Persist the backup so afterAll can recover it if this run crashes.
+    await storage.setSetting({ key: BACKUP_KEY, value: originalSettings });
   });
 
   afterAll(async () => {
-    // Restore branding so test pollution doesn't leak into the live DB.
+    // Restore live DB and signal successful cleanup by removing the backup key.
     await storage.setCustomizationSettings(originalSettings);
+    await storage.deleteSetting(BACKUP_KEY);
   });
 
   it('returns valid JSON with all PWA-required fields', async () => {
@@ -72,7 +104,8 @@ describe('PWA - /site.webmanifest', () => {
   });
 
   it('reflects custom branding from admin settings', async () => {
-    // Override branding & primary color
+    // Use fixed test values — NOT spread from originalSettings — so assertions
+    // are fully deterministic and don't depend on whatever was in the DB.
     await storage.setCustomizationSettings({
       ...originalSettings,
       branding: {

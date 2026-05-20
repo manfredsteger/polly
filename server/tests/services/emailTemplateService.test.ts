@@ -273,12 +273,15 @@ describe('EmailTemplateService', () => {
 
   describe('Customized Template Rendering (renderEmail)', () => {
     let savedCustomization: any;
+    let savedEmailFooter: any;
     const service = new EmailTemplateService();
     beforeEach(async () => {
       savedCustomization = await storage.getCustomizationSettings();
+      savedEmailFooter = await service.getEmailFooter();
     });
     afterEach(async () => {
       await storage.setCustomizationSettings(savedCustomization);
+      await service.setEmailFooter(savedEmailFooter);
       for (const type of modifiedTemplateTypes) {
         await service.resetTemplate(type);
       }
@@ -617,11 +620,16 @@ describe('EmailTemplateService', () => {
 
   describe('Email Theme Import and Validation', () => {
     let savedCustomization: any;
+    let savedEmailTheme: any;
     beforeEach(async () => {
       savedCustomization = await storage.getCustomizationSettings();
+      const svc = new EmailTemplateService();
+      savedEmailTheme = await svc.getEmailTheme();
     });
     afterEach(async () => {
       await storage.setCustomizationSettings(savedCustomization);
+      const svc = new EmailTemplateService();
+      await svc.setEmailTheme(savedEmailTheme);
     });
 
     it('should extract valid theme colors from emailbuilder.js JSON', () => {
@@ -1082,15 +1090,27 @@ describe('EmailTemplateService', () => {
     it('should NOT have a colored header bar background', async () => {
       const service = new EmailTemplateService();
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: { primaryColor: '#4f46e5' },
+        branding: { siteName: 'Test' },
+        footer: {},
+        wcag: {},
+        language: {},
+      } as any);
 
-      expect(result.html).not.toMatch(/background-color:\s*#FF6B35/i);
-      expect(result.html).not.toContain('color: #FFFFFF; font-size: 22px');
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
+
+        expect(result.html).not.toMatch(/background-color:\s*#FF6B35/i);
+        expect(result.html).not.toContain('color: #FFFFFF; font-size: 22px');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should show siteName as subtle muted text when logo is set', async () => {

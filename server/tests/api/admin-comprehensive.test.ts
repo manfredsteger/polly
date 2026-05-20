@@ -4,6 +4,7 @@ import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 import { storage } from '../../storage';
+import { customizationSettingsSchema } from '@shared/schema';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -293,13 +294,29 @@ describe('Admin API - Comprehensive Functional Tests', () => {
 
   describe('Customization & Branding', () => {
     let savedCustomization: any;
+    const CUSTOMIZATION_BACKUP_KEY = '_test_admin_backup';
 
     beforeAll(async () => {
+      // Layer 1: if a previous run was killed after writing the backup key,
+      // restore from it so the live DB is correct before we take a new snapshot.
+      const staleBackup = await storage.getSetting(CUSTOMIZATION_BACKUP_KEY);
+      if (staleBackup) {
+        const recovered = customizationSettingsSchema.parse(staleBackup.value);
+        await storage.setCustomizationSettings(recovered);
+        await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
+      }
+
+      // Read the (possibly just-restored) live settings.
       savedCustomization = await storage.getCustomizationSettings();
+
+      // Persist backup so afterAll recovery works even if this run crashes.
+      await storage.setSetting({ key: CUSTOMIZATION_BACKUP_KEY, value: savedCustomization });
     });
 
     afterAll(async () => {
+      // Restore live DB and signal successful cleanup by removing the backup key.
       await storage.setCustomizationSettings(savedCustomization);
+      await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
     });
 
     it('should get customization settings', async () => {

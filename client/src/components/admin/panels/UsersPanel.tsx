@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from 'react-i18next';
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -55,6 +55,7 @@ import {
   MoreVertical,
   UserPlus,
   Search,
+  Filter,
   ArrowLeft,
   Loader2,
   Vote,
@@ -95,6 +96,10 @@ export function UsersPanel({
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
+  const [sortOption, setSortOption] = useState<
+    'default' | 'joinedDesc' | 'joinedAsc' | 'lastLoginDesc' | 'lastLoginAsc' | 'nameAsc' | 'nameDesc'
+  >('default');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'manager' | 'user'>('all');
   const [newUserForm, setNewUserForm] = useState({
     name: '',
     email: '',
@@ -124,11 +129,44 @@ export function UsersPanel({
     },
   });
 
-  const filteredUsers = users?.filter(user =>
-    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredUsers = users?.filter(user => {
+    const matchesSearch =
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.username.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesRole = roleFilter === 'all' ? true : user.role === roleFilter;
+
+    return matchesSearch && matchesRole;
+  }) || [];
+
+  const sortedUsers = useMemo(() => {
+    return [...filteredUsers].sort((a, b) => {
+      switch (sortOption) {
+        case 'joinedAsc':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'joinedDesc':
+        case 'default':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'nameAsc':
+          return (a.name || a.username).localeCompare(b.name || b.username);
+        case 'nameDesc':
+          return (b.name || b.username).localeCompare(a.name || a.username);
+        case 'lastLoginAsc': {
+          const aTime = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : Number.POSITIVE_INFINITY;
+          const bTime = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : Number.POSITIVE_INFINITY;
+          return aTime - bTime;
+        }
+        case 'lastLoginDesc': {
+          const aTime = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : Number.NEGATIVE_INFINITY;
+          const bTime = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : Number.NEGATIVE_INFINITY;
+          return bTime - aTime;
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [filteredUsers, sortOption]);
 
   const getUserPolls = (userId: number) => {
     return polls?.filter(p => p.userId === userId) || [];
@@ -165,17 +203,56 @@ export function UsersPanel({
 
       <Card className="polly-card">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <CardTitle>{t('admin.users.allUsers')}</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder={t('admin.users.search')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-                data-testid="input-user-search"
-              />
+            <div className="flex items-center gap-2">
+              <Select
+                value={roleFilter}
+                onValueChange={(value: 'all' | 'admin' | 'manager' | 'user') => setRoleFilter(value)}
+              >
+                <SelectTrigger className="w-[170px]" data-testid="select-users-role-filter">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('admin.users.filterAllRoles')}</SelectItem>
+                  <SelectItem value="admin">{t('admin.roleAdmin')}</SelectItem>
+                  <SelectItem value="manager">{t('admin.roleManager')}</SelectItem>
+                  <SelectItem value="user">{t('admin.roleUser')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={sortOption}
+                onValueChange={(value: 'default' | 'joinedDesc' | 'joinedAsc' | 'lastLoginDesc' | 'lastLoginAsc' | 'nameAsc' | 'nameDesc') => setSortOption(value)}
+              >
+                <SelectTrigger className="w-[220px]" data-testid="select-users-sort">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">{t('admin.users.sortByPrefix')}</SelectItem>
+                  <SelectItem value="joinedDesc">{t('admin.users.sortJoinedNewest')}</SelectItem>
+                  <SelectItem value="joinedAsc">{t('admin.users.sortJoinedOldest')}</SelectItem>
+                  <SelectItem value="lastLoginDesc">{t('admin.users.sortLastLoginNewest')}</SelectItem>
+                  <SelectItem value="lastLoginAsc">{t('admin.users.sortLastLoginOldest')}</SelectItem>
+                  <SelectItem value="nameAsc">{t('admin.users.sortNameAsc')}</SelectItem>
+                  <SelectItem value="nameDesc">{t('admin.users.sortNameDesc')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder={t('admin.users.search')}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-user-search"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -192,11 +269,12 @@ export function UsersPanel({
                     <TableHead>{t('admin.users.email')}</TableHead>
                     <TableHead>{t('admin.users.role')}</TableHead>
                     <TableHead>{t('admin.users.joined')}</TableHead>
+                    <TableHead>{t('admin.users.lastLogin')}</TableHead>
                     <TableHead>{t('admin.users.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {sortedUsers.map((user) => (
                     <TableRow
                       key={user.id}
                       className="cursor-pointer hover:bg-muted/50"
@@ -209,6 +287,11 @@ export function UsersPanel({
                       <TableCell><RoleBadge role={user.role} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true, locale: getDateLocale() })}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {user.lastLoginAt
+                          ? formatDistanceToNow(new Date(user.lastLoginAt), { addSuffix: true, locale: getDateLocale() })
+                          : t('admin.users.neverLoggedIn')}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu

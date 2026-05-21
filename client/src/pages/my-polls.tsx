@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PollTypeBadge } from '@/components/ui/PollTypeBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2 } from 'lucide-react';
+import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2, House } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -530,17 +530,9 @@ export default function MyPolls() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/create-poll')} className="polly-button-schedule" data-testid="button-new-poll">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('myPolls.newSchedule')}
-          </Button>
-          <Button onClick={() => navigate('/create-survey')} className="polly-button-survey" data-testid="button-new-survey">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('myPolls.newSurvey')}
-          </Button>
-          <Button onClick={() => navigate('/create-organization')} className="polly-button-organization" data-testid="button-new-orga">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('myPolls.newOrga')}
+          <Button onClick={() => navigate('/')} variant="outline" data-testid="button-home">
+            <House className="h-4 w-4 mr-2" />
+            {t('myPolls.backToHome')}
           </Button>
         </div>
       </div>

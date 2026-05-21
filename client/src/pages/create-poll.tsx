@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
 import { formatScheduleOptionText } from "@/lib/utils";
+import { isValidHttpHttpsUrl } from "@shared/urlValidation";
 import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, Video } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,6 +62,7 @@ export default function CreatePoll() {
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
   const [videoConferenceUrl, setVideoConferenceUrl] = useState("");
+  const [videoConferenceUrlError, setVideoConferenceUrlError] = useState<"" | "invalid">("");
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<PollOption[]>([]);
   
@@ -211,6 +213,9 @@ export default function CreatePoll() {
           if (errorData.errorCode === 'REQUIRES_LOGIN') {
             errorMessage = errorData.error;
             requiresLogin = true;
+          } else if (errorData.errorCode === 'INVALID_VIDEO_URL') {
+            errorMessage = t('pollCreation.invalidVideoConferenceUrl');
+            setVideoConferenceUrlError("invalid");
           }
         } catch {}
       }
@@ -324,6 +329,12 @@ export default function CreatePoll() {
       return;
     }
 
+    const trimmedVideoConferenceUrl = videoConferenceUrl.trim();
+    if (trimmedVideoConferenceUrl && !isValidHttpHttpsUrl(trimmedVideoConferenceUrl)) {
+      setVideoConferenceUrlError("invalid");
+      return;
+    }
+
     const pollData = {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -335,7 +346,7 @@ export default function CreatePoll() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
-      videoConferenceUrl: videoConferenceUrl.trim() || undefined,
+      videoConferenceUrl: trimmedVideoConferenceUrl || undefined,
       options: options.map((option) => {
         const opt: any = {
           text: option.text,
@@ -427,15 +438,37 @@ export default function CreatePoll() {
               </Label>
               <Input
                 id="videoConferenceUrl"
-                type="url"
+                type="text"
                 value={videoConferenceUrl}
-                onChange={(e) => setVideoConferenceUrl(e.target.value)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  setVideoConferenceUrl(nextValue);
+                  const trimmed = nextValue.trim();
+                  if (!trimmed) {
+                    setVideoConferenceUrlError("");
+                  } else if (!isValidHttpHttpsUrl(trimmed)) {
+                    setVideoConferenceUrlError("invalid");
+                  } else {
+                    setVideoConferenceUrlError("");
+                  }
+                }}
+                onBlur={() => {
+                  const trimmed = videoConferenceUrl.trim();
+                  if (trimmed && !isValidHttpHttpsUrl(trimmed)) {
+                    setVideoConferenceUrlError("invalid");
+                  } else {
+                    setVideoConferenceUrlError("");
+                  }
+                }}
                 placeholder={t('pollCreation.videoConferencePlaceholder')}
-                className="mt-1"
+                className={`mt-1 ${videoConferenceUrlError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {t('pollCreation.videoConferenceHint')}
               </p>
+              {videoConferenceUrlError === "invalid" && (
+                <p className="text-xs text-destructive mt-1">{t('pollCreation.invalidVideoConferenceUrl')}</p>
+              )}
             </div>
 
             {expiresAt && (() => {

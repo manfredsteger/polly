@@ -7,6 +7,7 @@ import { deviceTokenService } from "../services/deviceTokenService";
 import { z } from "zod";
 import "express-session";
 import { AuthenticationError, AuthorizationError } from "../lib/errors";
+import { isValidHttpHttpsUrl } from "@shared/urlValidation";
 export { asyncHandler } from "../lib/errorHandler";
 export * from "../lib/errors";
 
@@ -75,9 +76,9 @@ export const createPollSchema = z.object({
   allowVoteEdit: z.boolean().optional().default(false),
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
-  videoConferenceUrl: z.string().url().max(2000).refine(
-    (url) => /^https?:\/\//i.test(url),
-    { message: 'Only http and https URLs are allowed' }
+  videoConferenceUrl: z.string().max(2000).refine(
+    (url) => isValidHttpHttpsUrl(url),
+    { message: 'Please enter a valid HTTP/HTTPS URL.' }
   ).optional().nullable(),
   options: z.array(z.object({
     text: z.string().min(1).max(500),

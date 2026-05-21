@@ -2687,6 +2687,7 @@
     "videoConferenceLabel": "Video Conference Link (optional)",
     "videoConferencePlaceholder": "https://bbb.example.com/... or your video service link",
     "videoConferenceHint": "Link to a video conference (e.g. BigBlueButton or your preferred video service). Will be shown in the calendar entry and notification.",
+    "invalidVideoConferenceUrl": "Enter a complete URL starting with http:// or https:// (e.g. https://example.com/meeting).",
     "expiryReminder": "Reminder before expiry",
     "expiryReminderDescription": "Participants will receive an email reminder before the expiry date",
     "expiryTooShort": "The poll ends in {{hours}} hours - too short for reminders",

@@ -123,6 +123,14 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const videoUrlError = error.errors.find((e) => e.path.includes('videoConferenceUrl'));
+      if (videoUrlError) {
+        return res.status(400).json({
+          error: 'Please enter a valid HTTP/HTTPS URL.',
+          errorCode: 'INVALID_VIDEO_URL',
+          details: error.errors,
+        });
+      }
       return res
         .status(400)
         .json({ error: 'Invalid input', details: error.errors });

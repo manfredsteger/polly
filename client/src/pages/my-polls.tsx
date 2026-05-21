@@ -159,7 +159,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/poll/${poll.publicToken}`); }}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/poll/${poll.publicToken}#results`); }}
                   data-testid={`poll-action-stats-${poll.id}`}
                 >
                   <BarChart3 className="h-4 w-4" />

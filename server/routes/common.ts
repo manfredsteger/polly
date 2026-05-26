@@ -89,6 +89,17 @@ export const createPollSchema = z.object({
     maxCapacity: z.number().min(1).optional(),
     isFreeText: z.boolean().optional().default(false),
     order: z.number().default(0),
+  }).superRefine((option, ctx) => {
+    if (!option.startTime || !option.endTime) return;
+    const start = new Date(option.startTime);
+    const end = new Date(option.endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'End time must be later than start time.',
+        path: ['endTime'],
+      });
+    }
   })).min(1),
 });
 

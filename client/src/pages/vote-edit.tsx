@@ -52,6 +52,8 @@ export default function VoteEditPage() {
     queryKey: [`/api/v1/votes/edit/${editToken}`],
     enabled: !!editToken,
   });
+  const isPollExpired = voterData?.poll?.expiresAt ? new Date(voterData.poll.expiresAt) < new Date() : false;
+  const isPollClosed = voterData ? (!voterData.poll.isActive || isPollExpired) : false;
 
   const updateVotesMutation = useMutation({
     mutationFn: (votes: { optionId: number; response: string }[]) =>
@@ -64,10 +66,21 @@ export default function VoteEditPage() {
       });
       setHasChanges(false);
     },
-    onError: () => {
+    onError: (error: any) => {
+      let description = t('voteEdit.updateError');
+      if (error?.message) {
+        try {
+          const errorData = JSON.parse(error.message.split(': ').slice(1).join(': '));
+          if (errorData.errorCode === 'POLL_INACTIVE' || errorData.errorCode === 'POLL_EXPIRED') {
+            description = t('voteEdit.pollClosedEditNotAllowed');
+          } else if (errorData.errorCode === 'VOTE_EDIT_NOT_ALLOWED') {
+            description = t('voteEdit.voteEditNotAllowed');
+          }
+        } catch {}
+      }
       toast({
         title: t('common.error'),
-        description: t('voteEdit.updateError'),
+        description,
         variant: "destructive",
       });
     },
@@ -105,6 +118,7 @@ export default function VoteEditPage() {
   }, [voterData]);
 
   const handleVoteChange = (optionId: number, response: string) => {
+    if (isPollClosed) return;
     const newVotes = { ...currentVotes };
     if (newVotes[optionId] === response) {
       delete newVotes[optionId];
@@ -121,7 +135,7 @@ export default function VoteEditPage() {
   };
 
   const handleSaveChanges = () => {
-    if (!voterData || !hasChanges) return;
+    if (!voterData || !hasChanges || isPollClosed) return;
 
     const updatedVotes = voterData.votes
       .filter(vote => currentVotes[vote.optionId] !== undefined)
@@ -198,6 +212,13 @@ export default function VoteEditPage() {
         </Card>
 
         {/* Voting Options */}
+        {isPollClosed && (
+          <Card className="mb-4 border-orange-200 bg-orange-50">
+            <CardContent className="py-4 text-sm text-orange-900">
+              {t('voteEdit.pollClosedEditNotAllowed')}
+            </CardContent>
+          </Card>
+        )}
         <div className="space-y-4 mb-6">
           {poll.options.map((option) => {
             const currentResponse = currentVotes[option.id];
@@ -221,6 +242,7 @@ export default function VoteEditPage() {
                             variant={currentResponse === response ? "default" : "outline"}
                             size="sm"
                             onClick={() => handleVoteChange(option.id, response)}
+                            disabled={isPollClosed}
                             className={`
                               ${response === 'yes' ? 'hover:bg-green-600 hover:text-white' : ''}
                               ${response === 'maybe' ? 'hover:bg-yellow-600 hover:text-white' : ''}
@@ -246,7 +268,7 @@ export default function VoteEditPage() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
           <Button
             onClick={handleSaveChanges}
-            disabled={!hasChanges || updateVotesMutation.isPending}
+            disabled={!hasChanges || updateVotesMutation.isPending || isPollClosed}
             className="whitespace-nowrap polly-button-primary"
           >
             {updateVotesMutation.isPending ? (
@@ -274,7 +296,7 @@ export default function VoteEditPage() {
             <Button
               variant="destructive"
               onClick={() => withdrawVoteMutation.mutate()}
-              disabled={withdrawVoteMutation.isPending}
+              disabled={withdrawVoteMutation.isPending || isPollClosed}
               className="whitespace-nowrap polly-button-danger"
               data-testid="button-withdraw-vote"
             >

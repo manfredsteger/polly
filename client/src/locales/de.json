@@ -403,6 +403,7 @@
     "questions": "Fragen",
     "addOption": "Option hinzufügen",
     "removeOption": "Option entfernen",
+    "invalidTimeRange": "Die Endzeit muss nach der Startzeit liegen.",
     "textOption": "Text Option",
     "imageOption": "Bild-Option",
     "uploadImage": "Bild hochladen",
@@ -2673,6 +2674,9 @@
     "autoSubmitting": "Automatisches Absenden...",
     "loginRequired": "Anmeldung erforderlich",
     "loginRequiredDescription": "Diese E-Mail-Adresse gehört zu einem registrierten Konto. Bitte melden Sie sich an. Ihre Eingaben werden gespeichert.",
+    "emailVerificationRequired": "E-Mail-Bestätigung erforderlich",
+    "emailVerificationRequiredDescription": "Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse und erstellen Sie die Umfrage dann erneut.",
+    "tooManyRequestsDescription": "Zu viele Anfragen. Bitte warten Sie {{seconds}} Sekunden und versuchen Sie es erneut.",
     "error": "Fehler",
     "pleaseEnterTitle": "Bitte geben Sie einen Titel ein.",
     "pleaseEnterEmail": "Bitte geben Sie eine E-Mail-Adresse ein.",
@@ -2735,6 +2739,7 @@
     "dateOptionsCount": "Terminoptionen ({{count}})",
     "editDate": "Termin bearbeiten",
     "removeOption": "Option entfernen",
+    "invalidTimeRange": "Die Endzeit muss nach der Startzeit liegen.",
     "submitButton": "Terminumfrage erstellen"
   },
   "createSurvey": {
@@ -2866,6 +2871,7 @@
     "endPoll": "Umfrage beenden",
     "endingPoll": "Umfrage wird beendet …",
     "reactivatePoll": "Umfrage reaktivieren",
+    "reactivateExpiredHint": "Damit kann eine abgelaufene Umfrage wieder geöffnet und die Abstimmung erneut aktiviert werden.",
     "adminLink": "Admin-Link",
     "editDialogTitle": "Umfrage bearbeiten",
     "editDialogDescription": "Ändern Sie die Einstellungen und Optionen dieser Umfrage.",
@@ -3008,6 +3014,7 @@
     "statsParticipations": "Teilnahmen",
     "statsThisWeek": "Diese Woche",
     "showResults": "Ergebnisse anzeigen",
+    "editDisabledClosed": "Geschlossene Umfragen konnen nicht bearbeitet werden. Bitte zuerst in den Umfrage-Tools reaktivieren.",
     "shareLinkCopied": "Der Abstimmungslink wurde in die Zwischenablage kopiert.",
     "deleteConfirmTitle": "Umfrage löschen?",
     "deleteConfirmDesc": "Möchten Sie die Umfrage \"{{title}}\" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -3206,7 +3213,9 @@
     "loadingVote": "Abstimmung wird geladen …",
     "voteNotFound": "Abstimmung nicht gefunden",
     "invalidLink": "Dieser Link ist ungültig oder abgelaufen.",
-    "withdrawing": "Wird zurückgezogen …"
+    "withdrawing": "Wird zurückgezogen …",
+    "pollClosedEditNotAllowed": "Diese Umfrage ist beendet oder abgelaufen. Stimmen können nicht mehr bearbeitet werden.",
+    "voteEditNotAllowed": "Die Bearbeitung von Stimmen ist bei dieser Umfrage nicht erlaubt."
   },
   "liveResults": {
     "title": "Live-Ergebnisse",

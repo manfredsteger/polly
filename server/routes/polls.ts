@@ -131,6 +131,14 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
           details: error.errors,
         });
       }
+      const invalidTimeRangeError = error.errors.find((e) => e.message === 'End time must be later than start time.');
+      if (invalidTimeRangeError) {
+        return res.status(400).json({
+          error: 'End time must be later than start time.',
+          errorCode: 'INVALID_TIME_RANGE',
+          details: error.errors,
+        });
+      }
       return res
         .status(400)
         .json({ error: 'Invalid input', details: error.errors });
@@ -496,6 +504,17 @@ router.post('/admin/:token/options', async (req, res) => {
     if (!text && !startTime) {
       return res.status(400).json({ error: 'Text oder Startzeit erforderlich' });
     }
+
+    if (startTime && endTime) {
+      const startDate = new Date(startTime);
+      const endDate = new Date(endTime);
+      if (endDate <= startDate) {
+        return res.status(400).json({
+          error: 'End time must be later than start time.',
+          errorCode: 'INVALID_TIME_RANGE',
+        });
+      }
+    }
     
     const newOption = await storage.addPollOption({
       pollId: poll.id,
@@ -532,6 +551,19 @@ router.patch('/admin/:token/options/:optionId', async (req, res) => {
     }
     
     const { text, startTime, endTime, maxCapacity, imageUrl, altText, order } = req.body;
+
+    const effectiveStartTime = startTime !== undefined ? startTime : existingOption.startTime;
+    const effectiveEndTime = endTime !== undefined ? endTime : existingOption.endTime;
+    if (effectiveStartTime && effectiveEndTime) {
+      const startDate = new Date(effectiveStartTime);
+      const endDate = new Date(effectiveEndTime);
+      if (endDate <= startDate) {
+        return res.status(400).json({
+          error: 'End time must be later than start time.',
+          errorCode: 'INVALID_TIME_RANGE',
+        });
+      }
+    }
     
     const updates: Record<string, any> = {};
     if (text !== undefined) updates.text = text;

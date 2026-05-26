@@ -403,6 +403,7 @@
     "questions": "Questions",
     "addOption": "Add Option",
     "removeOption": "Remove Option",
+    "invalidTimeRange": "End time must be later than start time.",
     "textOption": "Text Option",
     "imageOption": "Image Option",
     "uploadImage": "Upload Image",
@@ -2673,6 +2674,9 @@
     "autoSubmitting": "Auto-submitting...",
     "loginRequired": "Login required",
     "loginRequiredDescription": "This email address belongs to a registered account. Please log in. Your inputs will be saved.",
+    "emailVerificationRequired": "Email verification required",
+    "emailVerificationRequiredDescription": "Please verify your email address first, then create the poll again.",
+    "tooManyRequestsDescription": "Too many requests. Please wait {{seconds}} seconds and try again.",
     "error": "Error",
     "pleaseEnterTitle": "Please enter a title.",
     "pleaseEnterEmail": "Please enter an email address.",
@@ -2735,6 +2739,7 @@
     "dateOptionsCount": "Date Options ({{count}})",
     "editDate": "Edit Date",
     "removeOption": "Remove Option",
+    "invalidTimeRange": "End time must be later than start time.",
     "submitButton": "Create Schedule Poll"
   },
   "createSurvey": {
@@ -2866,6 +2871,7 @@
     "endPoll": "End Poll",
     "endingPoll": "Ending poll...",
     "reactivatePoll": "Reactivate Poll",
+    "reactivateExpiredHint": "Use this to reopen an expired poll and allow voting again.",
     "adminLink": "Admin Link",
     "editDialogTitle": "Edit Poll",
     "editDialogDescription": "Change the settings and options of this poll.",
@@ -3008,6 +3014,7 @@
     "statsParticipations": "Participations",
     "statsThisWeek": "This Week",
     "showResults": "Show Results",
+    "editDisabledClosed": "Closed polls cannot be edited. Reactivate in poll tools first.",
     "shareLinkCopied": "The voting link has been copied to the clipboard.",
     "deleteConfirmTitle": "Delete Poll?",
     "deleteConfirmDesc": "Are you sure you want to delete the poll \"{{title}}\"? This action cannot be undone.",
@@ -3206,7 +3213,9 @@
     "loadingVote": "Loading vote...",
     "voteNotFound": "Vote not found",
     "invalidLink": "This link is invalid or has expired.",
-    "withdrawing": "Withdrawing..."
+    "withdrawing": "Withdrawing...",
+    "pollClosedEditNotAllowed": "This poll is closed or expired. Votes can no longer be edited.",
+    "voteEditNotAllowed": "Vote editing is not allowed for this poll."
   },
   "liveResults": {
     "title": "Live Results",

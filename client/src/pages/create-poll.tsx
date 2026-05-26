@@ -71,6 +71,7 @@ export default function CreatePoll() {
   const [editStartTime, setEditStartTime] = useState("");
   const [editEndTime, setEditEndTime] = useState("");
   const [editDate, setEditDate] = useState<Date | null>(null);
+  const [editTimeRangeError, setEditTimeRangeError] = useState("");
 
   const formPersistence = useFormPersistence<PollFormData>({ key: 'create-poll' });
   const hasRestoredRef = useRef(false);
@@ -206,6 +207,7 @@ export default function CreatePoll() {
     onError: async (error: any) => {
       let errorMessage = t('createPoll.createError');
       let requiresLogin = false;
+      let requiresEmailVerification = false;
       
       if (error?.message) {
         try {
@@ -213,6 +215,13 @@ export default function CreatePoll() {
           if (errorData.errorCode === 'REQUIRES_LOGIN') {
             errorMessage = errorData.error;
             requiresLogin = true;
+          } else if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+            errorMessage = t('pollCreation.emailVerificationRequiredDescription');
+            requiresEmailVerification = true;
+          } else if (typeof errorData.retryAfter === 'number') {
+            errorMessage = t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
+          } else if (errorData.errorCode === 'INVALID_TIME_RANGE') {
+            errorMessage = t('createPoll.invalidTimeRange');
           } else if (errorData.errorCode === 'INVALID_VIDEO_URL') {
             errorMessage = t('pollCreation.invalidVideoConferenceUrl');
             setVideoConferenceUrlError("invalid");
@@ -221,7 +230,11 @@ export default function CreatePoll() {
       }
       
       toast({
-        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
+        title: requiresLogin
+          ? t('pollCreation.loginRequired')
+          : requiresEmailVerification
+            ? t('pollCreation.emailVerificationRequired')
+            : t('pollCreation.error'),
         description: requiresLogin 
           ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
@@ -283,6 +296,10 @@ export default function CreatePoll() {
 
   const saveEditedOption = () => {
     if (editIndex !== null && editDate && editStartTime && editEndTime) {
+      if (editEndTime <= editStartTime) {
+        setEditTimeRangeError(t('createPoll.invalidTimeRange'));
+        return;
+      }
       setOptions(prev => prev.map((opt, i) => {
         if (i === editIndex) {
           return {
@@ -296,6 +313,7 @@ export default function CreatePoll() {
       }));
       setEditDialogOpen(false);
       setEditIndex(null);
+      setEditTimeRangeError("");
     }
   };
 
@@ -332,6 +350,21 @@ export default function CreatePoll() {
     const trimmedVideoConferenceUrl = videoConferenceUrl.trim();
     if (trimmedVideoConferenceUrl && !isValidHttpHttpsUrl(trimmedVideoConferenceUrl)) {
       setVideoConferenceUrlError("invalid");
+      return;
+    }
+
+    const hasInvalidRange = options.some((option) => {
+      if (!option.startTime || !option.endTime) return false;
+      const start = new Date(option.startTime);
+      const end = new Date(option.endTime);
+      return Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start;
+    });
+    if (hasInvalidRange) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('createPoll.invalidTimeRange'),
+        variant: "destructive",
+      });
       return;
     }
 
@@ -763,7 +796,10 @@ export default function CreatePoll() {
                 <Label htmlFor="edit-startTime" className="text-sm font-medium">{t('pollCreation.from')}</Label>
                 <TimePickerDropdown
                   value={editStartTime}
-                  onChange={setEditStartTime}
+                  onChange={(value) => {
+                    setEditStartTime(value);
+                    if (editTimeRangeError) setEditTimeRangeError("");
+                  }}
                   label={t('pollCreation.from')}
                   className="mt-1"
                   data-testid="input-edit-start-time"
@@ -773,13 +809,19 @@ export default function CreatePoll() {
                 <Label htmlFor="edit-endTime" className="text-sm font-medium">{t('pollCreation.to')}</Label>
                 <TimePickerDropdown
                   value={editEndTime}
-                  onChange={setEditEndTime}
+                  onChange={(value) => {
+                    setEditEndTime(value);
+                    if (editTimeRangeError) setEditTimeRangeError("");
+                  }}
                   label={t('pollCreation.to')}
                   className="mt-1"
                   data-testid="input-edit-end-time"
                 />
               </div>
             </div>
+            {editTimeRangeError && (
+              <p className="text-sm text-destructive">{editTimeRangeError}</p>
+            )}
             
             <div className="flex gap-3 pt-2">
               <Button
@@ -794,7 +836,7 @@ export default function CreatePoll() {
               <Button
                 type="button"
                 onClick={saveEditedOption}
-                disabled={!editStartTime || !editEndTime}
+                disabled={!editStartTime || !editEndTime || editEndTime <= editStartTime}
                 className="flex-1 polly-button-schedule"
                 data-testid="button-save-edit"
               >

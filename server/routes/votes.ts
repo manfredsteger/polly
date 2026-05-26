@@ -12,6 +12,12 @@ import {
 } from "./common";
 
 const router = Router();
+const editVotesUpdateSchema = z.object({
+  votes: z.array(z.object({
+    optionId: z.number(),
+    response: z.enum(['yes', 'maybe', 'no']),
+  })).min(1),
+});
 
 // Bulk vote (primary voting endpoint)
 router.post('/polls/:token/vote', async (req, res) => {
@@ -521,15 +527,48 @@ router.get('/votes/edit/:editToken', async (req, res) => {
 router.put('/votes/edit/:editToken', async (req, res) => {
   try {
     const editToken = req.params.editToken;
-    const { votes: updatedVotes } = req.body;
-
-    if (!updatedVotes || !Array.isArray(updatedVotes)) {
-      return res.status(400).json({ error: 'Invalid votes data' });
-    }
+    const { votes: updatedVotes } = editVotesUpdateSchema.parse(req.body);
 
     const existingVotes = await storage.getVotesByEditToken(editToken);
     if (existingVotes.length === 0) {
       return res.status(404).json({ error: 'No votes found for this edit token' });
+    }
+
+    const pollId = existingVotes[0].pollId;
+    const poll = await storage.getPoll(pollId);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+
+    if (!poll.allowVoteEdit && poll.type !== 'organization') {
+      return res.status(403).json({
+        error: 'Vote editing is not allowed for this poll.',
+        errorCode: 'VOTE_EDIT_NOT_ALLOWED',
+      });
+    }
+
+    if (!poll.isActive) {
+      return res.status(400).json({
+        error: 'This poll is no longer active.',
+        errorCode: 'POLL_INACTIVE',
+      });
+    }
+
+    if (poll.expiresAt && new Date(poll.expiresAt) < new Date()) {
+      return res.status(400).json({
+        error: 'This poll has expired.',
+        errorCode: 'POLL_EXPIRED',
+      });
+    }
+
+    const validOptionIds = new Set(poll.options.map((opt) => opt.id));
+    for (const updatedVote of updatedVotes) {
+      if (!validOptionIds.has(updatedVote.optionId)) {
+        return res.status(400).json({
+          error: 'One or more options are invalid for this poll.',
+          errorCode: 'INVALID_OPTION_ID',
+        });
+      }
     }
 
     const updatedResults = [];
@@ -543,6 +582,13 @@ router.put('/votes/edit/:editToken', async (req, res) => {
 
     res.json({ success: true, votes: updatedResults });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Invalid votes data',
+        errorCode: 'INVALID_VOTE_PAYLOAD',
+        details: error.errors,
+      });
+    }
     console.error('Error updating voter votes:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

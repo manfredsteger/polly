@@ -64,6 +64,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date());
+  const canEditPoll = showAdminLink && isActive;
   const voteCount = poll.votes?.length || 0;
   const optionCount = poll.options?.length || 0;
 
@@ -189,13 +190,21 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/${poll.adminToken}`); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canEditPoll) {
+                          navigate(`/admin/${poll.adminToken}`);
+                        }
+                      }}
+                      disabled={!canEditPoll}
                       data-testid={`poll-action-edit-${poll.id}`}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{t('common.edit')}</TooltipContent>
+                  <TooltipContent>
+                    {canEditPoll ? t('common.edit') : t('myPolls.editDisabledClosed')}
+                  </TooltipContent>
                 </Tooltip>
 
                 <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

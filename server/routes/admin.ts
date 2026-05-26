@@ -376,27 +376,27 @@ router.get('/polls', requireAdmin, async (req, res) => {
 
 router.patch('/polls/:id', requireAdmin, async (req, res) => {
   try {
-    const pollId = req.params.id;
-    
-    const existing = await storage.getPoll(pollId);
+    const publicToken = req.params.id;
+
+    const existing = await storage.getPollByPublicToken(publicToken);
     if (!existing) {
       return res.status(404).json({ error: 'Umfrage nicht gefunden' });
     }
-    
+
     const { isActive, title, description, expiresAt, resultsPublic } = req.body;
-    
+
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
     if (title) updates.title = title;
     if (description !== undefined) updates.description = description;
     if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
     if (resultsPublic !== undefined) updates.resultsPublic = resultsPublic;
-    
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
     }
-    
-    const poll = await storage.updatePoll(pollId, updates);
+
+    const poll = await storage.updatePoll(existing.id, updates);
     res.json(poll);
   } catch (error) {
     console.error('Error updating poll:', error);
@@ -406,14 +406,14 @@ router.patch('/polls/:id', requireAdmin, async (req, res) => {
 
 router.delete('/polls/:id', requireAdmin, async (req, res) => {
   try {
-    const pollId = req.params.id;
-    
-    const existing = await storage.getPoll(pollId);
+    const publicToken = req.params.id;
+
+    const existing = await storage.getPollByPublicToken(publicToken);
     if (!existing) {
       return res.status(404).json({ error: 'Umfrage nicht gefunden' });
     }
-    
-    await storage.deletePoll(pollId);
+
+    await storage.deletePoll(existing.id);
     res.json({ success: true, message: 'Umfrage gelöscht' });
   } catch (error) {
     console.error('Error deleting poll:', error);

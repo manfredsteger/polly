@@ -176,7 +176,7 @@ describe('Admin API - Comprehensive Functional Tests', () => {
     it('should reject patch with no updates', async () => {
       const pollsRes = await adminAgent.get('/api/v1/admin/polls');
       if (pollsRes.body.length > 0) {
-        const res = await adminAgent.patch(`/api/v1/admin/polls/${pollsRes.body[0].id}`).send({});
+        const res = await adminAgent.patch(`/api/v1/admin/polls/${pollsRes.body[0].publicToken}`).send({});
         expect(res.status).toBe(400);
       }
     });

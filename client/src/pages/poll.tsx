@@ -159,6 +159,7 @@ export default function Poll() {
   const [editForm, setEditForm] = useState({
     title: "",
     description: "",
+    videoConferenceUrl: "",
     isActive: true,
     allowVoteEdit: false,
     allowVoteWithdrawal: false,
@@ -263,6 +264,7 @@ export default function Poll() {
       setEditForm({
         title: poll.title,
         description: poll.description || "",
+        videoConferenceUrl: poll.videoConferenceUrl || "",
         isActive: poll.isActive,
         allowVoteEdit: poll.allowVoteEdit ?? false,
         allowVoteWithdrawal: poll.allowVoteWithdrawal ?? false,
@@ -283,7 +285,7 @@ export default function Poll() {
   }, [poll, editDialogOpen]);
   
   const updatePollMutation = useMutation({
-    mutationFn: async (updates: { title?: string; description?: string; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean }) => {
+    mutationFn: async (updates: { title?: string; description?: string; videoConferenceUrl?: string | null; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean }) => {
       if (!effectiveAdminToken) throw new Error('No admin token');
       const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}`, updates);
       return response.json();
@@ -1105,6 +1107,19 @@ export default function Poll() {
                     rows={4}
                   />
                 </div>
+                {poll?.type === 'schedule' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-video-conference-url">{t('pollCreation.videoConferenceLabel')}</Label>
+                    <Input
+                      id="edit-video-conference-url"
+                      value={editForm.videoConferenceUrl}
+                      onChange={(e) => setEditForm({ ...editForm, videoConferenceUrl: e.target.value })}
+                      placeholder={t('pollCreation.videoConferencePlaceholder')}
+                      data-testid="input-edit-video-conference-url"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('pollCreation.videoConferenceHint')}</p>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <Label htmlFor="edit-active">{t('pollView.pollActive')}</Label>
                   <Switch
@@ -1548,6 +1563,7 @@ export default function Poll() {
                     setEditForm({
                       title: poll.title,
                       description: poll.description || "",
+                      videoConferenceUrl: poll.videoConferenceUrl || "",
                       isActive: poll.isActive,
                       allowVoteEdit: poll.allowVoteEdit ?? false,
                       allowVoteWithdrawal: poll.allowVoteWithdrawal ?? false,

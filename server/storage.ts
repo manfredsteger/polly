@@ -105,6 +105,8 @@ export interface IStorage {
   getLastManualReminderTime(pollId: string): Promise<Date | null>;
   getPollsNeedingExpiryReminder(): Promise<Poll[]>;
   markExpiryReminderSent(pollId: string): Promise<void>;
+  getVoterEmailsForPoll(pollId: string): Promise<string[]>;
+  deactivateExpiredPolls(): Promise<Poll[]>;
 
   // Analytics
   getSystemStats(): Promise<{
@@ -1242,6 +1244,30 @@ export class DatabaseStorage implements IStorage {
       .update(polls)
       .set({ expiryReminderSent: true })
       .where(eq(polls.id, pollId));
+  }
+
+  async getVoterEmailsForPoll(pollId: string): Promise<string[]> {
+    const rows = await db
+      .selectDistinct({ voterEmail: votes.voterEmail })
+      .from(votes)
+      .where(and(
+        eq(votes.pollId, pollId),
+        sql`${votes.voterEmail} IS NOT NULL AND ${votes.voterEmail} <> ''`
+      ));
+    return rows.map(r => r.voterEmail).filter((e): e is string => !!e);
+  }
+
+  async deactivateExpiredPolls(): Promise<Poll[]> {
+    const expired = await db
+      .update(polls)
+      .set({ isActive: false })
+      .where(and(
+        eq(polls.isActive, true),
+        sql`${polls.expiresAt} IS NOT NULL`,
+        sql`${polls.expiresAt} <= NOW()`
+      ))
+      .returning();
+    return expired;
   }
 
   // Password reset tokens

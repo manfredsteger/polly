@@ -258,6 +258,36 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     }
   };
 
+  const parseApiError = (error: unknown): { errorCode?: string; error?: string; retryAfter?: number } | null => {
+    if (!(error instanceof Error) || !error.message) return null;
+    try {
+      const match = error.message.match(/\d+:\s*(.+)/);
+      if (!match || !match[1]) return null;
+      return JSON.parse(match[1]);
+    } catch {
+      return null;
+    }
+  };
+
+  const mapVotingErrorMessage = (errorData: { errorCode?: string; error?: string; retryAfter?: number } | null) => {
+    if (!errorData) return t('votingInterface.voteCouldNotBeSaved');
+    if (typeof errorData.retryAfter === 'number') {
+      return t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
+    }
+    switch (errorData.errorCode) {
+      case 'POLL_EXPIRED':
+        return poll.type === 'organization' ? t('votingInterface.orgaExpiredMessage') : t('votingInterface.pollExpiredMessage');
+      case 'POLL_INACTIVE':
+        return poll.type === 'organization' ? t('votingInterface.orgaInactiveMessage') : t('votingInterface.pollInactiveMessage');
+      case 'EMAIL_BELONGS_TO_ANOTHER_USER':
+        return t('votingInterface.loginToVoteWithEmail');
+      case 'WITHDRAWAL_NOT_ALLOWED':
+        return t('votingInterface.voteWithdrawError');
+      default:
+        return errorData.error || t('votingInterface.voteCouldNotBeSaved');
+    }
+  };
+
   const voteMutation = useMutation({
     mutationFn: async (voteData: any) => {
       const response = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/vote`, voteData);
@@ -271,27 +301,21 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       
       // Try to parse the error message
       let errorMessage = t('votingInterface.voteCouldNotBeSaved');
-      let isDuplicateEmail = false;
-      let requiresLogin = false;
       
       if (error instanceof Error && error.message) {
         try {
-          // Extract JSON from error message (format: "400: {json}")
-          const match = error.message.match(/\d+:\s*(.+)/);
-          if (match && match[1]) {
-            const errorData = JSON.parse(match[1]);
+          const errorData = parseApiError(error);
+          if (errorData) {
             if (errorData.errorCode === 'DUPLICATE_EMAIL_VOTE') {
-              errorMessage = errorData.error;
-              isDuplicateEmail = true;
+              errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
               setDuplicateEmailError(voterEmail);
             } else if (errorData.errorCode === 'REQUIRES_LOGIN') {
-              errorMessage = errorData.error;
-              requiresLogin = true;
+              errorMessage = errorData.error || t('votingInterface.loginRequiredDescription');
               setEmailRequiresLogin(true);
             } else if (errorData.errorCode === 'EMAIL_MISMATCH') {
-              errorMessage = errorData.error;
+              errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
             } else if (errorData.errorCode === 'ALREADY_VOTED') {
-              errorMessage = errorData.error;
+              errorMessage = errorData.error || t('votingInterface.alreadyVotedDescription');
               // Show toast with already voted message
               toast({
                 title: t('votingInterface.alreadyVoted'),
@@ -300,11 +324,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               });
               return; // Don't show second toast
             } else if (errorData.errorCode === 'USE_EDIT_LINK') {
-              errorMessage = errorData.error;
-              isDuplicateEmail = true;
+              errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
               setDuplicateEmailError(voterEmail);
-            } else if (errorData.error) {
-              errorMessage = errorData.error;
+            } else {
+              errorMessage = mapVotingErrorMessage(errorData);
             }
           }
         } catch (parseError) {
@@ -386,20 +409,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
     },
     onError: (error) => {
-      let errorMessage = t('votingInterface.voteWithdrawError');
-      if (error instanceof Error && error.message) {
-        try {
-          const match = error.message.match(/\d+:\s*(.+)/);
-          if (match && match[1]) {
-            const errorData = JSON.parse(match[1]);
-            if (errorData.error) {
-              errorMessage = errorData.error;
-            }
-          }
-        } catch (parseError) {
-          console.error('Error parsing error message:', parseError);
-        }
-      }
+      const errorData = parseApiError(error);
+      const errorMessage = mapVotingErrorMessage(errorData);
       toast({
         title: t('common.error'),
         description: errorMessage,
@@ -640,21 +651,13 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       console.error('Voting failed:', error);
       
       // Parse error response for better error handling
-      let errorMessage = "Ihre Stimme konnte nicht gespeichert werden.";
+      let errorMessage = t('votingInterface.voteCouldNotBeSaved');
       let errorCode = "";
       
-      if (error instanceof Error && error.message) {
-        try {
-          const match = error.message.match(/\d+:\s*(.+)/);
-          if (match && match[1]) {
-            const errorData = JSON.parse(match[1]);
-            errorMessage = errorData.error || errorMessage;
-            errorCode = errorData.errorCode || "";
-          }
-        } catch (parseError) {
-          // Use original error message if parsing fails
-          errorMessage = error.message;
-        }
+      const errorData = parseApiError(error);
+      if (errorData) {
+        errorMessage = mapVotingErrorMessage(errorData);
+        errorCode = errorData.errorCode || "";
       }
       
       // Handle specific error codes

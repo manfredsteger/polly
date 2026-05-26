@@ -401,6 +401,8 @@ export default function Poll() {
           const errorData = JSON.parse(error.message.split(': ').slice(1).join(': '));
           if (errorData?.errorCode === 'INVALID_TIME_RANGE') {
             description = t('createPoll.invalidTimeRange');
+          } else if (errorData?.errorCode === 'INVALID_VIDEO_URL') {
+            description = t('pollCreation.invalidVideoConferenceUrl');
           }
         } catch {}
       }

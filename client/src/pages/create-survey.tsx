@@ -225,8 +225,7 @@ export default function CreateSurvey() {
     if (!isAuthenticated) return;
     
     const stored = formPersistence.getStoredData();
-    const validOptions = options.filter(o => o.text.trim());
-    if (stored?.pendingSubmit && stored.data && title && validOptions.length >= 2) {
+    if (stored?.pendingSubmit && stored.data && title) {
       autoSubmitTriggeredRef.current = true;
       
       const storedExpiresAt = stored.data.expiresAt;
@@ -238,21 +237,9 @@ export default function CreateSurvey() {
       });
       
       setTimeout(() => {
-        const surveyData = {
-          title: title.trim(),
-          description: description.trim() || undefined,
-          type: "survey" as const,
-          expiresAt: storedExpiresAt || undefined,
-          allowVoteEdit: allowVoteEdit,
-          allowVoteWithdrawal: allowVoteWithdrawal,
-          resultsPublic: resultsPublic,
-          options: validOptions.map((option, index) => ({
-            text: option.text,
-            imageUrl: option.imageUrl,
-            altText: option.altText,
-            order: index,
-          })),
-        };
+        const surveyData = buildSurveyPayload();
+        if (!surveyData) return;
+        surveyData.expiresAt = storedExpiresAt || undefined;
         createSurveyMutation.mutate(surveyData);
       }, 500);
     }
@@ -279,6 +266,7 @@ export default function CreateSurvey() {
     onError: async (error: any) => {
       let errorMessage = t('createSurvey.createError');
       let requiresLogin = false;
+      let requiresEmailVerification = false;
       
       if (error?.message) {
         try {
@@ -286,12 +274,21 @@ export default function CreateSurvey() {
           if (errorData.errorCode === 'REQUIRES_LOGIN') {
             errorMessage = errorData.error;
             requiresLogin = true;
+          } else if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+            errorMessage = t('pollCreation.emailVerificationRequiredDescription');
+            requiresEmailVerification = true;
+          } else if (typeof errorData.retryAfter === 'number') {
+            errorMessage = t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
           }
         } catch {}
       }
       
       toast({
-        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
+        title: requiresLogin
+          ? t('pollCreation.loginRequired')
+          : requiresEmailVerification
+            ? t('pollCreation.emailVerificationRequired')
+            : t('pollCreation.error'),
         description: requiresLogin 
           ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
@@ -350,27 +347,32 @@ export default function CreateSurvey() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    const surveyData = buildSurveyPayload();
+    if (!surveyData) return;
+    createSurveyMutation.mutate(surveyData);
+  };
+
+  const buildSurveyPayload = () => {
     if (!title.trim()) {
       toast({
         title: t('pollCreation.error'),
         description: t('pollCreation.pleaseEnterTitle'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
     const validOptions = options.filter(opt => opt.text.trim());
     const validNormalOptions = validOptions.filter(opt => !opt.isFreeText);
     const validFreeTextOptions = validOptions.filter(opt => opt.isFreeText);
-    // Need at least: 2 normal options, OR 1 free-text question (pure feedback form), OR 1 normal + 1 free-text
-    if (validOptions.length < 1 || (validFreeTextOptions.length === 0 && validNormalOptions.length < 2)) {
+    const hasEnoughOptions = validOptions.length >= 1 && (validFreeTextOptions.length > 0 || validNormalOptions.length >= 2);
+    if (!hasEnoughOptions) {
       toast({
         title: t('pollCreation.error'),
         description: t('createSurvey.minOptionsError'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
     if (!isAuthenticated && !creatorEmail.trim()) {
@@ -379,10 +381,10 @@ export default function CreateSurvey() {
         description: t('pollCreation.pleaseEnterEmail'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
-    const surveyData = {
+    return {
       title: title.trim(),
       description: description.trim() || undefined,
       type: "survey" as const,
@@ -409,8 +411,6 @@ export default function CreateSurvey() {
         return opt;
       }),
     };
-
-    createSurveyMutation.mutate(surveyData);
   };
 
   return (

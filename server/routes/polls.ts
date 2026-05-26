@@ -210,14 +210,14 @@ router.patch('/admin/:token', async (req, res) => {
         try {
           new URL(videoConferenceUrl);
           if (!/^https?:\/\//i.test(videoConferenceUrl)) {
-            return res.status(400).json({ error: 'Nur HTTP/HTTPS-URLs sind erlaubt' });
+            return res.status(400).json({ error: 'Nur HTTP/HTTPS-URLs sind erlaubt', errorCode: 'INVALID_VIDEO_URL' });
           }
           if (videoConferenceUrl.length > 2000) {
-            return res.status(400).json({ error: 'URL ist zu lang (max. 2000 Zeichen)' });
+            return res.status(400).json({ error: 'URL ist zu lang (max. 2000 Zeichen)', errorCode: 'INVALID_VIDEO_URL' });
           }
           updates.videoConferenceUrl = videoConferenceUrl;
         } catch {
-          return res.status(400).json({ error: 'Ungültige URL' });
+          return res.status(400).json({ error: 'Ungültige URL', errorCode: 'INVALID_VIDEO_URL' });
         }
       } else {
         updates.videoConferenceUrl = null;

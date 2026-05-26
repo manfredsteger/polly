@@ -471,14 +471,21 @@ export default function CreateOrganization() {
     });
   };
 
+  const hasInvalidTimeRange = (optionsData: Array<{ startTime?: string; endTime?: string }>) =>
+    optionsData.some((option) => {
+      if (!option.startTime || !option.endTime) return false;
+      const start = new Date(option.startTime);
+      const end = new Date(option.endTime);
+      return Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start;
+    });
+
   useEffect(() => {
     if (autoSubmitTriggeredRef.current) return;
     if (!hasRestoredRef.current) return;
     if (!isAuthenticated) return;
     
     const stored = formPersistence.getStoredData();
-    const validSlots = slots.filter(s => s.text.trim());
-    if (stored?.pendingSubmit && stored.data && title && validSlots.length >= 1) {
+    if (stored?.pendingSubmit && stored.data && title) {
       autoSubmitTriggeredRef.current = true;
       
       const storedExpiresAt = stored.data.expiresAt;
@@ -493,17 +500,8 @@ export default function CreateOrganization() {
       });
       
       setTimeout(() => {
-        const orgaData = {
-          title: title.trim(),
-          description: description.trim() || undefined,
-          type: "organization" as const,
-          expiresAt: storedExpiresAt || undefined,
-          allowMultipleSlots: allowMultipleSlots,
-          allowVoteEdit: allowVoteEdit,
-          allowVoteWithdrawal: allowVoteWithdrawal,
-          resultsPublic: resultsPublic,
-          options: buildOptionsPayload(validSlots, storedIsDayMode, storedDayModeDate, storedDayModeDates),
-        };
+        const orgaData = buildOrganizationPayload(storedIsDayMode, storedDayModeDate, storedDayModeDates, storedExpiresAt || undefined);
+        if (!orgaData) return;
         createPollMutation.mutate(orgaData);
       }, 500);
     }
@@ -529,6 +527,7 @@ export default function CreateOrganization() {
     onError: async (error: any) => {
       let errorMessage = t('createOrganization.createError');
       let requiresLogin = false;
+      let requiresEmailVerification = false;
       
       if (error?.message) {
         try {
@@ -536,12 +535,23 @@ export default function CreateOrganization() {
           if (errorData.errorCode === 'REQUIRES_LOGIN') {
             errorMessage = errorData.error;
             requiresLogin = true;
+          } else if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+            errorMessage = t('pollCreation.emailVerificationRequiredDescription');
+            requiresEmailVerification = true;
+          } else if (errorData.errorCode === 'INVALID_TIME_RANGE') {
+            errorMessage = t('createPoll.invalidTimeRange');
+          } else if (typeof errorData.retryAfter === 'number') {
+            errorMessage = t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
           }
         } catch {}
       }
       
       toast({
-        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
+        title: requiresLogin
+          ? t('pollCreation.loginRequired')
+          : requiresEmailVerification
+            ? t('pollCreation.emailVerificationRequired')
+            : t('pollCreation.error'),
         description: requiresLogin 
           ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
@@ -691,14 +701,24 @@ export default function CreateOrganization() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    const pollData = buildOrganizationPayload(isDayMode, dayModeDates[0] || dayModeDate, dayModeDates);
+    if (!pollData) return;
+    createPollMutation.mutate(pollData);
+  };
+
+  const buildOrganizationPayload = (
+    useDayMode: boolean,
+    useDayModeDate: string,
+    useDayModeDates: string[],
+    overriddenExpiresAt?: string
+  ) => {
     if (!title.trim()) {
       toast({
         title: t('pollCreation.error'),
         description: t('pollCreation.pleaseEnterTitle'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
     const validSlots = slots.filter(s => s.text.trim());
@@ -708,27 +728,16 @@ export default function CreateOrganization() {
         description: t('createOrganization.minSlotsError'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
-    if (isDayMode && dayModeDates.length === 0) {
+    if (useDayMode && useDayModeDates.length === 0) {
       toast({
         title: t('pollCreation.error'),
         description: t('createOrganization.dayModeDateError'),
         variant: "destructive",
       });
-      return;
-    }
-
-    for (const slot of validSlots) {
-      if (slot.startTime && slot.endTime && slot.startTime === slot.endTime) {
-        toast({
-          title: t('pollCreation.error'),
-          description: t('createOrganization.slotTimeError', { name: slot.text }),
-          variant: "destructive",
-        });
-        return;
-      }
+      return null;
     }
 
     if (!isAuthenticated && !creatorEmail.trim()) {
@@ -737,25 +746,33 @@ export default function CreateOrganization() {
         description: t('pollCreation.pleaseEnterEmail'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
-    const pollData = {
+    const optionsData = buildOptionsPayload(validSlots, useDayMode, useDayModeDate, useDayModeDates);
+    if (hasInvalidTimeRange(optionsData)) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('createPoll.invalidTimeRange'),
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    return {
       title: title.trim(),
       description: description.trim() || undefined,
       type: "organization" as const,
       creatorEmail: isAuthenticated ? undefined : creatorEmail.trim(),
-      expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
+      expiresAt: overriddenExpiresAt ?? (expiresAt ? expiresAt.toISOString() : undefined),
       enableExpiryReminder: expiresAt ? enableExpiryReminder : false,
       expiryReminderHours: expiresAt && enableExpiryReminder ? expiryReminderHours : undefined,
       allowMultipleSlots,
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
-      options: buildOptionsPayload(validSlots, isDayMode, dayModeDates[0] || dayModeDate, dayModeDates),
+      options: optionsData,
     };
-
-    createPollMutation.mutate(pollData);
   };
 
   return (

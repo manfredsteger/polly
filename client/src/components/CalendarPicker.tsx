@@ -92,6 +92,8 @@ const defaultTemplates: Template[] = [
   },
 ];
 
+const visibleTemplates = defaultTemplates.filter((template) => template.id !== "weekday");
+
 export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions = [] }: CalendarPickerProps) {
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
@@ -505,7 +507,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
               <p className="text-xs text-muted-foreground mb-3">
                 {t('calendarPicker.selectTemplateAndDate')}
               </p>
-              {defaultTemplates.map((template) => {
+              {visibleTemplates.map((template) => {
                 const Icon = template.icon;
                 return (
                   <Button

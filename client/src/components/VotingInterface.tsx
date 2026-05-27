@@ -73,6 +73,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [voterEmail, setVoterEmail] = useState("");
   const [votes, setVotes] = useState<Record<number, VoteResponse>>({});
   const [freeTextAnswers, setFreeTextAnswers] = useState<Record<number, string>>({});
+  const [surveyComment, setSurveyComment] = useState("");
   const [orgaBookings, setOrgaBookings] = useState<SlotBookingInfo[]>([]);
   const [hasOrgaChanges, setHasOrgaChanges] = useState(false);
   const [showSelfVote, setShowSelfVote] = useState(false);
@@ -173,6 +174,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         if (Object.keys(existingVotes).length > 0) {
           setVotes(existingVotes);
         }
+        if (poll.type === 'survey' && !surveyComment) {
+          const firstComment = myVotesData.votes.find(v => v.comment?.trim())?.comment?.trim() || "";
+          if (firstComment) {
+            setSurveyComment(firstComment);
+          }
+        }
       } else {
         // Pre-fill slot bookings for organization polls
         const existingBookings: SlotBookingInfo[] = myVotesData.votes
@@ -186,7 +193,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         }
       }
     }
-  }, [myVotesData, canEdit, poll.type, voterName, voterEmail, orgaBookings.length]);
+  }, [myVotesData, canEdit, poll.type, voterName, voterEmail, orgaBookings.length, surveyComment]);
 
   // Check if email belongs to a registered user
   const checkEmailRegistration = async (email: string) => {
@@ -398,6 +405,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       });
       // Reset form state
       setVotes({});
+      setSurveyComment("");
       setOrgaBookings([]);
       setHasOrgaChanges(false);
       // Invalidate queries to refresh data - use correct tokens for each endpoint
@@ -557,6 +565,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       } else if (poll.type === 'survey') {
         // For surveys: Use bulk vote endpoint to ensure atomicity
         // Include free-text answers for isFreeText options
+        const trimmedSurveyComment = surveyComment.trim();
         const freeTextOptions = poll.options.filter((o: any) => o.isFreeText);
         const freeTextVotes = freeTextOptions
           .filter((o: any) => freeTextAnswers[o.id]?.trim())
@@ -564,10 +573,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             optionId: o.id,
             response: 'freetext' as const,
             freeTextAnswer: freeTextAnswers[o.id].trim(),
+            comment: trimmedSurveyComment || undefined,
           }));
         const regularVotes = Object.entries(votes).map(([optionId, response]) => ({
           optionId: parseInt(optionId),
           response,
+          comment: trimmedSurveyComment || undefined,
         }));
         const allVotes = [...regularVotes, ...freeTextVotes];
         if (allVotes.length === 0) {
@@ -1008,6 +1019,20 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     allowMaybe={poll.allowMaybe ?? true}
                   />
                 )}
+                <div className="space-y-1 mt-4">
+                  <label className="block text-sm font-medium text-foreground">
+                    {t('votingInterface.additionalCommentLabel')}
+                    <span className="ml-1 text-xs text-muted-foreground">({t('common.optional')})</span>
+                  </label>
+                  <textarea
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors resize-none"
+                    rows={3}
+                    placeholder={t('votingInterface.additionalCommentPlaceholder')}
+                    value={surveyComment}
+                    onChange={(e) => setSurveyComment(e.target.value)}
+                    maxLength={1000}
+                  />
+                </div>
               </>
             ) : (
               <SimpleImageVoting

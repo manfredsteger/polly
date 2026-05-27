@@ -474,6 +474,7 @@
     "icsExport": "Kalender",
     "icsExportError": "Der Kalender-Export konnte nicht erstellt werden. Die Umfrageoptionen enthalten keine gültigen Datums-/Uhrzeitwerte.",
     "option": "Option",
+    "commentsAdminOnly": "Teilnehmerkommentare sind nur für Admins sichtbar.",
     "noEntriesYet": "Noch keine Eintragungen vorhanden",
     "full": "voll",
     "pointsHeader": "Punkte"
@@ -2522,6 +2523,8 @@
     "withdraw": "Zurückziehen",
     "submitVote": "Abstimmung abgeben",
     "loginToVoteWithEmail": "Bitte melden Sie sich an, um mit dieser E-Mail abzustimmen.",
+    "additionalCommentLabel": "Zusätzlicher Kommentar",
+    "additionalCommentPlaceholder": "Zusätzliche Informationen für den Umfrage-Organisator eingeben",
     "slotFullError": "Dieser Platz ist leider schon voll. Es gibt keine freien Plätze mehr.",
     "alreadySignedUpError": "Sie haben sich bereits für einen Platz in dieser Liste eingetragen.",
     "overbookingPrevented": "Eine Überbuchung wurde verhindert. Bitte versuchen Sie einen anderen Slot."
@@ -2866,6 +2869,7 @@
     "exportIcs": "Kalender-Datei (ICS)",
     "management": "Verwaltung",
     "editPoll": "Umfrage bearbeiten",
+    "editDisabledClosed": "Geschlossene oder abgelaufene Umfragen können nicht bearbeitet werden. Reaktivieren Sie die Umfrage zuerst.",
     "inviteParticipants": "Teilnehmer einladen",
     "remindParticipants": "Teilnehmer erinnern",
     "endPoll": "Umfrage beenden",

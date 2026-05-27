@@ -474,6 +474,7 @@
     "icsExport": "Calendar",
     "icsExportError": "Calendar export could not be created. The poll options do not contain valid date/time values.",
     "option": "Option",
+    "commentsAdminOnly": "Participant comments are visible to admins only.",
     "noEntriesYet": "No entries yet",
     "full": "full",
     "pointsHeader": "Points"
@@ -2522,6 +2523,8 @@
     "withdraw": "Withdraw",
     "submitVote": "Submit vote",
     "loginToVoteWithEmail": "Please log in to vote with this email.",
+    "additionalCommentLabel": "Additional comment",
+    "additionalCommentPlaceholder": "Add any extra information for the poll organizer",
     "slotFullError": "This slot is fully booked. There are no more spots available.",
     "alreadySignedUpError": "You have already signed up for a slot in this list.",
     "overbookingPrevented": "Overbooking was prevented. Please try a different slot."
@@ -2866,6 +2869,7 @@
     "exportIcs": "Calendar File (ICS)",
     "management": "Management",
     "editPoll": "Edit Poll",
+    "editDisabledClosed": "Closed polls cannot be edited. Reactivate the poll first.",
     "inviteParticipants": "Invite Participants",
     "remindParticipants": "Remind Participants",
     "endPoll": "End Poll",

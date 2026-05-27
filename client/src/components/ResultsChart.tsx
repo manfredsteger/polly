@@ -720,7 +720,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                                   <div className="w-6 h-6 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
                                     <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
                                   </div>
-                                  {vote.comment && (
+                                  {isAdminAccess && vote.comment && (
                                     <span className="text-xs text-muted-foreground mt-1 max-w-[100px] truncate" title={vote.comment}>
                                       {vote.comment}
                                     </span>
@@ -907,7 +907,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                               {vote.voterName?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?'}
                             </div>
                             <span className="font-medium text-foreground">{vote.voterName}</span>
-                            {vote.comment && (
+                            {isAdminAccess && vote.comment && (
                               <span className="text-muted-foreground">– {vote.comment}</span>
                             )}
                             {vote.voterEmail && (
@@ -931,6 +931,9 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
         <Card className="polly-card">
           <CardHeader>
             <CardTitle>{t('results.detailedResults')}</CardTitle>
+            {isAdminAccess && (
+              <p className="text-sm text-muted-foreground">{t('results.commentsAdminOnly')}</p>
+            )}
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">

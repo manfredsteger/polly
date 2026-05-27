@@ -53,7 +53,8 @@ import {
   BellRing,
   Radio,
   Lock,
-  AlertTriangle
+  AlertTriangle,
+  ArrowLeft
 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { apiRequest } from "@/lib/queryClient";
@@ -220,6 +221,14 @@ export default function Poll() {
   const isOwner = !!(user && poll?.userId === user.id);
   const isEffectiveAdmin = isAdminAccess || isOwner;
   const effectiveAdminToken = isAdminAccess ? token : (isOwner ? poll?.adminToken : undefined);
+  const isNewScheduleOptionRangeInvalid = (() => {
+    if (poll?.type !== 'schedule') return false;
+    if (!newOptionForm.startTime || !newOptionForm.endTime) return false;
+    const start = new Date(newOptionForm.startTime);
+    const end = new Date(newOptionForm.endTime);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return true;
+    return end <= start;
+  })();
   
   // Handle auth errors from query
   useEffect(() => {
@@ -335,6 +344,16 @@ export default function Poll() {
   });
 
   const handleSaveAllChanges = async () => {
+    const pollEndedNow = !poll?.isActive || !!(poll?.expiresAt && new Date() > new Date(poll.expiresAt));
+    if (pollEndedNow) {
+      toast({
+        title: t('pollView.toasts.error'),
+        description: t('pollView.editDisabledClosed'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (poll?.type === 'schedule') {
       const hasInvalidRange = editingOptions.some((option) => {
         if (option.isDeleted) return false;
@@ -702,7 +721,12 @@ export default function Poll() {
           
           {isEffectiveAdmin && (
             <div className="flex space-x-2 ml-4">
-              <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)} data-testid="button-edit-poll">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditDialogOpen(true)}
+                data-testid="button-edit-poll"
+              >
                 <Settings className="w-4 h-4 mr-2" />
                 {t('pollView.editPoll')}
               </Button>
@@ -719,29 +743,41 @@ export default function Poll() {
         </div>
 
         {/* Meta Information */}
-        <div className="flex flex-wrap items-center text-sm text-muted-foreground mt-4 space-x-6">
-          {poll.user && (
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            {poll.user && (
+              <span className="flex items-center">
+                <User className="w-4 h-4 mr-1" />
+                {t('pollView.createdBy')}: {poll.user.name || poll.user.username}
+              </span>
+            )}
             <span className="flex items-center">
-              <User className="w-4 h-4 mr-1" />
-              {t('pollView.createdBy')}: {poll.user.name || poll.user.username}
+              <Clock className="w-4 h-4 mr-1" />
+              {t('pollView.created')}: {new Date(poll.createdAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
             </span>
-          )}
-          <span className="flex items-center">
-            <Clock className="w-4 h-4 mr-1" />
-            {t('pollView.created')}: {new Date(poll.createdAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
-          </span>
-          {poll.expiresAt && (
-            <span className="flex items-center">
-              <Calendar className="w-4 h-4 mr-1" />
-              {t('pollView.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
-            </span>
-          )}
-          {results && (
-            <span className="flex items-center">
-              <Users className="w-4 h-4 mr-1" />
-              {results.participantCount} {t('pollView.participants')}
-            </span>
-          )}
+            {poll.expiresAt && (
+              <span className="flex items-center">
+                <Calendar className="w-4 h-4 mr-1" />
+                {t('pollView.expiresAt')}: {new Date(poll.expiresAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
+              </span>
+            )}
+            {results && (
+              <span className="flex items-center">
+                <Users className="w-4 h-4 mr-1" />
+                {results.participantCount} {t('pollView.participants')}
+              </span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/meine-umfragen")}
+            className="self-end lg:self-auto"
+            data-testid="button-back-to-my-polls"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {t('myPolls.tabCreated')}
+          </Button>
         </div>
       </div>
 
@@ -959,15 +995,6 @@ export default function Poll() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => setEditDialogOpen(true)}
-                      data-testid="button-edit-poll-tools"
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      {t('pollView.editPoll')}
-                    </Button>
                     {!smtpConfigured && (
                       <div className="p-3 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-sm text-yellow-600 dark:text-yellow-400">
                         <AlertTriangle className="w-4 h-4 inline mr-2" />
@@ -1295,6 +1322,9 @@ export default function Poll() {
                             className="text-sm"
                             data-testid="new-option-text"
                           />
+                          {isNewScheduleOptionRangeInvalid && (
+                            <p className="text-xs text-destructive">{t('createPoll.invalidTimeRange')}</p>
+                          )}
                         </div>
                       ) : poll?.type === 'organization' ? (
                         <div className="grid grid-cols-3 gap-2">
@@ -1350,7 +1380,7 @@ export default function Poll() {
                             setShowNewOptionForm(false);
                             setNewOptionForm({ text: '', startTime: '', endTime: '', maxCapacity: undefined });
                           }}
-                          disabled={poll?.type === 'schedule' ? !newOptionForm.startTime : !newOptionForm.text.trim()}
+                          disabled={poll?.type === 'schedule' ? (!newOptionForm.startTime || !newOptionForm.endTime || isNewScheduleOptionRangeInvalid) : !newOptionForm.text.trim()}
                           data-testid="new-option-confirm"
                         >
                           {t('pollView.confirmAddOption')}

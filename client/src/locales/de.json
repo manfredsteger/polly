@@ -1113,7 +1113,7 @@
       "usersLabel": "Benutzer",
       "activePollsLabel": "Aktive Umfragen",
       "votesLabel": "Abstimmungen",
-      "thisMonth": "Diesen Monat",
+      "thisMonth": "Erstellte Umfragen (30 Tage)",
       "schedulePolls": "Terminumfragen",
       "classicPolls": "Klassische Umfragen",
       "orgLists": "Orga-Listen",
@@ -2525,6 +2525,8 @@
     "loginToVoteWithEmail": "Bitte melden Sie sich an, um mit dieser E-Mail abzustimmen.",
     "additionalCommentLabel": "Zusätzlicher Kommentar",
     "additionalCommentPlaceholder": "Zusätzliche Informationen für den Umfrage-Organisator eingeben",
+    "cancelChanges": "Änderungen verwerfen",
+    "optionNoLongerAvailable": "Diese Terminoption liegt in der Vergangenheit und ist nicht mehr abstimmbar.",
     "slotFullError": "Dieser Platz ist leider schon voll. Es gibt keine freien Plätze mehr.",
     "alreadySignedUpError": "Sie haben sich bereits für einen Platz in dieser Liste eingetragen.",
     "overbookingPrevented": "Eine Überbuchung wurde verhindert. Bitte versuchen Sie einen anderen Slot."
@@ -2876,6 +2878,8 @@
     "endingPoll": "Umfrage wird beendet …",
     "reactivatePoll": "Umfrage reaktivieren",
     "reactivateExpiredHint": "Damit kann eine abgelaufene Umfrage wieder geöffnet und die Abstimmung erneut aktiviert werden.",
+    "reactivateNeedsFutureDates": "Alle Terminoptionen liegen in der Vergangenheit. Bitte aktualisieren oder ergänzen Sie zukünftige Termine in \"Umfrage bearbeiten\", bevor Sie reaktivieren.",
+    "reactivateNeedsFutureExpiry": "Das Ablaufdatum der Umfrage liegt in der Vergangenheit. Bitte setzen Sie in \"Umfrage bearbeiten\" ein zukünftiges Ablaufdatum, bevor Sie reaktivieren.",
     "adminLink": "Admin-Link",
     "editDialogTitle": "Umfrage bearbeiten",
     "editDialogDescription": "Ändern Sie die Einstellungen und Optionen dieser Umfrage.",
@@ -3219,7 +3223,8 @@
     "invalidLink": "Dieser Link ist ungültig oder abgelaufen.",
     "withdrawing": "Wird zurückgezogen …",
     "pollClosedEditNotAllowed": "Diese Umfrage ist beendet oder abgelaufen. Stimmen können nicht mehr bearbeitet werden.",
-    "voteEditNotAllowed": "Die Bearbeitung von Stimmen ist bei dieser Umfrage nicht erlaubt."
+    "voteEditNotAllowed": "Die Bearbeitung von Stimmen ist bei dieser Umfrage nicht erlaubt.",
+    "optionNoLongerAvailable": "Eine oder mehrere ausgewählte Terminoptionen liegen in der Vergangenheit und können nicht geändert werden."
   },
   "liveResults": {
     "title": "Live-Ergebnisse",

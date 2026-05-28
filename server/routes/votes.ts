@@ -12,6 +12,55 @@ import {
 } from "./common";
 
 const router = Router();
+
+const isPastScheduleOption = (option: { startTime?: Date | string | null; endTime?: Date | string | null }) => {
+  const now = new Date();
+  if (option.endTime) {
+    const end = new Date(option.endTime);
+    return !isNaN(end.getTime()) && end < now;
+  }
+  if (option.startTime) {
+    const start = new Date(option.startTime);
+    return !isNaN(start.getTime()) && start < now;
+  }
+  return false;
+};
+
+const validateVoteOptionIds = (
+  poll: { type: string; options: Array<{ id: number; startTime?: Date | string | null; endTime?: Date | string | null }> },
+  votes: Array<{ optionId: number }>
+) => {
+  const validOptionIds = new Set(poll.options.map((opt) => opt.id));
+  for (const vote of votes) {
+    if (!validOptionIds.has(vote.optionId)) {
+      return {
+        status: 400,
+        body: {
+          error: 'One or more options are invalid for this poll.',
+          errorCode: 'INVALID_OPTION_ID',
+        },
+      };
+    }
+  }
+
+  if (poll.type === 'schedule') {
+    const optionById = new Map(poll.options.map((opt) => [opt.id, opt]));
+    for (const vote of votes) {
+      const option = optionById.get(vote.optionId);
+      if (option && isPastScheduleOption(option)) {
+        return {
+          status: 400,
+          body: {
+            error: 'This date/time option is in the past and can no longer be voted.',
+            errorCode: 'PAST_OPTION_DATE',
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+};
 const editVotesUpdateSchema = z.object({
   votes: z.array(z.object({
     optionId: z.number(),
@@ -42,6 +91,10 @@ router.post('/polls/:token/vote', async (req, res) => {
     }
 
     const data = bulkVoteSchema.parse(req.body);
+    const optionValidation = validateVoteOptionIds(poll, data.votes);
+    if (optionValidation) {
+      return res.status(optionValidation.status).json(optionValidation.body);
+    }
     
     const currentUserId = await extractUserId(req);
     let userId: number | null = null;
@@ -225,6 +278,10 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     }
 
     const data = bulkVoteSchema.parse(req.body);
+    const optionValidation = validateVoteOptionIds(poll, data.votes);
+    if (optionValidation) {
+      return res.status(optionValidation.status).json(optionValidation.body);
+    }
     
     const currentUserId = await extractUserId(req);
     let userId: number | null = null;
@@ -561,14 +618,9 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       });
     }
 
-    const validOptionIds = new Set(poll.options.map((opt) => opt.id));
-    for (const updatedVote of updatedVotes) {
-      if (!validOptionIds.has(updatedVote.optionId)) {
-        return res.status(400).json({
-          error: 'One or more options are invalid for this poll.',
-          errorCode: 'INVALID_OPTION_ID',
-        });
-      }
+    const optionValidation = validateVoteOptionIds(poll, updatedVotes);
+    if (optionValidation) {
+      return res.status(optionValidation.status).json(optionValidation.body);
     }
 
     const updatedResults = [];

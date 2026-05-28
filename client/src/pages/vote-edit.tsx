@@ -75,6 +75,8 @@ export default function VoteEditPage() {
             description = t('voteEdit.pollClosedEditNotAllowed');
           } else if (errorData.errorCode === 'VOTE_EDIT_NOT_ALLOWED') {
             description = t('voteEdit.voteEditNotAllowed');
+          } else if (errorData.errorCode === 'PAST_OPTION_DATE') {
+            description = t('voteEdit.optionNoLongerAvailable');
           }
         } catch {}
       }

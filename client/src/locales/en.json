@@ -1113,7 +1113,7 @@
       "usersLabel": "Users",
       "activePollsLabel": "Active Polls",
       "votesLabel": "Votes",
-      "thisMonth": "This Month",
+      "thisMonth": "Polls Created (30 Days)",
       "schedulePolls": "Schedule Polls",
       "classicPolls": "Classic Polls",
       "orgLists": "Org Lists",
@@ -2525,6 +2525,8 @@
     "loginToVoteWithEmail": "Please log in to vote with this email.",
     "additionalCommentLabel": "Additional comment",
     "additionalCommentPlaceholder": "Add any extra information for the poll organizer",
+    "cancelChanges": "Cancel changes",
+    "optionNoLongerAvailable": "This date/time option is in the past and is no longer available for voting.",
     "slotFullError": "This slot is fully booked. There are no more spots available.",
     "alreadySignedUpError": "You have already signed up for a slot in this list.",
     "overbookingPrevented": "Overbooking was prevented. Please try a different slot."
@@ -2876,6 +2878,8 @@
     "endingPoll": "Ending poll...",
     "reactivatePoll": "Reactivate Poll",
     "reactivateExpiredHint": "Use this to reopen an expired poll and allow voting again.",
+    "reactivateNeedsFutureDates": "All date options are in the past. Please update or add future dates in Edit Poll before reactivating.",
+    "reactivateNeedsFutureExpiry": "Poll expiry is in the past. Please set a future expiry date in Edit Poll before reactivating.",
     "adminLink": "Admin Link",
     "editDialogTitle": "Edit Poll",
     "editDialogDescription": "Change the settings and options of this poll.",
@@ -3219,7 +3223,8 @@
     "invalidLink": "This link is invalid or has expired.",
     "withdrawing": "Withdrawing...",
     "pollClosedEditNotAllowed": "This poll is closed or expired. Votes can no longer be edited.",
-    "voteEditNotAllowed": "Vote editing is not allowed for this poll."
+    "voteEditNotAllowed": "Vote editing is not allowed for this poll.",
+    "optionNoLongerAvailable": "One or more selected date options are in the past and cannot be changed."
   },
   "liveResults": {
     "title": "Live Results",

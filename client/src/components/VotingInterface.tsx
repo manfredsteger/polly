@@ -75,6 +75,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [freeTextAnswers, setFreeTextAnswers] = useState<Record<number, string>>({});
   const [surveyComment, setSurveyComment] = useState("");
   const [orgaBookings, setOrgaBookings] = useState<SlotBookingInfo[]>([]);
+  const [initialVotesSnapshot, setInitialVotesSnapshot] = useState<Record<number, VoteResponse>>({});
+  const [initialSurveyCommentSnapshot, setInitialSurveyCommentSnapshot] = useState("");
+  const [initialOrgaBookingsSnapshot, setInitialOrgaBookingsSnapshot] = useState<SlotBookingInfo[]>([]);
   const [hasOrgaChanges, setHasOrgaChanges] = useState(false);
   const [showSelfVote, setShowSelfVote] = useState(false);
   const [duplicateEmailError, setDuplicateEmailError] = useState<string | null>(null);
@@ -171,14 +174,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             existingVotes[v.optionId] = v.response as VoteResponse;
           }
         });
-        if (Object.keys(existingVotes).length > 0) {
-          setVotes(existingVotes);
-        }
-        if (poll.type === 'survey' && !surveyComment) {
+        setVotes(existingVotes);
+        setInitialVotesSnapshot(existingVotes);
+        if (poll.type === 'survey' || poll.type === 'schedule') {
           const firstComment = myVotesData.votes.find(v => v.comment?.trim())?.comment?.trim() || "";
-          if (firstComment) {
-            setSurveyComment(firstComment);
-          }
+          setSurveyComment(firstComment);
+          setInitialSurveyCommentSnapshot(firstComment);
         }
       } else {
         // Pre-fill slot bookings for organization polls
@@ -188,12 +189,50 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             optionId: v.optionId,
             comment: v.comment || undefined
           }));
-        if (existingBookings.length > 0 && orgaBookings.length === 0) {
-          setOrgaBookings(existingBookings);
-        }
+        setOrgaBookings(existingBookings);
+        setInitialOrgaBookingsSnapshot(existingBookings);
+        setHasOrgaChanges(false);
       }
     }
-  }, [myVotesData, canEdit, poll.type, voterName, voterEmail, orgaBookings.length, surveyComment]);
+  }, [myVotesData, canEdit, poll.type, voterName, voterEmail]);
+
+  const hasPendingVoteChanges = useMemo(() => {
+    if (!hasAlreadyVoted || !canEdit) return false;
+    if (poll.type === 'organization') {
+      const normalize = (bookings: SlotBookingInfo[]) =>
+        [...bookings]
+          .map((b) => ({ optionId: b.optionId, comment: b.comment?.trim() || "" }))
+          .sort((a, b) => a.optionId - b.optionId || a.comment.localeCompare(b.comment));
+      return JSON.stringify(normalize(orgaBookings)) !== JSON.stringify(normalize(initialOrgaBookingsSnapshot));
+    }
+    const votesChanged = JSON.stringify(votes) !== JSON.stringify(initialVotesSnapshot);
+    if (poll.type === 'survey' || poll.type === 'schedule') {
+      return votesChanged || surveyComment.trim() !== initialSurveyCommentSnapshot.trim();
+    }
+    return votesChanged;
+  }, [
+    hasAlreadyVoted,
+    canEdit,
+    poll.type,
+    orgaBookings,
+    initialOrgaBookingsSnapshot,
+    votes,
+    initialVotesSnapshot,
+    surveyComment,
+    initialSurveyCommentSnapshot,
+  ]);
+
+  const handleCancelVoteChanges = () => {
+    if (poll.type === 'organization') {
+      setOrgaBookings(initialOrgaBookingsSnapshot);
+      setHasOrgaChanges(false);
+      return;
+    }
+    setVotes(initialVotesSnapshot);
+    if (poll.type === 'survey' || poll.type === 'schedule') {
+      setSurveyComment(initialSurveyCommentSnapshot);
+    }
+  };
 
   // Check if email belongs to a registered user
   const checkEmailRegistration = async (email: string) => {
@@ -290,6 +329,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         return t('votingInterface.loginToVoteWithEmail');
       case 'WITHDRAWAL_NOT_ALLOWED':
         return t('votingInterface.voteWithdrawError');
+      case 'PAST_OPTION_DATE':
+        return t('votingInterface.optionNoLongerAvailable');
       default:
         return errorData.error || t('votingInterface.voteCouldNotBeSaved');
     }
@@ -518,7 +559,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
     } else {
       const hasFreeTextOptions = poll.options.some((o: any) => o.isFreeText);
-      const votesToSubmit = Object.entries(votes);
+      const votesToSubmit = Object.entries(votes).filter(([optionId]) =>
+        !(poll.type === 'schedule' && expiredScheduleOptionIds.has(Number(optionId)))
+      );
       const hasFreeTextAnswers = hasFreeTextOptions && Object.values(freeTextAnswers).some(v => v?.trim());
       if (votesToSubmit.length === 0 && !hasFreeTextAnswers) {
         toast({
@@ -614,13 +657,15 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else {
         // For schedule polls: Use bulk vote endpoint to submit all votes at once
-        const votesToSubmit = Object.entries(votes);
+        const votesToSubmit = Object.entries(votes).filter(([optionId]) => !expiredScheduleOptionIds.has(Number(optionId)));
+        const trimmedSurveyComment = surveyComment.trim();
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
           votes: votesToSubmit.map(([optionId, response]) => ({
             optionId: parseInt(optionId),
-            response
+            response,
+            comment: trimmedSurveyComment || undefined,
           }))
         };
         
@@ -726,6 +771,42 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
   const isPollExpired = poll.expiresAt && new Date() > new Date(poll.expiresAt);
   const canVote = poll.isActive && !isPollExpired;
+  const expiredScheduleOptionIds = useMemo(() => {
+    if (poll.type !== 'schedule') return new Set<number>();
+    const now = new Date();
+    const ids = new Set<number>();
+    for (const option of poll.options) {
+      if (option.endTime) {
+        const end = new Date(option.endTime);
+        if (!isNaN(end.getTime()) && end < now) {
+          ids.add(option.id);
+          continue;
+        }
+      }
+      if (option.startTime) {
+        const start = new Date(option.startTime);
+        if (!isNaN(start.getTime()) && start < now) {
+          ids.add(option.id);
+        }
+      }
+    }
+    return ids;
+  }, [poll.type, poll.options]);
+
+  useEffect(() => {
+    if (poll.type !== 'schedule' || expiredScheduleOptionIds.size === 0) return;
+    setVotes((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const optionId of Object.keys(next)) {
+        if (expiredScheduleOptionIds.has(Number(optionId))) {
+          delete next[Number(optionId)];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [poll.type, expiredScheduleOptionIds]);
 
   if (isLoadingMyVotes) {
     return (
@@ -835,7 +916,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   onChange={(e) => setVoterName(e.target.value)}
                   placeholder={t('votingInterface.namePlaceholder')}
                   className="mt-1"
-                  disabled={!canVote}
+                  disabled={!canVote || isAuthenticated}
                   data-testid="input-voter-name"
                 />
               </div>
@@ -1010,7 +1091,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 )}
                 {poll.options.filter((o: any) => !o.isFreeText).length > 0 && (
                   <SimpleImageVoting
-                    options={poll.options.filter((o: any) => !o.isFreeText)}
+                    options={poll.options.filter((o: any) => !o.isFreeText && !(poll.type === 'schedule' && expiredScheduleOptionIds.has(o.id)))}
                     onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
                     existingVotes={Object.fromEntries(
                       Object.entries(votes).map(([id, response]) => [id, response])
@@ -1036,7 +1117,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               </>
             ) : (
               <SimpleImageVoting
-                options={poll.options.filter((o: any) => !o.isFreeText)}
+                options={poll.options.filter((o: any) => !o.isFreeText && !(poll.type === 'schedule' && expiredScheduleOptionIds.has(o.id)))}
                 onVote={() => {}}
                 existingVotes={{}}
                 disabled={true}
@@ -1073,6 +1154,17 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     >
                       {voteMutation.isPending ? t('votingInterface.saving') : orgaBookings.length > 0 ? t('votingInterface.submit') : t('votingInterface.selectSlot')}
                     </Button>
+                    {hasPendingVoteChanges && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelVoteChanges}
+                        className="px-6"
+                        data-testid="button-cancel-vote-changes"
+                      >
+                        {t('votingInterface.cancelChanges')}
+                      </Button>
+                    )}
                     {hasAlreadyVoted && poll.allowVoteWithdrawal && (
                       <Button
                         variant="outline"
@@ -1100,6 +1192,17 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     >
                       {voteMutation.isPending ? t('votingInterface.saving') : t('votingInterface.submitVote')}
                     </Button>
+                    {hasPendingVoteChanges && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelVoteChanges}
+                        className="px-6"
+                        data-testid="button-cancel-vote-changes"
+                      >
+                        {t('votingInterface.cancelChanges')}
+                      </Button>
+                    )}
                     {hasAlreadyVoted && poll.allowVoteWithdrawal && (
                       <Button
                         variant="outline"

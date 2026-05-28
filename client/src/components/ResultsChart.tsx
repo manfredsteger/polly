@@ -254,6 +254,23 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   });
 
   const participants = Array.from(participantMap.values());
+  const adminComments = isAdminAccess
+    ? Array.from(
+        new Map(
+          results.votes
+            .filter((v) => v.comment && v.comment.trim())
+            .map((v) => [
+              v.userId ? `user_${v.userId}` : `anon_${v.voterEmail || v.voterName}`,
+              {
+                voterName: v.voterName,
+                voterEmail: v.voterEmail,
+                comment: v.comment!.trim(),
+                createdAt: v.createdAt,
+              },
+            ])
+        ).values()
+      ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    : [];
 
   const handleExportCSV = () => {
     if (publicToken) {
@@ -933,6 +950,25 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
             <CardTitle>{t('results.detailedResults')}</CardTitle>
             {isAdminAccess && (
               <p className="text-sm text-muted-foreground">{t('results.commentsAdminOnly')}</p>
+            )}
+            {isAdminAccess && (
+              <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+                <p className="text-sm font-medium mb-2">{t('voting.comment')}</p>
+                {adminComments.length > 0 ? (
+                  <div className="space-y-2">
+                    {adminComments.map((entry, idx) => (
+                      <div key={`${entry.voterEmail}-${idx}`} className="text-sm">
+                        <span className="font-medium">{entry.voterName}</span>
+                        {entry.voterEmail ? <span className="text-muted-foreground"> ({entry.voterEmail})</span> : null}
+                        <span className="text-muted-foreground">: </span>
+                        <span>{entry.comment}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t('results.noEntriesYet')}</p>
+                )}
+              </div>
             )}
           </CardHeader>
           <CardContent>

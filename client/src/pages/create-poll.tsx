@@ -791,6 +791,18 @@ export default function CreatePoll() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium">{t('pollView.date')}</Label>
+              <div className="mt-1">
+                <DatePicker
+                  date={editDate}
+                  onDateChange={(date) => setEditDate(date)}
+                  showClearButton={false}
+                  inline
+                  data-testid="input-edit-date"
+                />
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edit-startTime" className="text-sm font-medium">{t('pollCreation.from')}</Label>
@@ -836,7 +848,7 @@ export default function CreatePoll() {
               <Button
                 type="button"
                 onClick={saveEditedOption}
-                disabled={!editStartTime || !editEndTime || editEndTime <= editStartTime}
+                disabled={!editDate || !editStartTime || !editEndTime || editEndTime <= editStartTime}
                 className="flex-1 polly-button-schedule"
                 data-testid="button-save-edit"
               >

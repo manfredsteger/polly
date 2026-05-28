@@ -58,12 +58,28 @@ interface ExtendedStats {
   }>;
 }
 
+function hasFutureScheduleOption(poll: PollWithOptions): boolean {
+  if (poll.type !== 'schedule') return true;
+  const now = new Date();
+  return (poll.options || []).some((opt) => {
+    if (opt.endTime) {
+      const end = new Date(opt.endTime);
+      return !isNaN(end.getTime()) && end > now;
+    }
+    if (opt.startTime) {
+      const start = new Date(opt.startTime);
+      return !isNaN(start.getTime()) && start > now;
+    }
+    return false;
+  });
+}
+
 function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; showAdminLink?: boolean }) {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date());
+  const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date()) && hasFutureScheduleOption(poll);
   const canEditPoll = showAdminLink && isActive;
   const voteCount = poll.votes?.length || 0;
   const optionCount = poll.options?.length || 0;
@@ -553,7 +569,7 @@ export default function MyPolls() {
               <div>
                 <p className="text-orange-100 text-sm">{t('myPolls.statsActivePolls')}</p>
                 <p className="text-2xl font-bold">
-                  {createdLoading ? '–' : (createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date())).length || 0)}
+                  {createdLoading ? '–' : (createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date()) && hasFutureScheduleOption(p)).length || 0)}
                 </p>
               </div>
               <Activity className="w-8 h-8 text-orange-200" />
@@ -613,8 +629,8 @@ export default function MyPolls() {
       <Tabs defaultValue="created" className="w-full">
         {(() => {
           const now = new Date();
-          const activePolls = createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > now)) || [];
-          const archivedPolls = createdPolls?.filter(p => !p.isActive || (p.expiresAt && new Date(p.expiresAt) <= now)) || [];
+          const activePolls = createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > now) && hasFutureScheduleOption(p)) || [];
+          const archivedPolls = createdPolls?.filter(p => !p.isActive || (p.expiresAt && new Date(p.expiresAt) <= now) || !hasFutureScheduleOption(p)) || [];
           return (
             <>
               <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>

@@ -224,6 +224,38 @@ router.patch('/admin/:token', async (req, res) => {
       }
     }
     
+    if (isActive === true) {
+      const now = new Date();
+      const effectiveExpiresAt = updates.expiresAt !== undefined ? updates.expiresAt : poll.expiresAt;
+      if (effectiveExpiresAt && new Date(effectiveExpiresAt) <= now) {
+        return res.status(400).json({
+          error: 'Die Umfrage kann nicht reaktiviert werden, weil das Ablaufdatum in der Vergangenheit liegt.',
+          errorCode: 'POLL_EXPIRES_AT_PAST'
+        });
+      }
+
+      if (poll.type === 'schedule') {
+        const hasFutureOption = (poll.options || []).some((opt) => {
+          if (opt.endTime) {
+            const end = new Date(opt.endTime);
+            return !isNaN(end.getTime()) && end > now;
+          }
+          if (opt.startTime) {
+            const start = new Date(opt.startTime);
+            return !isNaN(start.getTime()) && start > now;
+          }
+          return false;
+        });
+
+        if (!hasFutureOption) {
+          return res.status(400).json({
+            error: 'Die Umfrage kann nicht reaktiviert werden, weil alle Terminoptionen in der Vergangenheit liegen.',
+            errorCode: 'NO_FUTURE_OPTIONS'
+          });
+        }
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
     }

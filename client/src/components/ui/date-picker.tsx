@@ -59,6 +59,13 @@ export function DatePicker({
     setOpen(false)
   }
 
+  const isBeforeMinDate = (d: Date) => {
+    if (!minDate) return false
+    const selectedDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+    const minDay = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()).getTime()
+    return selectedDay < minDay
+  }
+
   if (inline) {
     return (
       <div className={cn("flex flex-col gap-2", className)}>
@@ -96,7 +103,7 @@ export function DatePicker({
               mode="single"
               selected={date || undefined}
               onSelect={handleSelect}
-              disabled={minDate ? (d) => d < minDate : undefined}
+              disabled={minDate ? isBeforeMinDate : undefined}
               initialFocus
               locale={locale}
               weekStartsOn={1}
@@ -133,7 +140,7 @@ export function DatePicker({
             mode="single"
             selected={date || undefined}
             onSelect={handleSelect}
-            disabled={minDate ? (d) => d < minDate : undefined}
+            disabled={minDate ? isBeforeMinDate : undefined}
             initialFocus
             locale={locale}
             weekStartsOn={1}

@@ -3,6 +3,7 @@ import { emailService } from './emailService';
 import { getBaseUrl } from '../utils/baseUrl';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // every minute
+const AUTO_EXPIRED_NOTIFICATION_TYPE = 'auto_expired_poll_ended';
 
 async function runExpiryReminderCheck(): Promise<void> {
   try {
@@ -54,6 +55,62 @@ async function runExpiredPollDeactivation(): Promise<void> {
     const deactivated = await storage.deactivateExpiredPolls();
     if (deactivated.length > 0) {
       console.log(`[PollScheduler] Deactivated ${deactivated.length} expired poll(s): ${deactivated.map(p => `"${p.title}"`).join(', ')}`);
+      const baseUrl = getBaseUrl();
+      for (const poll of deactivated) {
+        try {
+          const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
+          const voterEmails = await storage.getVoterEmailsForPoll(poll.id);
+          const recipients = new Set<string>(voterEmails.filter((e) => !!e));
+          if (poll.creatorEmail) {
+            recipients.add(poll.creatorEmail);
+          }
+
+          if (recipients.size === 0) {
+            continue;
+          }
+
+          const notificationLogs = await storage.getNotificationLogs(poll.id);
+          const alreadyNotified = new Set(
+            notificationLogs
+              .filter((log) => log.type === AUTO_EXPIRED_NOTIFICATION_TYPE && log.success)
+              .map((log) => log.recipientEmail.toLowerCase())
+          );
+
+          const recipientsToNotify = [...recipients].filter(
+            (email) => !alreadyNotified.has(email.toLowerCase())
+          );
+
+          if (recipientsToNotify.length === 0) {
+            continue;
+          }
+
+          const pollType = poll.type === 'organization' ? 'organization' : 'survey';
+          await emailService.sendPollEndedEmails(
+            recipientsToNotify,
+            poll.title,
+            pollLink,
+            poll.resultsPublic ?? true,
+            pollType
+          );
+
+          for (const recipientEmail of recipientsToNotify) {
+            await storage.logNotification({
+              pollId: poll.id,
+              type: AUTO_EXPIRED_NOTIFICATION_TYPE,
+              recipientEmail,
+              sentBy: 'system',
+              sentByGuest: false,
+              success: true,
+            });
+          }
+
+          console.log(
+            `[PollScheduler] Sent auto-expiry poll-ended notifications for "${poll.title}" (${recipientsToNotify.length} recipient(s))`
+          );
+        } catch (emailError) {
+          console.error(`[PollScheduler] Failed auto-expiry notifications for poll ${poll.id}:`, emailError);
+        }
+      }
     }
   } catch (err) {
     console.error('[PollScheduler] Error in expired poll deactivation:', err);

@@ -367,7 +367,8 @@ router.post('/deletion-requests/:id/reject', requireAdmin, async (req, res) => {
 router.get('/polls', requireAdmin, async (req, res) => {
   try {
     const polls = await storage.getAllPolls();
-    res.json(polls);
+    // Keep consistent with admin dashboard stats, which exclude test data.
+    res.json(polls.filter((poll) => !poll.isTestData));
   } catch (error) {
     console.error('Error fetching all polls:', error);
     res.status(500).json({ error: 'Interner Fehler' });
@@ -397,6 +398,7 @@ router.patch('/polls/:id', requireAdmin, async (req, res) => {
     }
 
     const poll = await storage.updatePoll(existing.id, updates);
+    adminCacheService.invalidateCache();
     res.json(poll);
   } catch (error) {
     console.error('Error updating poll:', error);
@@ -414,6 +416,7 @@ router.delete('/polls/:id', requireAdmin, async (req, res) => {
     }
 
     await storage.deletePoll(existing.id);
+    adminCacheService.invalidateCache();
     res.json({ success: true, message: 'Umfrage gelöscht' });
   } catch (error) {
     console.error('Error deleting poll:', error);

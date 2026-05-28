@@ -97,8 +97,8 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
 
   const { data: extendedStats, isLoading: statsLoading, refetch: refetchExtendedStats } = useQuery<ExtendedStats>({
     queryKey: ['/api/v1/admin/extended-stats'],
-    staleTime: 1000 * 60 * 60 * 24, // 24h - matches backend cache
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5, // 5m - aligned with backend cache
+    refetchOnWindowFocus: true,
   });
 
   const [statsRefreshing, setStatsRefreshing] = useState(false);

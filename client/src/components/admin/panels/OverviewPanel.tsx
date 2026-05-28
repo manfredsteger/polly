@@ -126,6 +126,7 @@ export function OverviewPanel({
         />
         <StatCard 
           icon={<TrendingUp />} 
+          // monthlyPolls is the number of polls created in the last 30 days.
           label={t('admin.overview.thisMonth')} 
           value={displayStats.monthlyPolls} 
           color="orange" 

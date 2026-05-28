@@ -1052,6 +1052,7 @@ export class DatabaseStorage implements IStorage {
       [organizationPollsResult],
       recentPollsWithUsers,
       recentVotesWithPolls,
+      recentNotificationsWithPolls,
       recentUsers,
     ] = await Promise.all([
       db.select({ count: count() }).from(users).where(eq(users.isTestData, false)),
@@ -1086,6 +1087,14 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(votes.createdAt))
         .limit(5),
       db.select({
+        notification: notificationLogs,
+        poll: polls,
+      }).from(notificationLogs)
+        .innerJoin(polls, eq(notificationLogs.pollId, polls.id))
+        .where(eq(polls.isTestData, false))
+        .orderBy(desc(notificationLogs.createdAt))
+        .limit(5),
+      db.select({
         id: users.id,
         name: users.name,
         createdAt: users.createdAt,
@@ -1113,6 +1122,22 @@ export class DatabaseStorage implements IStorage {
         message: `Neue Abstimmung abgegeben`,
         timestamp: vote.createdAt,
         actor: vote.voterName,
+        pollToken: poll.publicToken,
+      });
+    }
+
+    for (const { notification, poll } of recentNotificationsWithPolls) {
+      let message = 'Benachrichtigung versendet';
+      if (notification.type === 'manual_reminder') {
+        message = `Erinnerung versendet für "${poll.title}"`;
+      } else if (notification.type === 'auto_expired_poll_ended') {
+        message = `Umfrage automatisch beendet und Teilnehmer benachrichtigt: "${poll.title}"`;
+      }
+      activity.push({
+        type: 'notification',
+        message,
+        timestamp: notification.createdAt,
+        actor: notification.sentBy || 'System',
         pollToken: poll.publicToken,
       });
     }

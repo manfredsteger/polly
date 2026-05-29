@@ -10,6 +10,7 @@ import {
   Vote,
   Clock,
   FileText,
+  ListChecks,
   Loader2,
   RefreshCw,
   CheckCircle,
@@ -23,7 +24,7 @@ import type { ExtendedStats } from "../common/types";
 interface OverviewPanelProps {
   extendedStats: ExtendedStats | undefined;
   statsLoading: boolean;
-  onStatCardClick: (target: string) => void;
+  onStatCardClick: (target: string, filter?: { pollType?: 'schedule' | 'survey' | 'organization' }) => void;
   onRefreshStats: () => Promise<void>;
   statsRefreshing: boolean;
 }
@@ -48,6 +49,7 @@ export function OverviewPanel({
     todayPolls: 0,
     schedulePolls: 0,
     surveyPolls: 0,
+    organizationPolls: 0,
     recentActivity: [],
     lastChecked: null as Date | null,
   };
@@ -98,8 +100,8 @@ export function OverviewPanel({
         </Badge>
       </div>
       
-      {/* Main Stats Grid - Clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Row 1: Core metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard 
           icon={<Users />} 
           label={t('admin.overview.usersLabel')} 
@@ -124,22 +126,51 @@ export function OverviewPanel({
           onClick={() => onStatCardClick("monitoring")}
           testId="stat-votes"
         />
-        <StatCard 
-          icon={<TrendingUp />} 
-          // monthlyPolls is the number of polls created in the last 30 days.
-          label={t('admin.overview.thisMonth')} 
-          value={displayStats.monthlyPolls} 
-          color="orange" 
-          onClick={() => onStatCardClick("polls")}
-          testId="stat-monthly"
-        />
       </div>
 
-      {/* Secondary Stats - Clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Row 2: Poll creation cadence */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card
+          className="p-4 bg-orange-100/80 border-orange-400 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => onStatCardClick("polls")}
+          data-testid="stat-monthly"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">{t('admin.overview.pollsCreated')}</p>
+              <p className="text-xs text-muted-foreground">{t('admin.overview.last30Days')}</p>
+              <p className="text-xl font-bold">{displayStats.monthlyPolls}</p>
+            </div>
+            <TrendingUp className="w-6 h-6 text-orange-500" />
+          </div>
+        </Card>
+        <Card className="p-4 bg-blue-100/80 border-blue-300" data-testid="stat-weekly">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">{t('admin.overview.pollsCreated')}</p>
+              <p className="text-xs text-muted-foreground">{t('admin.overview.last7Days')}</p>
+              <p className="text-xl font-bold">{displayStats.weeklyPolls}</p>
+            </div>
+            <Clock className="w-6 h-6 text-blue-600" />
+          </div>
+        </Card>
+        <Card className="p-4 bg-green-100/80 border-green-300" data-testid="stat-today">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">{t('admin.overview.pollsCreated')}</p>
+              <p className="text-xs text-muted-foreground">{t('admin.overview.last24Hours')}</p>
+              <p className="text-xl font-bold">{displayStats.todayPolls}</p>
+            </div>
+            <Activity className="w-6 h-6 text-green-500" />
+          </div>
+        </Card>
+      </div>
+
+      {/* Row 3: Poll types - Clickable */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card 
           className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => onStatCardClick("polls")}
+          onClick={() => onStatCardClick("polls", { pollType: "schedule" })}
           data-testid="stat-schedule-polls"
         >
           <div className="flex items-center justify-between">
@@ -152,7 +183,7 @@ export function OverviewPanel({
         </Card>
         <Card 
           className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => onStatCardClick("polls")}
+          onClick={() => onStatCardClick("polls", { pollType: "survey" })}
           data-testid="stat-survey-polls"
         >
           <div className="flex items-center justify-between">
@@ -163,22 +194,17 @@ export function OverviewPanel({
             <FileText className="w-6 h-6 text-polly-blue" />
           </div>
         </Card>
-        <Card className="p-4" data-testid="stat-weekly">
+        <Card
+          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => onStatCardClick("polls", { pollType: "organization" })}
+          data-testid="stat-organization-polls"
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">{t('admin.overview.thisWeek')}</p>
-              <p className="text-xl font-bold">{displayStats.weeklyPolls}</p>
+              <p className="text-sm text-muted-foreground">{t('admin.overview.orgLists')}</p>
+              <p className="text-xl font-bold">{displayStats.organizationPolls}</p>
             </div>
-            <Clock className="w-6 h-6 text-amber-500" />
-          </div>
-        </Card>
-        <Card className="p-4" data-testid="stat-today">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">{t('admin.overview.today')}</p>
-              <p className="text-xl font-bold">{displayStats.todayPolls}</p>
-            </div>
-            <Activity className="w-6 h-6 text-green-500" />
+            <ListChecks className="w-6 h-6 text-green-600" />
           </div>
         </Card>
       </div>

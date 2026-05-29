@@ -397,6 +397,16 @@ export default function Poll() {
   });
 
   const handleSaveAllChanges = async () => {
+    const activeOptions = editingOptions.filter(o => !o.isDeleted);
+    if (activeOptions.length < 2) {
+      toast({
+        title: t('pollView.toasts.error'),
+        description: t('pollView.toasts.minOptionsError'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (poll?.type === 'schedule') {
       const hasInvalidRange = editingOptions.some((option) => {
         if (option.isDeleted) return false;

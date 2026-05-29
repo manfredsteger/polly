@@ -8,6 +8,7 @@ import {
   requireEmailVerified,
 } from "./common";
 import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
+import { adminCacheService } from "../services/adminCacheService";
 
 const router = Router();
 
@@ -99,6 +100,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
     }));
 
     const result = await storage.createPoll(pollData, options);
+    adminCacheService.invalidateCache();
     
     if (creatorEmail) {
       const { getBaseUrl } = await import('../utils/baseUrl');
@@ -629,7 +631,11 @@ router.delete('/admin/:token/options/:optionId', async (req, res) => {
     if (!existingOption) {
       return res.status(404).json({ error: 'Option nicht gefunden' });
     }
-    
+
+    if ((poll.options?.length ?? 0) <= 2) {
+      return res.status(400).json({ error: 'A poll must have at least 2 options.' });
+    }
+
     await storage.deletePollOption(optionId);
     res.json({ success: true });
   } catch (error) {

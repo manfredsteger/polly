@@ -1059,8 +1059,7 @@ export class DatabaseStorage implements IStorage {
       db.select({ count: count() }).from(polls).where(eq(polls.isTestData, false)),
       db.select({ count: count() }).from(polls).where(and(
         eq(polls.isActive, true),
-        eq(polls.isTestData, false),
-        sql`${polls.expiresAt} > NOW() OR ${polls.expiresAt} IS NULL`
+        eq(polls.isTestData, false)
       )),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isActive, false), eq(polls.isTestData, false))),
       db.select({ count: count() }).from(votes).innerJoin(polls, eq(votes.pollId, polls.id)).where(eq(polls.isTestData, false)),

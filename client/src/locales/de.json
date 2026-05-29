@@ -1113,13 +1113,17 @@
       "usersLabel": "Benutzer",
       "activePollsLabel": "Aktive Umfragen",
       "votesLabel": "Abstimmungen",
+      "pollsCreated": "Erstellte Umfragen",
       "thisMonth": "Erstellte Umfragen (30 Tage)",
+      "last30Days": "Letzte 30 Tage",
       "schedulePolls": "Terminumfragen",
-      "classicPolls": "Klassische Umfragen",
+      "classicPolls": "Umfragen",
       "orgLists": "Orga-Listen",
-      "today": "Heute",
-      "thisWeek": "Diese Woche",
+      "today": "Heute erstellte Umfragen",
+      "thisWeek": "Diese Woche erstellte Umfragen",
+      "last7Days": "Letzte 7 Tage",
       "totalParticipants": "Teilnehmer gesamt",
+      "last24Hours": "Letzte 24 Stunden",
       "recentActivity": "Letzte Aktivitäten",
       "noRecentActivity": "Keine aktuellen Aktivitäten"
     },
@@ -1240,9 +1244,10 @@
       "resultsPublicDescription": "Die Ergebnisse dieser Umfrage sind öffentlich sichtbar.",
       "confirmDelete": "Löschen bestätigen",
       "confirmDeleteDescription": "Möchten Sie diese Umfrage wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-      "totalCount": "{{count}} Umfragen",
+      "totalCount": "Umfragen gesamt: {{count}}",
       "createdBy": "von {{name}}",
       "anonymousCreator": "Anonym",
+      "noExpiryDate": "Kein Ablaufdatum",
       "publicToken": "Public Token",
       "adminToken": "Admin Token",
       "tokenCopied": "Token kopiert"
@@ -2983,7 +2988,8 @@
       "copied": "Kopiert",
       "linkCopied": "Link wurde in die Zwischenablage kopiert.",
       "linkNotCopied": "Link konnte nicht kopiert werden.",
-      "enterValidEmail": "Bitte geben Sie mindestens eine gültige E-Mail-Adresse ein."
+      "enterValidEmail": "Bitte geben Sie mindestens eine gültige E-Mail-Adresse ein.",
+      "minOptionsError": "Eine Umfrage muss mindestens 2 Optionen haben."
     },
     "inviteEmailsPlaceholder": "max@example.de, anna@example.de"
   },

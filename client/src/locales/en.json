@@ -1113,13 +1113,17 @@
       "usersLabel": "Users",
       "activePollsLabel": "Active Polls",
       "votesLabel": "Votes",
+      "pollsCreated": "Polls Created",
       "thisMonth": "Polls Created (30 Days)",
+      "last30Days": "Last 30 days",
       "schedulePolls": "Schedule Polls",
-      "classicPolls": "Classic Polls",
+      "classicPolls": "Survey Polls",
       "orgLists": "Org Lists",
-      "today": "Today",
-      "thisWeek": "This Week",
+      "today": "Polls Created Today",
+      "thisWeek": "Polls Created This Week",
+      "last7Days": "Last 7 days",
       "totalParticipants": "Total Participants",
+      "last24Hours": "Last 24 hours",
       "recentActivity": "Recent Activity",
       "noRecentActivity": "No recent activity"
     },
@@ -1240,9 +1244,10 @@
       "resultsPublicDescription": "The results of this poll are publicly visible.",
       "confirmDelete": "Confirm Delete",
       "confirmDeleteDescription": "Are you sure you want to delete this poll? This action cannot be undone.",
-      "totalCount": "{{count}} Polls",
+      "totalCount": "Total polls: {{count}}",
       "createdBy": "by {{name}}",
       "anonymousCreator": "Anonymous",
+      "noExpiryDate": "No expiry date",
       "publicToken": "Public Token",
       "adminToken": "Admin Token",
       "tokenCopied": "Token copied"
@@ -2983,7 +2988,8 @@
       "copied": "Copied",
       "linkCopied": "Link copied to clipboard.",
       "linkNotCopied": "Link could not be copied.",
-      "enterValidEmail": "Please enter at least one valid email address."
+      "enterValidEmail": "Please enter at least one valid email address.",
+      "minOptionsError": "A poll must have at least 2 options."
     },
     "inviteEmailsPlaceholder": "john@example.com, anna@example.com"
   },

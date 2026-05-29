@@ -11,6 +11,7 @@ export interface ExtendedStats {
   todayPolls: number;
   schedulePolls: number;
   surveyPolls: number;
+  organizationPolls: number;
   recentActivity: Array<{
     type: string;
     message: string;

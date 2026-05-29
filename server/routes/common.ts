@@ -100,7 +100,7 @@ export const createPollSchema = z.object({
         path: ['endTime'],
       });
     }
-  })).min(1),
+  })).min(2),
 });
 
 export const voteSchema = z.object({

@@ -57,6 +57,8 @@ interface OrgaFormData {
   title: string;
   description: string;
   creatorEmail: string;
+  enableExpiryReminder: boolean;
+  expiryReminderHours: number;
   allowMultipleSlots: boolean;
   allowVoteEdit: boolean;
   allowVoteWithdrawal: boolean;
@@ -267,6 +269,8 @@ export default function CreateOrganization() {
       setTitle(stored.data.title || "");
       setDescription(stored.data.description || "");
       setCreatorEmail(stored.data.creatorEmail || "");
+      setEnableExpiryReminder(stored.data.enableExpiryReminder ?? false);
+      setExpiryReminderHours(stored.data.expiryReminderHours ?? 24);
       setAllowMultipleSlots(stored.data.allowMultipleSlots ?? true);
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
@@ -489,6 +493,8 @@ export default function CreateOrganization() {
       autoSubmitTriggeredRef.current = true;
       
       const storedExpiresAt = stored.data.expiresAt;
+      const storedEnableExpiryReminder = stored.data.enableExpiryReminder ?? false;
+      const storedExpiryReminderHours = stored.data.expiryReminderHours ?? 24;
       const storedIsDayMode = stored.data.isDayMode ?? false;
       const storedDayModeDate = stored.data.dayModeDate ?? "";
       const storedDayModeDates = stored.data.dayModeDates ?? (storedDayModeDate ? [storedDayModeDate] : []);
@@ -500,7 +506,14 @@ export default function CreateOrganization() {
       });
       
       setTimeout(() => {
-        const orgaData = buildOrganizationPayload(storedIsDayMode, storedDayModeDate, storedDayModeDates, storedExpiresAt || undefined);
+        const orgaData = buildOrganizationPayload(
+          storedIsDayMode,
+          storedDayModeDate,
+          storedDayModeDates,
+          storedExpiresAt || undefined,
+          storedEnableExpiryReminder,
+          storedExpiryReminderHours
+        );
         if (!orgaData) return;
         createPollMutation.mutate(orgaData);
       }, 500);
@@ -560,7 +573,22 @@ export default function CreateOrganization() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, allowMultipleSlots, allowVoteEdit, allowVoteWithdrawal, resultsPublic, slots, expiresAt: expiresAt ? expiresAt.toISOString() : null, isDayMode, dayModeDate, dayModeDates },
+          {
+            title,
+            description,
+            creatorEmail,
+            enableExpiryReminder,
+            expiryReminderHours,
+            allowMultipleSlots,
+            allowVoteEdit,
+            allowVoteWithdrawal,
+            resultsPublic,
+            slots,
+            expiresAt: expiresAt ? expiresAt.toISOString() : null,
+            isDayMode,
+            dayModeDate,
+            dayModeDates
+          },
           '/create-organization'
         );
         
@@ -710,7 +738,9 @@ export default function CreateOrganization() {
     useDayMode: boolean,
     useDayModeDate: string,
     useDayModeDates: string[],
-    overriddenExpiresAt?: string
+    overriddenExpiresAt?: string,
+    overriddenEnableExpiryReminder?: boolean,
+    overriddenExpiryReminderHours?: number
   ) => {
     if (!title.trim()) {
       toast({
@@ -759,14 +789,18 @@ export default function CreateOrganization() {
       return null;
     }
 
+    const effectiveExpiresAt = overriddenExpiresAt ?? (expiresAt ? expiresAt.toISOString() : undefined);
+    const effectiveEnableExpiryReminder = overriddenEnableExpiryReminder ?? enableExpiryReminder;
+    const effectiveExpiryReminderHours = overriddenExpiryReminderHours ?? expiryReminderHours;
+
     return {
       title: title.trim(),
       description: description.trim() || undefined,
       type: "organization" as const,
       creatorEmail: isAuthenticated ? undefined : creatorEmail.trim(),
-      expiresAt: overriddenExpiresAt ?? (expiresAt ? expiresAt.toISOString() : undefined),
-      enableExpiryReminder: expiresAt ? enableExpiryReminder : false,
-      expiryReminderHours: expiresAt && enableExpiryReminder ? expiryReminderHours : undefined,
+      expiresAt: effectiveExpiresAt,
+      enableExpiryReminder: !!effectiveExpiresAt ? effectiveEnableExpiryReminder : false,
+      expiryReminderHours: !!effectiveExpiresAt && effectiveEnableExpiryReminder ? effectiveExpiryReminderHours : undefined,
       allowMultipleSlots,
       allowVoteEdit,
       allowVoteWithdrawal,

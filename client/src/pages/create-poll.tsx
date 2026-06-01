@@ -39,6 +39,8 @@ interface PollFormData {
   description: string;
   creatorEmail: string;
   options: PollOption[];
+  enableExpiryReminder: boolean;
+  expiryReminderHours: number;
   allowVoteEdit: boolean;
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
@@ -87,6 +89,8 @@ export default function CreatePoll() {
       setDescription(stored.data.description || "");
       setCreatorEmail(stored.data.creatorEmail || "");
       setOptions(stored.data.options || []);
+      setEnableExpiryReminder(stored.data.enableExpiryReminder ?? false);
+      setExpiryReminderHours(stored.data.expiryReminderHours ?? 24);
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
@@ -151,6 +155,8 @@ export default function CreatePoll() {
       autoSubmitTriggeredRef.current = true;
       
       const storedExpiresAt = stored.data.expiresAt;
+      const storedEnableExpiryReminder = stored.data.enableExpiryReminder ?? false;
+      const storedExpiryReminderHours = stored.data.expiryReminderHours ?? 24;
       formPersistence.clearStoredData();
       
       toast({
@@ -164,6 +170,8 @@ export default function CreatePoll() {
           description: description.trim() || undefined,
           type: "schedule" as const,
           expiresAt: storedExpiresAt || undefined,
+          enableExpiryReminder: !!storedExpiresAt ? storedEnableExpiryReminder : false,
+          expiryReminderHours: !!storedExpiresAt && storedEnableExpiryReminder ? storedExpiryReminderHours : undefined,
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
@@ -245,7 +253,19 @@ export default function CreatePoll() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null, videoConferenceUrl: videoConferenceUrl || undefined },
+          {
+            title,
+            description,
+            creatorEmail,
+            options,
+            enableExpiryReminder,
+            expiryReminderHours,
+            allowVoteEdit,
+            allowVoteWithdrawal,
+            resultsPublic,
+            expiresAt: expiresAt ? expiresAt.toISOString() : null,
+            videoConferenceUrl: videoConferenceUrl || undefined
+          },
           '/create-poll'
         );
         

@@ -32,6 +32,7 @@ interface SimpleImageVotingProps {
   disabled?: boolean;
   adminPreview?: boolean;
   allowMaybe?: boolean;
+  expiredOptionIds?: Set<number>;
 }
 
 interface DayGroup {
@@ -175,7 +176,8 @@ export function SimpleImageVoting({
   existingVotes = {}, 
   disabled = false,
   adminPreview = false,
-  allowMaybe = true
+  allowMaybe = true,
+  expiredOptionIds
 }: SimpleImageVotingProps) {
   const { t, i18n } = useTranslation();
   const [votes, setVotes] = useState<Record<string, 'yes' | 'no' | 'maybe'>>(existingVotes);
@@ -328,10 +330,12 @@ export function SimpleImageVoting({
                     {group.options.map((option) => {
                       const currentVote = votes[String(option.id)];
                       const globalIndex = options.findIndex(o => o.id === option.id);
+                      const isExpired = !!expiredOptionIds?.has(option.id);
                       return (
                         <div 
                           key={option.id} 
                           className={`p-3 border rounded-lg transition-colors ${
+                            isExpired ? 'opacity-70 bg-muted/40 border-border' :
                             currentVote === 'yes' ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' :
                             currentVote === 'maybe' ? 'border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20' :
                             currentVote === 'no' ? 'border-red-500/50 bg-red-50/50 dark:bg-red-950/20' :
@@ -342,12 +346,17 @@ export function SimpleImageVoting({
                           <div className="text-sm font-medium mb-2">
                             <TimeOnlyText text={option.text} startTime={option.startTime} locale={i18n.language} />
                           </div>
+                          {isExpired && (
+                            <div className="text-xs text-muted-foreground mb-2">
+                              {t('votingInterface.expired')}
+                            </div>
+                          )}
                           {!adminPreview && (
                             <VoteButtons 
                               optionId={option.id} 
                               currentVote={currentVote} 
                               allowMaybe={allowMaybe} 
-                              disabled={disabled} 
+                              disabled={disabled || isExpired} 
                               onVote={handleVoteClick} 
                               t={t}
                               testIdSuffix={String(globalIndex)}

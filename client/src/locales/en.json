@@ -2456,6 +2456,12 @@
       "title": "Duplicate time slot",
       "description": "This time slot already exists and was not added."
     },
+    "pastSlot": {
+      "title": "Past time slot",
+      "description": "This time slot is already in the past. Please choose a future time.",
+      "skippedDescription": "{{count}} past time slot(s) were skipped.",
+      "todayFilteredNotice": "Past slots for today were removed from suggestions."
+    },
     "duplicatesSkipped": {
       "title": "Duplicates skipped",
       "description": "{{count}} duplicate time slot(s) were skipped."
@@ -2531,6 +2537,7 @@
     "additionalCommentLabel": "Additional comment",
     "additionalCommentPlaceholder": "Add any extra information for the poll organizer",
     "cancelChanges": "Cancel changes",
+    "expiredOptionsNotice": "Some date/time options have expired and are now disabled.",
     "optionNoLongerAvailable": "This date/time option is in the past and is no longer available for voting.",
     "slotFullError": "This slot is fully booked. There are no more spots available.",
     "alreadySignedUpError": "You have already signed up for a slot in this list.",
@@ -2744,6 +2751,7 @@
     "autoSubmitDescription": "Your schedule poll is being created now.",
     "createError": "The schedule poll could not be created.",
     "minOptionsError": "Please add at least 2 date options.",
+    "pastTimeSlotError": "Past time slots are not allowed. Please choose a future time slot.",
     "selectDates": "Select Dates",
     "dateOptions": "Date Options",
     "dateOptionsCount": "Date Options ({{count}})",

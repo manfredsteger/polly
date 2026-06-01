@@ -141,6 +141,14 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
           details: error.errors,
         });
       }
+      const pastSlotError = error.errors.find((e) => e.message === 'Schedule option must be in the future.');
+      if (pastSlotError) {
+        return res.status(400).json({
+          error: 'Schedule option must be in the future.',
+          errorCode: 'INVALID_PAST_TIME_SLOT',
+          details: error.errors,
+        });
+      }
       return res
         .status(400)
         .json({ error: 'Invalid input', details: error.errors });

@@ -222,6 +222,8 @@ export default function CreatePoll() {
             errorMessage = t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
           } else if (errorData.errorCode === 'INVALID_TIME_RANGE') {
             errorMessage = t('createPoll.invalidTimeRange');
+          } else if (errorData.errorCode === 'INVALID_PAST_TIME_SLOT') {
+            errorMessage = t('createPoll.pastTimeSlotError');
           } else if (errorData.errorCode === 'INVALID_VIDEO_URL') {
             errorMessage = t('pollCreation.invalidVideoConferenceUrl');
             setVideoConferenceUrlError("invalid");

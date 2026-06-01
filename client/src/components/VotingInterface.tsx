@@ -776,14 +776,14 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     const now = new Date();
     const ids = new Set<number>();
     for (const option of poll.options) {
+      // For schedule slots, expiry should be based on endTime.
+      // Fallback to startTime only when endTime is missing.
       if (option.endTime) {
         const end = new Date(option.endTime);
         if (!isNaN(end.getTime()) && end < now) {
           ids.add(option.id);
-          continue;
         }
-      }
-      if (option.startTime) {
+      } else if (option.startTime) {
         const start = new Date(option.startTime);
         if (!isNaN(start.getTime()) && start < now) {
           ids.add(option.id);
@@ -1090,15 +1090,23 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   </div>
                 )}
                 {poll.options.filter((o: any) => !o.isFreeText).length > 0 && (
-                  <SimpleImageVoting
-                    options={poll.options.filter((o: any) => !o.isFreeText && !(poll.type === 'schedule' && expiredScheduleOptionIds.has(o.id)))}
-                    onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
-                    existingVotes={Object.fromEntries(
-                      Object.entries(votes).map(([id, response]) => [id, response])
+                  <>
+                    {poll.type === 'schedule' && expiredScheduleOptionIds.size > 0 && (
+                      <div className="mb-3 text-sm text-muted-foreground">
+                        {t('votingInterface.expiredOptionsNotice')}
+                      </div>
                     )}
-                    disabled={!canVote}
-                    allowMaybe={poll.allowMaybe ?? true}
-                  />
+                    <SimpleImageVoting
+                      options={poll.options.filter((o: any) => !o.isFreeText)}
+                      onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
+                      existingVotes={Object.fromEntries(
+                        Object.entries(votes).map(([id, response]) => [id, response])
+                      )}
+                      disabled={!canVote}
+                      allowMaybe={poll.allowMaybe ?? true}
+                      expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                    />
+                  </>
                 )}
                 <div className="space-y-1 mt-4">
                   <label className="block text-sm font-medium text-foreground">
@@ -1117,12 +1125,13 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               </>
             ) : (
               <SimpleImageVoting
-                options={poll.options.filter((o: any) => !o.isFreeText && !(poll.type === 'schedule' && expiredScheduleOptionIds.has(o.id)))}
+                options={poll.options.filter((o: any) => !o.isFreeText)}
                 onVote={() => {}}
                 existingVotes={{}}
                 disabled={true}
                 adminPreview={true}
                 allowMaybe={poll.allowMaybe ?? true}
+                expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
               />
             )
           )}

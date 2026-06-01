@@ -101,6 +101,24 @@ export const createPollSchema = z.object({
       });
     }
   })).min(2),
+}).superRefine((data, ctx) => {
+  if (data.type !== 'schedule') return;
+  const now = new Date();
+  data.options.forEach((option, index) => {
+    if (!option.startTime && !option.endTime) return;
+    // New schedule options must be in the future when creating a poll.
+    // If startTime exists, it must be later than now. Fallback to endTime.
+    const reference = option.startTime ?? option.endTime;
+    if (!reference) return;
+    const when = new Date(reference);
+    if (!Number.isNaN(when.getTime()) && when <= now) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Schedule option must be in the future.',
+        path: ['options', index, 'endTime'],
+      });
+    }
+  });
 });
 
 export const voteSchema = z.object({

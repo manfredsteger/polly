@@ -2456,6 +2456,12 @@
       "title": "Doppelter Zeitslot",
       "description": "Dieser Zeitslot existiert bereits und wurde nicht hinzugefügt."
     },
+    "pastSlot": {
+      "title": "Vergangener Zeitslot",
+      "description": "Dieser Zeitslot liegt bereits in der Vergangenheit. Bitte wählen Sie eine zukünftige Uhrzeit.",
+      "skippedDescription": "{{count}} vergangene Zeitslot(s) wurden übersprungen.",
+      "todayFilteredNotice": "Vergangene Slots für heute wurden aus den Vorschlägen entfernt."
+    },
     "duplicatesSkipped": {
       "title": "Duplikate übersprungen",
       "description": "{{count}} doppelte Zeitslot(s) wurden übersprungen."
@@ -2531,6 +2537,7 @@
     "additionalCommentLabel": "Zusätzlicher Kommentar",
     "additionalCommentPlaceholder": "Zusätzliche Informationen für den Umfrage-Organisator eingeben",
     "cancelChanges": "Änderungen verwerfen",
+    "expiredOptionsNotice": "Einige Terminoptionen sind abgelaufen und jetzt deaktiviert.",
     "optionNoLongerAvailable": "Diese Terminoption liegt in der Vergangenheit und ist nicht mehr abstimmbar.",
     "slotFullError": "Dieser Platz ist leider schon voll. Es gibt keine freien Plätze mehr.",
     "alreadySignedUpError": "Sie haben sich bereits für einen Platz in dieser Liste eingetragen.",
@@ -2744,6 +2751,7 @@
     "autoSubmitDescription": "Ihre Terminumfrage wird jetzt erstellt.",
     "createError": "Die Terminumfrage konnte nicht erstellt werden.",
     "minOptionsError": "Bitte fügen Sie mindestens 2 Terminoptionen hinzu.",
+    "pastTimeSlotError": "Vergangene Zeitslots sind nicht erlaubt. Bitte wählen Sie einen zukünftigen Zeitslot.",
     "selectDates": "Termine auswählen",
     "dateOptions": "Terminoptionen",
     "dateOptionsCount": "Terminoptionen ({{count}})",

@@ -19,6 +19,8 @@ import {
   Check, 
   X, 
   HelpCircle, 
+  ChevronDown,
+  ChevronRight,
   Calendar, 
   CalendarDays,
   Clock, 
@@ -39,7 +41,7 @@ import {
 } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from 'react-i18next';
 import { Table } from "lucide-react";
 import type { PollResults } from "@shared/schema";
@@ -84,6 +86,16 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   const [confirmDialogOptionId, setConfirmDialogOptionId] = useState<number | null>(null);
   const [finalizeClosePoll, setFinalizeClosePoll] = useState(true);
   const [finalizeNotify, setFinalizeNotify] = useState(true);
+  const [isDetailedResultsOpen, setIsDetailedResultsOpen] = useState(false);
+  const detailedResultsRef = useRef<HTMLDivElement>(null);
+  const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
+
+  const openAndScrollToDetailedResults = () => {
+    setIsDetailedResultsOpen(true);
+    window.setTimeout(() => {
+      detailedResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
 
   const handleFinalize = async (optionId: number) => {
     if (!adminToken) return;
@@ -230,14 +242,63 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
     option: option
   }));
 
-  // Find the best option(s) (highest score) - only for non-organization polls
-  const bestOption = stats.reduce((best, current) => 
-    current.score > best.score ? current : best
-  );
+  // Find the best option(s) (highest score) - only for non-organization polls.
+  // A "best option" only exists when at least one option has a positive score.
+  const bestOption = stats.length > 0
+    ? stats.reduce((best, current) => (current.score > best.score ? current : best))
+    : null;
+  const hasBestOption = !!bestOption && bestOption.score > 0;
   // Check if there are multiple options with the same highest score (tie)
-  const tiedOptions = stats.filter(stat => stat.score === bestOption.score);
+  const tiedOptions = hasBestOption && bestOption
+    ? stats.filter(stat => stat.score === bestOption.score)
+    : [];
   const isTie = tiedOptions.length > 1;
-  const bestOptionData = !isOrganization ? options.find(opt => opt.id === bestOption.optionId) : null;
+  const bestOptionData = !isOrganization && hasBestOption && bestOption
+    ? options.find(opt => opt.id === bestOption.optionId)
+    : null;
+  const rankedStats = useMemo(
+    () =>
+      [...stats].sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.yesCount !== a.yesCount) return b.yesCount - a.yesCount;
+        return a.optionId - b.optionId;
+      }),
+    [stats]
+  );
+  const voteSummaryTotals = useMemo(() => {
+    return stats.reduce(
+      (acc, stat) => {
+        acc.yes += stat.yesCount;
+        acc.maybe += stat.maybeCount;
+        acc.no += stat.noCount;
+        return acc;
+      },
+      { yes: 0, maybe: 0, no: 0 }
+    );
+  }, [stats]);
+  const statsByOptionId = useMemo(() => {
+    const map = new Map<number, (typeof stats)[number]>();
+    stats.forEach((s) => map.set(s.optionId, s));
+    return map;
+  }, [stats]);
+
+  const getMatrixHeatmapStyle = (optionId: number, response?: 'yes' | 'maybe' | 'no') => {
+    if (!response || participantCount <= 0) return undefined;
+    const stat = statsByOptionId.get(optionId);
+    if (!stat) return undefined;
+
+    const rawCount =
+      response === 'yes' ? stat.yesCount :
+      response === 'maybe' ? stat.maybeCount :
+      stat.noCount;
+
+    const ratio = Math.max(0, Math.min(1, rawCount / participantCount));
+    const alpha = 0.12 + (ratio * 0.33);
+
+    if (response === 'yes') return { backgroundColor: `rgba(34, 197, 94, ${alpha})` };
+    if (response === 'maybe') return { backgroundColor: `rgba(234, 179, 8, ${alpha})` };
+    return { backgroundColor: `rgba(239, 68, 68, ${alpha})` };
+  };
 
   // Group participants by their voting patterns
   const participantMap = new Map();
@@ -292,12 +353,6 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
           <h2 className="text-2xl font-semibold text-foreground">
             {isOrganization ? t('results.entries') : t('results.resultsTitle')}
           </h2>
-          <p className="text-muted-foreground">
-            {isOrganization 
-              ? (participantCount === 1 ? t('results.personSignedUpSingular', { count: participantCount }) : t('results.personSignedUpPlural', { count: participantCount }))
-              : (participantCount === 1 ? t('results.personVotedSingular', { count: participantCount }) : t('results.personVotedPlural', { count: participantCount }))
-            }
-          </p>
         </div>
         <div className="flex space-x-3">
           <Button variant="outline" onClick={handleExportCSV}>
@@ -317,37 +372,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
         </div>
       </div>
 
-      {/* Total Votes Summary */}
-      <Card className="polly-card">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">
-              {isOrganization ? t('results.totalEntries') : t('results.totalVotes')}
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {isOrganization 
-                ? `${results.votes.length} ${results.votes.length === 1 ? t('results.entrySingular') : t('results.entriesPlural')}`
-                : `${participantCount} ${participantCount === 1 ? t('results.voteSingular') : t('results.votesPlural')}`
-              }
-            </span>
-          </div>
-          <div className="flex items-center space-x-4 mt-4">
-            <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4 text-polly-blue" />
-              <span className="text-sm text-muted-foreground">{t('results.participantsLabel', { count: participantCount })}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span className="text-sm text-muted-foreground">
-                {isOrganization 
-                  ? t('results.totalEntriesCount', { count: results.votes.length })
-                  : t('results.totalVotesCount', { count: results.votes.length })
-                }
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Total summary card hidden for now by request */}
 
       {/* Finalized Option Banner */}
       {isFinalized && (() => {
@@ -407,57 +432,67 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
       {bestOptionData && (
         <Card className={`${
           poll.type === 'schedule' 
-            ? 'border-2 border-orange-500 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-600' 
-            : 'border-2 border-teal-500 bg-teal-50 dark:bg-teal-950/30 dark:border-teal-600'
+            ? 'border border-orange-300 bg-orange-50/70 dark:bg-orange-950/20 dark:border-orange-700' 
+            : 'border border-teal-300 bg-teal-50/70 dark:bg-teal-950/20 dark:border-teal-700'
         }`}>
           <CardContent className="p-6">
-            <div className="flex items-center space-x-3 mb-2">
-              <Crown className={poll.type === 'schedule' ? 'w-5 h-5 text-orange-600 dark:text-orange-400' : 'w-5 h-5 text-teal-600 dark:text-teal-400'} />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t('results.bestOption')}</h3>
-              <Badge className={
-                poll.type === 'schedule' ? 'polly-badge-schedule-solid' : 
-                poll.type === 'organization' ? 'polly-badge-organization-solid' :
-                'polly-badge-survey-solid'
-              }>
-                {t('results.points', { count: bestOption.score })}
-              </Badge>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-              {t('results.scoringDescription')}
-            </p>
-            <div className="flex items-center space-x-3 mb-2">
-              {bestOptionData.imageUrl && (
-                <img
-                  src={bestOptionData.imageUrl}
-                  alt={bestOptionData.altText || bestOptionData.text}
-                  className="w-12 h-12 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => {
-                    const imageIndex = imageOptions.findIndex(opt => opt.id === bestOptionData.id);
-                    if (imageIndex >= 0) {
-                      setLightboxIndex(imageIndex);
-                      setLightboxOpen(true);
-                    }
-                  }}
-                />
-              )}
-              <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                {bestOptionData.text}
-              </h4>
-            </div>
-            {bestOptionData.startTime && bestOptionData.endTime && (
-              <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
-                <Calendar className="w-4 h-4 mr-1" />
-                {new Date(bestOptionData.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
-                <Clock className="w-4 h-4 ml-3 mr-1" />
-                {new Date(bestOptionData.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })} - {new Date(bestOptionData.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center space-x-3 mb-2">
+                  <Crown className={poll.type === 'schedule' ? 'w-5 h-5 text-orange-600 dark:text-orange-400' : 'w-5 h-5 text-teal-600 dark:text-teal-400'} />
+                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{t('results.bestOption')}</h3>
+                </div>
+                {bestOptionData.startTime && bestOptionData.endTime && (
+                  <div className="flex items-center text-base text-gray-700 dark:text-gray-300">
+                    <Calendar className="w-4 h-4 mr-1" />
+                    {new Date(bestOptionData.startTime).toLocaleDateString(localeCode, {
+                      weekday: 'short',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })}
+                    <Clock className="w-4 h-4 ml-3 mr-1" />
+                    {new Date(bestOptionData.startTime).toLocaleTimeString(localeCode, {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })} - {new Date(bestOptionData.endTime).toLocaleTimeString(localeCode, {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                )}
+                {!(bestOptionData.startTime && bestOptionData.endTime) && (
+                  <div className="flex items-center space-x-3">
+                    {bestOptionData.imageUrl && (
+                      <img
+                        src={bestOptionData.imageUrl}
+                        alt={bestOptionData.altText || bestOptionData.text}
+                        className="w-12 h-12 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          const imageIndex = imageOptions.findIndex(opt => opt.id === bestOptionData.id);
+                          if (imageIndex >= 0) {
+                            setLightboxIndex(imageIndex);
+                            setLightboxOpen(true);
+                          }
+                        }}
+                      />
+                    )}
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                      {bestOptionData.text}
+                    </h4>
+                  </div>
+                )}
               </div>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openAndScrollToDetailedResults}
+                className="w-full md:w-auto md:min-w-[220px] h-12 text-base justify-between border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                {t('results.seeDetailedResultsTip')}
+                <ChevronRight className="w-5 h-5 ml-3" />
+              </Button>
+            </div>
             {poll.videoConferenceUrl && (
               <div className="flex items-center text-sm text-gray-700 dark:text-gray-300 mt-1">
                 <Video className="w-4 h-4 mr-1" />
@@ -501,7 +536,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
       {/* Matrix View - Participants as rows, Options as columns (only non-freetext options) */}
       {!isOrganization && participants.length > 0 && options.filter((o: any) => !o.isFreeText).length > 0 && (
         <Card className="polly-card">
-          <CardHeader>
+          <CardHeader className="pb-3 border-b border-orange-300/60">
             <CardTitle className="flex items-center">
               <Table className="w-5 h-5 mr-2" />
               {t('results.votesForPoll')}
@@ -512,7 +547,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
               <table className="w-full border-collapse" data-testid="matrix-view-table">
                 <thead>
                   <tr>
-                    <th className="text-right py-2 px-3 font-medium text-foreground border-b border-border min-w-[150px]">
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground border-b border-border min-w-[170px]">
                       {t('voting.participant')}
                     </th>
                     {options.filter((o: any) => !o.isFreeText).map((option) => {
@@ -520,7 +555,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                       return (
                         <th 
                           key={option.id} 
-                          className="text-center py-2 px-2 font-medium text-foreground border-b border-border min-w-[100px]"
+                          className="text-center py-3 px-3 font-medium text-foreground border-b border-border min-w-[210px]"
                         >
                           {isSchedule ? (
                             <div className="flex flex-col items-center text-xs">
@@ -553,34 +588,50 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                   {participants.map((participant, pIndex) => (
                     <tr 
                       key={pIndex} 
-                      className={pIndex % 2 === 0 ? 'bg-muted/30' : 'bg-background'}
+                      className="bg-background border-b border-border/70"
                       data-testid={`matrix-row-${pIndex}`}
                     >
-                      <td className="text-right py-2 px-3 font-medium text-foreground border-r border-border">
-                        {participant.name}
+                      <td className="text-left py-3 px-4 font-medium text-foreground border-r border-border">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-polly-orange flex items-center justify-center text-xs font-semibold text-white">
+                            {participant.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <div>{participant.name}</div>
+                            <div className="text-xs text-muted-foreground font-normal">
+                              {t('resultsChart.votedAt')}: {new Date(participant.votedAt).toLocaleDateString(localeCode)}
+                            </div>
+                          </div>
+                        </div>
                       </td>
                       {options.filter((o: any) => !o.isFreeText).map((option) => {
                         const vote = participant.votes.find((v: any) => v.optionId === option.id);
                         const response = vote?.response;
                         
-                        let cellBg = '';
                         let cellContent = null;
+                        let cellClass = "bg-muted/20";
                         
                         if (response === 'yes') {
-                          cellBg = 'bg-green-100 dark:bg-green-900/30';
-                          cellContent = <Check className="w-4 h-4 text-green-600 dark:text-green-400" />;
+                          cellClass = "bg-green-100/60 dark:bg-green-900/25";
+                          cellContent = (
+                            <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          );
                         } else if (response === 'maybe') {
-                          cellBg = 'bg-yellow-100 dark:bg-yellow-900/30';
-                          cellContent = <HelpCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />;
+                          cellClass = "bg-yellow-100/45 dark:bg-yellow-900/20";
+                          cellContent = (
+                            <HelpCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                          );
                         } else if (response === 'no') {
-                          cellBg = 'bg-red-100 dark:bg-red-900/30';
-                          cellContent = <X className="w-4 h-4 text-red-600 dark:text-red-400" />;
+                          cellClass = "bg-red-100/55 dark:bg-red-900/20";
+                          cellContent = (
+                            <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                          );
                         }
                         
                         return (
                           <td 
                             key={option.id} 
-                            className={`text-center py-2 px-2 ${cellBg}`}
+                            className={`text-center py-3 px-3 ${cellClass}`}
                           >
                             <div className="flex items-center justify-center">
                               {cellContent}
@@ -592,18 +643,25 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-border font-medium">
-                    <td className="text-right py-2 px-3 text-sm text-muted-foreground">
-                      {t('results.total')}
+                  <tr className="border-t-2 border-border font-medium bg-muted/30">
+                    <td className="text-left py-3 px-4 text-sm text-muted-foreground border-r border-border">
+                      <div className="inline-flex items-center rounded-md border border-border/60 bg-background/60 px-2 py-1">
+                        <span className="pr-2 font-medium text-foreground">{t('results.total')}</span>
+                        <span className="mx-2 h-4 border-l border-border/80" aria-hidden="true" />
+                        <span className="pl-2 text-xs text-muted-foreground font-medium">
+                          {participantCount} {participantCount === 1 ? t('results.participantSingular') : t('results.participantsPlural')}
+                        </span>
+                      </div>
                     </td>
                     {options.filter((o: any) => !o.isFreeText).map((option) => {
                       const stat = stats.find(s => s.optionId === option.id);
                       const yesCount = stat?.yesCount || 0;
                       return (
-                        <td key={option.id} className="text-center py-2 px-2">
-                          <div className="flex items-center justify-center space-x-1">
-                            <Check className="w-3 h-3 text-green-600" />
-                            <span className="text-sm font-semibold">{yesCount}</span>
+                        <td key={option.id} className="text-center py-3 px-3">
+                          <div className="flex items-center justify-center">
+                            <Badge className={yesCount === participantCount ? "bg-green-600 text-white" : "bg-slate-200 text-slate-700"}>
+                              {yesCount}/{participantCount} voted
+                            </Badge>
                           </div>
                         </td>
                       );
@@ -944,15 +1002,31 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
             </div>
           </CardContent>
         </Card>
-      ) : (
+      ) : !isOrganization ? (
+        <div ref={detailedResultsRef}>
         <Card className="polly-card">
           <CardHeader>
-            <CardTitle>{t('results.detailedResults')}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>{t('results.detailedResults')}</CardTitle>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-sm bg-sky-100/60 text-slate-600 hover:bg-sky-100 hover:text-slate-800 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-700/70 dark:hover:text-slate-100"
+                onClick={() => setIsDetailedResultsOpen((prev) => !prev)}
+                aria-label={isDetailedResultsOpen ? "Collapse detailed results" : "Expand detailed results"}
+              >
+                <ChevronDown className={`h-8 w-8 transition-transform ${isDetailedResultsOpen ? "rotate-180" : ""}`} />
+              </Button>
+            </div>
+          </CardHeader>
+          {isDetailedResultsOpen && (
+          <CardContent>
             {isAdminAccess && (
-              <p className="text-sm text-muted-foreground">{t('results.commentsAdminOnly')}</p>
+              <p className="text-sm text-muted-foreground mb-3">{t('results.commentsAdminOnly')}</p>
             )}
             {isAdminAccess && (
-              <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+              <div className="mb-4 rounded-lg border bg-muted/20 p-3">
                 <p className="text-sm font-medium mb-2">{t('voting.comment')}</p>
                 {adminComments.length > 0 ? (
                   <div className="space-y-2">
@@ -970,61 +1044,50 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 )}
               </div>
             )}
-          </CardHeader>
-          <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-foreground">
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground">
                       {t('results.option')}
                     </th>
-                    <th className="text-center py-3 px-4 font-medium text-foreground w-24">
-                      <div className="flex items-center justify-center space-x-1">
-                        <Check className="w-4 h-4 text-green-600" />
-                        <span>{t('voting.yes')}</span>
-                      </div>
+                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
+                      {t('voting.yes')}
                     </th>
-                    <th className="text-center py-3 px-4 font-medium text-foreground w-24">
-                      <div className="flex items-center justify-center space-x-1">
-                        <HelpCircle className="w-4 h-4 text-yellow-600" />
-                        <span>{t('voting.maybe')}</span>
-                      </div>
+                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
+                      {t('voting.maybe')}
                     </th>
-                    <th className="text-center py-3 px-4 font-medium text-foreground w-24">
-                      <div className="flex items-center justify-center space-x-1">
-                        <X className="w-4 h-4 text-red-600" />
-                        <span>{t('voting.no')}</span>
-                      </div>
+                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
+                      {t('voting.no')}
                     </th>
-                    <th className="text-center py-3 px-4 font-medium text-foreground w-32">
-                      <div className="flex flex-col items-center">
+                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-32">
+                      <div className="flex flex-col items-center leading-tight">
                         <span>{t('results.pointsHeader')}</span>
-                        <span className="text-xs text-muted-foreground font-normal">
+                        <span className="text-[10px] normal-case font-normal text-muted-foreground">
                           ({t('voting.yes')}=2, {t('voting.maybe')}=1, {t('voting.no')}=0)
                         </span>
                       </div>
                     </th>
+                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-36">
+                      {t('results.status')}
+                    </th>
                     {(isAdminAccess || isOwner) && adminToken && (
-                      <th className="text-center py-3 px-4 font-medium text-foreground w-36">
+                      <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-36">
                         {isSchedule ? t('resultsChart.confirmColumn') : t('resultsChart.setResultColumn')}
                       </th>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {stats.map((stat) => {
+                  {rankedStats.map((stat) => {
                     const option = options.find(opt => opt.id === stat.optionId);
                     if (!option) return null;
 
-                    const total = stat.yesCount + stat.maybeCount + stat.noCount;
-                    const yesPercent = total > 0 ? (stat.yesCount / total) * 100 : 0;
-                    const maybePercent = total > 0 ? (stat.maybeCount / total) * 100 : 0;
-                    const noPercent = total > 0 ? (stat.noCount / total) * 100 : 0;
                     const isFinalOption = isFinalized && poll.finalOptionId === stat.optionId;
+                    const isWinnerRow = hasBestOption && stat.score === bestOption?.score && stat.score > 0;
 
                     return (
-                      <tr key={stat.optionId} className={isFinalOption ? "bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500" : "hover:bg-muted/50"}>
+                      <tr key={stat.optionId} className={isWinnerRow ? "bg-green-50/60 dark:bg-green-950/20 border-l-4 border-l-green-500" : "hover:bg-muted/50"}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             {/* Show image if available */}
@@ -1048,75 +1111,42 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                               </div>
                               {option.startTime && option.endTime && (
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  {new Date(option.startTime).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')} • {' '}
-                                  {new Date(option.startTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })} - {new Date(option.endTime).toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-US', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })}
+                                  {new Date(option.startTime).toLocaleDateString(localeCode)} • {" "}
+                                  {new Date(option.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} - {new Date(option.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}
                                 </div>
                               )}
                             </div>
                           </div>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className="text-lg font-semibold text-green-600">
-                              {stat.yesCount}
-                            </span>
-                            <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                              <div 
-                                className="bg-green-600 h-1 rounded-full"
-                                style={{ width: `${yesPercent}%` }}
-                              />
-                            </div>
-                          </div>
+                          <Badge variant="outline" className="border-green-300 bg-green-50 text-green-700 min-w-10 justify-center">
+                            {stat.yesCount}
+                          </Badge>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className="text-lg font-semibold text-yellow-600">
-                              {stat.maybeCount}
-                            </span>
-                            <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                              <div 
-                                className="bg-yellow-600 h-1 rounded-full"
-                                style={{ width: `${maybePercent}%` }}
-                              />
-                            </div>
-                          </div>
+                          <Badge variant="outline" className="border-yellow-300 bg-yellow-50 text-yellow-700 min-w-10 justify-center">
+                            {stat.maybeCount}
+                          </Badge>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className="text-lg font-semibold text-red-600">
-                              {stat.noCount}
-                            </span>
-                            <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                              <div 
-                                className="bg-red-600 h-1 rounded-full"
-                                style={{ width: `${noPercent}%` }}
-                              />
-                            </div>
-                          </div>
+                          <Badge variant="outline" className="border-red-300 bg-red-50 text-red-700 min-w-10 justify-center">
+                            {stat.noCount}
+                          </Badge>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <Badge 
-                              variant={stat.score === bestOption.score && stat.score > 0 ? "default" : "secondary"}
-                              className={stat.score === bestOption.score && stat.score > 0 ? (isTie ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800") : ""}
-                            >
-                              {stat.score}
-                              {stat.score === bestOption.score && stat.score > 0 && (
-                                <Crown className="w-3 h-3 ml-1" />
-                              )}
+                          <span className="text-lg font-semibold text-foreground">{stat.score}</span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          {isWinnerRow ? (
+                            <Badge className="bg-emerald-600 text-white">
+                              <Crown className="w-3 h-3 mr-1" />
+                              {isTie ? t('resultsChart.tie') : t('resultsChart.winner')}
                             </Badge>
-                            {stat.score === bestOption.score && stat.score > 0 && (
-                              <span className={`text-xs font-medium mt-1 ${isTie ? 'text-amber-600' : 'text-green-600'}`}>
-                                {isTie ? `⚖️ ${t('resultsChart.tie')}` : t('resultsChart.winner')}
-                              </span>
-                            )}
-                          </div>
+                          ) : (
+                            <Badge variant="secondary" className="bg-slate-200 text-slate-700">
+                              {t('results.lowFit')}
+                            </Badge>
+                          )}
                         </td>
                         {(isAdminAccess || isOwner) && adminToken && (
                           <td className="py-4 px-4 text-center">
@@ -1130,7 +1160,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setConfirmDialogOptionId(stat.optionId)}
-                                disabled={isFinalizingOption !== null}
+                                disabled={isFinalizingOption !== null || stat.score <= 0}
                                 className="text-xs"
                               >
                                 {isFinalizingOption === stat.optionId ? (
@@ -1150,40 +1180,10 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
               </table>
             </div>
           </CardContent>
+          )}
         </Card>
-      )}
-
-      {/* Participants List */}
-      <Card className="polly-card">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Users className="w-5 h-5 mr-2" />
-            {t('resultsChart.participantsOverview', { count: participantCount })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {participants.map((participant, index) => (
-              <div 
-                key={index}
-                className="flex items-center space-x-3 p-3 bg-muted rounded-lg"
-              >
-                <div className="w-8 h-8 bg-polly-orange rounded-full flex items-center justify-center text-white text-sm font-medium">
-                  {participant.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {participant.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t('resultsChart.votedAt')}: {new Date(participant.votedAt).toLocaleDateString(i18n.language === 'de' ? 'de-DE' : 'en-US')}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      ) : null}
 
       {/* Lightbox for Results Images */}
       <Lightbox

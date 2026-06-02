@@ -444,6 +444,12 @@ router.post('/admin/:token/finalize', async (req, res) => {
     }
     
     const finalOptionId = optionId === 0 ? null : optionId;
+    if (finalOptionId && (!poll.votes || poll.votes.length === 0)) {
+      return res.status(400).json({
+        error: 'Finalisierung ohne abgegebene Stimmen ist nicht möglich',
+        errorCode: 'NO_VOTES_TO_FINALIZE'
+      });
+    }
     const updateData: { finalOptionId: number | null; isActive?: boolean } = { finalOptionId };
     if (finalOptionId && closePoll) {
       updateData.isActive = false;

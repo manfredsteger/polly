@@ -19,6 +19,7 @@ interface DatePickerProps {
   placeholder?: string
   minDate?: Date
   className?: string
+  buttonClassName?: string
   disabled?: boolean
   showClearButton?: boolean
   inline?: boolean
@@ -31,6 +32,7 @@ export function DatePicker({
   placeholder,
   minDate,
   className,
+  buttonClassName,
   disabled = false,
   showClearButton = true,
   inline = false,
@@ -75,7 +77,8 @@ export function DatePicker({
             variant="outline"
             className={cn(
               "w-[240px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              !date && "text-muted-foreground",
+              buttonClassName
             )}
             disabled={disabled}
             onClick={() => setOpen(!open)}
@@ -123,7 +126,8 @@ export function DatePicker({
             variant="outline"
             className={cn(
               "w-[240px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              !date && "text-muted-foreground",
+              buttonClassName
             )}
             disabled={disabled}
             data-testid={testId}

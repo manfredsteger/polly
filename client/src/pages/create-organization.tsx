@@ -1161,6 +1161,16 @@ export default function CreateOrganization() {
       return null;
     }
 
+    const incompleteSlots = slots.filter(s => !s.text.trim() && (s.startTime || s.endTime || s.maxCapacity));
+    if (incompleteSlots.length > 0) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('createOrganization.slotsMissingDescription'),
+        variant: "destructive",
+      });
+      return null;
+    }
+
     const validSlots = slots.filter(s => s.text.trim());
     if (validSlots.length < 1) {
       toast({
@@ -1203,6 +1213,22 @@ export default function CreateOrganization() {
       toast({
         title: t('pollCreation.error'),
         description: t('createPoll.invalidTimeRange'),
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    const now = new Date();
+    const hasPastSlot = optionsData.some(opt => {
+      const ref = opt.startTime ?? opt.endTime;
+      if (!ref) return false;
+      const when = new Date(ref);
+      return !isNaN(when.getTime()) && when <= now;
+    });
+    if (hasPastSlot) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('createOrganization.pastSlotError'),
         variant: "destructive",
       });
       return null;

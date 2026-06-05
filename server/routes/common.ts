@@ -102,7 +102,7 @@ export const createPollSchema = z.object({
     }
   })).min(2),
 }).superRefine((data, ctx) => {
-  if (data.type !== 'schedule') return;
+  if (data.type !== 'schedule' && data.type !== 'organization') return;
   const now = new Date();
   data.options.forEach((option, index) => {
     if (!option.startTime && !option.endTime) return;

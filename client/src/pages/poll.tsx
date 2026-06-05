@@ -1394,25 +1394,45 @@ export default function Poll() {
                           )}
                         </div>
                       ) : poll?.type === 'organization' ? (
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="col-span-2">
-                            <Input
-                              placeholder={t('pollView.slotName')}
-                              value={newOptionForm.text}
-                              onChange={(e) => setNewOptionForm({ ...newOptionForm, text: e.target.value })}
-                              autoFocus
-                              data-testid="new-option-text"
-                            />
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="col-span-2">
+                              <Input
+                                placeholder={t('pollView.slotName')}
+                                value={newOptionForm.text}
+                                onChange={(e) => setNewOptionForm({ ...newOptionForm, text: e.target.value })}
+                                autoFocus
+                                data-testid="new-option-text"
+                              />
+                            </div>
+                            <div>
+                              <Input
+                                type="number"
+                                placeholder={t('pollView.max')}
+                                min={1}
+                                value={newOptionForm.maxCapacity || ''}
+                                onChange={(e) => setNewOptionForm({ ...newOptionForm, maxCapacity: e.target.value ? parseInt(e.target.value) : undefined })}
+                                data-testid="new-option-capacity"
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <Input
-                              type="number"
-                              placeholder={t('pollView.max')}
-                              min={1}
-                              value={newOptionForm.maxCapacity || ''}
-                              onChange={(e) => setNewOptionForm({ ...newOptionForm, maxCapacity: e.target.value ? parseInt(e.target.value) : undefined })}
-                              data-testid="new-option-capacity"
-                            />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">{t('pollView.start')} ({t('common.optional')})</Label>
+                              <TimePickerDropdown
+                                value={newOptionForm.startTime || ''}
+                                onChange={(time) => setNewOptionForm({ ...newOptionForm, startTime: time })}
+                                data-testid="new-option-start"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">{t('pollView.end')} ({t('common.optional')})</Label>
+                              <TimePickerDropdown
+                                value={newOptionForm.endTime || ''}
+                                onChange={(time) => setNewOptionForm({ ...newOptionForm, endTime: time })}
+                                data-testid="new-option-end"
+                              />
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -1574,32 +1594,62 @@ export default function Poll() {
                                 )}
                               </>
                             ) : poll?.type === 'organization' ? (
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="col-span-2">
-                                  <Input
-                                    placeholder={t('pollView.slotName')}
-                                    value={option.text}
-                                    onChange={(e) => {
-                                      const updated = [...editingOptions];
-                                      updated[index] = { ...updated[index], text: e.target.value };
-                                      setEditingOptions(updated);
-                                    }}
-                                    data-testid={`input-option-text-${index}`}
-                                  />
-                                </div>
-                                <div>
-                                  <Input
-                                    type="number"
-                                    placeholder={t('pollView.max')}
-                                    min={1}
-                                    value={option.maxCapacity || ''}
-                                    onChange={(e) => {
-                                      const updated = [...editingOptions];
-                                      updated[index] = { ...updated[index], maxCapacity: e.target.value ? parseInt(e.target.value) : undefined };
-                                      setEditingOptions(updated);
-                                    }}
-                                    data-testid={`input-option-capacity-${index}`}
-                                  />
+                              <div className="space-y-2">
+                                <Input
+                                  placeholder={t('pollView.slotName')}
+                                  value={option.text}
+                                  onChange={(e) => {
+                                    const updated = [...editingOptions];
+                                    updated[index] = { ...updated[index], text: e.target.value };
+                                    setEditingOptions(updated);
+                                  }}
+                                  data-testid={`input-option-text-${index}`}
+                                />
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">{t('pollView.start')}</Label>
+                                    <TimePickerDropdown
+                                      value={extractTimeFromISO(option.startTime) || ''}
+                                      onChange={(time) => {
+                                        const updated = [...editingOptions];
+                                        const currentDate = extractDateFromISO(option.startTime);
+                                        updated[index] = { ...updated[index], startTime: currentDate ? combineDateAndTime(currentDate, time) : undefined };
+                                        setEditingOptions(updated);
+                                      }}
+                                      data-testid={`input-option-start-${index}`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
+                                    <TimePickerDropdown
+                                      value={extractTimeFromISO(option.endTime) || ''}
+                                      onChange={(time) => {
+                                        const updated = [...editingOptions];
+                                        const currentDate = extractDateFromISO(option.endTime) || extractDateFromISO(option.startTime);
+                                        updated[index] = { ...updated[index], endTime: currentDate ? combineDateAndTime(currentDate, time) : undefined };
+                                        setEditingOptions(updated);
+                                      }}
+                                      data-testid={`input-option-end-${index}`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">{t('pollView.max')}</Label>
+                                    <Input
+                                      type="number"
+                                      placeholder="∞"
+                                      min={1}
+                                      value={option.maxCapacity || ''}
+                                      onChange={(e) => {
+                                        const updated = [...editingOptions];
+                                        updated[index] = { ...updated[index], maxCapacity: e.target.value ? parseInt(e.target.value) : undefined };
+                                        setEditingOptions(updated);
+                                      }}
+                                      data-testid={`input-option-capacity-${index}`}
+                                    />
+                                    {optionVotes > 0 && option.maxCapacity !== undefined && option.maxCapacity < optionVotes && (
+                                      <p className="text-xs text-destructive mt-1">{t('pollView.capacityBelowSignups', { count: optionVotes })}</p>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             ) : (
@@ -1624,7 +1674,9 @@ export default function Poll() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                            disabled={poll?.type === 'organization' && !option.isNew && optionVotes > 0}
+                            title={poll?.type === 'organization' && !option.isNew && optionVotes > 0 ? t('pollView.cannotDeleteSlotWithSignups', { count: optionVotes }) : undefined}
                             onClick={() => {
                               const updated = [...editingOptions];
                               if (option.isNew) {

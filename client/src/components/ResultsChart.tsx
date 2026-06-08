@@ -455,7 +455,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
         );
       })()}
 
-      {/* Org: Registration Closed banner */}
+      {/* Org: Registration Confirmed / Closed banner */}
       {isOrgFinalized && (
         <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-950/30 dark:border-green-600">
           <CardContent className="p-6">
@@ -464,7 +464,9 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 <Lock className="w-5 h-5 text-green-600 dark:text-green-400" />
                 <div>
                   <h3 className="font-semibold text-green-900 dark:text-green-100">
-                    {t('resultsChart.registrationClosed')}
+                    {poll.isActive === false
+                      ? t('resultsChart.registrationClosed')
+                      : t('resultsChart.registrationConfirmed')}
                   </h3>
                 </div>
               </div>

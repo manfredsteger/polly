@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { storage } from '../storage';
 import { customizationSettingsSchema } from '@shared/schema';
+import { emailTemplateService } from '../services/emailTemplateService';
 
 // Sentinel values that the pwaManifest test writes into the shared DB.
 // If these appear in the live DB at test-suite startup, it means a previous
@@ -30,6 +31,15 @@ beforeAll(async () => {
   } else {
     (globalThis as any).__brandingSnapshot = JSON.parse(JSON.stringify(snapshot));
   }
+
+  // Snapshot email_theme and email_footer so any test that modifies them
+  // can be rolled back in afterAll, preventing cross-file pollution.
+  (globalThis as any).__emailThemeSnapshot = JSON.parse(
+    JSON.stringify(await emailTemplateService.getEmailTheme())
+  );
+  (globalThis as any).__emailFooterSnapshot = JSON.parse(
+    JSON.stringify(await emailTemplateService.getEmailFooter())
+  );
 });
 
 afterAll(async () => {
@@ -37,6 +47,22 @@ afterAll(async () => {
   if (snapshot) {
     try {
       await storage.setCustomizationSettings(snapshot);
+    } catch {
+    }
+  }
+
+  const emailThemeSnapshot = (globalThis as any).__emailThemeSnapshot;
+  if (emailThemeSnapshot) {
+    try {
+      await emailTemplateService.setEmailTheme(emailThemeSnapshot);
+    } catch {
+    }
+  }
+
+  const emailFooterSnapshot = (globalThis as any).__emailFooterSnapshot;
+  if (emailFooterSnapshot) {
+    try {
+      await emailTemplateService.setEmailFooter(emailFooterSnapshot);
     } catch {
     }
   }

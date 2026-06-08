@@ -11,22 +11,84 @@ export const testMeta = {
   severity: 'critical' as const,
 };
 
+const BACKUP_KEY = '_test_clamav_backup';
+
+/**
+ * Sentinel values written by the test cases — if these appear in the live DB
+ * it means a previous test run was interrupted before afterAll could clean up.
+ * Port 19999 is an unreachable test-only port; maxFileSize 100 is a tiny
+ * test-only value — neither would appear in a real ClamAV configuration.
+ */
+const TEST_SENTINEL_PORT = 19999;
+const TEST_SENTINEL_MAX_FILE_SIZE = 100;
+
+/**
+ * Crash-safe save/restore strategy (two complementary layers):
+ *
+ * Layer 1 — backup key (covers runs that wrote the backup before crashing):
+ *   beforeAll checks for a stale BACKUP_KEY written by a previous interrupted
+ *   run, restores from it, and deletes the key before capturing originalConfig.
+ *   afterAll writes the restored value back and deletes BACKUP_KEY to signal
+ *   successful completion.
+ *
+ * Layer 2 — sentinel detection (covers runs that left known test values without
+ *   a backup key, e.g. an older run predating this mechanism):
+ *   If the live DB contains the well-known test-only port (19999) or file size
+ *   (100), we know the DB is polluted and clear it before persisting the backup.
+ */
+
 describe('ClamAV Security - Fail-Secure Behavior', () => {
   let app: Express;
   let originalConfig: any;
 
   beforeAll(async () => {
-    const setting = await storage.getSetting('clamav_config');
-    originalConfig = setting?.value || null;
+    // Layer 1: if a previous run was killed after writing the backup key,
+    // restore from it so the live DB is correct before we take a new snapshot.
+    const staleBackup = await storage.getSetting(BACKUP_KEY);
+    if (staleBackup) {
+      if (staleBackup.value?.__wasNotSet) {
+        await storage.deleteSetting('clamav_config');
+      } else {
+        await storage.setSetting({ key: 'clamav_config', value: staleBackup.value });
+      }
+      await storage.deleteSetting(BACKUP_KEY);
+    }
+
+    // Read the (possibly just-restored) live setting.
+    const liveSetting = await storage.getSetting('clamav_config');
+    const liveConfig = liveSetting?.value ?? null;
+
+    // Layer 2: detect known sentinel values left by an interrupted run that
+    // predates the backup-key mechanism, or one that crashed before writing it.
+    const isPolluted =
+      liveConfig?.port === TEST_SENTINEL_PORT ||
+      liveConfig?.maxFileSize === TEST_SENTINEL_MAX_FILE_SIZE;
+
+    if (isPolluted) {
+      // Remove the test-injected config and treat no config as the baseline.
+      await storage.deleteSetting('clamav_config');
+      originalConfig = null;
+    } else {
+      originalConfig = liveConfig;
+    }
+
+    // Persist backup so afterAll recovery works even if this run crashes.
+    await storage.setSetting({
+      key: BACKUP_KEY,
+      value: originalConfig ?? { __wasNotSet: true },
+    });
+
     app = await createTestApp();
   });
 
   afterAll(async () => {
+    // Restore live DB and signal successful cleanup by removing the backup key.
     if (originalConfig !== null) {
       await storage.setSetting({ key: 'clamav_config', value: originalConfig });
     } else {
       await storage.deleteSetting('clamav_config');
     }
+    await storage.deleteSetting(BACKUP_KEY);
   });
 
   describe('Fail-Secure: Scanner enabled but unreachable', () => {

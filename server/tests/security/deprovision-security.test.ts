@@ -13,14 +13,61 @@ let origDeprovisionConfig: any;
 const DEPROVISION_USER = 'deprovision-service';
 const DEPROVISION_PASS = 'super-secret-deprovision-pw!';
 
+const BACKUP_KEY = '_test_deprovision_backup';
+
+/**
+ * Crash-safe save/restore strategy (two complementary layers):
+ *
+ * Layer 1 — backup key (covers runs that wrote the backup before crashing):
+ *   beforeAll checks for a stale BACKUP_KEY written by a previous interrupted
+ *   run, restores from it, and deletes the key before capturing origDeprovisionConfig.
+ *   afterAll writes the restored value back and deletes BACKUP_KEY to signal
+ *   successful completion.
+ *
+ * Layer 2 — sentinel detection (covers runs that left the test deprovision-service
+ *   username without a backup key):
+ *   If the live DB contains the well-known test-only username ('deprovision-service'),
+ *   we know the DB is polluted and clear it before persisting the backup.
+ */
 function basicAuth(user: string, pass: string): string {
   return 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64');
 }
 
 describe('Deprovision Endpoint Security Tests', () => {
   beforeAll(async () => {
-    const setting = await storage.getSetting('deprovision_config');
-    origDeprovisionConfig = setting?.value || null;
+    // Layer 1: if a previous run was killed after writing the backup key,
+    // restore from it so the live DB is correct before we take a new snapshot.
+    const staleBackup = await storage.getSetting(BACKUP_KEY);
+    if (staleBackup) {
+      if (staleBackup.value?.__wasNotSet) {
+        await storage.deleteSetting('deprovision_config');
+      } else {
+        await storage.setSetting({ key: 'deprovision_config', value: staleBackup.value });
+      }
+      await storage.deleteSetting(BACKUP_KEY);
+    }
+
+    // Read the (possibly just-restored) live setting.
+    const liveSetting = await storage.getSetting('deprovision_config');
+    const liveConfig = liveSetting?.value ?? null;
+
+    // Layer 2: detect known sentinel values left by an interrupted run that
+    // predates the backup-key mechanism, or one that crashed before writing it.
+    const isPolluted = liveConfig?.username === DEPROVISION_USER;
+
+    if (isPolluted) {
+      // Remove the test-injected config and treat no config as the baseline.
+      await storage.deleteSetting('deprovision_config');
+      origDeprovisionConfig = null;
+    } else {
+      origDeprovisionConfig = liveConfig;
+    }
+
+    // Persist backup so afterAll recovery works even if this run crashes.
+    await storage.setSetting({
+      key: BACKUP_KEY,
+      value: origDeprovisionConfig ?? { __wasNotSet: true },
+    });
 
     app = await createTestApp();
     adminAgent = request.agent(app);
@@ -41,11 +88,13 @@ describe('Deprovision Endpoint Security Tests', () => {
   });
 
   afterAll(async () => {
+    // Restore live DB and signal successful cleanup by removing the backup key.
     if (origDeprovisionConfig !== null) {
       await storage.setSetting({ key: 'deprovision_config', value: origDeprovisionConfig });
     } else {
       await storage.deleteSetting('deprovision_config');
     }
+    await storage.deleteSetting(BACKUP_KEY);
   });
 
   describe('Authentication enforcement', () => {

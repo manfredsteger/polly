@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../../services/emailTemplateService';
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
+import { customizationSettingsSchema } from '@shared/schema';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -10,9 +11,29 @@ export const testMeta = {
   severity: 'high' as const,
 };
 
+const CUSTOMIZATION_BACKUP_KEY = '_test_emailsvc_customization_backup';
+const THEME_BACKUP_KEY = '_test_emailsvc_theme_backup';
+const FOOTER_BACKUP_KEY = '_test_emailsvc_footer_backup';
+
+/**
+ * Crash-safe save/restore strategy (two complementary layers):
+ *
+ * Layer 1 — backup keys (covers runs that wrote the backup before crashing):
+ *   beforeAll checks for stale backup keys written by a previous interrupted
+ *   run, restores from them, and deletes the keys before capturing origCustomization,
+ *   origTheme, and origEmailFooter.  afterAll writes restored values and deletes
+ *   backup keys to signal successful completion.
+ *
+ * Layer 2 — sentinel detection is intentionally omitted here because the tests
+ *   use diverse values (footer links, theme colors) with no single distinguishing
+ *   sentinel.  The global setup.ts beforeAll already provides sentinel detection
+ *   for branding corruption; Layer 1 handles the crash-recovery case in this file.
+ */
+
 describe('EmailTemplateService', () => {
   let origCustomization: any;
   let origTheme: any;
+  let origEmailFooter: any;
   const modifiedTemplateTypes = [
     'poll_created', 'invitation', 'vote_confirmation',
     'reminder', 'password_reset',
@@ -20,18 +41,53 @@ describe('EmailTemplateService', () => {
   const origTemplates: Record<string, any> = {};
 
   beforeAll(async () => {
-    origCustomization = await storage.getCustomizationSettings();
     const service = new EmailTemplateService();
+
+    // Layer 1: if a previous run was killed after writing the backup keys,
+    // restore from them so the live DB is correct before we take a new snapshot.
+    const staleCustomizationBackup = await storage.getSetting(CUSTOMIZATION_BACKUP_KEY);
+    if (staleCustomizationBackup) {
+      const recovered = customizationSettingsSchema.parse(staleCustomizationBackup.value);
+      await storage.setCustomizationSettings(recovered);
+      await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
+    }
+
+    const staleThemeBackup = await storage.getSetting(THEME_BACKUP_KEY);
+    if (staleThemeBackup) {
+      await service.setEmailTheme(staleThemeBackup.value as EmailTheme);
+      await storage.deleteSetting(THEME_BACKUP_KEY);
+    }
+
+    const staleFooterBackup = await storage.getSetting(FOOTER_BACKUP_KEY);
+    if (staleFooterBackup) {
+      await service.setEmailFooter(staleFooterBackup.value);
+      await storage.deleteSetting(FOOTER_BACKUP_KEY);
+    }
+
+    // Read the (possibly just-restored) live state.
+    origCustomization = await storage.getCustomizationSettings();
     origTheme = await service.getEmailTheme();
+    origEmailFooter = await service.getEmailFooter();
+
+    // Persist backups so afterAll recovery works even if this run crashes.
+    await storage.setSetting({ key: CUSTOMIZATION_BACKUP_KEY, value: origCustomization });
+    await storage.setSetting({ key: THEME_BACKUP_KEY, value: origTheme });
+    await storage.setSetting({ key: FOOTER_BACKUP_KEY, value: origEmailFooter });
+
     for (const type of modifiedTemplateTypes) {
       origTemplates[type] = await service.getTemplate(type);
     }
   });
 
   afterAll(async () => {
+    // Restore live DB and signal successful cleanup by removing the backup keys.
     await storage.setCustomizationSettings(origCustomization);
     const service = new EmailTemplateService();
     await service.setEmailTheme(origTheme);
+    await service.setEmailFooter(origEmailFooter);
+    await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
+    await storage.deleteSetting(THEME_BACKUP_KEY);
+    await storage.deleteSetting(FOOTER_BACKUP_KEY);
     for (const type of modifiedTemplateTypes) {
       const orig = origTemplates[type];
       if (orig && !orig.isDefault) {

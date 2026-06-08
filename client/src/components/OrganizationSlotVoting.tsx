@@ -21,7 +21,7 @@ interface OrganizationSlotVotingProps {
   existingBookings?: SlotBookingInfo[];
   disabled?: boolean;
   adminPreview?: boolean;
-  currentSignups?: Record<number, { count: number; maxCapacity: number; names: string[] }>;
+  currentSignups?: Record<number, { count: number; maxCapacity: number | null; names: string[] }>;
 }
 
 export function OrganizationSlotVoting({ 
@@ -46,7 +46,7 @@ export function OrganizationSlotVoting({
     return bookings.some(b => b.optionId === optionId);
   };
 
-  const getSlotCapacity = (optionId: number) => {
+  const getSlotCapacity = (optionId: number): { current: number; max: number | null; names: string[] } => {
     const signupInfo = currentSignups[optionId];
     if (signupInfo) {
       return {
@@ -58,13 +58,14 @@ export function OrganizationSlotVoting({
     const option = options.find(o => o.id === optionId);
     return {
       current: 0,
-      max: option?.maxCapacity || 1,
+      max: option?.maxCapacity ?? null,
       names: []
     };
   };
 
   const isSlotFull = (optionId: number) => {
     const capacity = getSlotCapacity(optionId);
+    if (capacity.max === null) return false; // unlimited
     return capacity.current >= capacity.max;
   };
 
@@ -172,11 +173,11 @@ export function OrganizationSlotVoting({
   const renderSlot = (option: PollOption, showDateInTitle: boolean) => {
     const isBooked = isSlotBooked(option.id);
     const capacity = getSlotCapacity(option.id);
-    const isFull = capacity.current >= capacity.max;
-    const progressPercent = capacity.max > 0 ? (capacity.current / capacity.max) * 100 : 0;
+    const isFull = capacity.max !== null && capacity.current >= capacity.max;
+    const progressPercent = capacity.max !== null && capacity.max > 0 ? (capacity.current / capacity.max) * 100 : 0;
     const startTime = formatTime(option.startTime);
     const endTime = formatTime(option.endTime);
-    const spotsRemaining = capacity.max - capacity.current;
+    const spotsRemaining = capacity.max !== null ? capacity.max - capacity.current : null;
     const title = showDateInTitle ? option.text : parseSlotTitle(option.text);
 
     return (
@@ -212,7 +213,7 @@ export function OrganizationSlotVoting({
                   className={`text-sm px-2.5 py-1 ${isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' : 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'}`}
                 >
                   <Users className="w-3.5 h-3.5 mr-1" />
-                  {capacity.current}/{capacity.max}
+                  {capacity.max !== null ? `${capacity.current}/${capacity.max}` : `${capacity.current}`}
                 </Badge>
 
                 {!adminPreview && (
@@ -243,17 +244,19 @@ export function OrganizationSlotVoting({
               </div>
             </div>
 
-            <div className="mt-2.5 space-y-1">
-              <Progress value={progressPercent} className="h-1.5" />
-              <p className="text-xs text-muted-foreground">
-                {isFull
-                  ? t('organizationSlot.fullyBooked')
-                  : spotsRemaining === 1
-                    ? t('organizationSlot.spotFree', { count: spotsRemaining })
-                    : t('organizationSlot.spotsFree', { count: spotsRemaining })
-                }
-              </p>
-            </div>
+            {capacity.max !== null && (
+              <div className="mt-2.5 space-y-1">
+                <Progress value={progressPercent} className="h-1.5" />
+                <p className="text-xs text-muted-foreground">
+                  {isFull
+                    ? t('organizationSlot.fullyBooked')
+                    : spotsRemaining === 1
+                      ? t('organizationSlot.spotFree', { count: spotsRemaining })
+                      : t('organizationSlot.spotsFree', { count: spotsRemaining })
+                  }
+                </p>
+              </div>
+            )}
 
             {capacity.names.length > 0 && (
               <div className="text-sm text-muted-foreground mt-2">

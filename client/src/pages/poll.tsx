@@ -26,6 +26,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Calendar, 
   Users, 
@@ -225,6 +235,13 @@ export default function Poll() {
   const [inviteTab, setInviteTab] = useState<"email" | "matrix">("email");
   const [matrixSearch, setMatrixSearch] = useState("");
   
+  // Delete option confirmation (for options with existing votes)
+  const [deleteOptionConfirmState, setDeleteOptionConfirmState] = useState<{
+    optionId: number;
+    voteCount: number;
+    errorCode: string;
+  } | null>(null);
+
   // Reminder functionality
   const [reminderSending, setReminderSending] = useState(false);
   const [selectedMatrixUsers, setSelectedMatrixUsers] = useState<Array<{ userId: string; displayName: string | null }>>([]);
@@ -390,11 +407,40 @@ export default function Poll() {
   const deleteOptionMutation = useMutation({
     mutationFn: async (optionId: number) => {
       if (!effectiveAdminToken) throw new Error('No admin token');
-      const response = await apiRequest("DELETE", `/api/v1/polls/admin/${effectiveAdminToken}/options/${optionId}`);
+      const response = await fetch(`/api/v1/polls/admin/${effectiveAdminToken}/options/${optionId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.status === 409) {
+        const body = await response.json();
+        if (body.errorCode === 'OPTION_HAS_VOTES') {
+          setDeleteOptionConfirmState({ optionId, voteCount: body.voteCount ?? 0, errorCode: body.errorCode });
+          throw new Error('OPTION_HAS_VOTES_PENDING_CONFIRM');
+        }
+        if (body.errorCode === 'OPTION_HAS_SIGNUPS') {
+          throw new Error(`OPTION_HAS_SIGNUPS:${body.signupCount ?? 0}`);
+        }
+      }
+      if (!response.ok) {
+        const text = (await response.text()) || response.statusText;
+        throw new Error(`${response.status}: ${text}`);
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [endpoint] });
+    },
+  });
+
+  const forceDeleteOptionMutation = useMutation({
+    mutationFn: async (optionId: number) => {
+      if (!effectiveAdminToken) throw new Error('No admin token');
+      const response = await apiRequest("DELETE", `/api/v1/polls/admin/${effectiveAdminToken}/options/${optionId}?confirmed=true`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [endpoint] });
+      setDeleteOptionConfirmState(null);
     },
   });
 
@@ -475,6 +521,20 @@ export default function Poll() {
       setEditDialogOpen(false);
       setHasVotesWarningShown(false);
     } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'OPTION_HAS_VOTES_PENDING_CONFIRM') {
+          return; // confirmation dialog opened — do not show generic error toast
+        }
+        if (error.message.startsWith('OPTION_HAS_SIGNUPS:')) {
+          const count = parseInt(error.message.split(':')[1] ?? '0', 10);
+          toast({
+            title: t('pollView.toasts.error'),
+            description: t('pollView.toasts.optionHasSignups', { count }),
+            variant: "destructive",
+          });
+          return;
+        }
+      }
       let description = t('pollView.toasts.someChangesNotSaved');
       if (error instanceof Error && error.message) {
         try {
@@ -580,9 +640,15 @@ export default function Poll() {
     
     setReminderSending(true);
     try {
+      // Include adminToken for anonymous-poll creators accessing via /admin/:token URL
+      const reminderBody: Record<string, unknown> = {};
+      if (effectiveAdminToken && !isOwner) {
+        reminderBody.adminToken = effectiveAdminToken;
+      }
       const response = await fetch(`/api/v1/polls/${poll.id}/send-reminder`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reminderBody),
       });
       const result = await response.json();
       
@@ -2238,6 +2304,31 @@ export default function Poll() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete option confirmation dialog (fires when an option with votes is about to be deleted) */}
+      <AlertDialog open={!!deleteOptionConfirmState} onOpenChange={(open) => { if (!open) setDeleteOptionConfirmState(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('pollView.deleteOptionConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('pollView.deleteOptionConfirmDesc', { count: deleteOptionConfirmState?.voteCount ?? 0 })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteOptionConfirmState) {
+                  forceDeleteOptionMutation.mutate(deleteOptionConfirmState.optionId);
+                }
+              }}
+            >
+              {t('pollView.deleteOptionConfirmAction')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

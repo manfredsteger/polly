@@ -203,7 +203,7 @@ router.patch('/admin/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl, notifyParticipants } = req.body;
+    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl, notifyParticipants, enableExpiryReminder, expiryReminderHours } = req.body;
     
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
@@ -234,6 +234,33 @@ router.patch('/admin/:token', async (req, res) => {
       }
     }
     
+    // Re-validate expiry reminder when expiresAt is being updated
+    if (expiresAt !== undefined) {
+      const newExpiresAt = updates.expiresAt; // already converted to Date or null
+      let resolvedEnableReminder: boolean =
+        enableExpiryReminder !== undefined ? !!enableExpiryReminder : (poll.enableExpiryReminder ?? false);
+      let resolvedReminderHours: number =
+        expiryReminderHours !== undefined ? Number(expiryReminderHours) : (poll.expiryReminderHours ?? 24);
+
+      if (!newExpiresAt) {
+        resolvedEnableReminder = false;
+      } else {
+        const hoursUntilExpiry = (newExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
+        if (hoursUntilExpiry < 6) {
+          resolvedEnableReminder = false;
+        } else if (resolvedEnableReminder && resolvedReminderHours >= hoursUntilExpiry) {
+          const cappedHours = Math.max(1, Math.floor(hoursUntilExpiry * 0.5));
+          resolvedEnableReminder = cappedHours >= 1;
+          resolvedReminderHours = cappedHours;
+        }
+      }
+      updates.enableExpiryReminder = resolvedEnableReminder;
+      updates.expiryReminderHours = resolvedReminderHours;
+    } else if (enableExpiryReminder !== undefined) {
+      updates.enableExpiryReminder = !!enableExpiryReminder;
+      if (expiryReminderHours !== undefined) updates.expiryReminderHours = Number(expiryReminderHours);
+    }
+
     if (isActive === true) {
       const now = new Date();
       const effectiveExpiresAt = updates.expiresAt !== undefined ? updates.expiresAt : poll.expiresAt;
@@ -694,6 +721,42 @@ router.delete('/admin/:token/options/:optionId', async (req, res) => {
       return res.status(400).json({ error: 'A poll must have at least 2 options.' });
     }
 
+    const optionVotes = (poll.votes || []).filter((v: any) => v.optionId === optionId);
+
+    if (poll.type === 'organization') {
+      const signupCount = optionVotes.filter((v: any) => v.response === 'yes').length;
+      if (signupCount > 0) {
+        const adminForce = req.body?.adminForce === true || req.query.adminForce === 'true';
+        if (!adminForce) {
+          return res.status(409).json({
+            error: `Diese Option hat ${signupCount} Anmeldung(en) und kann nicht gelöscht werden.`,
+            errorCode: 'OPTION_HAS_SIGNUPS',
+            signupCount,
+          });
+        }
+        // adminForce=true: only system admins may force-delete
+        const sessionUser = req.session?.userId ? await storage.getUser(req.session.userId) : null;
+        if (!sessionUser || sessionUser.role !== 'admin') {
+          return res.status(403).json({
+            error: 'Nur Administratoren können Optionen mit bestehenden Anmeldungen löschen.',
+            errorCode: 'ADMIN_REQUIRED',
+          });
+        }
+      }
+    } else {
+      const voteCount = optionVotes.length;
+      if (voteCount > 0) {
+        const confirmed = req.query.confirmed === 'true' || req.body?.confirmed === true;
+        if (!confirmed) {
+          return res.status(409).json({
+            error: `Diese Option hat ${voteCount} Stimme(n). Bitte bestätigen Sie die Löschung.`,
+            errorCode: 'OPTION_HAS_VOTES',
+            voteCount,
+          });
+        }
+      }
+    }
+
     await storage.deletePollOption(optionId);
     res.json({ success: true });
   } catch (error) {
@@ -849,9 +912,33 @@ router.post('/:id/send-reminder', async (req, res) => {
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
     }
-    
 
-    
+    // Ownership check: every caller must be authorized — owner session, system admin, or valid poll admin token
+    {
+      const sessionUserId = req.session?.userId;
+      let authorized = false;
+      if (sessionUserId) {
+        if (poll.userId && sessionUserId === poll.userId) {
+          authorized = true; // session owner
+        } else {
+          const sessionUser = await storage.getUser(sessionUserId);
+          if (sessionUser?.role === 'admin') authorized = true; // system admin
+        }
+      }
+      if (!authorized) {
+        const providedAdminToken = req.body?.adminToken as string | undefined;
+        if (providedAdminToken && poll.adminToken === providedAdminToken) {
+          authorized = true; // valid poll admin token
+        }
+      }
+      if (!authorized) {
+        return res.status(403).json({
+          error: 'Keine Berechtigung zum Senden von Erinnerungen für diese Umfrage.',
+          errorCode: 'NOT_AUTHORIZED',
+        });
+      }
+    }
+
     // Extract unique emails from votes
     const votes = poll.votes || [];
     const participantEmails = [...new Set(

@@ -88,6 +88,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   // Live slot updates from WebSocket for organization polls
   const [liveSlotUpdates, setLiveSlotUpdates] = useState<Record<number, { currentCount: number; maxCapacity: number | null }>>({});
 
+  // Persisted edit token from localStorage (fallback when device cookie is cleared)
+  const [localStorageEditToken, setLocalStorageEditToken] = useState<string | null>(null);
+
   const { sendVoteInProgress, sendVoteSubmitted, updateVoterName, isConnected } = useLiveVoting({
     pollToken: poll.publicToken,
     voterName: voterName || undefined,
@@ -96,12 +99,53 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     } : undefined,
   });
 
+  // On mount for org polls: check localStorage for a persisted edit token
+  useEffect(() => {
+    if (poll.type !== 'organization') return;
+    try {
+      const stored = localStorage.getItem(`polly-edit-token-${poll.id}`);
+      if (stored) setLocalStorageEditToken(stored);
+    } catch (_) {}
+  }, [poll.id, poll.type]);
+
+  // When device cookie is cleared, use the localStorage token to fetch existing bookings
+  const { data: localStorageVoteData } = useQuery({
+    queryKey: ['/api/v1/votes/edit', localStorageEditToken],
+    queryFn: async () => {
+      if (!localStorageEditToken) return null;
+      const response = await fetch(`/api/v1/votes/edit/${localStorageEditToken}`, { credentials: 'include' });
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: !!localStorageEditToken && !hasAlreadyVoted,
+    staleTime: 30000,
+  });
+
+  // Restore org bookings from localStorage edit token when device cookie was cleared
+  useEffect(() => {
+    if (!localStorageVoteData || hasAlreadyVoted) return;
+    const { votes: tokenVotes, poll: tokenPoll } = localStorageVoteData;
+    if (!tokenVotes || tokenPoll?.id !== poll.id) {
+      try { localStorage.removeItem(`polly-edit-token-${poll.id}`); } catch (_) {}
+      return;
+    }
+    const restored = tokenVotes
+      .filter((v: any) => v.response === 'yes')
+      .map((v: any) => ({ optionId: v.optionId, comment: v.comment || undefined }));
+    if (restored.length > 0) {
+      setOrgaBookings(restored);
+      setInitialOrgaBookingsSnapshot(restored);
+      if (tokenVotes[0]?.voterName && !voterName) setVoterName(tokenVotes[0].voterName);
+      if (tokenVotes[0]?.voterEmail && !voterEmail) setVoterEmail(tokenVotes[0].voterEmail);
+    }
+  }, [localStorageVoteData, hasAlreadyVoted, poll.id]);
+
   // Calculate current signups from poll.votes for organization polls
   // Uses live WebSocket updates when available for real-time accuracy
   const currentSignups = useMemo(() => {
     if (poll.type !== 'organization') return {};
     
-    const signups: Record<number, { count: number; maxCapacity: number; names: string[] }> = {};
+    const signups: Record<number, { count: number; maxCapacity: number | null; names: string[] }> = {};
     
     // Initialize all options with their maxCapacity
     poll.options.forEach(option => {
@@ -110,13 +154,13 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       if (liveData) {
         signups[option.id] = {
           count: liveData.currentCount,
-          maxCapacity: liveData.maxCapacity ?? option.maxCapacity ?? 1,
+          maxCapacity: liveData.maxCapacity !== undefined ? liveData.maxCapacity : (option.maxCapacity ?? null),
           names: [] // Names will still come from poll.votes (names aren't sent in slot updates)
         };
       } else {
         signups[option.id] = {
           count: 0,
-          maxCapacity: option.maxCapacity || 1,
+          maxCapacity: option.maxCapacity ?? null,
           names: []
         };
       }
@@ -591,6 +635,13 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         
         // Reset unsaved changes state
         setHasOrgaChanges(false);
+
+        // Persist edit token to localStorage so the voter can return after closing the tab
+        if (result.voterEditToken) {
+          try {
+            localStorage.setItem(`polly-edit-token-${poll.id}`, result.voterEditToken);
+          } catch (_) {}
+        }
         
         const successData = {
           poll: {
@@ -1103,7 +1154,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                         Object.entries(votes).map(([id, response]) => [id, response])
                       )}
                       disabled={!canVote}
-                      allowMaybe={poll.allowMaybe ?? true}
+                      allowMaybe={poll.type === 'schedule' ? (poll.allowMaybe ?? true) : (poll.allowMaybe ?? false)}
                       expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
                     />
                   </>
@@ -1130,7 +1181,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 existingVotes={{}}
                 disabled={true}
                 adminPreview={true}
-                allowMaybe={poll.allowMaybe ?? true}
+                allowMaybe={poll.type === 'schedule' ? (poll.allowMaybe ?? true) : (poll.allowMaybe ?? false)}
                 expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
               />
             )

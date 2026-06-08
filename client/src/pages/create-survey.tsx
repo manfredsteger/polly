@@ -132,7 +132,7 @@ export default function CreateSurvey() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
-  const [allowMaybe, setAllowMaybe] = useState(true);
+  const [allowMaybe, setAllowMaybe] = useState(false);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const nextIdRef = useRef(2);
   const [options, setOptions] = useState<SurveyOption[]>([

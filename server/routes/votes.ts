@@ -95,7 +95,25 @@ router.post('/polls/:token/vote', async (req, res) => {
     if (optionValidation) {
       return res.status(optionValidation.status).json(optionValidation.body);
     }
-    
+
+    // Validate freeTextAnswer and comment length (max 500 chars each)
+    for (const voteData of data.votes) {
+      const fta = (voteData as any).freeTextAnswer;
+      if (fta && typeof fta === 'string' && fta.length > 500) {
+        return res.status(400).json({
+          error: 'Freitextantwort darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'FREE_TEXT_TOO_LONG',
+        });
+      }
+      const comment = voteData.comment;
+      if (comment && typeof comment === 'string' && comment.length > 500) {
+        return res.status(400).json({
+          error: 'Kommentar darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'COMMENT_TOO_LONG',
+        });
+      }
+    }
+
     const currentUserId = await extractUserId(req);
     let userId: number | null = null;
     
@@ -244,7 +262,7 @@ router.post('/polls/:token/vote', async (req, res) => {
     res.json({ 
       success: true, 
       votes: createdVotes,
-      voterEditToken: poll.allowVoteEdit ? voterEditToken : null
+      voterEditToken: (poll.allowVoteEdit || poll.type === 'organization') ? voterEditToken : null
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -294,7 +312,25 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     if (optionValidation) {
       return res.status(optionValidation.status).json(optionValidation.body);
     }
-    
+
+    // Validate freeTextAnswer and comment length (max 500 chars each)
+    for (const voteData of data.votes) {
+      const fta = (voteData as any).freeTextAnswer;
+      if (fta && typeof fta === 'string' && fta.length > 500) {
+        return res.status(400).json({
+          error: 'Freitextantwort darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'FREE_TEXT_TOO_LONG',
+        });
+      }
+      const comment = voteData.comment;
+      if (comment && typeof comment === 'string' && comment.length > 500) {
+        return res.status(400).json({
+          error: 'Kommentar darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'COMMENT_TOO_LONG',
+        });
+      }
+    }
+
     const currentUserId = await extractUserId(req);
     let userId: number | null = null;
     
@@ -443,7 +479,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     res.json({ 
       success: true, 
       votes: createdVotes,
-      voterEditToken: poll.allowVoteEdit ? voterEditToken : null
+      voterEditToken: (poll.allowVoteEdit || poll.type === 'organization') ? voterEditToken : null
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

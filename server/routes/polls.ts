@@ -449,12 +449,10 @@ router.post('/admin/:token/finalize', async (req, res) => {
           const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
 
           let organizerEmail: string | null = poll.creatorEmail || null;
-          let organizerName = 'Organisator';
           if (poll.userId) {
             const user = await storage.getUser(poll.userId);
             if (user) {
               organizerEmail = user.email || organizerEmail;
-              organizerName = user.name || user.username || 'Organisator';
             }
           }
 
@@ -463,8 +461,7 @@ router.post('/admin/:token/finalize', async (req, res) => {
             pollLink,
             poll.options as Array<{ id: number; text: string }>,
             poll.votes as Array<{ optionId: number; voterEmail: string; voterName: string; response: string }>,
-            organizerEmail,
-            organizerName
+            organizerEmail
           );
         } catch (emailError) {
           console.error('Error sending org confirmation emails:', emailError);
@@ -496,6 +493,10 @@ router.post('/admin/:token/finalize', async (req, res) => {
     const updateData: { finalOptionId: number | null; isActive?: boolean } = { finalOptionId };
     if (finalOptionId && closePoll) {
       updateData.isActive = false;
+    }
+    // Undo org finalization: always reopen registration (restore isActive=true)
+    if (finalOptionId === null && poll.finalOptionId === -1) {
+      updateData.isActive = true;
     }
     const updatedPoll = await storage.updatePoll(poll.id, updateData);
 

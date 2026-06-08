@@ -799,8 +799,7 @@ export class EmailService {
     pollLink: string,
     options: Array<{ id: number; text: string }>,
     votes: Array<{ optionId: number; voterEmail: string; voterName: string; response: string }>,
-    organizerEmail: string | null,
-    organizerName: string
+    organizerEmail: string | null
   ): Promise<{ sent: number; failed: number }> {
     const validatedLink = validateEmailUrl(pollLink);
     const optionMap = new Map<number, string>(options.map(o => [o.id, o.text]));
@@ -846,8 +845,8 @@ export class EmailService {
       }
     }
 
-    // Organizer summary: all slots with participant names (skip if they already got a personalized email)
-    if (organizerEmail && organizerEmail.includes('@') && !voterSlots.has(organizerEmail)) {
+    // Organizer always gets the full participant-list summary (even if they also signed up as participant)
+    if (organizerEmail && organizerEmail.includes('@')) {
       try {
         const slotNamesMap = new Map<string, string[]>();
         for (const [, { name, slots }] of voterSlots.entries()) {

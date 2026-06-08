@@ -268,5 +268,55 @@ describe('Polls - Finalization', () => {
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Ungültige Anfrage');
     });
+
+    it('should reopen registration (isActive=true) when undoing org finalization that closed the poll', async () => {
+      const { adminToken } = await createOrgPollWithVote(app);
+
+      // Finalize with closePoll=true → poll becomes inactive
+      await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true, closePoll: true });
+
+      // Verify poll is closed
+      const closedResponse = await request(app).get(`/api/v1/polls/admin/${adminToken}`);
+      expect(closedResponse.body.isActive).toBe(false);
+
+      // Undo org finalization → should reopen registration
+      const undoResponse = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0 });
+
+      expect(undoResponse.status).toBe(200);
+      expect(undoResponse.body.poll.finalOptionId).toBeNull();
+      expect(undoResponse.body.poll.isActive).toBe(true);
+    });
+
+    it('should work correctly when organizer email is also a participant email', async () => {
+      const creatorEmail = `organizer-${Date.now()}@example.com`;
+      const pollData = createTestPoll({ type: 'organization', creatorEmail });
+      const createResponse = await request(app).post('/api/v1/polls').send(pollData);
+      expect(createResponse.status).toBe(200);
+
+      const { adminToken, publicToken } = createResponse.body;
+      const pollResponse = await request(app).get(`/api/v1/polls/admin/${adminToken}`);
+      const firstOptionId = pollResponse.body.options[0].id;
+
+      // Organizer signs up as a participant
+      await request(app)
+        .post(`/api/v1/polls/${publicToken}/vote`)
+        .send({
+          voterName: 'Organizer',
+          voterEmail: creatorEmail,
+          votes: [{ optionId: firstOptionId, response: 'yes' }],
+        });
+
+      // Finalize with notify=true — should succeed even when organizer is also participant
+      const finalizeResponse = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true, notifyParticipants: true });
+
+      expect(finalizeResponse.status).toBe(200);
+      expect(finalizeResponse.body.poll.finalOptionId).toBe(-1);
+    });
   });
 });

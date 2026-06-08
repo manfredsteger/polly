@@ -1482,6 +1482,26 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                     ).size,
                   })}
                 </p>
+                {/* Slot-by-slot occupancy breakdown */}
+                {options.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1 max-h-40 overflow-y-auto">
+                    {options.map((option: any) => {
+                      const filled = (results.votes ?? []).filter((v: any) => v.optionId === option.id && v.response === 'yes').length;
+                      const capacity = option.maxCapacity || 0;
+                      const isFull = capacity > 0 && filled >= capacity;
+                      return (
+                        <div key={option.id} className="flex items-center justify-between text-xs gap-2">
+                          <span className="truncate text-foreground">
+                            <FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} />
+                          </span>
+                          <span className={`shrink-0 font-medium tabular-nums ${isFull ? 'text-red-600 dark:text-red-400' : filled > 0 ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}>
+                            {filled}{capacity > 0 ? `/${capacity}` : ''} {t('results.entriesPlural')}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="space-y-2 pt-2 border-t">
                   <label className="flex items-center gap-2 cursor-pointer text-sm">
                     <input

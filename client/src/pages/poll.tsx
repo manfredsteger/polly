@@ -216,6 +216,8 @@ export default function Poll() {
     startTime: string;
     endTime: string;
     maxCapacity?: number;
+    date?: string;
+    durationMinutes?: number;
   }>({ text: '', startTime: '', endTime: '' });
   
   const [inviteEmails, setInviteEmails] = useState("");
@@ -1394,7 +1396,7 @@ export default function Poll() {
                           )}
                         </div>
                       ) : poll?.type === 'organization' ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
                             <div className="col-span-2">
                               <Input
@@ -1416,24 +1418,76 @@ export default function Poll() {
                               />
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs text-muted-foreground">{t('pollView.start')} ({t('common.optional')})</Label>
-                              <TimePickerDropdown
-                                value={newOptionForm.startTime || ''}
-                                onChange={(time) => setNewOptionForm({ ...newOptionForm, startTime: time })}
-                                data-testid="new-option-start"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground">{t('pollView.end')} ({t('common.optional')})</Label>
-                              <TimePickerDropdown
-                                value={newOptionForm.endTime || ''}
-                                onChange={(time) => setNewOptionForm({ ...newOptionForm, endTime: time })}
-                                data-testid="new-option-end"
-                              />
-                            </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">{t('pollView.date')} ({t('common.optional')})</Label>
+                            <DatePicker
+                              date={newOptionForm.date ? (() => { const [y,m,d] = newOptionForm.date!.split('-').map(Number); return new Date(y,m-1,d); })() : null}
+                              onDateChange={(date) => {
+                                const dateStr = date
+                                  ? `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
+                                  : undefined;
+                                setNewOptionForm({ ...newOptionForm, date: dateStr });
+                              }}
+                              placeholder={t('pollView.selectDate')}
+                              inline
+                              data-testid="new-option-date"
+                            />
                           </div>
+                          {newOptionForm.date && (
+                            <>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">{t('pollView.start')}</Label>
+                                  <TimePickerDropdown
+                                    value={newOptionForm.startTime || ''}
+                                    onChange={(time) => {
+                                      const endTime = newOptionForm.durationMinutes && time
+                                        ? (() => {
+                                            const [h, m] = time.split(':').map(Number);
+                                            const endMin = h * 60 + m + newOptionForm.durationMinutes!;
+                                            return `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+                                          })()
+                                        : newOptionForm.endTime;
+                                      setNewOptionForm({ ...newOptionForm, startTime: time, endTime: endTime || '' });
+                                    }}
+                                    data-testid="new-option-start"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">{t('pollView.end')}</Label>
+                                  <TimePickerDropdown
+                                    value={newOptionForm.endTime || ''}
+                                    onChange={(time) => setNewOptionForm({ ...newOptionForm, endTime: time })}
+                                    data-testid="new-option-end"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">{t('pollView.duration')}</Label>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {[15,30,45,60,90,120].map(d => (
+                                    <button
+                                      key={d}
+                                      type="button"
+                                      onClick={() => {
+                                        const endTime = newOptionForm.startTime
+                                          ? (() => {
+                                              const [h, m] = newOptionForm.startTime.split(':').map(Number);
+                                              const endMin = h * 60 + m + d;
+                                              return `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+                                            })()
+                                          : newOptionForm.endTime;
+                                        setNewOptionForm({ ...newOptionForm, durationMinutes: d, endTime: endTime || '' });
+                                      }}
+                                      className={`px-2 py-1 rounded border text-xs font-medium transition-colors ${newOptionForm.durationMinutes === d ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary/50'}`}
+                                    >
+                                      {d} {t('createOrganization.minutes')}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <Input
@@ -1458,16 +1512,39 @@ export default function Poll() {
                           type="button"
                           size="sm"
                           onClick={() => {
-                            const newOption = poll?.type === 'schedule'
-                              ? { text: newOptionForm.text, startTime: newOptionForm.startTime, endTime: newOptionForm.endTime, isNew: true }
-                              : poll?.type === 'organization'
-                              ? { text: newOptionForm.text, maxCapacity: newOptionForm.maxCapacity, isNew: true }
-                              : { text: newOptionForm.text, isNew: true };
-                            setEditingOptions([...editingOptions, newOption]);
+                            let newOption: typeof editingOptions[0];
+                            if (poll?.type === 'schedule') {
+                              newOption = { text: newOptionForm.text, startTime: newOptionForm.startTime, endTime: newOptionForm.endTime, isNew: true };
+                            } else if (poll?.type === 'organization') {
+                              const dateObj = newOptionForm.date
+                                ? (() => { const [y,m,d] = newOptionForm.date!.split('-').map(Number); return new Date(y,m-1,d); })()
+                                : null;
+                              newOption = {
+                                text: newOptionForm.text,
+                                startTime: dateObj && newOptionForm.startTime ? combineDateAndTime(dateObj, newOptionForm.startTime) : undefined,
+                                endTime: dateObj && newOptionForm.endTime ? combineDateAndTime(dateObj, newOptionForm.endTime) : undefined,
+                                maxCapacity: newOptionForm.maxCapacity,
+                                isNew: true,
+                              };
+                            } else {
+                              newOption = { text: newOptionForm.text, isNew: true };
+                            }
+                            setEditingOptions(prev => [...prev, newOption]);
                             setShowNewOptionForm(false);
-                            setNewOptionForm({ text: '', startTime: '', endTime: '', maxCapacity: undefined });
+                            setNewOptionForm({ text: '', startTime: '', endTime: '', maxCapacity: undefined, date: undefined, durationMinutes: undefined });
                           }}
-                          disabled={poll?.type === 'schedule' ? (!newOptionForm.startTime || !newOptionForm.endTime || isNewScheduleOptionRangeInvalid) : !newOptionForm.text.trim()}
+                          disabled={(() => {
+                            if (poll?.type === 'schedule') return !newOptionForm.startTime || !newOptionForm.endTime || isNewScheduleOptionRangeInvalid;
+                            if (poll?.type === 'organization') {
+                              if (!newOptionForm.text.trim()) return true;
+                              const hasAnyTime = !!(newOptionForm.date || newOptionForm.startTime || newOptionForm.endTime);
+                              const hasAllTime = !!(newOptionForm.date && newOptionForm.startTime && newOptionForm.endTime);
+                              if (hasAnyTime && !hasAllTime) return true;
+                              if (newOptionForm.startTime && newOptionForm.endTime && newOptionForm.startTime >= newOptionForm.endTime) return true;
+                              return false;
+                            }
+                            return !newOptionForm.text.trim();
+                          })()}
                           data-testid="new-option-confirm"
                         >
                           {t('pollView.confirmAddOption')}

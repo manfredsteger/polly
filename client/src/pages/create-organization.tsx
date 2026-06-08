@@ -332,6 +332,7 @@ function SortableSlotItem({ slot, index, slotsLength, isDayMode, updateSlot, add
   );
 }
 
+
 function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: CustomSlotRowProps) {
   const slotStartMinutes = parseTimeToMinutes(slot.startTime);
   const slotEndMinutes = parseTimeToMinutes(slot.endTime);
@@ -1691,6 +1692,37 @@ export default function CreateOrganization() {
                                   ))}
                                 </div>
                               </div>
+
+                              {selectedTemplateId && selectedDuration && (() => {
+                                const preview = getTemplateSlots(selectedTemplateId, selectedDuration);
+                                return (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-sm font-medium">{t('createOrganization.templates.preview')}</Label>
+                                      <span className="text-xs text-muted-foreground">
+                                        {t('createOrganization.templates.previewCount', { count: preview.length })}
+                                      </span>
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto rounded-lg border bg-muted/20 p-2 space-y-1">
+                                      {preview.map((slot, i) => (
+                                        <div key={i} className="flex items-center gap-3 px-2 py-1 rounded text-sm bg-background border">
+                                          <span className="font-mono text-primary shrink-0">{slot.startTime} – {slot.endTime}</span>
+                                          {slot.capacity && (
+                                            <span className="text-xs text-muted-foreground">max {slot.capacity}</span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{t('createOrganization.templates.previewHint')}</p>
+                                  </div>
+                                );
+                              })()}
+
+                              {!groupDate && (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                                  {t('createOrganization.templates.selectDateFirst')}
+                                </div>
+                              )}
                             </div>
 
                             <DialogFooter>

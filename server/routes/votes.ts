@@ -204,6 +204,17 @@ router.post('/polls/:token/vote', async (req, res) => {
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+
+        // Collect selected option texts (yes votes only; not for org polls)
+        let selectedOptions: string[] | undefined;
+        if (poll.type !== 'organization') {
+          const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
+          const opts = createdVotes
+            .filter((v: any) => v.response === 'yes')
+            .map((v: any) => optionMap.get(v.optionId) || '')
+            .filter(Boolean);
+          if (opts.length > 0) selectedOptions = opts;
+        }
         
         emailService.sendVotingConfirmationEmail(
           data.voterEmail,
@@ -211,7 +222,8 @@ router.post('/polls/:token/vote', async (req, res) => {
           poll.title,
           poll.type as 'schedule' | 'survey',
           publicLink,
-          resultsLink
+          resultsLink,
+          selectedOptions
         ).catch(err => {
           console.error('Error sending voting confirmation email:', err);
         });
@@ -391,6 +403,17 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+
+        // Collect selected option texts (yes votes only; not for org polls)
+        let selectedOptions: string[] | undefined;
+        if (poll.type !== 'organization') {
+          const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
+          const opts = createdVotes
+            .filter((v: any) => v.response === 'yes')
+            .map((v: any) => optionMap.get(v.optionId) || '')
+            .filter(Boolean);
+          if (opts.length > 0) selectedOptions = opts;
+        }
         
         emailService.sendVotingConfirmationEmail(
           data.voterEmail,
@@ -398,7 +421,8 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
           poll.title,
           poll.type as 'schedule' | 'survey',
           publicLink,
-          resultsLink
+          resultsLink,
+          selectedOptions
         ).catch(err => {
           console.error('Error sending voting confirmation email:', err);
         });

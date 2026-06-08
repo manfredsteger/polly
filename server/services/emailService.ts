@@ -263,12 +263,23 @@ export class EmailService {
     pollTitle: string,
     pollType: 'schedule' | 'survey',
     publicLink: string,
-    resultsLink: string
+    resultsLink: string,
+    selectedOptions?: string[]
   ): Promise<void> {
     if (!voterEmail) return;
 
     try {
       const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
+
+      const selectedOptionsHtml =
+        selectedOptions && selectedOptions.length > 0
+          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
+              .map(
+                opt =>
+                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
+              )
+              .join('')}</ul>`
+          : '';
 
       const rendered = await this.renderTemplate('vote_confirmation', {
         voterName,
@@ -276,6 +287,7 @@ export class EmailService {
         pollType: pollTypeText,
         publicLink: validateEmailUrl(publicLink),
         resultsLink: validateEmailUrl(resultsLink),
+        selectedOptionsHtml,
       });
 
       await this.sendMail({

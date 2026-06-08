@@ -3144,6 +3144,7 @@
     }
   },
   "voteSuccess": {
+    "checkSpamHint": "If you don't receive a confirmation email, please also check your spam folder.",
     "noDataTitle": "No Data Found",
     "noDataDesc": "No voting data was found.",
     "backToHome": "Back to Home",

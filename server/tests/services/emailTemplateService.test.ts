@@ -1827,4 +1827,103 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('Zeile 1<br>Zeile 2');
     });
   });
+
+  describe('Vote Confirmation: Selected Options', () => {
+    const service = new EmailTemplateService();
+    let savedFooter: any;
+    beforeEach(async () => {
+      savedFooter = await service.getEmailFooter();
+    });
+    afterEach(async () => {
+      await service.setEmailFooter(savedFooter);
+      await service.resetTemplate('vote_confirmation');
+    });
+
+    it('should render selected options list when selectedOptionsHtml is provided (survey)', async () => {
+      const selectedOptionsHtml =
+        '<ul style="margin: 0; padding-left: 18px;"><li>Option A</li><li>Option B</li></ul>';
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Anna',
+        pollTitle: 'Teammeeting',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/abc#results',
+        selectedOptionsHtml,
+      });
+
+      // Options block label and list items must appear
+      expect(result.html).toContain('text-transform: uppercase');
+      expect(result.html).toContain('Option A');
+      expect(result.html).toContain('Option B');
+    });
+
+    it('should render selected options list for schedule poll type', async () => {
+      const selectedOptionsHtml =
+        '<ul style="margin: 0; padding-left: 18px;">' +
+        '<li>Mo., 12. Mai 2025, 09:00 \u2013 09:30 Uhr</li>' +
+        '</ul>';
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Max',
+        pollTitle: 'Sprint Planning',
+        pollType: 'Terminumfrage',
+        resultsLink: 'https://example.com/poll/xyz#results',
+        selectedOptionsHtml,
+      });
+
+      // Options block with schedule slot text must appear
+      expect(result.html).toContain('Mo., 12. Mai 2025');
+      expect(result.html).toContain('<ul');
+    });
+
+    it('should not render options block when selectedOptionsHtml is empty', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Lena',
+        pollTitle: 'Keine Auswahl',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/def#results',
+        selectedOptionsHtml: '',
+      });
+
+      // No <ul> should appear — the options block is suppressed
+      expect(result.html).not.toContain('<ul');
+    });
+
+    it('should not render options block when selectedOptionsHtml is omitted', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Tom',
+        pollTitle: 'Ohne Optionen',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/ghi#results',
+      });
+
+      // No <ul> should appear — the options block is suppressed
+      expect(result.html).not.toContain('<ul');
+    });
+
+    it('should XSS-escape option text passed via emailService selectedOptions', async () => {
+      const { EmailService } = await import('../../services/emailService');
+      const svc = new EmailService();
+      const xssOption = '<script>alert("xss")</script>';
+
+      let capturedHtml = '';
+      vi.spyOn(svc as any, 'sendMail').mockImplementationOnce(async (opts: any) => {
+        capturedHtml = opts.html || '';
+      });
+
+      await svc.sendVotingConfirmationEmail(
+        'voter@example.com',
+        'TestUser',
+        'XSS-Umfrage',
+        'survey',
+        'https://example.com/poll/xss',
+        'https://example.com/poll/xss#results',
+        [xssOption]
+      );
+
+      expect(capturedHtml).not.toContain('<script>');
+      expect(capturedHtml).toContain('&lt;script&gt;');
+      expect(capturedHtml).toContain('Ihre Auswahl');
+    });
+  });
 });

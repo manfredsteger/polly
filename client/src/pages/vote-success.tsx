@@ -115,6 +115,11 @@ export default function VoteSuccess() {
           <p className="text-lg text-gray-600 dark:text-gray-300">
             {t('voteSuccess.thankYouDesc', { title: poll.title })}
           </p>
+          {voteData.voterEmail && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {t('voteSuccess.checkSpamHint')}
+            </p>
+          )}
         </div>
 
         {/* Voter Info */}

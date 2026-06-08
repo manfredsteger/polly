@@ -3144,6 +3144,7 @@
     }
   },
   "voteSuccess": {
+    "checkSpamHint": "Falls Sie keine Bestätigungs-E-Mail erhalten, prüfen Sie bitte auch Ihren Spam-Ordner.",
     "noDataTitle": "Keine Daten gefunden",
     "noDataDesc": "Es wurden keine Abstimmungsdaten gefunden.",
     "backToHome": "Zur Startseite",

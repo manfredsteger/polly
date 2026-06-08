@@ -1309,13 +1309,22 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const pollType = vars.pollType || 'Umfrage';
   const resultsLink = vars.resultsLink || '#';
+  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
   const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
+
+  const optionsBlock = selectedOptionsHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre Auswahl</p>
+      ${selectedOptionsHtml}
+    </td></tr>`
+    : '';
 
   return `${v3BodyStart()}
       ${v3Tag('Best\u00E4tigung', ctx.primaryColor)}
       ${v3SimpleHeadline('Vielen Dank f\u00FCr Ihre Teilnahme!', ctx.fontFamily)}
       ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Teilnahme an der ${htmlEscape(pollType)} \u201E${pollTitle}\u201C. Ihre Auswahl wurde erfolgreich gespeichert.`)}
     ${v3BodyEnd()}
+    ${optionsBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
 }

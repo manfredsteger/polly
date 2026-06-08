@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import { createTestPoll } from '../fixtures/testData';
+import { emailService } from '../../services/emailService';
 import type { Express } from 'express';
 
 export const testMeta = {
@@ -317,6 +318,29 @@ describe('Polls - Finalization', () => {
 
       expect(finalizeResponse.status).toBe(200);
       expect(finalizeResponse.body.poll.finalOptionId).toBe(-1);
+    });
+
+    it('should use sendOrgConfirmationEmails (no ICS) instead of sendFinalizationEmails', async () => {
+      const { adminToken } = await createOrgPollWithVote(app);
+
+      const orgEmailSpy = vi.spyOn(emailService, 'sendOrgConfirmationEmails').mockResolvedValue({ sent: 1, failed: 0 });
+      const finalizationEmailSpy = vi.spyOn(emailService, 'sendFinalizationEmails').mockResolvedValue(undefined);
+
+      try {
+        const finalizeResponse = await request(app)
+          .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+          .send({ optionId: 0, orgFinalize: true, notifyParticipants: true });
+
+        expect(finalizeResponse.status).toBe(200);
+        expect(finalizeResponse.body.poll.finalOptionId).toBe(-1);
+
+        // Org finalization must use sendOrgConfirmationEmails, never sendFinalizationEmails
+        expect(orgEmailSpy).toHaveBeenCalledTimes(1);
+        expect(finalizationEmailSpy).not.toHaveBeenCalled();
+      } finally {
+        orgEmailSpy.mockRestore();
+        finalizationEmailSpy.mockRestore();
+      }
     });
   });
 });

@@ -804,14 +804,23 @@ export class EmailService {
     const validatedLink = validateEmailUrl(pollLink);
     const optionMap = new Map<number, string>(options.map(o => [o.id, o.text]));
 
-    // Group yes-votes by voter email → their booked slots
+    // Group yes-votes by voter email → their booked slots (email-gated: for participant notifications only)
     const voterSlots = new Map<string, { name: string; slots: string[] }>();
+    // Full slot→names map for organizer summary (includes all yes-votes, even without email)
+    const allSlotNamesMap = new Map<string, string[]>();
     for (const vote of votes) {
-      if (vote.response === 'yes' && vote.voterEmail && vote.voterEmail.includes('@')) {
+      if (vote.response !== 'yes') continue;
+      const slotName = optionMap.get(vote.optionId);
+      // Full summary for organizer (all yes-votes, regardless of email)
+      if (slotName) {
+        if (!allSlotNamesMap.has(slotName)) allSlotNamesMap.set(slotName, []);
+        allSlotNamesMap.get(slotName)!.push(vote.voterName);
+      }
+      // Participant notification (email-gated)
+      if (vote.voterEmail && vote.voterEmail.includes('@')) {
         if (!voterSlots.has(vote.voterEmail)) {
           voterSlots.set(vote.voterEmail, { name: vote.voterName, slots: [] });
         }
-        const slotName = optionMap.get(vote.optionId);
         if (slotName) voterSlots.get(vote.voterEmail)!.slots.push(slotName);
       }
     }
@@ -845,19 +854,12 @@ export class EmailService {
       }
     }
 
-    // Organizer always gets the full participant-list summary (even if they also signed up as participant)
+    // Organizer always gets the full participant-list summary (all yes-votes, including no-email participants)
     if (organizerEmail && organizerEmail.includes('@')) {
       try {
-        const slotNamesMap = new Map<string, string[]>();
-        for (const [, { name, slots }] of voterSlots.entries()) {
-          for (const slot of slots) {
-            if (!slotNamesMap.has(slot)) slotNamesMap.set(slot, []);
-            slotNamesMap.get(slot)!.push(name);
-          }
-        }
-        const slotSummaryHtml = slotNamesMap.size > 0
+        const slotSummaryHtml = allSlotNamesMap.size > 0
           ? `<ul style="margin:8px 0 0 0;padding-left:18px;">${
-              [...slotNamesMap.entries()].map(([slot, names]) =>
+              [...allSlotNamesMap.entries()].map(([slot, names]) =>
                 `<li style="margin:2px 0;"><strong>${escapeHtml(slot)}:</strong> ${names.map(n => escapeHtml(n)).join(', ')}</li>`
               ).join('')
             }</ul>`

@@ -122,7 +122,7 @@ describe('sendOrgConfirmationEmails', () => {
     expect(bobMail?.html).not.toContain('Mittwoch 10:00');
   });
 
-  it('excludes participants without a valid email address', async () => {
+  it('excludes participants without a valid email address from participant notifications', async () => {
     await emailService.sendOrgConfirmationEmails(
       'Test Poll',
       'https://polly.example.com/poll/abc',
@@ -153,6 +153,23 @@ describe('sendOrgConfirmationEmails', () => {
     expect(organizerMail?.html).toContain('Montag 09:00');
     expect(organizerMail?.html).toContain('Alice');
     expect(organizerMail?.html).toContain('Bob');
+  });
+
+  it('organizer summary includes no-email participants in the slot breakdown', async () => {
+    // Charlie (no email) signed up for Mittwoch → must appear in organizer summary
+    await emailService.sendOrgConfirmationEmails(
+      'Test Poll',
+      'https://polly.example.com/poll/abc',
+      TEST_OPTIONS,
+      TEST_VOTES,
+      'organizer@example.com'
+    );
+
+    const organizerMail = allMails.find(m => m.to === 'organizer@example.com');
+    expect(organizerMail).toBeDefined();
+    // Mittwoch slot has only Charlie (no email) — must still appear in organizer summary
+    expect(organizerMail?.html).toContain('Mittwoch 10:00');
+    expect(organizerMail?.html).toContain('Charlie');
   });
 
   it('organizer who also signed up still receives the full summary', async () => {

@@ -82,10 +82,14 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   const isOrganization = poll.type === 'organization';
   const isSchedule = poll.type === 'schedule';
   const isFinalized = poll.finalOptionId != null && poll.finalOptionId > 0;
+  const isOrgFinalized = isOrganization && poll.finalOptionId === -1;
   const [isFinalizingOption, setIsFinalizingOption] = useState<number | null>(null);
   const [confirmDialogOptionId, setConfirmDialogOptionId] = useState<number | null>(null);
   const [finalizeClosePoll, setFinalizeClosePoll] = useState(true);
   const [finalizeNotify, setFinalizeNotify] = useState(true);
+  const [orgConfirmDialogOpen, setOrgConfirmDialogOpen] = useState(false);
+  const [orgFinalizeClosePoll, setOrgFinalizeClosePoll] = useState(true);
+  const [orgFinalizeNotify, setOrgFinalizeNotify] = useState(true);
   const [isDetailedResultsOpen, setIsDetailedResultsOpen] = useState(false);
   const detailedResultsRef = useRef<HTMLDivElement>(null);
   const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
@@ -124,12 +128,35 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
     setIsFinalizingOption(0);
     try {
       await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, { optionId: 0 });
-      toast({ title: t('common.success'), description: isSchedule ? t('resultsChart.dateUnconfirmed') : t('resultsChart.resultUnconfirmed') });
+      toast({ title: t('common.success'), description: isOrgFinalized ? t('resultsChart.signupsUnconfirmed') : (isSchedule ? t('resultsChart.dateUnconfirmed') : t('resultsChart.resultUnconfirmed')) });
       onFinalize?.();
     } catch (error) {
       toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
     } finally {
       setIsFinalizingOption(null);
+    }
+  };
+
+  const handleOrgFinalize = async () => {
+    if (!adminToken) return;
+    setIsFinalizingOption(-1);
+    try {
+      await apiRequest('POST', `/api/v1/polls/admin/${adminToken}/finalize`, {
+        optionId: 0,
+        orgFinalize: true,
+        closePoll: orgFinalizeClosePoll,
+        notifyParticipants: orgFinalizeNotify,
+      });
+      const parts: string[] = [t('resultsChart.signupsConfirmed')];
+      if (orgFinalizeClosePoll) parts.push(t('resultsChart.pollClosed'));
+      if (orgFinalizeNotify) parts.push(t('resultsChart.participantsNotified'));
+      toast({ title: t('common.success'), description: parts.join(' ') });
+      onFinalize?.();
+    } catch (error) {
+      toast({ title: t('common.error'), description: t('resultsChart.finalizeFailed'), variant: "destructive" });
+    } finally {
+      setIsFinalizingOption(null);
+      setOrgConfirmDialogOpen(false);
     }
   };
 
@@ -427,6 +454,52 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
           </Card>
         );
       })()}
+
+      {/* Org: Registration Closed banner */}
+      {isOrgFinalized && (
+        <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-950/30 dark:border-green-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Lock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div>
+                  <h3 className="font-semibold text-green-900 dark:text-green-100">
+                    {t('resultsChart.registrationClosed')}
+                  </h3>
+                </div>
+              </div>
+              {(isAdminAccess || isOwner) && adminToken && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUnfinalize}
+                  disabled={isFinalizingOption !== null}
+                  className="border-orange-400 text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-900"
+                >
+                  {isFinalizingOption === 0 ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Unlock className="w-4 h-4 mr-1" />}
+                  {t('resultsChart.undoConfirmation')}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Org: Confirm Sign-ups button (shown when not yet confirmed) */}
+      {isOrganization && !isOrgFinalized && (isAdminAccess || isOwner) && adminToken && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setOrgConfirmDialogOpen(true)}
+            disabled={isFinalizingOption !== null}
+            className="border-teal-500 text-teal-700 hover:bg-teal-100 dark:border-teal-600 dark:text-teal-400 dark:hover:bg-teal-950"
+          >
+            {isFinalizingOption === -1 ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ClipboardList className="w-4 h-4 mr-2" />}
+            {t('resultsChart.confirmSignups')}
+          </Button>
+        </div>
+      )}
 
       {/* Best Option Highlight */}
       {bestOptionData && (
@@ -1388,6 +1461,60 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
             >
               {isFinalizingOption !== null ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CalendarCheck className="w-4 h-4 mr-1" />}
               {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Org: Confirm Sign-ups dialog */}
+      <AlertDialog open={orgConfirmDialogOpen} onOpenChange={(open) => { if (!open) setOrgConfirmDialogOpen(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('resultsChart.confirmSignupsDialogTitle')}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  {t('resultsChart.confirmSignupsDialogDescription', {
+                    count: new Set(
+                      (results.votes ?? [])
+                        .filter((v: any) => v.response === 'yes')
+                        .map((v: any) => v.voterName)
+                    ).size,
+                  })}
+                </p>
+                <div className="space-y-2 pt-2 border-t">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={orgFinalizeClosePoll}
+                      onChange={(e) => setOrgFinalizeClosePoll(e.target.checked)}
+                      className="rounded border-gray-300 w-4 h-4 accent-primary"
+                    />
+                    <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>{t('resultsChart.closeRegistrationOption')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={orgFinalizeNotify}
+                      onChange={(e) => setOrgFinalizeNotify(e.target.checked)}
+                      className="rounded border-gray-300 w-4 h-4 accent-primary"
+                    />
+                    <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>{t('resultsChart.notifySignupsOption')}</span>
+                  </label>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleOrgFinalize}
+              disabled={isFinalizingOption !== null}
+            >
+              {isFinalizingOption !== null ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ClipboardList className="w-4 h-4 mr-1" />}
+              {t('resultsChart.confirmSignups')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

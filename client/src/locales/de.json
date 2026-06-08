@@ -519,7 +519,15 @@
     "videoConferenceLink": "Videokonferenz beitreten",
     "notifyParticipantsOption": "Teilnehmer per E-Mail benachrichtigen (mit Kalendereinladung)",
     "pollClosed": "Die Umfrage wurde beendet.",
-    "participantsNotified": "Teilnehmer wurden benachrichtigt."
+    "participantsNotified": "Teilnehmer wurden benachrichtigt.",
+    "confirmSignups": "Anmeldungen bestätigen",
+    "registrationClosed": "Anmeldungen geschlossen",
+    "signupsConfirmed": "Anmeldungen wurden bestätigt.",
+    "signupsUnconfirmed": "Anmeldebestätigung wurde zurückgenommen",
+    "confirmSignupsDialogTitle": "Anmeldungen bestätigen?",
+    "confirmSignupsDialogDescription": "Insgesamt {{count}} Person(en) haben sich eingetragen. Diese Aktion bestätigt alle aktuellen Anmeldungen formal.",
+    "closeRegistrationOption": "Anmeldungen schließen (keine weiteren Eintragungen)",
+    "notifySignupsOption": "Teilnehmer per E-Mail benachrichtigen (mit persönlicher Slot-Übersicht)"
   },
   "pollTypes": {
     "schedule": "Termin",

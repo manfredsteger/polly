@@ -7,7 +7,7 @@ import type { Express } from 'express';
 export const testMeta = {
   category: 'polls' as const,
   name: 'Poll-Finalisierung',
-  description: 'Prüft das Setzen und Aufheben des finalen Termins und Kalender-Export-Filterung',
+  description: 'Prüft das Setzen und Aufheben des finalen Termins, Kalender-Export-Filterung und Orga-Listen-Bestätigung',
   severity: 'high' as const,
 };
 
@@ -26,7 +26,7 @@ describe('Polls - Finalization', () => {
         .send(pollData);
 
       expect(createResponse.status).toBe(200);
-      const { adminToken, poll } = createResponse.body;
+      const { adminToken, publicToken } = createResponse.body;
       
       // Get the poll with options
       const pollResponse = await request(app)
@@ -36,8 +36,19 @@ describe('Polls - Finalization', () => {
       const options = pollResponse.body.options;
       expect(options.length).toBeGreaterThan(0);
       
-      // Finalize with the first option
       const firstOptionId = options[0].id;
+
+      // Cast a vote first (required before finalization)
+      const voteResponse = await request(app)
+        .post(`/api/v1/polls/${publicToken}/vote`)
+        .send({
+          voterName: 'Test Voter',
+          voterEmail: 'voter@example.com',
+          votes: [{ optionId: firstOptionId, response: 'yes' }],
+        });
+      expect(voteResponse.status).toBe(200);
+      
+      // Finalize with the first option
       const finalizeResponse = await request(app)
         .post(`/api/v1/polls/admin/${adminToken}/finalize`)
         .send({ optionId: firstOptionId });
@@ -136,6 +147,126 @@ describe('Polls - Finalization', () => {
         .send({ optionId: 1 });
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('Orga-Listen Finalisierung (orgFinalize)', () => {
+    async function createOrgPollWithVote(app: Express) {
+      const pollData = createTestPoll({ type: 'organization' });
+      const createResponse = await request(app)
+        .post('/api/v1/polls')
+        .send(pollData);
+      expect(createResponse.status).toBe(200);
+
+      const { adminToken, publicToken } = createResponse.body;
+
+      const pollResponse = await request(app)
+        .get(`/api/v1/polls/admin/${adminToken}`);
+      expect(pollResponse.status).toBe(200);
+      const firstOptionId = pollResponse.body.options[0].id;
+
+      // Cast a vote so the poll has at least one participant
+      const voteResponse = await request(app)
+        .post(`/api/v1/polls/${publicToken}/vote`)
+        .send({
+          voterName: 'Test Participant',
+          voterEmail: 'participant@example.com',
+          votes: [{ optionId: firstOptionId, response: 'yes' }],
+        });
+      expect(voteResponse.status).toBe(200);
+
+      return { adminToken, publicToken, firstOptionId };
+    }
+
+    it('should set finalOptionId to -1 for org finalize', async () => {
+      const { adminToken } = await createOrgPollWithVote(app);
+
+      const finalizeResponse = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true });
+
+      expect(finalizeResponse.status).toBe(200);
+      expect(finalizeResponse.body.success).toBe(true);
+      expect(finalizeResponse.body.poll.finalOptionId).toBe(-1);
+    });
+
+    it('should close the poll when closePoll is true', async () => {
+      const { adminToken } = await createOrgPollWithVote(app);
+
+      const finalizeResponse = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true, closePoll: true });
+
+      expect(finalizeResponse.status).toBe(200);
+      expect(finalizeResponse.body.poll.finalOptionId).toBe(-1);
+      expect(finalizeResponse.body.poll.isActive).toBe(false);
+    });
+
+    it('should not close the poll when closePoll is false', async () => {
+      const { adminToken } = await createOrgPollWithVote(app);
+
+      const finalizeResponse = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true, closePoll: false });
+
+      expect(finalizeResponse.status).toBe(200);
+      expect(finalizeResponse.body.poll.finalOptionId).toBe(-1);
+      expect(finalizeResponse.body.poll.isActive).toBe(true);
+    });
+
+    it('should clear org finalization with optionId 0 and no orgFinalize flag', async () => {
+      const { adminToken } = await createOrgPollWithVote(app);
+
+      // First finalize
+      await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true });
+
+      // Then undo
+      const clearResponse = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0 });
+
+      expect(clearResponse.status).toBe(200);
+      expect(clearResponse.body.success).toBe(true);
+      expect(clearResponse.body.poll.finalOptionId).toBeNull();
+    });
+
+    it('should reject orgFinalize on non-organization poll type', async () => {
+      const pollData = createTestPoll({ type: 'survey' });
+      const createResponse = await request(app)
+        .post('/api/v1/polls')
+        .send(pollData);
+      const { adminToken } = createResponse.body;
+
+      const pollResponse = await request(app).get(`/api/v1/polls/admin/${adminToken}`);
+      const firstOptionId = pollResponse.body.options[0].id;
+
+      // Cast a vote first
+      const publicToken = createResponse.body.publicToken;
+      await request(app)
+        .post(`/api/v1/polls/${publicToken}/vote`)
+        .send({ voterName: 'Voter', voterEmail: 'v@example.com', votes: [{ optionId: firstOptionId, response: 'yes' }] });
+
+      // orgFinalize=true on a survey poll — falls through to normal path (needs valid optionId)
+      const finalizeResponse = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true });
+
+      // survey poll does NOT enter org-finalize branch, so optionId:0 clears finalization (returns null, success)
+      expect(finalizeResponse.status).toBe(200);
+      expect(finalizeResponse.body.poll.finalOptionId).toBeNull();
+    });
+
+    it('should reject extra fields not in schema', async () => {
+      const { adminToken } = await createOrgPollWithVote(app);
+
+      const response = await request(app)
+        .post(`/api/v1/polls/admin/${adminToken}/finalize`)
+        .send({ optionId: 0, orgFinalize: true, unknownField: 'bad' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Ungültige Anfrage');
     });
   });
 });

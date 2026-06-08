@@ -519,7 +519,15 @@
     "videoConferenceLink": "Join video conference",
     "notifyParticipantsOption": "Notify participants via email (with calendar invitation)",
     "pollClosed": "The poll has been closed.",
-    "participantsNotified": "Participants have been notified."
+    "participantsNotified": "Participants have been notified.",
+    "confirmSignups": "Confirm Sign-ups",
+    "registrationClosed": "Registration Closed",
+    "signupsConfirmed": "Sign-ups have been confirmed.",
+    "signupsUnconfirmed": "Sign-up confirmation has been removed",
+    "confirmSignupsDialogTitle": "Confirm Sign-ups?",
+    "confirmSignupsDialogDescription": "A total of {{count}} person(s) have signed up. This action formally confirms all current sign-ups.",
+    "closeRegistrationOption": "Close registration (no more sign-ups)",
+    "notifySignupsOption": "Notify participants via email (with personalized slot overview)"
   },
   "pollTypes": {
     "schedule": "Schedule",

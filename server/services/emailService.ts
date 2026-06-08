@@ -794,6 +794,98 @@ export class EmailService {
     return { sent, failed, smtpConfigured: true };
   }
 
+  async sendOrgConfirmationEmails(
+    pollTitle: string,
+    pollLink: string,
+    options: Array<{ id: number; text: string }>,
+    votes: Array<{ optionId: number; voterEmail: string; voterName: string; response: string }>,
+    organizerEmail: string | null,
+    organizerName: string
+  ): Promise<{ sent: number; failed: number }> {
+    const validatedLink = validateEmailUrl(pollLink);
+    const optionMap = new Map<number, string>(options.map(o => [o.id, o.text]));
+
+    // Group yes-votes by voter email → their booked slots
+    const voterSlots = new Map<string, { name: string; slots: string[] }>();
+    for (const vote of votes) {
+      if (vote.response === 'yes' && vote.voterEmail && vote.voterEmail.includes('@')) {
+        if (!voterSlots.has(vote.voterEmail)) {
+          voterSlots.set(vote.voterEmail, { name: vote.voterName, slots: [] });
+        }
+        const slotName = optionMap.get(vote.optionId);
+        if (slotName) voterSlots.get(vote.voterEmail)!.slots.push(slotName);
+      }
+    }
+
+    let sent = 0;
+    let failed = 0;
+
+    // Personalized email per participant listing only their own booked slots
+    for (const [email, { slots }] of voterSlots.entries()) {
+      if (slots.length === 0) continue;
+      try {
+        const slotSummaryHtml = `<ul style="margin:8px 0 0 0;padding-left:18px;">${
+          slots.map(s => `<li style="margin:2px 0;">${escapeHtml(s)}</li>`).join('')
+        }</ul>`;
+        const rendered = await this.renderTemplate('poll_finalized', {
+          pollType: 'organization',
+          statusLabel: 'Anmeldung bestätigt',
+          pollTitle,
+          pollLink: validatedLink,
+          buttonLink: validatedLink,
+          buttonLabel: 'Zur Anmeldeliste \u2192',
+          resultsPublic: 'true',
+          slotSummaryHtml,
+        });
+        await this.sendMail({ to: email, subject: rendered.subject, html: rendered.html, text: rendered.text, isBulk: true });
+        sent++;
+        console.log(`[Email] Org confirmation sent to ${email}`);
+      } catch (err) {
+        console.error(`[Email] Org confirmation to ${email} failed:`, err);
+        failed++;
+      }
+    }
+
+    // Organizer summary: all slots with participant names (skip if they already got a personalized email)
+    if (organizerEmail && organizerEmail.includes('@') && !voterSlots.has(organizerEmail)) {
+      try {
+        const slotNamesMap = new Map<string, string[]>();
+        for (const [, { name, slots }] of voterSlots.entries()) {
+          for (const slot of slots) {
+            if (!slotNamesMap.has(slot)) slotNamesMap.set(slot, []);
+            slotNamesMap.get(slot)!.push(name);
+          }
+        }
+        const slotSummaryHtml = slotNamesMap.size > 0
+          ? `<ul style="margin:8px 0 0 0;padding-left:18px;">${
+              [...slotNamesMap.entries()].map(([slot, names]) =>
+                `<li style="margin:2px 0;"><strong>${escapeHtml(slot)}:</strong> ${names.map(n => escapeHtml(n)).join(', ')}</li>`
+              ).join('')
+            }</ul>`
+          : '';
+        const rendered = await this.renderTemplate('poll_finalized', {
+          pollType: 'organization',
+          statusLabel: 'Anmeldeübersicht',
+          pollTitle,
+          pollLink: validatedLink,
+          buttonLink: validatedLink,
+          buttonLabel: 'Anmeldeliste öffnen \u2192',
+          resultsPublic: 'true',
+          slotSummaryHtml,
+        });
+        await this.sendMail({ to: organizerEmail, subject: rendered.subject, html: rendered.html, text: rendered.text, isBulk: true });
+        sent++;
+        console.log(`[Email] Org summary sent to organizer ${organizerEmail}`);
+      } catch (err) {
+        console.error(`[Email] Org summary to ${organizerEmail} failed:`, err);
+        failed++;
+      }
+    }
+
+    console.log(`[Email] Org confirmation complete: ${sent} sent, ${failed} failed`);
+    return { sent, failed };
+  }
+
   async sendBulkReminders(emails: string[], pollTitle: string, senderName: string, pollUrl: string, expiresAt?: string, customMessage?: string): Promise<{ sent: number; failed: string[] }> {
     const failed: string[] = [];
     let sent = 0;

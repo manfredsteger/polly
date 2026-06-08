@@ -414,6 +414,7 @@ const finalizeSchema = z.object({
   optionId: z.number().int().nonnegative(),
   closePoll: z.boolean().optional().default(false),
   notifyParticipants: z.boolean().optional().default(false),
+  orgFinalize: z.boolean().optional().default(false),
 }).strict();
 
 // Finalize poll (set final option)
@@ -427,15 +428,57 @@ router.post('/admin/:token/finalize', async (req, res) => {
       });
     }
     
-    const { optionId, closePoll, notifyParticipants } = parseResult.data;
+    const { optionId, closePoll, notifyParticipants, orgFinalize } = parseResult.data;
     
     const poll = await storage.getPollByAdminToken(req.params.token);
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
     }
-    
 
-    
+    // Org-Liste finalization: sentinel value -1, skips single-option winner logic
+    if (orgFinalize && poll.type === 'organization') {
+      const updateData: { finalOptionId: number | null; isActive?: boolean } = { finalOptionId: -1 };
+      if (closePoll) updateData.isActive = false;
+      const updatedPoll = await storage.updatePoll(poll.id, updateData);
+
+      let emailResult: { sent: number; failed: number } | undefined;
+      if (notifyParticipants) {
+        try {
+          const { getBaseUrl } = await import('../utils/baseUrl');
+          const baseUrl = getBaseUrl();
+          const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
+
+          let organizerEmail: string | null = poll.creatorEmail || null;
+          let organizerName = 'Organisator';
+          if (poll.userId) {
+            const user = await storage.getUser(poll.userId);
+            if (user) {
+              organizerEmail = user.email || organizerEmail;
+              organizerName = user.name || user.username || 'Organisator';
+            }
+          }
+
+          emailResult = await emailService.sendOrgConfirmationEmails(
+            poll.title,
+            pollLink,
+            poll.options as Array<{ id: number; text: string }>,
+            poll.votes as Array<{ optionId: number; voterEmail: string; voterName: string; response: string }>,
+            organizerEmail,
+            organizerName
+          );
+        } catch (emailError) {
+          console.error('Error sending org confirmation emails:', emailError);
+        }
+      }
+
+      return res.json({
+        success: true,
+        poll: updatedPoll,
+        message: 'Anmeldungen wurden bestätigt.',
+        emailResult,
+      });
+    }
+
     if (optionId !== 0) {
       const optionExists = poll.options.some((o: { id: number }) => o.id === optionId);
       if (!optionExists) {

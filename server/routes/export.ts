@@ -234,14 +234,29 @@ router.get('/polls/:token/export/csv', async (req, res) => {
 router.get('/polls/:token/export/ics', async (req, res) => {
   try {
     let poll;
+    let isAdmin = false;
     
     poll = await storage.getPollByAdminToken(req.params.token);
     if (!poll) {
       poll = await storage.getPollByPublicToken(req.params.token);
+    } else {
+      isAdmin = true;
     }
     
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
+    }
+
+    if (!poll.resultsPublic && !isAdmin) {
+      const userId = await extractUserId(req);
+      const isCreator = userId && poll.userId === userId;
+      
+      if (!isCreator) {
+        return res.status(403).json({ 
+          error: 'Ergebnisse sind nur für den Ersteller sichtbar',
+          resultsPrivate: true 
+        });
+      }
     }
 
     const results = await storage.getPollResults(poll.id);

@@ -473,6 +473,7 @@
     "scoringDescription": "Scoring: Yes = 2 points, Maybe = 1 point, No = 0 points",
     "slotsAndEntries": "Slots and entries",
     "detailedResults": "Detailed results",
+    "participantComments": "Participant comments",
     "optionRanking": "Option ranking",
     "csvExport": "CSV Export",
     "pdfExport": "PDF Export",

@@ -84,6 +84,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [emailRequiresLogin, setEmailRequiresLogin] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isUserEmailLocked, setIsUserEmailLocked] = useState(false);
+  const allowMaybeForPoll = (poll.type === 'schedule' || poll.type === 'survey') && poll.allowMaybe === true;
   
   // Live slot updates from WebSocket for organization polls
   const [liveSlotUpdates, setLiveSlotUpdates] = useState<Record<number, { currentCount: number; maxCapacity: number | null }>>({});
@@ -107,6 +108,21 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       if (stored) setLocalStorageEditToken(stored);
     } catch (_) {}
   }, [poll.id, poll.type]);
+
+  useEffect(() => {
+    if (allowMaybeForPoll) return;
+    setVotes((currentVotes) => {
+      const nextVotes = { ...currentVotes };
+      let changed = false;
+      for (const [optionId, response] of Object.entries(nextVotes)) {
+        if (response === 'maybe') {
+          delete nextVotes[Number(optionId)];
+          changed = true;
+        }
+      }
+      return changed ? nextVotes : currentVotes;
+    });
+  }, [allowMaybeForPoll]);
 
   // When device cookie is cleared, use the localStorage token to fetch existing bookings
   const { data: localStorageVoteData } = useQuery({
@@ -1154,7 +1170,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                         Object.entries(votes).map(([id, response]) => [id, response])
                       )}
                       disabled={!canVote}
-                      allowMaybe={poll.type === 'schedule' ? (poll.allowMaybe ?? true) : (poll.allowMaybe ?? false)}
+                      allowMaybe={allowMaybeForPoll}
                       expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
                     />
                   </>
@@ -1181,7 +1197,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 existingVotes={{}}
                 disabled={true}
                 adminPreview={true}
-                allowMaybe={poll.type === 'schedule' ? (poll.allowMaybe ?? true) : (poll.allowMaybe ?? false)}
+                allowMaybe={allowMaybeForPoll}
                 expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
               />
             )

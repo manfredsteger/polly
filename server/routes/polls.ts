@@ -83,6 +83,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       allowVoteEdit: data.allowVoteEdit,
       allowVoteWithdrawal: data.allowVoteWithdrawal,
       resultsPublic: data.resultsPublic,
+      allowMaybe: data.allowMaybe,
       videoConferenceUrl: data.type === 'schedule' ? (data.videoConferenceUrl || null) : null,
       isTestData: req.isTestMode === true,
     };

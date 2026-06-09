@@ -577,33 +577,6 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 </a>
               </div>
             )}
-            {(isAdminAccess || isOwner) && adminToken && (
-              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
-                {isFinalized && poll.finalOptionId === bestOptionData.id ? (
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    <Lock className="w-3 h-3 mr-1" />
-                    {t('resultsChart.confirmed')}
-                  </Badge>
-                ) : !isFinalized ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setConfirmDialogOptionId(bestOptionData.id)}
-                    disabled={isFinalizingOption !== null}
-                    className={poll.type === 'schedule' 
-                      ? 'border-orange-500 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-950' 
-                      : 'border-teal-500 text-teal-700 hover:bg-teal-100 dark:border-teal-600 dark:text-teal-400 dark:hover:bg-teal-950'}
-                  >
-                    {isFinalizingOption === bestOptionData.id ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    ) : (
-                      <CalendarCheck className="w-4 h-4 mr-1" />
-                    )}
-                    {isSchedule ? t('resultsChart.confirmDate') : t('resultsChart.setResult')}
-                  </Button>
-                ) : null}
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -870,11 +843,6 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                                   <div className="w-6 h-6 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
                                     <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
                                   </div>
-                                  {isAdminAccess && vote.comment && (
-                                    <span className="text-xs text-muted-foreground mt-1 max-w-[100px] truncate" title={vote.comment}>
-                                      {vote.comment}
-                                    </span>
-                                  )}
                                 </div>
                               ) : (
                                 <div className="w-6 h-6 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto">
@@ -919,7 +887,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
       )}
 
       {/* Detailed Results - Different view for organization polls */}
-      {isOrganization ? (
+      {isOrganization && (
         <Card className="polly-card">
           <CardHeader>
             <CardTitle>{t('results.slotsAndEntries')}</CardTitle>
@@ -1057,9 +1025,6 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                               {vote.voterName?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?'}
                             </div>
                             <span className="font-medium text-foreground">{vote.voterName}</span>
-                            {isAdminAccess && vote.comment && (
-                              <span className="text-muted-foreground">– {vote.comment}</span>
-                            )}
                             {vote.voterEmail && (
                               <span className="text-muted-foreground text-xs hidden sm:inline">
                                 <Mail className="w-3 h-3 inline mr-0.5" />{vote.voterEmail}
@@ -1077,7 +1042,36 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
             </div>
           </CardContent>
         </Card>
-      ) : !isOrganization ? (
+      )}
+      {isAdminAccess && (
+        <Card className="polly-card">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <MessageSquare className="w-5 h-5 mr-2 text-primary" />
+              {t('results.participantComments')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">{t('results.commentsAdminOnly')}</p>
+            {adminComments.length > 0 ? (
+              <div className="space-y-2">
+                {adminComments.map((entry, idx) => (
+                  <div key={`${entry.voterEmail}-${idx}`} className="rounded-lg border bg-muted/20 p-3 text-sm">
+                    <span className="font-medium">{entry.voterName}</span>
+                    {entry.voterEmail ? <span className="text-muted-foreground"> ({entry.voterEmail})</span> : null}
+                    <span className="text-muted-foreground">: </span>
+                    <span>{entry.comment}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('results.noEntriesYet')}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isOrganization && (
         <div ref={detailedResultsRef}>
         <Card className="polly-card">
           <CardHeader>
@@ -1097,28 +1091,6 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
           </CardHeader>
           {isDetailedResultsOpen && (
           <CardContent>
-            {isAdminAccess && (
-              <p className="text-sm text-muted-foreground mb-3">{t('results.commentsAdminOnly')}</p>
-            )}
-            {isAdminAccess && (
-              <div className="mb-4 rounded-lg border bg-muted/20 p-3">
-                <p className="text-sm font-medium mb-2">{t('voting.comment')}</p>
-                {adminComments.length > 0 ? (
-                  <div className="space-y-2">
-                    {adminComments.map((entry, idx) => (
-                      <div key={`${entry.voterEmail}-${idx}`} className="text-sm">
-                        <span className="font-medium">{entry.voterName}</span>
-                        {entry.voterEmail ? <span className="text-muted-foreground"> ({entry.voterEmail})</span> : null}
-                        <span className="text-muted-foreground">: </span>
-                        <span>{entry.comment}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">{t('results.noEntriesYet')}</p>
-                )}
-              </div>
-            )}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -1258,7 +1230,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
           )}
         </Card>
         </div>
-      ) : null}
+      )}
 
       {/* Lightbox for Results Images */}
       <Lightbox

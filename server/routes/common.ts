@@ -76,6 +76,7 @@ export const createPollSchema = z.object({
   allowVoteEdit: z.boolean().optional().default(false),
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
+  allowMaybe: z.boolean().optional().default(true),
   videoConferenceUrl: z.string().max(2000).refine(
     (url) => isValidHttpHttpsUrl(url),
     { message: 'Please enter a valid HTTP/HTTPS URL.' }
@@ -100,8 +101,26 @@ export const createPollSchema = z.object({
         path: ['endTime'],
       });
     }
-  })).min(2),
+  })),
 }).superRefine((data, ctx) => {
+  if (data.type === 'survey') {
+    const normalOptions = data.options.filter((option) => !option.isFreeText);
+    const freeTextOptions = data.options.filter((option) => option.isFreeText);
+    if (data.options.length < 1 || (freeTextOptions.length === 0 && normalOptions.length < 2)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Survey requires at least two choice options or one free-text question.',
+        path: ['options'],
+      });
+    }
+  } else if (data.options.length < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Poll requires at least two options.',
+      path: ['options'],
+    });
+  }
+
   if (data.type !== 'schedule' && data.type !== 'organization') return;
   const now = new Date();
   data.options.forEach((option, index) => {

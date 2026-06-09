@@ -107,7 +107,7 @@ export default function PollSuccess() {
   }
 
   const { poll, publicLink, adminLink, pollType } = pollData;
-  const pollTypeText = pollType === 'schedule' ? t('pollSuccess.schedulePoll') : t('pollSuccess.survey');
+  const pollTypeText = pollType === 'schedule' ? t('pollSuccess.schedulePoll') : pollType === 'organization' ? t('pollSuccess.organizationPoll', { defaultValue: 'Orga-Liste' }) : t('pollSuccess.survey');
   const fullPublicLink = `${window.location.origin}${publicLink}`;
   const fullAdminLink = `${window.location.origin}${adminLink}`;
 

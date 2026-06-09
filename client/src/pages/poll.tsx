@@ -361,6 +361,12 @@ export default function Poll() {
     onSuccess: () => {
       toast({ title: t('pollView.toasts.saved'), description: t('pollView.toasts.changesSaved') });
       queryClient.invalidateQueries({ queryKey: [endpoint] });
+      if (poll?.publicToken) {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/public/${poll.publicToken}`] });
+      }
+      if (effectiveAdminToken) {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/admin/${effectiveAdminToken}`] });
+      }
       setEditDialogOpen(false);
       setEndPollDialogOpen(false);
     },

@@ -261,7 +261,7 @@ export class EmailService {
     voterEmail: string,
     voterName: string,
     pollTitle: string,
-    pollType: 'schedule' | 'survey',
+    pollType: 'schedule' | 'survey' | 'organization',
     publicLink: string,
     resultsLink: string,
     selectedOptions?: string[]
@@ -269,7 +269,7 @@ export class EmailService {
     if (!voterEmail) return;
 
     try {
-      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
+      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
 
       const selectedOptionsHtml =
         selectedOptions && selectedOptions.length > 0

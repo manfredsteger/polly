@@ -64,7 +64,7 @@ export interface IStorage {
   vote(vote: InsertVote): Promise<Vote>;
   createVote(vote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }>;
   voteBulk(pollId: string, voterName: string, voterEmail: string, userId: number | null, voterEditToken: string | null, voteItems: Array<{ optionId: number; response: string }>): Promise<{ votes: Vote[]; alreadyVoted: boolean }>;
-  updateVote(id: number, response: string): Promise<Vote>;
+  updateVote(id: number, response: string, updates?: Pick<InsertVote, 'comment' | 'freeTextAnswer'>): Promise<Vote>;
   deleteVote(id: number): Promise<void>;
   getUserVoteForOption(userId: number | undefined, optionId: number, voterName?: string): Promise<Vote | undefined>;
   getVotesByEmail(pollId: string, voterEmail: string): Promise<Vote[]>;
@@ -694,8 +694,8 @@ export class DatabaseStorage implements IStorage {
     return { vote: createdVote, editToken };
   }
 
-  async updateVote(id: number, response: string): Promise<Vote> {
-    const [vote] = await db.update(votes).set({ response, updatedAt: new Date() }).where(eq(votes.id, id)).returning();
+  async updateVote(id: number, response: string, updates: Pick<InsertVote, 'comment' | 'freeTextAnswer'> = {}): Promise<Vote> {
+    const [vote] = await db.update(votes).set({ response, ...updates, updatedAt: new Date() }).where(eq(votes.id, id)).returning();
     return vote;
   }
 

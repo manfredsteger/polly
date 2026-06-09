@@ -473,6 +473,7 @@
     "scoringDescription": "Bewertung: Ja = 2 Punkte, Vielleicht = 1 Punkt, Nein = 0 Punkte",
     "slotsAndEntries": "Slots und Eintragungen",
     "detailedResults": "Detaillierte Ergebnisse",
+    "participantComments": "Teilnehmerkommentare",
     "optionRanking": "Optionen-Ranking",
     "csvExport": "CSV Export",
     "pdfExport": "PDF Export",

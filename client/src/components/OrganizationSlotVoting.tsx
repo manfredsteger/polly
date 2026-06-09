@@ -252,7 +252,7 @@ export function OrganizationSlotVoting({
                     ? t('organizationSlot.fullyBooked')
                     : spotsRemaining === 1
                       ? t('organizationSlot.spotFree', { count: spotsRemaining })
-                      : t('organizationSlot.spotsFree', { count: spotsRemaining })
+                      : t('organizationSlot.spotsFree', { count: spotsRemaining ?? 0 })
                   }
                 </p>
               </div>

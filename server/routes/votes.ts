@@ -61,6 +61,72 @@ const validateVoteOptionIds = (
 
   return null;
 };
+
+const validateVoteResponses = (
+  poll: { type: string; allowMaybe?: boolean | null; options: Array<{ id: number; isFreeText?: boolean | null }> },
+  voteItems: Array<{ optionId: number; response: string }>
+) => {
+  if (poll.type === 'organization') {
+    const hasInvalidOrganizationResponse = voteItems.some((vote) => vote.response !== 'yes');
+    if (hasInvalidOrganizationResponse) {
+      return {
+        status: 400,
+        body: {
+          error: 'Organization polls only accept slot signup responses.',
+          errorCode: 'INVALID_ORGANIZATION_RESPONSE',
+        },
+      };
+    }
+  }
+
+  if (poll.type !== 'survey') {
+    const hasFreeText = voteItems.some((vote) => vote.response === 'freetext');
+    if (hasFreeText) {
+      return {
+        status: 400,
+        body: {
+          error: 'Free-text responses are only allowed for surveys.',
+          errorCode: 'INVALID_FREE_TEXT_RESPONSE',
+        },
+      };
+    }
+  }
+
+  if ((poll.type === 'schedule' || poll.type === 'survey') && poll.allowMaybe === false) {
+    const hasMaybe = voteItems.some((vote) => vote.response === 'maybe');
+    if (hasMaybe) {
+      return {
+        status: 400,
+        body: {
+          error: 'Maybe responses are not allowed for this poll.',
+          errorCode: 'MAYBE_NOT_ALLOWED',
+        },
+      };
+    }
+  }
+
+  if (poll.type === 'survey') {
+    const optionById = new Map(poll.options.map((option) => [option.id, option]));
+    for (const vote of voteItems) {
+      const option = optionById.get(vote.optionId);
+      if (
+        (vote.response === 'freetext' && !option?.isFreeText) ||
+        (option?.isFreeText && vote.response !== 'freetext')
+      ) {
+        return {
+          status: 400,
+          body: {
+            error: 'Free-text responses are only allowed for free-text survey questions.',
+            errorCode: 'INVALID_FREE_TEXT_RESPONSE',
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
 const editVotesUpdateSchema = z.object({
   votes: z.array(z.object({
     optionId: z.number(),
@@ -94,6 +160,10 @@ router.post('/polls/:token/vote', async (req, res) => {
     const optionValidation = validateVoteOptionIds(poll, data.votes);
     if (optionValidation) {
       return res.status(optionValidation.status).json(optionValidation.body);
+    }
+    const responseValidation = validateVoteResponses(poll, data.votes);
+    if (responseValidation) {
+      return res.status(responseValidation.status).json(responseValidation.body);
     }
 
     // Validate freeTextAnswer and comment length (max 500 chars each)
@@ -155,9 +225,7 @@ router.post('/polls/:token/vote', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    const isOrgEditMode = poll.type === 'organization' && existingVotes.length > 0 && 
-      data.votes.some(v => existingVotes.some(ev => ev.optionId === v.optionId));
-    if (poll.allowVoteEdit && existingVotes.length > 0 && (poll.type !== 'organization' || isOrgEditMode)) {
+    if (existingVotes.length > 0 && (poll.allowVoteEdit || poll.type === 'organization')) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {
@@ -171,7 +239,10 @@ router.post('/polls/:token/vote', async (req, res) => {
 
       if (existingVote) {
         if (poll.allowVoteEdit || poll.type === 'organization') {
-          const updated = await storage.updateVote(existingVote.id, voteData.response);
+          const updated = await storage.updateVote(existingVote.id, voteData.response, {
+            comment: voteData.comment,
+            freeTextAnswer: (voteData as any).freeTextAnswer || null,
+          });
           createdVotes.push(updated);
         }
       } else {
@@ -238,7 +309,7 @@ router.post('/polls/:token/vote', async (req, res) => {
           data.voterEmail,
           data.voterName,
           poll.title,
-          poll.type as 'schedule' | 'survey',
+          poll.type as 'schedule' | 'survey' | 'organization',
           publicLink,
           resultsLink,
           selectedOptions
@@ -312,6 +383,10 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     if (optionValidation) {
       return res.status(optionValidation.status).json(optionValidation.body);
     }
+    const responseValidation = validateVoteResponses(poll, data.votes);
+    if (responseValidation) {
+      return res.status(responseValidation.status).json(responseValidation.body);
+    }
 
     // Validate freeTextAnswer and comment length (max 500 chars each)
     for (const voteData of data.votes) {
@@ -372,9 +447,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    const isOrgEditMode = poll.type === 'organization' && existingVotes.length > 0 && 
-      data.votes.some(v => existingVotes.some(ev => ev.optionId === v.optionId));
-    if (poll.allowVoteEdit && existingVotes.length > 0 && (poll.type !== 'organization' || isOrgEditMode)) {
+    if (existingVotes.length > 0 && (poll.allowVoteEdit || poll.type === 'organization')) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {
@@ -388,7 +461,10 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
 
       if (existingVote) {
         if (poll.allowVoteEdit || poll.type === 'organization') {
-          const updated = await storage.updateVote(existingVote.id, voteData.response);
+          const updated = await storage.updateVote(existingVote.id, voteData.response, {
+            comment: voteData.comment,
+            freeTextAnswer: (voteData as any).freeTextAnswer || null,
+          });
           createdVotes.push(updated);
         }
       } else {
@@ -455,7 +531,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
           data.voterEmail,
           data.voterName,
           poll.title,
-          poll.type as 'schedule' | 'survey',
+          poll.type as 'schedule' | 'survey' | 'organization',
           publicLink,
           resultsLink,
           selectedOptions
@@ -682,6 +758,10 @@ router.put('/votes/edit/:editToken', async (req, res) => {
     if (optionValidation) {
       return res.status(optionValidation.status).json(optionValidation.body);
     }
+    const responseValidation = validateVoteResponses(poll, updatedVotes);
+    if (responseValidation) {
+      return res.status(responseValidation.status).json(responseValidation.body);
+    }
 
     const updatedResults = [];
     for (const updatedVote of updatedVotes) {
@@ -802,7 +882,7 @@ router.post('/polls/:token/resend-email', async (req, res) => {
         email,
         voterName,
         poll.title,
-        poll.type as 'schedule' | 'survey',
+        poll.type as 'schedule' | 'survey' | 'organization',
         publicLink,
         resultsLink
       );

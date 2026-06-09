@@ -344,7 +344,7 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
         : undefined;
 
   return (
-    <div className="rounded-lg border bg-background p-3 space-y-2 shadow-sm">
+    <div className="rounded-lg border bg-background p-4 space-y-4 shadow-sm">
       <div className="flex items-center gap-2">
         <Input
           value={slot.text}
@@ -365,11 +365,11 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
           >
             <Trash2 className="w-4 h-4" />
           </Button>
-        )}
+          )}
       </div>
-      <div className="grid grid-cols-[130px_20px_130px_100px_130px] gap-2 items-end">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_110px_minmax(160px,1fr)]">
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t('createOrganization.fieldStart')}</Label>
+          <Label className="text-xs font-medium text-muted-foreground">{t('createOrganization.fieldStart')}</Label>
           <TimePicker
             time={slot.startTime}
             onTimeChange={(time) => updateSlot(index, {
@@ -377,12 +377,12 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
               endTime: slot.durationMinutes ? formatMinutesToTime(parseTimeToMinutes(time)! + slot.durationMinutes) : slot.endTime,
             })}
             placeholder={t('createOrganization.startTime')}
+            className="w-full"
             data-testid={`input-slot-start-${index}`}
           />
         </div>
-        <div className="flex items-center justify-center h-10 text-muted-foreground text-sm shrink-0">–</div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t('createOrganization.fieldEnd')}</Label>
+          <Label className="text-xs font-medium text-muted-foreground">{t('createOrganization.fieldEnd')}</Label>
           <TimePicker
             time={slot.endTime}
             onTimeChange={(time) => updateSlot(index, {
@@ -390,23 +390,24 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
               durationMinutes: getDurationFromTimes(slot.startTime, time),
             })}
             placeholder={t('createOrganization.endTime')}
+            className="w-full"
             data-testid={`input-slot-end-${index}`}
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t('createOrganization.fieldCapacity')}</Label>
+          <Label className="text-xs font-medium text-muted-foreground">{t('createOrganization.fieldCapacity')}</Label>
           <Input
             type="number"
             min={1}
             value={slot.maxCapacity ?? ""}
             onChange={(e) => updateSlot(index, { maxCapacity: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined })}
             placeholder="∞"
-            className="w-24 shrink-0"
+            className="w-full"
             data-testid={`input-slot-capacity-${index}`}
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t('createOrganization.fieldDuration')}</Label>
+          <Label className="text-xs font-medium text-muted-foreground">{t('createOrganization.fieldDuration')}</Label>
           <Select
             value={slotDurationValue}
             onValueChange={(value) => {
@@ -419,7 +420,7 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
             }}
           >
             <SelectTrigger
-              className="w-[130px] shrink-0"
+              className="w-full"
               data-testid={`select-slot-duration-${index}`}
             >
               <SelectValue placeholder={t('createOrganization.slotDuration')} />
@@ -435,8 +436,8 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
                   {slotDurationValue} {t('createOrganization.minutes')}
                 </SelectItem>
               )}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
         </div>
       </div>
       {slot.startTime && slot.endTime && slot.startTime === slot.endTime && (
@@ -1520,27 +1521,20 @@ export default function CreateOrganization() {
               <Clock className="w-5 h-5 mr-2 text-green-600" />
               {t('createOrganization.slots')}
             </CardTitle>
-            <CardDescription className="flex items-start gap-2 mt-2">
+            <CardDescription className="flex items-start gap-2 mt-2 rounded-lg border bg-muted/20 p-3">
               <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
               <span>
-                {t('createOrganization.slotsHint')}
+                {t('createOrganization.slotsBuilderHint')}
               </span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="rounded-xl border bg-muted/20 p-4 sm:p-5">
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">{t('createOrganization.groupedBuilderTitle')}</p>
-                  <p className="text-sm text-muted-foreground">{t('createOrganization.groupedBuilderHint')}</p>
-                </div>
-              </div>
-            </div>
-
             {/* Slot list with column headers */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-foreground">{t('createOrganization.slotListTitle')}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t('createOrganization.slotListHintCustom')}
+                </p>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
@@ -1565,9 +1559,6 @@ export default function CreateOrganization() {
                   </Button>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t('createOrganization.slotListHintCustom')}
-              </p>
 
               <div className="space-y-4">
                 {customDateGroups.map((group) => {
@@ -1751,21 +1742,6 @@ export default function CreateOrganization() {
                         </Dialog>
                       </div>
 
-                      <div className="border-b bg-background/40 px-4 py-3 flex justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => lastIndex !== undefined && addSlotToDateGroup(groupDate, lastIndex)}
-                          disabled={lastIndex === undefined || !groupDate}
-                          className="shrink-0"
-                          data-testid={`button-add-slot-group-${group.key}`}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          {t('createOrganization.addNewSlot')}
-                        </Button>
-                      </div>
-
                       <div className="space-y-3 p-4">
                         {group.slots.map(({ slot, index }) => (
                           <CustomSlotRow
@@ -1778,6 +1754,17 @@ export default function CreateOrganization() {
                             t={t}
                           />
                         ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => lastIndex !== undefined && addSlotToDateGroup(groupDate, lastIndex)}
+                          disabled={lastIndex === undefined || !groupDate}
+                          className="w-full border-dashed bg-background/70 text-muted-foreground hover:text-foreground"
+                          data-testid={`button-add-slot-group-${group.key}`}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          {t('createOrganization.addSlot')}
+                        </Button>
                       </div>
                     </div>
                   );

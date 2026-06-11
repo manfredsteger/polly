@@ -657,6 +657,12 @@ router.get('/keycloak', async (req, res) => {
       return res.status(404).json({ error: 'Keycloak nicht konfiguriert' });
     }
 
+    const redirect = typeof req.query.redirect === 'string' ? req.query.redirect : null;
+    req.session.keycloakReturnTo =
+      redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/anmelden')
+        ? redirect
+        : '/';
+
     const { authUrl, codeVerifier, state } = await authService.initiateKeycloakLogin(req);
     req.session.keycloakCodeVerifier = codeVerifier;
     req.session.keycloakState = state;
@@ -703,6 +709,12 @@ router.get('/keycloak/callback', async (req, res) => {
 
     // Clear Keycloak session data and regenerate session to prevent fixation
     const keycloakUserId = user.id;
+    const keycloakReturnTo =
+      typeof req.session.keycloakReturnTo === 'string' &&
+      req.session.keycloakReturnTo.startsWith('/') &&
+      !req.session.keycloakReturnTo.startsWith('//')
+        ? req.session.keycloakReturnTo
+        : '/';
     req.session.regenerate((err) => {
       if (err) {
         console.error('Session regeneration error:', err);
@@ -715,7 +727,7 @@ router.get('/keycloak/callback', async (req, res) => {
           console.error('Session save error:', saveErr);
           return res.redirect('/?error=session_error');
         }
-        res.redirect('/');
+        res.redirect(keycloakReturnTo);
       });
     });
   } catch (error) {

@@ -15,6 +15,18 @@ interface PasswordRequirement {
   met: boolean;
 }
 
+const PENDING_LOGIN_REDIRECT_KEY = 'polly-pending-login-redirect';
+
+function isSafeRedirectPath(value: string | null): value is string {
+  return !!value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/anmelden');
+}
+
+function readRedirectFromSearch(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
+  return isSafeRedirectPath(redirect) ? redirect : null;
+}
+
 function PasswordStrengthIndicator({ password, confirmPassword }: { password: string; confirmPassword: string }) {
   const { t } = useTranslation();
   
@@ -153,11 +165,21 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
   const parseErrorMessage = useParseErrorMessage();
+  const [redirectUrl] = useState(() => {
+    const redirectFromSearch = readRedirectFromSearch();
+    if (redirectFromSearch) {
+      sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, redirectFromSearch);
+      return redirectFromSearch;
+    }
+
+    const storedRedirect = sessionStorage.getItem(PENDING_LOGIN_REDIRECT_KEY);
+    return isSafeRedirectPath(storedRedirect) ? storedRedirect : '/';
+  });
 
   const getEmailFromUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const email = searchParams.get('email');
-    return email ? decodeURIComponent(email) : '';
+    return email ?? '';
   };
 
   const [loginForm, setLoginForm] = useState({ usernameOrEmail: getEmailFromUrl(), password: '' });
@@ -166,10 +188,8 @@ export default function Login() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
-  const getRedirectUrl = () => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
-    return redirect ? decodeURIComponent(redirect) : '/';
+  const clearPendingRedirect = () => {
+    sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
   };
 
   useEffect(() => {
@@ -178,15 +198,16 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const searchParams = new URLSearchParams(window.location.search);
-      const hasExplicitRedirect = searchParams.get('redirect') || searchParams.get('returnTo');
+      const hasExplicitRedirect = redirectUrl !== '/';
       if (user.role === 'admin' && !hasExplicitRedirect) {
+        clearPendingRedirect();
         navigate('/admin');
       } else {
-        navigate(getRedirectUrl());
+        clearPendingRedirect();
+        navigate(redirectUrl);
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, redirectUrl]);
 
   if (isAuthenticated && user) {
     return null;
@@ -199,12 +220,13 @@ export default function Login() {
 
     try {
       const loggedInUser = await login(loginForm.usernameOrEmail, loginForm.password);
-      const searchParams = new URLSearchParams(window.location.search);
-      const hasExplicitRedirect = searchParams.get('redirect') || searchParams.get('returnTo');
+      const hasExplicitRedirect = redirectUrl !== '/';
       if (loggedInUser.role === 'admin' && !hasExplicitRedirect) {
+        clearPendingRedirect();
         navigate('/admin');
       } else {
-        navigate(getRedirectUrl());
+        clearPendingRedirect();
+        navigate(redirectUrl);
       }
     } catch (err: any) {
       const rawError = err?.message || t('auth.loginError');
@@ -246,7 +268,8 @@ export default function Login() {
 
     try {
       await register(registerForm.username, registerForm.email, registerForm.name, registerForm.password);
-      navigate(getRedirectUrl());
+      clearPendingRedirect();
+      navigate(redirectUrl);
     } catch (err: any) {
       const rawError = err?.message || t('auth.registerError');
       setError(parseErrorMessage(rawError));
@@ -256,7 +279,9 @@ export default function Login() {
   };
 
   const handleKeycloakLogin = () => {
-    window.location.href = '/api/v1/auth/keycloak';
+    window.location.href = redirectUrl === '/' 
+      ? '/api/v1/auth/keycloak'
+      : `/api/v1/auth/keycloak?redirect=${encodeURIComponent(redirectUrl)}`;
   };
 
   return (

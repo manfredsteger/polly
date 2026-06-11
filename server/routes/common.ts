@@ -19,6 +19,7 @@ declare module "express-session" {
     userId?: number;
     keycloakCodeVerifier?: string;
     keycloakState?: string;
+    keycloakReturnTo?: string;
     lastActivity?: number;
   }
 }

@@ -6,6 +6,7 @@ import i18n from 'i18next';
 import { VotingInterface } from "@/components/VotingInterface";
 import { ResultsChart } from "@/components/ResultsChart";
 import { LiveResultsView } from "@/components/LiveResultsView";
+import { shouldEnablePollResultsQuery } from "./pollQueryGuards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -301,10 +302,11 @@ export default function Poll() {
     staleTime: 60000,
   });
   const smtpConfigured = emailStatus?.smtpConfigured ?? true;
+  const shouldPollResults = shouldEnablePollResultsQuery(token, poll);
 
   const { data: results, error: resultsError } = useQuery<PollResults>({
     queryKey: [`/api/v1/polls/${token}/results`],
-    enabled: !!token,
+    enabled: shouldPollResults,
     refetchInterval: 5000,
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors (results are private)

@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import { createTestPoll, createTestVote } from '../fixtures/testData';
 import type { Express } from 'express';
+import { emailService } from '../../services/emailService';
 
 export const testMeta = {
   category: 'polls' as const,
@@ -32,6 +33,10 @@ describe('Polls - Voting', () => {
     const pollResponse = await request(app)
       .get(`/api/v1/polls/public/${publicToken}`);
     optionIds = pollResponse.body.options.map((o: any) => o.id);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should submit a vote successfully', async () => {
@@ -232,6 +237,46 @@ describe('Polls - Voting', () => {
     expect(firstOption.yesCount).toBe(1);
     expect(firstOption.noCount).toBe(1);
     expect(firstOption.maybeCount).toBe(1);
+  });
+
+  it('should include selected organization slots in the confirmation email payload', async () => {
+    const pollData = createTestPoll({ type: 'organization', resultsPublic: true });
+    const createResponse = await request(app)
+      .post('/api/v1/polls')
+      .send(pollData);
+
+    const testPublicToken = createResponse.body.publicToken;
+
+    const pollResponse = await request(app)
+      .get(`/api/v1/polls/public/${testPublicToken}`);
+    const [firstOption, secondOption] = pollResponse.body.options;
+
+    const sendVotingConfirmationEmailSpy = vi
+      .spyOn(emailService, 'sendVotingConfirmationEmail')
+      .mockResolvedValue();
+
+    const response = await request(app)
+      .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
+      .send({
+        voterName: 'Org Mail Tester',
+        voterEmail: `org-mail-${Date.now()}@example.com`,
+        votes: [
+          { optionId: firstOption.id, response: 'yes' },
+          { optionId: secondOption.id, response: 'no' },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(sendVotingConfirmationEmailSpy).toHaveBeenCalledTimes(1);
+    expect(sendVotingConfirmationEmailSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      'Org Mail Tester',
+      pollResponse.body.title,
+      'organization',
+      expect.any(String),
+      expect.any(String),
+      [firstOption.text]
+    );
   });
 
   describe('Vote Withdrawal', () => {

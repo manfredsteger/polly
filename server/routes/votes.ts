@@ -295,16 +295,14 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
 
-        // Collect selected option texts (yes votes only; not for org polls)
+        // Collect selected option texts for confirmed selections in the email summary.
         let selectedOptions: string[] | undefined;
-        if (poll.type !== 'organization') {
-          const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
-          const opts = createdVotes
-            .filter((v: any) => v.response === 'yes')
-            .map((v: any) => optionMap.get(v.optionId) || '')
-            .filter(Boolean);
-          if (opts.length > 0) selectedOptions = opts;
-        }
+        const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
+        const opts = createdVotes
+          .filter((v: any) => v.response === 'yes')
+          .map((v: any) => optionMap.get(v.optionId) || '')
+          .filter(Boolean);
+        if (opts.length > 0) selectedOptions = opts;
         
         emailService.sendVotingConfirmationEmail(
           data.voterEmail,
@@ -517,16 +515,14 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
 
-        // Collect selected option texts (yes votes only; not for org polls)
+        // Collect selected option texts for confirmed selections in the email summary.
         let selectedOptions: string[] | undefined;
-        if (poll.type !== 'organization') {
-          const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
-          const opts = createdVotes
-            .filter((v: any) => v.response === 'yes')
-            .map((v: any) => optionMap.get(v.optionId) || '')
-            .filter(Boolean);
-          if (opts.length > 0) selectedOptions = opts;
-        }
+        const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
+        const opts = createdVotes
+          .filter((v: any) => v.response === 'yes')
+          .map((v: any) => optionMap.get(v.optionId) || '')
+          .filter(Boolean);
+        if (opts.length > 0) selectedOptions = opts;
         
         emailService.sendVotingConfirmationEmail(
           data.voterEmail,

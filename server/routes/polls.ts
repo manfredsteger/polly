@@ -7,7 +7,7 @@ import {
   createPollSchema,
   requireEmailVerified,
 } from "./common";
-import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
+import { pollCreationRateLimiter, apiGeneralRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
 
 const router = Router();
@@ -161,7 +161,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
 });
 
 // Get poll by public token
-router.get('/public/:token', async (req, res) => {
+router.get('/public/:token', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -1037,7 +1037,7 @@ router.post('/:id/send-reminder', async (req, res) => {
 });
 
 // Get poll results
-router.get('/:token/results', async (req, res) => {
+router.get('/:token/results', apiGeneralRateLimiter, async (req, res) => {
   try {
     let poll;
     let isAdmin = false;

@@ -10,6 +10,7 @@ import {
   recentEmailSends,
   EMAIL_COOLDOWN,
 } from "./common";
+import { voteRateLimiter } from "../services/apiRateLimiterService";
 
 const router = Router();
 
@@ -135,7 +136,7 @@ const editVotesUpdateSchema = z.object({
 });
 
 // Bulk vote (primary voting endpoint)
-router.post('/polls/:token/vote', async (req, res) => {
+router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -357,7 +358,7 @@ router.post('/polls/:token/vote', async (req, res) => {
 
 // Bulk vote endpoint (alias for backward compatibility)
 // Uses the same logic as /vote - just a different path
-router.post('/polls/:token/vote-bulk', async (req, res) => {
+router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {

@@ -467,6 +467,7 @@
     "totalVotesCount": "Total votes: {{count}}",
     "totalResponsesCount": "Total responses: {{count}}",
     "bestOption": "Most popular option",
+    "bestOptionTie": "Tie for most popular option",
     "seeDetailedResultsTip": "View detailed results",
     "points": "{{count}} points",
     "pointsLabel": "Points: {{count}}",

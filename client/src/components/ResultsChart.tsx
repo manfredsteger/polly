@@ -283,6 +283,11 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   const bestOptionData = !isOrganization && hasBestOption && bestOption
     ? options.find(opt => opt.id === bestOption.optionId)
     : null;
+  const tiedOptionData = !isOrganization && hasBestOption
+    ? tiedOptions
+        .map(stat => options.find(opt => opt.id === stat.optionId))
+        .filter((opt): opt is NonNullable<typeof opt> => Boolean(opt))
+    : [];
   const rankedStats = useMemo(
     () =>
       [...stats].sort((a, b) => {
@@ -504,7 +509,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
       )}
 
       {/* Best Option Highlight */}
-      {bestOptionData && (
+      {(bestOptionData || tiedOptionData.length > 0) && (
         <Card className={`${
           poll.type === 'schedule' 
             ? 'border border-orange-300 bg-orange-50/70 dark:bg-orange-950/20 dark:border-orange-700' 
@@ -515,9 +520,57 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
               <div className="min-w-0">
                 <div className="flex items-center space-x-3 mb-2">
                   <Crown className={poll.type === 'schedule' ? 'w-5 h-5 text-orange-600 dark:text-orange-400' : 'w-5 h-5 text-teal-600 dark:text-teal-400'} />
-                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{t('results.bestOption')}</h3>
+                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    {isTie ? t('results.bestOptionTie') : t('results.bestOption')}
+                  </h3>
                 </div>
-                {bestOptionData.startTime && bestOptionData.endTime && (
+                {isTie ? (
+                  <div className="space-y-3">
+                    {tiedOptionData.map((option) => (
+                      <div key={option.id} className="min-w-0">
+                        {option.startTime && option.endTime ? (
+                          <div className="flex items-center text-base text-gray-700 dark:text-gray-300">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            {new Date(option.startTime).toLocaleDateString(localeCode, {
+                              weekday: 'short',
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })}
+                            <Clock className="w-4 h-4 ml-3 mr-1" />
+                            {new Date(option.startTime).toLocaleTimeString(localeCode, {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })} - {new Date(option.endTime).toLocaleTimeString(localeCode, {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-3">
+                            {option.imageUrl && (
+                              <img
+                                src={option.imageUrl}
+                                alt={option.altText || option.text}
+                                className="w-12 h-12 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => {
+                                  const imageIndex = imageOptions.findIndex(opt => opt.id === option.id);
+                                  if (imageIndex >= 0) {
+                                    setLightboxIndex(imageIndex);
+                                    setLightboxOpen(true);
+                                  }
+                                }}
+                              />
+                            )}
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                              {option.text}
+                            </h4>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : bestOptionData?.startTime && bestOptionData.endTime && (
                   <div className="flex items-center text-base text-gray-700 dark:text-gray-300">
                     <Calendar className="w-4 h-4 mr-1" />
                     {new Date(bestOptionData.startTime).toLocaleDateString(localeCode, {
@@ -536,7 +589,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                     })}
                   </div>
                 )}
-                {!(bestOptionData.startTime && bestOptionData.endTime) && (
+                {!isTie && bestOptionData && !(bestOptionData.startTime && bestOptionData.endTime) && (
                   <div className="flex items-center space-x-3">
                     {bestOptionData.imageUrl && (
                       <img

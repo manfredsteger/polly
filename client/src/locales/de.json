@@ -467,6 +467,7 @@
     "totalVotesCount": "Gesamte Stimmen: {{count}}",
     "totalResponsesCount": "Gesamte Antworten: {{count}}",
     "bestOption": "Beliebteste Option",
+    "bestOptionTie": "Gleichstand bei der beliebtesten Option",
     "seeDetailedResultsTip": "Detaillierte Ergebnisse anzeigen",
     "points": "{{count}} Punkte",
     "pointsLabel": "Punkte: {{count}}",

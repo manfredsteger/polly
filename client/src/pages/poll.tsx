@@ -563,7 +563,10 @@ export default function Poll() {
   
   const sendInviteMutation = useMutation({
     mutationFn: async (data: { emails: string[]; customMessage?: string }) => {
-      const response = await apiRequest("POST", `/api/v1/polls/${token}/invite`, data);
+      if (!effectiveAdminToken) {
+        throw new Error('No admin token');
+      }
+      const response = await apiRequest("POST", `/api/v1/polls/${effectiveAdminToken}/invite`, data);
       return response.json();
     },
     onSuccess: () => {
@@ -584,7 +587,10 @@ export default function Poll() {
 
   const sendMatrixInviteMutation = useMutation({
     mutationFn: async (data: { userIds: string[]; customMessage?: string }) => {
-      const response = await apiRequest("POST", `/api/v1/polls/${token}/invite/matrix`, data);
+      if (!effectiveAdminToken) {
+        throw new Error('No admin token');
+      }
+      const response = await apiRequest("POST", `/api/v1/polls/${effectiveAdminToken}/invite/matrix`, data);
       return response.json();
     },
     onSuccess: (data) => {

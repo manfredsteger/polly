@@ -369,6 +369,74 @@ describe('EmailTemplateService', () => {
       expect(result.subject).toContain('Teammeeting');
     });
 
+    it('should render customized poll_created text through the V3 layout when link markers are present', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+
+      await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Neue {{pollType}}: {{pollTitle}}',
+        'Umfrage erstellt',
+        [
+          'Hallo,',
+          'Ihre neue {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.',
+          'Administrator-Link:',
+          'Privater Link zum Verwalten von Umfrage, Einladungen und Ergebnissen:',
+          'Zur Verwaltung: {{adminLink}}',
+          'Teilnehmer-Link:',
+          'Link zur Teilnahme an der Umfrage:',
+          'Zur Umfrage: {{publicLink}}',
+          'Wichtig: Diesen Administrator-Link bitte vertraulich behandeln.',
+        ].join('\n')
+      );
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Sommerfest',
+        publicLink: 'https://example.com/poll/sommerfest',
+        adminLink: 'https://example.com/admin/sommerfest',
+        siteName: 'Polly',
+      });
+
+      expect(result.subject).toBe('Neue Terminumfrage: Sommerfest');
+      expect(result.html).toContain('Administrator-Link');
+      expect(result.html).toContain('Privater Link zum Verwalten von Umfrage, Einladungen und Ergebnissen:');
+      expect(result.html).toContain('Zur Verwaltung');
+      expect(result.html).toContain('Teilnehmer-Link');
+      expect(result.html).toContain('Zur Umfrage');
+      expect(result.html).toContain('Diesen Administrator-Link bitte vertraulich behandeln.');
+      expect(result.html).toContain('btn-primary');
+      expect(result.html).toContain('btn-secondary');
+      expect(result.text).toContain('Privater Link zum Verwalten von Umfrage, Einladungen und Ergebnissen:');
+    });
+
+    it('should fall back to default V3 poll_created copy when customized text is not structured for parsing', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+
+      await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Neue {{pollType}}: {{pollTitle}}',
+        'Umfrage erstellt',
+        'Freitext ohne erkannte Struktur und ohne Link-Platzhalter im erwarteten Format.'
+      );
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Impro-Test',
+        publicLink: 'https://example.com/poll/impro',
+        adminLink: 'https://example.com/admin/impro',
+        siteName: 'Polly',
+      });
+
+      expect(result.html).toContain('Administratorlink');
+      expect(result.html).toContain('Umfrage verwalten');
+      expect(result.html).toContain('Abstimmung öffnen');
+      expect(result.text).toContain('Freitext ohne erkannte Struktur');
+    });
+
     it('should include header with branding in rendered email', async () => {
       const service = new EmailTemplateService();
       const result = await service.renderEmail('poll_created', {

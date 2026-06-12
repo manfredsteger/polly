@@ -1241,6 +1241,121 @@ interface V3BodyContext {
   fontFamily: string;
 }
 
+interface PollCreatedTextOverrides {
+  greeting?: string;
+  subline?: string;
+  adminLabel?: string;
+  adminTitle?: string;
+  adminDescription?: string;
+  adminButtonText?: string;
+  publicLabel?: string;
+  publicTitle?: string;
+  publicDescription?: string;
+  publicButtonText?: string;
+  noticeTitle?: string;
+  noticeBody?: string;
+}
+
+function stripTrailingColon(value: string): string {
+  return value.trim().replace(/:\s*$/, '');
+}
+
+function parseLinkLine(line: string, variableName: 'adminLink' | 'publicLink'): string | undefined {
+  const match = line.match(new RegExp(`^(.*?)\\s*\\{\\{${variableName}\\}\\}\\s*$`));
+  if (!match) return undefined;
+  const label = stripTrailingColon(match[1] || '');
+  return label || undefined;
+}
+
+function parsePollCreatedTextOverrides(textContent?: string | null): PollCreatedTextOverrides {
+  if (!textContent) return {};
+
+  const lines = textContent
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const adminLinkIndex = lines.findIndex((line) => line.includes('{{adminLink}}'));
+  const publicLinkIndex = lines.findIndex((line) => line.includes('{{publicLink}}'));
+
+  if (adminLinkIndex < 0 || publicLinkIndex < 0 || publicLinkIndex <= adminLinkIndex) {
+    return {};
+  }
+
+  const overrides: PollCreatedTextOverrides = {};
+
+  const greetingLine = lines[0];
+  const hasGreeting = /^hallo\b/i.test(greetingLine || '');
+  if (hasGreeting) {
+    overrides.greeting = greetingLine;
+  }
+
+  const introAndAdminLines = lines.slice(hasGreeting ? 1 : 0, adminLinkIndex);
+  const adminTitleIndex = introAndAdminLines.findIndex((line) => /administrator/i.test(line) && /:\s*$/.test(line));
+
+  if (adminTitleIndex >= 0) {
+    const introLines = introAndAdminLines.slice(0, adminTitleIndex);
+    if (introLines.length > 0) {
+      overrides.subline = introLines.join(' ');
+    }
+    overrides.adminLabel = stripTrailingColon(introAndAdminLines[adminTitleIndex]);
+    const adminDescriptionLines = introAndAdminLines.slice(adminTitleIndex + 1);
+    if (adminDescriptionLines.length > 0) {
+      overrides.adminDescription = adminDescriptionLines.join(' ');
+    }
+  } else if (introAndAdminLines.length > 0) {
+    overrides.subline = introAndAdminLines.join(' ');
+  }
+
+  const adminButtonText = parseLinkLine(lines[adminLinkIndex], 'adminLink');
+  if (adminButtonText) {
+    overrides.adminButtonText = adminButtonText;
+  }
+
+  const publicSectionLines = lines.slice(adminLinkIndex + 1, publicLinkIndex);
+  const publicTitleIndex = publicSectionLines.findIndex((line) => /(teilnehmer|öffentlich)/i.test(line) && /:\s*$/.test(line));
+  if (publicTitleIndex >= 0) {
+    overrides.publicLabel = stripTrailingColon(publicSectionLines[publicTitleIndex]);
+    const publicDescriptionLines = publicSectionLines.slice(publicTitleIndex + 1);
+    if (publicDescriptionLines.length > 0) {
+      overrides.publicDescription = publicDescriptionLines.join(' ');
+    }
+  } else if (publicSectionLines.length > 0) {
+    overrides.publicDescription = publicSectionLines.join(' ');
+  }
+
+  const publicButtonText = parseLinkLine(lines[publicLinkIndex], 'publicLink');
+  if (publicButtonText) {
+    overrides.publicButtonText = publicButtonText;
+  }
+
+  const noticeLines = lines.slice(publicLinkIndex + 1);
+  if (noticeLines.length > 0) {
+    const firstNoticeLine = noticeLines[0];
+    const noticeMatch = firstNoticeLine.match(/^([^:]+):\s*(.*)$/);
+    if (noticeMatch) {
+      overrides.noticeTitle = noticeMatch[1].trim();
+      const bodyLines = [noticeMatch[2].trim(), ...noticeLines.slice(1)].filter(Boolean);
+      if (bodyLines.length > 0) {
+        overrides.noticeBody = bodyLines.join(' ');
+      }
+    } else {
+      overrides.noticeBody = noticeLines.join(' ');
+    }
+  }
+
+  return overrides;
+}
+
+function resolveOverrideText(
+  vars: Record<string, string | undefined>,
+  key: keyof PollCreatedTextOverrides,
+): string | undefined {
+  const value = vars[`pollCreatedOverride_${key}`];
+  if (!value) return undefined;
+  return renderTemplate(value, vars).trim();
+}
+
 function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
   const pollType = vars.pollType || 'Umfrage';
   const pollTitle = htmlEscape(vars.pollTitle || '');
@@ -1248,19 +1363,35 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
   const adminLink = vars.adminLink || '#';
   const publicLink = vars.publicLink || '#';
   const isRegistered = vars.isRegisteredUser === 'true';
-  const greeting = creatorName ? `Hallo ${creatorName}` : 'Hallo';
+  const greetingOverride = resolveOverrideText(vars, 'greeting');
+  const greeting = greetingOverride
+    ? htmlEscape(greetingOverride)
+    : (creatorName ? `Hallo ${creatorName}` : 'Hallo');
 
-  const subline = isRegistered
+  const defaultSubline = isRegistered
     ? `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`
     : `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`;
+  const sublineOverride = resolveOverrideText(vars, 'subline');
+  const subline = htmlEscape(sublineOverride || defaultSubline);
 
-  const noticeTitle = isRegistered
+  const defaultNoticeTitle = isRegistered
     ? 'Diese E-Mail dient als Schnellzugriff.'
     : 'Bitte diese E-Mail aufbewahren.';
 
-  const noticeBody = isRegistered
+  const defaultNoticeBody = isRegistered
     ? 'Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten \u2014 nach der Anmeldung.'
     : 'Diese E-Mail enth\u00E4lt den pers\u00F6nlichen Administratorlink \u2014 nur damit l\u00E4sst sich die Umfrage verwalten, bearbeiten und schlie\u00DFen.';
+
+  const adminLabel = htmlEscape(resolveOverrideText(vars, 'adminLabel') || 'Administratorlink');
+  const adminTitle = htmlEscape(resolveOverrideText(vars, 'adminTitle') || 'Umfrage verwalten');
+  const adminDescription = htmlEscape(resolveOverrideText(vars, 'adminDescription') || 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nicht weitergeben.');
+  const adminButtonText = htmlEscape(resolveOverrideText(vars, 'adminButtonText') || 'Zur Verwaltung \u2192');
+  const publicLabel = htmlEscape(resolveOverrideText(vars, 'publicLabel') || '\u00D6ffentlicher Link \u00B7 F\u00FCr Teilnehmer');
+  const publicTitle = htmlEscape(resolveOverrideText(vars, 'publicTitle') || 'Abstimmung \u00F6ffnen');
+  const publicDescription = htmlEscape(resolveOverrideText(vars, 'publicDescription') || 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.');
+  const publicButtonText = htmlEscape(resolveOverrideText(vars, 'publicButtonText') || 'Zur Abstimmung \u2192');
+  const noticeTitle = htmlEscape(resolveOverrideText(vars, 'noticeTitle') || defaultNoticeTitle);
+  const noticeBody = htmlEscape(resolveOverrideText(vars, 'noticeBody') || defaultNoticeBody);
 
   return `${v3BodyStart()}
       ${v3Tag(pollType, ctx.primaryColor)}
@@ -1268,9 +1399,9 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
       ${v3Subline(subline)}
     ${v3BodyEnd()}
     ${v3Divider()}
-    ${v3LinkSection('Administratorlink', 'Umfrage verwalten', 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nicht weitergeben.', 'Zur Verwaltung \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3LinkSection(adminLabel, adminTitle, adminDescription, adminButtonText, adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
     ${v3Divider()}
-    ${v3LinkSection('\u00D6ffentlicher Link \u00B7 F\u00FCr Teilnehmer', 'Abstimmung \u00F6ffnen', 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.', 'Zur Abstimmung \u2192', publicLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3LinkSection(publicLabel, publicTitle, publicDescription, publicButtonText, publicLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
     ${v3Notice(noticeTitle, noticeBody, ctx.primaryColor)}`;
 }
 
@@ -1952,14 +2083,24 @@ export class EmailTemplateService {
     const subject = rawSubject.replace(/^\[\]\s*/, '');
 
     const v3Builder = V3_BODY_BUILDERS[type];
-    if (template.isDefault && v3Builder) {
+    const shouldUsePollCreatedV3 = type === 'poll_created' && !!v3Builder && !!template.textContent;
+    if ((template.isDefault && v3Builder) || shouldUsePollCreatedV3) {
       const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
       const ctx: V3BodyContext = {
         primaryColor: v3Data.primaryColor,
         secondaryColor: v3Data.secondaryColor,
         fontFamily: v3Data.fontFamily,
       };
-      const bodyHtml = v3Builder(allVariables, ctx);
+      const pollCreatedOverrides = shouldUsePollCreatedV3
+        ? parsePollCreatedTextOverrides(template.textContent)
+        : {};
+      const v3Variables = {
+        ...allVariables,
+        ...Object.fromEntries(
+          Object.entries(pollCreatedOverrides).map(([key, value]) => [`pollCreatedOverride_${key}`, value])
+        ),
+      };
+      const bodyHtml = v3Builder(v3Variables, ctx);
       const html = v3Shell(v3Data, bodyHtml);
       let textBase = template.textContent || '';
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {

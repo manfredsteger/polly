@@ -10,7 +10,7 @@ import {
   recentEmailSends,
   EMAIL_COOLDOWN,
 } from "./common";
-import { voteRateLimiter } from "../services/apiRateLimiterService";
+import { voteRateLimiter, emailRateLimiter, apiGeneralRateLimiter } from "../services/apiRateLimiterService";
 
 const router = Router();
 
@@ -850,7 +850,7 @@ router.delete('/votes/edit/:editToken', async (req, res) => {
 });
 
 // Resend voting confirmation email for vote editing
-router.post('/polls/:token/resend-email', async (req, res) => {
+router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -905,7 +905,7 @@ router.post('/polls/:token/resend-email', async (req, res) => {
 });
 
 // Look up existing votes by email for a poll (used by org polls to merge bookings)
-router.post('/polls/:token/votes-by-email', async (req, res) => {
+router.post('/polls/:token/votes-by-email', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -940,7 +940,7 @@ router.post('/polls/:token/votes-by-email', async (req, res) => {
 });
 
 // Check if current user/device has already voted on a poll
-router.get('/polls/:token/my-votes', async (req, res) => {
+router.get('/polls/:token/my-votes', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {

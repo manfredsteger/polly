@@ -5,6 +5,7 @@ import { extractUserId, requireAuth, API_VERSION } from "./common";
 import { pdfService } from "../services/pdfService";
 import { qrService } from "../services/qrService";
 import { icsService } from "../services/icsService";
+import { apiGeneralRateLimiter } from "../services/apiRateLimiterService";
 
 const router = Router();
 
@@ -15,7 +16,7 @@ function safeContentDisposition(filename: string): string {
 }
 
 // Generate QR code for poll (returns base64 data URL)
-router.get('/polls/:token/qr', async (req, res) => {
+router.get('/polls/:token/qr', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -37,7 +38,7 @@ router.get('/polls/:token/qr', async (req, res) => {
 });
 
 // Download QR code as file (PNG or SVG)
-router.get('/polls/:token/qr/download', async (req, res) => {
+router.get('/polls/:token/qr/download', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -65,7 +66,7 @@ router.get('/polls/:token/qr/download', async (req, res) => {
 });
 
 // Export poll results as PDF
-router.get('/polls/:token/export/pdf', async (req, res) => {
+router.get('/polls/:token/export/pdf', apiGeneralRateLimiter, async (req, res) => {
   try {
     let poll;
     let isAdmin = false;
@@ -123,7 +124,7 @@ router.get('/polls/:token/export/pdf', async (req, res) => {
 });
 
 // Export poll results as CSV (participant × option matrix)
-router.get('/polls/:token/export/csv', async (req, res) => {
+router.get('/polls/:token/export/csv', apiGeneralRateLimiter, async (req, res) => {
   try {
     let poll;
     let isAdmin = false;
@@ -231,7 +232,7 @@ router.get('/polls/:token/export/csv', async (req, res) => {
 });
 
 // Export poll results as ICS (calendar file)
-router.get('/polls/:token/export/ics', async (req, res) => {
+router.get('/polls/:token/export/ics', apiGeneralRateLimiter, async (req, res) => {
   try {
     let poll;
     let isAdmin = false;

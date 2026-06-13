@@ -369,7 +369,7 @@ describe('EmailTemplateService', () => {
       expect(result.subject).toContain('Teammeeting');
     });
 
-    it('should render customized poll_created text through the V3 layout when link markers are present', async () => {
+    it('should render customized poll_created intro text as paragraph, keeping V3 link sections and buttons', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('poll_created');
 
@@ -378,17 +378,7 @@ describe('EmailTemplateService', () => {
         template.jsonContent,
         'Neue {{pollType}}: {{pollTitle}}',
         'Umfrage erstellt',
-        [
-          'Hallo,',
-          'Ihre neue {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.',
-          'Administrator-Link:',
-          'Privater Link zum Verwalten von Umfrage, Einladungen und Ergebnissen:',
-          'Zur Verwaltung: {{adminLink}}',
-          'Teilnehmer-Link:',
-          'Link zur Teilnahme an der Umfrage:',
-          'Zur Umfrage: {{publicLink}}',
-          'Wichtig: Diesen Administrator-Link bitte vertraulich behandeln.',
-        ].join('\n')
+        'Hallo,\nIhre neue {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.'
       );
 
       const result = await service.renderEmail('poll_created', {
@@ -400,18 +390,23 @@ describe('EmailTemplateService', () => {
       });
 
       expect(result.subject).toBe('Neue Terminumfrage: Sommerfest');
-      expect(result.html).toContain('Administrator-Link');
-      expect(result.html).toContain('Privater Link zum Verwalten von Umfrage, Einladungen und Ergebnissen:');
-      expect(result.html).toContain('Zur Verwaltung');
-      expect(result.html).toContain('Teilnehmer-Link');
-      expect(result.html).toContain('Zur Umfrage');
-      expect(result.html).toContain('Diesen Administrator-Link bitte vertraulich behandeln.');
-      expect(result.html).toContain('btn-primary');
-      expect(result.html).toContain('btn-secondary');
-      expect(result.text).toContain('Privater Link zum Verwalten von Umfrage, Einladungen und Ergebnissen:');
+      // Custom intro text appears as a paragraph (with variables substituted)
+      expect(result.html).toContain('Hallo,');
+      expect(result.html).toContain('Ihre neue Terminumfrage');
+      expect(result.html).toContain('Sommerfest');
+      // The default tag + headline block is NOT shown
+      expect(result.html).not.toContain('class="survey-tag"');
+      expect(result.html).not.toContain('wurde erstellt.');
+      // V3 link sections and buttons ARE shown
+      expect(result.html).toContain('email-header');
+      expect(result.html).toContain('class="btn-primary"');
+      expect(result.html).toContain('class="btn-secondary"');
+      // Admin and public links are present in the sections
+      expect(result.html).toContain('https://example.com/admin/sommerfest');
+      expect(result.html).toContain('https://example.com/poll/sommerfest');
     });
 
-    it('should fall back to default V3 poll_created copy when customized text is not structured for parsing', async () => {
+    it('should render unstructured customized poll_created text as intro paragraph, keeping V3 sections', async () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('poll_created');
 
@@ -431,9 +426,13 @@ describe('EmailTemplateService', () => {
         siteName: 'Polly',
       });
 
-      expect(result.html).toContain('Administratorlink');
-      expect(result.html).toContain('Umfrage verwalten');
-      expect(result.html).toContain('Abstimmung öffnen');
+      // Custom text shown as intro paragraph
+      expect(result.html).toContain('Freitext ohne erkannte Struktur');
+      // V3 shell and sections applied
+      expect(result.html).toContain('email-header');
+      expect(result.html).toContain('class="btn-primary"');
+      // Default tag+headline NOT shown
+      expect(result.html).not.toContain('class="survey-tag"');
       expect(result.text).toContain('Freitext ohne erkannte Struktur');
     });
 
@@ -702,7 +701,17 @@ describe('EmailTemplateService', () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('poll_created');
       
-      const customContent = 'Ihre neue Umfrage "{{pollTitle}}" ist bereit!\n\nTeilnehmer-Link: {{publicLink}}\nAdmin-Link: {{adminLink}}';
+      const customContent = [
+        'Ihre neue Umfrage "{{pollTitle}}" ist bereit!',
+        '',
+        'Administrator-Link:',
+        'Privater Link zur Verwaltung:',
+        'Zur Verwaltung: {{adminLink}}',
+        '',
+        'Teilnehmer-Link:',
+        'Link zur Teilnahme:',
+        'Zur Umfrage: {{publicLink}}',
+      ].join('\n');
       
       // Save customized template
       await service.saveTemplate(

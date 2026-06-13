@@ -706,6 +706,15 @@ function htmlEscape(str: string): string {
  * - {{link:https://example.com|Datenschutz}} → <a href="https://example.com" target="_blank">Datenschutz</a>
  * - All other text is HTML-escaped for XSS safety.
  */
+/** Strip dangerous HTML tags from plain footer text (not from inside {{link:...}} labels). */
+function stripFooterHtml(text: string): string {
+  return text
+    // Remove dangerous block tags including their inner content
+    .replace(/<(script|style|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    // Strip remaining HTML tags (keeping their text content)
+    .replace(/<[^>]+>/g, '');
+}
+
 function renderFooterMarkup(input: string, linkStyle: string = ''): string {
   const linkPattern = /\{\{link:([^|}]+?)(?:\|([^}]+?))?\}\}/g;
   const parts: string[] = [];
@@ -714,7 +723,9 @@ function renderFooterMarkup(input: string, linkStyle: string = ''): string {
 
   while ((match = linkPattern.exec(input)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(htmlEscape(input.slice(lastIndex, match.index)));
+      // Strip HTML from plain-text segments only; labels inside {{link:...}} are
+      // handled separately by htmlEscape below so they are not affected here.
+      parts.push(htmlEscape(stripFooterHtml(input.slice(lastIndex, match.index))));
     }
     const url = match[1].trim();
     const label = match[2]?.trim();
@@ -730,7 +741,7 @@ function renderFooterMarkup(input: string, linkStyle: string = ''): string {
   }
 
   if (lastIndex < input.length) {
-    parts.push(htmlEscape(input.slice(lastIndex)));
+    parts.push(htmlEscape(stripFooterHtml(input.slice(lastIndex))));
   }
 
   return parts.join('').replace(/\n/g, '<br>');
@@ -1191,9 +1202,12 @@ function v3LinkSection(label: string, title: string, desc: string, buttonText: s
   const bgColor = buttonType === 'primary' ? primaryColor : secondaryColor;
   const textColor = ensureButtonTextContrast(bgColor, '#ffffff');
   const cssClass = buttonType === 'primary' ? 'btn-primary' : 'btn-secondary';
+  const titleHtml = title
+    ? `<p class="link-title" style="font-family: ${fontFamily}; font-size: 17px; color: #1a202c; margin-bottom: 5px;">${title}</p>`
+    : '';
   return `<tr><td style="padding: 24px 40px 24px;">
       <p class="link-label" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px;">${label}</p>
-      <p class="link-title" style="font-family: ${fontFamily}; font-size: 17px; color: #1a202c; margin-bottom: 5px;">${title}</p>
+      ${titleHtml}
       <p class="link-desc" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; line-height: 1.6; margin-bottom: 18px;">${desc}</p>
       <table cellpadding="0" cellspacing="0" role="presentation"><tr><td>
         <a href="${htmlEscape(buttonUrl)}" class="${cssClass}" style="display: inline-block; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; color: ${textColor}; background-color: ${bgColor}; padding: 10px 22px; border-radius: 6px; text-decoration: none;">${buttonText}</a>
@@ -1267,6 +1281,41 @@ function parseLinkLine(line: string, variableName: 'adminLink' | 'publicLink'): 
   return label || undefined;
 }
 
+// Extracts only the introductory paragraph(s) from a custom poll_created text
+// template — i.e. the lines before any link-section content (admin link lines,
+// participant link lines, "Wichtig" notice, etc.).  The link sections are
+// rendered automatically by the V3 body builder below the intro.
+function extractPollCreatedIntroText(textContent: string): string {
+  const LINK_SECTION_MARKERS = [
+    '{{adminLink}}',
+    '{{publicLink}}',
+    'Administrator-Link',
+    'Admin-Link',
+    'Administratorlink',
+    'Teilnehmer-Link',
+    'Öffentlicher Link',
+    'Oeffentlicher Link',
+    'Zur Verwaltung',
+    'Zur Umfrage',
+    'Zur Abstimmung',
+    'Wichtig:',
+    'Wichtig ',
+  ];
+
+  const lines = textContent.split(/\r?\n/);
+  const introLines: string[] = [];
+
+  for (const line of lines) {
+    const isLinkLine = LINK_SECTION_MARKERS.some(marker =>
+      line.includes(marker)
+    );
+    if (isLinkLine) break;
+    introLines.push(line);
+  }
+
+  return introLines.join('\n').trimEnd();
+}
+
 function parsePollCreatedTextOverrides(textContent?: string | null): PollCreatedTextOverrides {
   if (!textContent) return {};
 
@@ -1291,7 +1340,9 @@ function parsePollCreatedTextOverrides(textContent?: string | null): PollCreated
   }
 
   const introAndAdminLines = lines.slice(hasGreeting ? 1 : 0, adminLinkIndex);
-  const adminTitleIndex = introAndAdminLines.findIndex((line) => /administrator/i.test(line) && /:\s*$/.test(line));
+  // Match the admin section header: line must mention "administrator" or "admin"
+  // (with or without a trailing colon — users often omit it)
+  const adminTitleIndex = introAndAdminLines.findIndex((line) => /\badministrator|\badmin[-\s]/i.test(line));
 
   if (adminTitleIndex >= 0) {
     const introLines = introAndAdminLines.slice(0, adminTitleIndex);
@@ -1313,7 +1364,9 @@ function parsePollCreatedTextOverrides(textContent?: string | null): PollCreated
   }
 
   const publicSectionLines = lines.slice(adminLinkIndex + 1, publicLinkIndex);
-  const publicTitleIndex = publicSectionLines.findIndex((line) => /(teilnehmer|öffentlich)/i.test(line) && /:\s*$/.test(line));
+  // Match the public section header: line mentions "teilnehmer" or "öffentlich"
+  // (with or without a trailing colon — users often omit it)
+  const publicTitleIndex = publicSectionLines.findIndex((line) => /(teilnehmer|öffentlich|oeffentlich)/i.test(line));
   if (publicTitleIndex >= 0) {
     overrides.publicLabel = stripTrailingColon(publicSectionLines[publicTitleIndex]);
     const publicDescriptionLines = publicSectionLines.slice(publicTitleIndex + 1);
@@ -1363,16 +1416,34 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
   const adminLink = vars.adminLink || '#';
   const publicLink = vars.publicLink || '#';
   const isRegistered = vars.isRegisteredUser === 'true';
-  const greetingOverride = resolveOverrideText(vars, 'greeting');
-  const greeting = greetingOverride
-    ? htmlEscape(greetingOverride)
-    : (creatorName ? `Hallo ${creatorName}` : 'Hallo');
 
-  const defaultSubline = isRegistered
-    ? `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`
-    : `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`;
-  const sublineOverride = resolveOverrideText(vars, 'subline');
-  const subline = htmlEscape(sublineOverride || defaultSubline);
+  // Custom intro text is set when the admin has saved a custom text template.
+  // In that case, we show the custom text as a simple paragraph instead of the
+  // default tag + headline block, but keep all the link sections and notice below.
+  const customIntro = vars.pollCreatedCustomIntro ?? null;
+
+  let headBlock: string;
+  if (customIntro !== null) {
+    const lines = customIntro.split('\n').map(line => htmlEscape(line)).join('<br>');
+    headBlock = `${v3BodyStart()}
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 15px; color: #374151; line-height: 1.6; margin: 0;">${lines}</p>
+    ${v3BodyEnd()}`;
+  } else {
+    const greetingOverride = resolveOverrideText(vars, 'greeting');
+    const greeting = greetingOverride
+      ? htmlEscape(greetingOverride)
+      : (creatorName ? `Hallo ${creatorName}` : 'Hallo');
+    const defaultSubline = isRegistered
+      ? `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`
+      : `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`;
+    const sublineOverride = resolveOverrideText(vars, 'subline');
+    const subline = htmlEscape(sublineOverride || defaultSubline);
+    headBlock = `${v3BodyStart()}
+      ${v3Tag(pollType, ctx.primaryColor)}
+      ${v3Headline('Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Subline(subline)}
+    ${v3BodyEnd()}`;
+  }
 
   const defaultNoticeTitle = isRegistered
     ? 'Diese E-Mail dient als Schnellzugriff.'
@@ -1382,22 +1453,22 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
     ? 'Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten \u2014 nach der Anmeldung.'
     : 'Diese E-Mail enth\u00E4lt den pers\u00F6nlichen Administratorlink \u2014 nur damit l\u00E4sst sich die Umfrage verwalten, bearbeiten und schlie\u00DFen.';
 
+  // When showing a custom intro (non-default template), omit the big section titles
+  // ("Umfrage verwalten", "Abstimmung öffnen") by default — the custom label already
+  // serves as the section header.  Default templates always show full titles.
+  const isCustomTemplate = customIntro !== null;
   const adminLabel = htmlEscape(resolveOverrideText(vars, 'adminLabel') || 'Administratorlink');
-  const adminTitle = htmlEscape(resolveOverrideText(vars, 'adminTitle') || 'Umfrage verwalten');
+  const adminTitle = htmlEscape(resolveOverrideText(vars, 'adminTitle') ?? (isCustomTemplate ? '' : 'Umfrage verwalten'));
   const adminDescription = htmlEscape(resolveOverrideText(vars, 'adminDescription') || 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nicht weitergeben.');
   const adminButtonText = htmlEscape(resolveOverrideText(vars, 'adminButtonText') || 'Zur Verwaltung \u2192');
   const publicLabel = htmlEscape(resolveOverrideText(vars, 'publicLabel') || '\u00D6ffentlicher Link \u00B7 F\u00FCr Teilnehmer');
-  const publicTitle = htmlEscape(resolveOverrideText(vars, 'publicTitle') || 'Abstimmung \u00F6ffnen');
+  const publicTitle = htmlEscape(resolveOverrideText(vars, 'publicTitle') ?? (isCustomTemplate ? '' : 'Abstimmung \u00F6ffnen'));
   const publicDescription = htmlEscape(resolveOverrideText(vars, 'publicDescription') || 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.');
   const publicButtonText = htmlEscape(resolveOverrideText(vars, 'publicButtonText') || 'Zur Abstimmung \u2192');
   const noticeTitle = htmlEscape(resolveOverrideText(vars, 'noticeTitle') || defaultNoticeTitle);
   const noticeBody = htmlEscape(resolveOverrideText(vars, 'noticeBody') || defaultNoticeBody);
 
-  return `${v3BodyStart()}
-      ${v3Tag(pollType, ctx.primaryColor)}
-      ${v3Headline('Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(subline)}
-    ${v3BodyEnd()}
+  return `${headBlock}
     ${v3Divider()}
     ${v3LinkSection(adminLabel, adminTitle, adminDescription, adminButtonText, adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
     ${v3Divider()}
@@ -2083,7 +2154,7 @@ export class EmailTemplateService {
     const subject = rawSubject.replace(/^\[\]\s*/, '');
 
     const v3Builder = V3_BODY_BUILDERS[type];
-    const shouldUsePollCreatedV3 = type === 'poll_created' && !!v3Builder && !!template.textContent;
+    const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!v3Builder && !!template.textContent;
     if ((template.isDefault && v3Builder) || shouldUsePollCreatedV3) {
       const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
       const ctx: V3BodyContext = {
@@ -2091,16 +2162,25 @@ export class EmailTemplateService {
         secondaryColor: v3Data.secondaryColor,
         fontFamily: v3Data.fontFamily,
       };
-      const pollCreatedOverrides = shouldUsePollCreatedV3
-        ? parsePollCreatedTextOverrides(template.textContent)
-        : {};
-      const v3Variables = {
-        ...allVariables,
-        ...Object.fromEntries(
-          Object.entries(pollCreatedOverrides).map(([key, value]) => [`pollCreatedOverride_${key}`, value])
-        ),
-      };
-      const bodyHtml = v3Builder(v3Variables, ctx);
+      let mergedVariables = { ...allVariables };
+      if (shouldUsePollCreatedV3 && template.textContent) {
+        // Parse the custom template text into structured overrides for the V3 sections.
+        // The greeting + subline become the intro paragraph (replacing the default tag+headline).
+        // All other overrides (adminLabel, adminDescription, adminButtonText, publicLabel, etc.)
+        // are passed as pollCreatedOverride_* vars so the V3 sections use the custom content.
+        const overrides = parsePollCreatedTextOverrides(template.textContent);
+        const introLines = [overrides.greeting, overrides.subline].filter(Boolean).join('\n');
+        // Fall back to line-based extraction if the structured parse didn't find a greeting
+        const rawIntro = introLines || extractPollCreatedIntroText(template.textContent);
+        const customIntroText = substituteVariables(rawIntro || template.textContent, allVariables, false);
+        const overrideVars = Object.fromEntries(
+          Object.entries(overrides)
+            .filter(([, v]) => v !== undefined)
+            .map(([key, value]) => [`pollCreatedOverride_${key}`, value as string])
+        );
+        mergedVariables = { ...allVariables, ...overrideVars, pollCreatedCustomIntro: customIntroText };
+      }
+      const bodyHtml = v3Builder(mergedVariables, ctx);
       const html = v3Shell(v3Data, bodyHtml);
       let textBase = template.textContent || '';
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {

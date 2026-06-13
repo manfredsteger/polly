@@ -986,7 +986,7 @@ export default function Poll() {
         </TabsContent>
 
         <TabsContent value="tools" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-6">
             {/* Sharing Tools */}
             <Card className="polly-card">
               <CardHeader>
@@ -1059,70 +1059,6 @@ export default function Poll() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Export Tools */}
-            <Card className="polly-card">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Download className="w-5 h-5 mr-2 text-green-600" />
-                  {t('pollView.export')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => window.open(`/api/v1/polls/${poll.publicToken}/export/csv?lang=${i18n.language}`, '_blank')}
-                  data-testid="button-export-csv"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {t('pollView.exportCsv')}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => window.open(`/api/v1/polls/${poll.publicToken}/export/pdf`, '_blank')}
-                  data-testid="button-export-pdf"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {t('pollView.exportPdf')}
-                </Button>
-                {poll.type === 'schedule' && poll.finalOptionId != null && poll.finalOptionId > 0 && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start"
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(`/api/v1/polls/${poll.publicToken}/export/ics?lang=${i18n.language}`);
-                        if (!response.ok) {
-                          const data = await response.json().catch(() => null);
-                          toast({ title: t('pollView.toasts.error'), description: data?.error || t('results.icsExportError'), variant: "destructive" });
-                          return;
-                        }
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        const disposition = response.headers.get('Content-Disposition');
-                        const match = disposition?.match(/filename="?([^"]+)"?/);
-                        a.download = match?.[1] || 'poll.ics';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      } catch {
-                        toast({ title: t('pollView.toasts.error'), description: t('results.icsExportError'), variant: "destructive" });
-                      }
-                    }}
-                    data-testid="button-export-ics"
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    {t('pollView.exportIcs')}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Admin Tools - only visible for poll owner or admin access */}
             {isEffectiveAdmin && (
               <Card className="polly-card md:col-span-2">

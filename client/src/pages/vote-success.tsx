@@ -4,45 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, BarChart3, Edit, ExternalLink, ArrowLeft, Copy, Link as LinkIcon, Trash2 } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { BarChart3, Edit, ArrowLeft, Copy, Link2, ExternalLink, CheckCircle2, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function VoteSuccess() {
   const { t } = useTranslation();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [voteData, setVoteData] = useState<any>(null);
-
-  // All hooks must be called before any early returns
-  const withdrawVoteMutation = useMutation({
-    mutationFn: async () => {
-      if (!voteData?.publicToken) throw new Error('No poll token');
-      const response = await apiRequest("DELETE", `/api/v1/polls/${voteData.publicToken}/vote`, {
-        voterEditToken: voteData.voterEditToken,
-        voterEmail: voteData.voterEmail
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: t('voteSuccess.toasts.voteWithdrawn'),
-        description: t('voteSuccess.toasts.voteWithdrawnDesc'),
-      });
-      if (voteData?.publicToken) {
-        navigate(`/poll/${voteData.publicToken}`);
-      }
-    },
-    onError: () => {
-      toast({
-        title: t('voteSuccess.toasts.error'),
-        description: t('voteSuccess.toasts.voteNotWithdrawn'),
-        variant: "destructive",
-      });
-    },
-  });
+  const [showLinks, setShowLinks] = useState(false);
 
   useEffect(() => {
     // Scroll to top when page loads
@@ -77,8 +47,7 @@ export default function VoteSuccess() {
     );
   }
 
-  const { poll, pollType, publicToken, voterName, voterEditToken } = voteData;
-  const pollTypeText = pollType === 'schedule' ? t('voteSuccess.schedulePoll') : t('voteSuccess.survey');
+  const { poll, publicToken, voterName, voterEditToken } = voteData;
   const publicLink = `${window.location.origin}/poll/${publicToken}`;
   const resultsLink = `${window.location.origin}/poll/${publicToken}#results`;
   const editLink = voterEditToken ? `${window.location.origin}/edit/${voterEditToken}` : null;
@@ -99,16 +68,11 @@ export default function VoteSuccess() {
     }
   };
 
-  const canWithdraw = voteData?.allowVoteWithdrawal;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 dark:from-gray-900 dark:to-gray-800 p-4">
       <div className="max-w-2xl mx-auto py-8">
-        {/* Success Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-          </div>
+          <CheckCircle2 className="mx-auto mb-5 h-12 w-12 text-green-600 dark:text-green-400" strokeWidth={2.2} />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             {t('voteSuccess.thankYouTitle')}
           </h1>
@@ -116,71 +80,81 @@ export default function VoteSuccess() {
             {t('voteSuccess.thankYouDesc', { title: poll.title })}
           </p>
           {voteData.voterEmail && (
-            <p className="text-sm text-muted-foreground mt-2">
-              {t('voteSuccess.checkSpamHint')}
-            </p>
+            <div className="mt-4 inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <p>{t('voteSuccess.checkSpamHint')}</p>
+            </div>
           )}
         </div>
 
-        {/* Voter Info */}
         {voterName && (
-          <Card className="mb-6 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-center">
-                <p className="text-blue-700 dark:text-blue-300 font-medium">
-                  {t('voteSuccess.votedAs')}: <strong>{voterName}</strong>
-                </p>
-              </div>
+          <Card className="mb-8 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20 shadow-sm">
+            <CardContent className="py-8">
+              <p className="text-center text-blue-700 dark:text-blue-300 font-medium text-2xl">
+                {t('voteSuccess.votedAs')}: <strong>{voterName}</strong>
+              </p>
             </CardContent>
           </Card>
         )}
 
-        {/* Next Steps */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>{t('voteSuccess.nextStepsTitle')}</CardTitle>
+        <Card className="mt-8 border-dashed border-slate-300/90 bg-white/80 shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-2xl">{t('voteSuccess.inviteTitle')}</CardTitle>
+            <CardDescription className="text-base">
+              {t('voteSuccess.inviteDescription')}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-semibold mt-0.5">
-                  1
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{t('voteSuccess.step1Title')}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t('voteSuccess.step1Desc')}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-semibold mt-0.5">
-                  2
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{t('voteSuccess.step2Title')}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t('voteSuccess.step2Desc')}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-semibold mt-0.5">
-                  3
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{t('voteSuccess.step3Title')}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t('voteSuccess.step3Desc', { type: pollTypeText })}
-                  </p>
-                </div>
-              </div>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row">
+              <Input
+                value={publicLink}
+                readOnly
+                className="h-14 rounded-2xl border-slate-200 bg-white text-lg font-medium text-slate-500"
+              />
+              <Button
+                className="h-12 rounded-xl px-6 text-base font-medium whitespace-nowrap bg-slate-900 text-white hover:bg-slate-800"
+                onClick={() => copyToClipboard(publicLink, t('voteSuccess.toasts.linkCopied'))}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                {t('common.copy')}
+              </Button>
             </div>
+            {editLink && (
+              <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  className="px-0 text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowLinks((prev) => !prev)}
+                >
+                  {showLinks ? t('voteSuccess.hideLinks') : t('voteSuccess.showLinks')}
+                </Button>
+                {showLinks && (
+                  <div className="rounded-xl border bg-muted/30 p-4">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      {t('voteSuccess.editVoteLink')}
+                    </label>
+                    <div className="mt-2 flex items-center space-x-2">
+                      <Input
+                        value={editLink}
+                        readOnly
+                        className="font-mono text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(editLink, t('voteSuccess.toasts.editLinkCopied'))}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 flex-wrap justify-center">
           <Button
             onClick={() => window.open(resultsLink, '_blank')}
             className="flex items-center justify-center whitespace-nowrap polly-button-primary"
@@ -188,7 +162,14 @@ export default function VoteSuccess() {
             <BarChart3 className="w-4 h-4 mr-2 shrink-0" />
             {t('voteSuccess.viewResults')}
           </Button>
-          
+          <Button
+            onClick={() => window.open(publicLink, '_blank')}
+            variant="outline"
+            className="flex items-center justify-center whitespace-nowrap"
+          >
+            <ExternalLink className="w-4 h-4 mr-2 shrink-0" />
+            {t('voteSuccess.goToPoll')}
+          </Button>
           {editLink && (
             <Button
               onClick={() => window.open(editLink, '_blank')}
@@ -199,92 +180,7 @@ export default function VoteSuccess() {
               {t('voteSuccess.editVote')}
             </Button>
           )}
-          
-          {canWithdraw && (
-            <Button
-              onClick={() => withdrawVoteMutation.mutate()}
-              disabled={withdrawVoteMutation.isPending}
-              className="flex items-center justify-center whitespace-nowrap polly-button-danger"
-              data-testid="button-withdraw-vote"
-            >
-              <Trash2 className="w-4 h-4 mr-2 shrink-0" />
-              {withdrawVoteMutation.isPending ? t('voteSuccess.withdrawing') : t('voteSuccess.withdrawVote')}
-            </Button>
-          )}
         </div>
-
-        {/* Survey Links Section */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <LinkIcon className="w-5 h-5 mr-2" />
-              {t('voteSuccess.pollLinks')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                {t('voteSuccess.viewPoll')}
-              </label>
-              <div className="flex items-center space-x-2 mt-1">
-                <Input
-                  value={publicLink}
-                  readOnly
-                  className="font-mono text-sm"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(publicLink, t('voteSuccess.toasts.linkCopied'))}
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                {t('voteSuccess.viewResultsLink')}
-              </label>
-              <div className="flex items-center space-x-2 mt-1">
-                <Input
-                  value={resultsLink}
-                  readOnly
-                  className="font-mono text-sm"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(resultsLink, t('voteSuccess.toasts.resultLinkCopied'))}
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {editLink && (
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  {t('voteSuccess.editVoteLink')}
-                </label>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Input
-                    value={editLink}
-                    readOnly
-                    className="font-mono text-sm"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(editLink, t('voteSuccess.toasts.editLinkCopied'))}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Back to Home */}
         <div className="text-center mt-8">

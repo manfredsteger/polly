@@ -27,6 +27,20 @@ import { eq, desc, and, sql, count, isNull, asc } from "drizzle-orm";
 export { db };
 import { randomBytes } from "crypto";
 
+const participationIdentitySql = sql<string>`
+  coalesce(
+    nullif(${votes.voterKey}, ''),
+    case
+      when ${votes.userId} is not null then concat('user:', ${votes.userId}::text)
+      else lower(trim(${votes.voterEmail}))
+    end
+  )
+`;
+
+const participationCountSql = sql<number>`
+  count(distinct (${votes.pollId}::text || ':' || ${participationIdentitySql}))
+`;
+
 export interface IStorage {
   // User management
   getUser(id: number): Promise<User | undefined>;
@@ -112,7 +126,7 @@ export interface IStorage {
   getSystemStats(): Promise<{
     totalUsers: number;
     activePolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
   }>;
   
@@ -121,7 +135,7 @@ export interface IStorage {
     activePolls: number;
     inactivePolls: number;
     totalPolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
     weeklyPolls: number;
     todayPolls: number;
@@ -944,7 +958,7 @@ export class DatabaseStorage implements IStorage {
   async getSystemStats(): Promise<{
     totalUsers: number;
     activePolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
   }> {
     // Exclude test data from all statistics
@@ -956,7 +970,7 @@ export class DatabaseStorage implements IStorage {
         eq(polls.isTestData, false),
         sql`${polls.expiresAt} > NOW() OR ${polls.expiresAt} IS NULL`
       ));
-    const [totalVotesResult] = await db.select({ count: count() }).from(votes)
+    const [totalParticipationsResult] = await db.select({ count: participationCountSql }).from(votes)
       .innerJoin(polls, eq(votes.pollId, polls.id))
       .where(eq(polls.isTestData, false));
     const [monthlyPollsResult] = await db.select({ count: count() }).from(polls)
@@ -968,7 +982,7 @@ export class DatabaseStorage implements IStorage {
     return {
       totalUsers: totalUsersResult.count,
       activePolls: activePollsResult.count,
-      totalVotes: totalVotesResult.count,
+      totalParticipations: totalParticipationsResult.count,
       monthlyPolls: monthlyPollsResult.count,
     };
   }
@@ -1022,7 +1036,7 @@ export class DatabaseStorage implements IStorage {
     activePolls: number;
     inactivePolls: number;
     totalPolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
     weeklyPolls: number;
     todayPolls: number;
@@ -1043,7 +1057,7 @@ export class DatabaseStorage implements IStorage {
       [totalPollsResult],
       [activePollsResult],
       [inactivePollsResult],
-      [totalVotesResult],
+      [totalParticipationsResult],
       [monthlyPollsResult],
       [weeklyPollsResult],
       [todayPollsResult],
@@ -1062,7 +1076,7 @@ export class DatabaseStorage implements IStorage {
         eq(polls.isTestData, false)
       )),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isActive, false), eq(polls.isTestData, false))),
-      db.select({ count: count() }).from(votes).innerJoin(polls, eq(votes.pollId, polls.id)).where(eq(polls.isTestData, false)),
+      db.select({ count: participationCountSql }).from(votes).innerJoin(polls, eq(votes.pollId, polls.id)).where(eq(polls.isTestData, false)),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '30 days'`)),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '7 days'`)),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '1 day'`)),
@@ -1158,7 +1172,7 @@ export class DatabaseStorage implements IStorage {
       activePolls: activePollsResult.count,
       inactivePolls: inactivePollsResult.count,
       totalPolls: totalPollsResult.count,
-      totalVotes: totalVotesResult.count,
+      totalParticipations: totalParticipationsResult.count,
       monthlyPolls: monthlyPollsResult.count,
       weeklyPolls: weeklyPollsResult.count,
       todayPolls: todayPollsResult.count,

@@ -35,7 +35,7 @@ interface AdminDashboardProps {
   stats?: {
     totalUsers: number;
     activePolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
   };
   users?: User[];

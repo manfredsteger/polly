@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PollTypeBadge } from '@/components/ui/PollTypeBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Users, Calendar, BarChart3, Plus, Clock, CheckCircle, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2, House } from 'lucide-react';
+import { ClipboardList, Users, Calendar, BarChart3, Plus, Clock, CheckCircle, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2, House, ListChecks } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -61,7 +61,13 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date()) && hasFutureScheduleOption(poll);
   const canEditPoll = showAdminLink && isActive;
-  const voteCount = poll.votes?.length || 0;
+  const participantCount = new Set(
+    (poll.votes || []).map((vote) => {
+      if (vote.voterKey?.trim()) return `key:${vote.voterKey.trim()}`;
+      if (vote.userId != null) return `user:${vote.userId}`;
+      return `email:${vote.voterEmail.trim().toLowerCase()}`;
+    })
+  ).size;
   const optionCount = poll.options?.length || 0;
 
   const deleteMutation = useMutation({
@@ -133,10 +139,10 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
           <div className="flex items-center gap-4">
             <span className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
-              {voteCount} {voteCount !== 1 ? t('myPolls.votes') : t('myPolls.vote')}
+              {participantCount} {participantCount !== 1 ? t('myPolls.participants') : t('myPolls.participant')}
             </span>
             <span className="flex items-center">
-              <BarChart3 className="h-4 w-4 mr-1" />
+              <ListChecks className="h-4 w-4 mr-1" />
               {optionCount} {optionCount !== 1 ? t('myPolls.options') : t('myPolls.option')}
             </span>
           </div>
@@ -512,7 +518,7 @@ export default function MyPolls() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="polly-gradient-orange text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -537,20 +543,6 @@ export default function MyPolls() {
                 </p>
               </div>
               <BarChart3 className="w-8 h-8 text-blue-200" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100 text-sm">{t('myPolls.statsParticipations')}</p>
-                <p className="text-2xl font-bold">
-                  {createdLoading ? '–' : (createdPolls?.reduce((sum, p) => sum + (p.votes?.length || 0), 0) || 0)}
-                </p>
-              </div>
-              <Users className="w-8 h-8 text-green-200" />
             </div>
           </CardContent>
         </Card>

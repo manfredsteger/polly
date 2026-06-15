@@ -15,7 +15,7 @@ interface ExtendedStats {
   activePolls: number;
   inactivePolls: number;
   totalPolls: number;
-  totalVotes: number;
+  totalParticipations: number;
   monthlyPolls: number;
   weeklyPolls: number;
   todayPolls: number;

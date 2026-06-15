@@ -43,7 +43,7 @@ export function OverviewPanel({
     activePolls: 0,
     inactivePolls: 0,
     totalPolls: 0,
-    totalVotes: 0,
+    totalParticipations: 0,
     monthlyPolls: 0,
     weeklyPolls: 0,
     todayPolls: 0,
@@ -120,8 +120,8 @@ export function OverviewPanel({
         />
         <StatCard 
           icon={<BarChart3 />} 
-          label={t('admin.overview.votesLabel')} 
-          value={displayStats.totalVotes} 
+          label={t('admin.overview.participationsLabel')} 
+          value={displayStats.totalParticipations} 
           color="purple" 
           onClick={() => onStatCardClick("monitoring")}
           testId="stat-votes"

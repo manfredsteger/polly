@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { passwordSchema, createPollSchema, registerSchema } from '../../routes/common';
+import { passwordSchema, createPollSchema, createPollSchemaBase, registerSchema } from '../../routes/common';
 
 export const testMeta = {
   category: 'api' as const,
@@ -42,7 +42,7 @@ describe('Validation Schemas - Unit Tests', () => {
   });
 
   describe('Poll Type Schema (from createPollSchema)', () => {
-    const pollTypeSchema = createPollSchema.shape.type;
+    const pollTypeSchema = createPollSchemaBase.shape.type;
 
     it('should accept schedule type', () => {
       const result = pollTypeSchema.safeParse('schedule');
@@ -71,7 +71,7 @@ describe('Validation Schemas - Unit Tests', () => {
   });
 
   describe('Poll Title Schema (from createPollSchema)', () => {
-    const titleSchema = createPollSchema.shape.title;
+    const titleSchema = createPollSchemaBase.shape.title;
 
     it('should accept valid title', () => {
       const result = titleSchema.safeParse('Meine Umfrage');

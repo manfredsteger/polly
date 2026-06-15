@@ -68,12 +68,14 @@ const validateVoteResponses = (
   voteItems: Array<{ optionId: number; response: string }>
 ) => {
   if (poll.type === 'organization') {
-    const hasInvalidOrganizationResponse = voteItems.some((vote) => vote.response !== 'yes');
+    const hasInvalidOrganizationResponse = voteItems.some(
+      (vote) => vote.response !== 'yes' && vote.response !== 'no'
+    );
     if (hasInvalidOrganizationResponse) {
       return {
         status: 400,
         body: {
-          error: 'Organization polls only accept slot signup responses.',
+          error: 'Organization polls only accept yes/no slot responses.',
           errorCode: 'INVALID_ORGANIZATION_RESPONSE',
         },
       };

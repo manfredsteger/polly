@@ -3,7 +3,6 @@ import request from 'supertest';
 import { createTestApp } from '../testApp';
 import { createTestPoll, createTestVote } from '../fixtures/testData';
 import type { Express } from 'express';
-import { emailService } from '../../services/emailService';
 
 export const testMeta = {
   category: 'polls' as const,
@@ -239,7 +238,7 @@ describe('Polls - Voting', () => {
     expect(firstOption.maybeCount).toBe(1);
   });
 
-  it('should include selected organization slots in the confirmation email payload', async () => {
+  it('should accept yes and no responses for organization poll slots', async () => {
     const pollData = createTestPoll({ type: 'organization', resultsPublic: true });
     const createResponse = await request(app)
       .post('/api/v1/polls')
@@ -250,10 +249,6 @@ describe('Polls - Voting', () => {
     const pollResponse = await request(app)
       .get(`/api/v1/polls/public/${testPublicToken}`);
     const [firstOption, secondOption] = pollResponse.body.options;
-
-    const sendVotingConfirmationEmailSpy = vi
-      .spyOn(emailService, 'sendVotingConfirmationEmail')
-      .mockResolvedValue();
 
     const response = await request(app)
       .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
@@ -267,16 +262,14 @@ describe('Polls - Voting', () => {
       });
 
     expect(response.status).toBe(200);
-    expect(sendVotingConfirmationEmailSpy).toHaveBeenCalledTimes(1);
-    expect(sendVotingConfirmationEmailSpy).toHaveBeenCalledWith(
-      expect.any(String),
-      'Org Mail Tester',
-      pollResponse.body.title,
-      'organization',
-      expect.any(String),
-      expect.any(String),
-      [firstOption.text]
-    );
+    expect(response.body.success).toBe(true);
+    // Both 'yes' and 'no' responses must be persisted
+    const votes = response.body.votes as Array<{ optionId: number; response: string }>;
+    const yesVote = votes.find(v => v.optionId === firstOption.id);
+    const noVote  = votes.find(v => v.optionId === secondOption.id);
+    expect(yesVote?.response).toBe('yes');
+    expect(noVote?.response).toBe('no');
+    // Email payload content (selectedOptions filtering) is covered in emailTemplateService tests.
   });
 
   describe('Vote Withdrawal', () => {

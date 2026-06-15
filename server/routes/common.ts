@@ -64,7 +64,7 @@ export const registerSchema = z.object({
   password: passwordSchema,
 });
 
-export const createPollSchema = z.object({
+export const createPollSchemaBase = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
   type: z.enum(['schedule', 'survey', 'organization']),
@@ -103,7 +103,9 @@ export const createPollSchema = z.object({
       });
     }
   })),
-}).superRefine((data, ctx) => {
+});
+
+export const createPollSchema = createPollSchemaBase.superRefine((data, ctx) => {
   if (data.type === 'survey') {
     const normalOptions = data.options.filter((option) => !option.isFreeText);
     const freeTextOptions = data.options.filter((option) => option.isFreeText);

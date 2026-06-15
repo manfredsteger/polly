@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogIn, LogOut, User, ClipboardList, Shield, Moon, Sun, Mail, RefreshCw, AlertTriangle } from "lucide-react";
+import { LogIn, LogOut, User, ClipboardList, Shield, Moon, Sun, Mail, RefreshCw, AlertTriangle, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomization } from "@/contexts/CustomizationContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -72,6 +72,13 @@ export default function Layout({ children }: LayoutProps) {
     { label: t('footer.privacy'), url: '#' },
     { label: t('footer.imprint'), url: '#' },
   ];
+  const userLabel = user?.name || user?.username || '';
+  const userInitials = userLabel
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || 'U';
 
   return (
     <div className="min-h-screen flex flex-col bg-background transition-colors duration-200">
@@ -121,19 +128,25 @@ export default function Layout({ children }: LayoutProps) {
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" data-testid="button-user-menu">
-                        <User className="w-4 h-4 mr-2" />
-                        {user.name || user.username}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 gap-3 rounded-full border border-transparent px-2 hover:border-border"
+                        data-testid="button-user-menu"
+                      >
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-polly-orange/15 text-xs font-semibold text-polly-orange">
+                          {userInitials}
+                        </span>
+                        <span className="hidden max-w-32 truncate text-sm font-medium sm:inline">
+                          {userLabel}
+                        </span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem onClick={() => navigate('/profil')} data-testid="menu-profile">
                         <User className="w-4 h-4 mr-2" />
                         {t('nav.profile')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate('/meine-umfragen')} data-testid="menu-my-polls">
-                        <ClipboardList className="w-4 h-4 mr-2" />
-                        {t('nav.myPolls')}
                       </DropdownMenuItem>
                       {user.role === 'admin' && (
                         <>

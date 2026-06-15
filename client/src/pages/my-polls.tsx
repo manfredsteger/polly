@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PollTypeBadge } from '@/components/ui/PollTypeBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2, House } from 'lucide-react';
+import { ClipboardList, Users, Calendar, BarChart3, Plus, Clock, CheckCircle, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2, House } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -34,29 +34,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import type { PollWithOptions, User, SystemSetting } from '@shared/schema';
+import type { PollWithOptions } from '@shared/schema';
 import { format } from 'date-fns';
 import { getDateLocale } from '@/lib/i18n';
-import { AdminDashboard } from '@/components/admin';
-
-interface ExtendedStats {
-  totalUsers: number;
-  activePolls: number;
-  inactivePolls: number;
-  totalPolls: number;
-  totalVotes: number;
-  monthlyPolls: number;
-  weeklyPolls: number;
-  todayPolls: number;
-  schedulePolls: number;
-  surveyPolls: number;
-  recentActivity: Array<{
-    type: string;
-    message: string;
-    timestamp: string;
-    actor?: string;
-  }>;
-}
 
 function hasFutureScheduleOption(poll: PollWithOptions): boolean {
   if (poll.type !== 'schedule') return true;
@@ -482,8 +462,6 @@ export default function MyPolls() {
   const { user, isAuthenticated, isLoading: authLoading, isAuthReady } = useAuth();
   const [, navigate] = useLocation();
 
-  const isAdmin = user?.role === 'admin';
-
   // SECURITY: Only enable queries when auth is verified and ready
   // This prevents showing cached data from a previous user session
   const queriesEnabled = isAuthenticated && isAuthReady;
@@ -498,34 +476,6 @@ export default function MyPolls() {
   const { data: participatedPolls, isLoading: participatedLoading } = useQuery<PollWithOptions[]>({
     queryKey: ['/api/v1/user/participations'],
     enabled: queriesEnabled,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminStats } = useQuery<ExtendedStats>({
-    queryKey: ['/api/v1/admin/extended-stats'],
-    enabled: queriesEnabled && isAdmin,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminUsers } = useQuery<User[]>({
-    queryKey: ['/api/v1/admin/users'],
-    enabled: queriesEnabled && isAdmin,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminPolls } = useQuery<PollWithOptions[]>({
-    queryKey: ['/api/v1/admin/polls'],
-    enabled: queriesEnabled && isAdmin,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminSettings } = useQuery<SystemSetting[]>({
-    queryKey: ['/api/v1/admin/settings'],
-    enabled: queriesEnabled && isAdmin,
     staleTime: 0,
     gcTime: 0,
   });
@@ -633,7 +583,7 @@ export default function MyPolls() {
           const archivedPolls = createdPolls?.filter(p => !p.isActive || (p.expiresAt && new Date(p.expiresAt) <= now) || !hasFutureScheduleOption(p)) || [];
           return (
             <>
-              <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>
+              <TabsList className="grid w-full grid-cols-3 mb-6">
                 <TabsTrigger value="created" data-testid="tab-created">
                   <ClipboardList className="h-4 w-4 mr-2" />
                   {t('myPolls.tabCreated')}
@@ -655,12 +605,6 @@ export default function MyPolls() {
                     <Badge variant="secondary" className="ml-2">{archivedPolls.length}</Badge>
                   )}
                 </TabsTrigger>
-                {isAdmin && (
-                  <TabsTrigger value="admin" data-testid="tab-admin">
-                    <Shield className="h-4 w-4 mr-2" />
-                    {t('myPolls.tabAdmin')}
-                  </TabsTrigger>
-                )}
               </TabsList>
 
               <TabsContent value="created">
@@ -711,18 +655,6 @@ export default function MyPolls() {
                   </Card>
                 )}
               </TabsContent>
-
-              {isAdmin && (
-                <TabsContent value="admin" className="mt-0">
-                  <AdminDashboard 
-                    stats={adminStats}
-                    users={adminUsers}
-                    polls={adminPolls}
-                    settings={adminSettings}
-                    userRole="admin"
-                  />
-                </TabsContent>
-              )}
             </>
           );
         })()}

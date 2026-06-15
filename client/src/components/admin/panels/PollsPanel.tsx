@@ -48,7 +48,8 @@ import {
   ArrowLeft,
   Loader2,
   Copy,
-  User
+  User,
+  SlidersHorizontal
 } from "lucide-react";
 import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { formatDistanceToNow, format } from "date-fns";
@@ -76,6 +77,7 @@ export function PollsPanel({
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<'schedule' | 'survey' | 'organization' | null>(initialTypeFilter);
+  const [statusFilter, setStatusFilter] = useState<'active' | 'inactive' | null>(null);
 
   useEffect(() => {
     setTypeFilter(initialTypeFilter ?? null);
@@ -120,8 +122,10 @@ export function PollsPanel({
       (poll.user?.email?.toLowerCase().includes(term)) ||
       (poll.creatorEmail?.toLowerCase().includes(term));
     const matchesType = !typeFilter || poll.type === typeFilter;
-    return matchesText && matchesType;
+    const matchesStatus = !statusFilter || (statusFilter === 'active' ? poll.isActive : !poll.isActive);
+    return matchesText && matchesType && matchesStatus;
   }) || [];
+  const hasActiveFilters = Boolean(searchTerm || typeFilter || statusFilter);
 
   if (selectedPoll) {
     return (
@@ -143,21 +147,93 @@ export function PollsPanel({
         <h2 className="text-2xl font-semibold text-foreground">{t('admin.polls.title')}</h2>
         <Badge variant="outline" className="text-polly-orange border-polly-orange">
           <Vote className="w-3 h-3 mr-1" />
-          {t('admin.polls.totalCount', { count: polls?.length || 0 })}
+          {t('admin.polls.totalCount', { count: filteredPolls.length })}
         </Badge>
       </div>
 
       <Card className="polly-card">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>{t('admin.polls.allPolls')}</CardTitle>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <div>
+                <CardTitle>{t('admin.polls.allPolls')}</CardTitle>
+                <CardDescription>{t('admin.polls.filterHint')}</CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <SlidersHorizontal className="w-4 h-4" />
+                      {t('admin.polls.statusFilter')}
+                      {statusFilter && (
+                        <Badge variant="secondary" className="ml-1 px-1.5">
+                          {statusFilter === 'active' ? t('admin.polls.active') : t('admin.polls.inactive')}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => setStatusFilter(null)}>
+                      {t('admin.polls.allStatuses')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setStatusFilter('active')}>
+                      {t('admin.polls.active')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setStatusFilter('inactive')}>
+                      {t('admin.polls.inactive')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Vote className="w-4 h-4" />
+                      {t('admin.polls.typeFilter')}
+                      {typeFilter && (
+                        <Badge variant="secondary" className="ml-1 px-1.5">
+                          {typeFilter === 'schedule'
+                            ? t('admin.overview.schedulePolls')
+                            : typeFilter === 'survey'
+                              ? t('admin.overview.classicPolls')
+                              : t('admin.overview.orgLists')}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => setTypeFilter(null)}>
+                      {t('admin.polls.allTypes')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTypeFilter('schedule')}>
+                      {t('admin.overview.schedulePolls')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTypeFilter('survey')}>
+                      {t('admin.overview.classicPolls')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTypeFilter('organization')}>
+                      {t('admin.overview.orgLists')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setTypeFilter(null);
+                      setStatusFilter(null);
+                    }}
+                  >
+                    {t('admin.polls.clearFilters')}
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
-              {typeFilter && (
-                <Badge variant="secondary" className="cursor-pointer" onClick={() => setTypeFilter(null)}>
-                  {typeFilter === 'schedule' ? t('admin.overview.schedulePolls') : typeFilter === 'survey' ? t('admin.overview.classicPolls') : 'Organization'} ×
-                </Badge>
-              )}
-              <div className="relative w-64">
+              <div className="relative w-full lg:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder={t('admin.polls.search')}

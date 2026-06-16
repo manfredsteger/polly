@@ -113,6 +113,22 @@ function darkenColor(hex: string, percent: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripLeadingSitePrefix(subject: string, siteName: string): string {
+  const trimmed = subject.trim();
+  if (!trimmed) return trimmed;
+
+  if (!siteName) {
+    return trimmed.replace(/^\[\]\s*/, '').trim();
+  }
+
+  const sitePrefix = new RegExp(`^\\[${escapeRegExp(siteName)}\\]\\s*`, 'i');
+  return trimmed.replace(sitePrefix, '').trim();
+}
+
 const NAMED_COLORS: Record<string, string> = {
   white: '#FFFFFF', black: '#000000', red: '#FF0000', green: '#008000',
   blue: '#0000FF', yellow: '#FFFF00', orange: '#FFA500', gray: '#808080',
@@ -2151,7 +2167,7 @@ export class EmailTemplateService {
     const allVariables: Record<string, string | undefined> = { siteName, ...variables };
 
     const rawSubject = renderTemplate(template.subject, allVariables);
-    const subject = rawSubject.replace(/^\[\]\s*/, '');
+    const subject = stripLeadingSitePrefix(rawSubject, siteName);
 
     const v3Builder = V3_BODY_BUILDERS[type];
     const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!v3Builder && !!template.textContent;

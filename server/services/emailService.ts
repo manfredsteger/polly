@@ -738,7 +738,7 @@ export class EmailService {
   async sendDeletionRequestNotification(adminEmails: string[], userName: string, userEmail: string, adminPanelUrl: string): Promise<void> {
     try {
       const requestDate = new Date().toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
-      const subject = '[Polly] Neuer Löschantrag eingegangen';
+      const subject = 'Neuer Löschantrag eingegangen';
       const validatedUrl = validateEmailUrl(adminPanelUrl);
       const bodyHtml = `
         <div style="padding: 16px 24px;">

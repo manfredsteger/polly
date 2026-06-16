@@ -186,6 +186,7 @@ export function VoiceRecordingOverlay({
                   className="bg-primary rounded-full"
                   style={{
                     width: "3px",
+                    height: "4px",
                     animation: `voiceBar 1.2s ease-in-out ${i * 0.05}s infinite`,
                   }}
                 />

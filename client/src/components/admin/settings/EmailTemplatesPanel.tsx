@@ -303,6 +303,8 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     email_change: { name: t('admin.emailTemplates.templateTypes.email_change'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.email_change_desc') },
     password_changed: { name: t('admin.emailTemplates.templateTypes.password_changed'), icon: <Shield className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_changed_desc') },
     test_report: { name: t('admin.emailTemplates.templateTypes.test_report'), icon: <FileText className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.test_report_desc') },
+    welcome: { name: t('admin.emailTemplates.templateTypes.welcome'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.welcome_desc') },
+    poll_finalized: { name: t('admin.emailTemplates.templateTypes.poll_finalized'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_finalized_desc') },
   };
 
   if (isLoading) {

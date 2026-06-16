@@ -839,7 +839,11 @@
         "password_changed": "Passwort geändert",
         "password_changed_desc": "Benachrichtigung über Passwortänderung",
         "test_report": "Testbericht",
-        "test_report_desc": "Automatischer Testbericht per E-Mail"
+        "test_report_desc": "Automatischer Testbericht per E-Mail",
+        "welcome": "Willkommens-E-Mail",
+        "welcome_desc": "Bestätigung mit Link zur E-Mail-Verifizierung",
+        "poll_finalized": "Umfrage abgeschlossen",
+        "poll_finalized_desc": "Benachrichtigung nach Abschluss oder Finalisierung einer Umfrage"
       },
       "toasts": {
         "previewError": "Vorschau konnte nicht geladen werden",

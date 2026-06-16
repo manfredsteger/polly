@@ -820,6 +820,33 @@ export function substituteVariables(
   return result;
 }
 
+function renderSafeCustomMarkup(
+  template: string,
+  variables: Record<string, string | undefined>
+): string {
+  const allowedTagMap: Record<string, string> = {
+    '<strong>': '__ALLOWED_TAG_STRONG_OPEN__',
+    '</strong>': '__ALLOWED_TAG_STRONG_CLOSE__',
+    '<em>': '__ALLOWED_TAG_EM_OPEN__',
+    '</em>': '__ALLOWED_TAG_EM_CLOSE__',
+    '<br>': '__ALLOWED_TAG_BR__',
+    '<br/>': '__ALLOWED_TAG_BR__',
+    '<br />': '__ALLOWED_TAG_BR__',
+  };
+
+  let tokenized = template;
+  for (const [tag, token] of Object.entries(allowedTagMap)) {
+    tokenized = tokenized.replace(new RegExp(tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), token);
+  }
+
+  let rendered = substituteVariables(tokenized, variables, true);
+  for (const [tag, token] of Object.entries(allowedTagMap)) {
+    rendered = rendered.replace(new RegExp(token, 'g'), tag === '<br/>' || tag === '<br />' ? '<br>' : tag);
+  }
+
+  return rendered;
+}
+
 function resolveTheme(theme?: EmailTheme, rootData?: Record<string, unknown>) {
   const rd = (rootData || {}) as Record<string, string>;
   const t = theme || DEFAULT_EMAIL_THEME;
@@ -1705,7 +1732,7 @@ function buildV3CustomContentBody(text: string, ctx: V3BodyContext): string {
   }
 
   const sublines = textParas
-    .map(p => v3Subline(htmlEscape(p).replace(/\n/g, '<br>')))
+    .map(p => v3Subline(p.replace(/\n/g, '<br>')))
     .join('');
 
   const buttonSections = urlBlocks
@@ -2092,8 +2119,7 @@ export class EmailTemplateService {
 
   // Convert plain text to simple HTML for email body (with theme support)
   private textToSimpleHtmlWithTheme(text: string, theme: EmailTheme): string {
-    const escapedText = htmlEscape(text);
-    const paragraphs = escapedText.split('\n\n').filter(p => p.trim());
+    const paragraphs = text.split('\n\n').filter(p => p.trim());
     
     let html = `<div style="padding: 16px 24px; font-family: ${theme.fontFamily};">`;
     for (const para of paragraphs) {
@@ -2240,7 +2266,7 @@ export class EmailTemplateService {
         // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
         // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
         // The outer v3Shell (logo, branding, footer) is always applied.
-        const renderedText = substituteVariables(template.textContent, allVariables, false);
+        const renderedText = renderSafeCustomMarkup(template.textContent, allVariables);
         bodyHtml = buildV3CustomContentBody(renderedText, ctx);
       } else {
         bodyHtml = v3Builder(mergedVariables, ctx);
@@ -2263,7 +2289,7 @@ export class EmailTemplateService {
 
     let bodyHtml: string;
     if (!template.isDefault && template.textContent) {
-      const renderedText = substituteVariables(template.textContent, allVariables, false);
+      const renderedText = renderSafeCustomMarkup(template.textContent, allVariables);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.htmlContent) {
       bodyHtml = substituteVariables(template.htmlContent, allVariables, true);

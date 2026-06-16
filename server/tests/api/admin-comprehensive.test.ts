@@ -360,7 +360,7 @@ describe('Admin API - Comprehensive Functional Tests', () => {
       expect(res.body.length).toBeGreaterThan(0);
     });
 
-    const templateTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+    const templateTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report', 'welcome', 'poll_finalized'];
 
     for (const type of templateTypes) {
       it(`should get template ${type}`, async () => {

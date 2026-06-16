@@ -839,7 +839,11 @@
         "password_changed": "Password Changed",
         "password_changed_desc": "Notification about password change",
         "test_report": "Test Report",
-        "test_report_desc": "Automatic test report via email"
+        "test_report_desc": "Automatic test report via email",
+        "welcome": "Welcome Email",
+        "welcome_desc": "Confirmation with email verification link",
+        "poll_finalized": "Poll Finalized",
+        "poll_finalized_desc": "Notification after a poll is completed or finalized"
       },
       "toasts": {
         "previewError": "Preview could not be loaded",

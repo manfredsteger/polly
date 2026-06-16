@@ -12,12 +12,13 @@ import { apiRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
 import { imageService } from "../services/imageService";
 import type { User } from "@shared/schema";
-import { apiRateLimitsSettingsSchema } from "@shared/schema";
+import { apiRateLimitsSettingsSchema, EMAIL_TEMPLATE_TYPES } from "@shared/schema";
 import { db } from "../db";
 import { testRuns } from "@shared/schema";
 import { eq, or, and, desc } from "drizzle-orm";
 
 const router = Router();
+const validEmailTemplateTypes = new Set<string>(EMAIL_TEMPLATE_TYPES);
 
 // ============== ADMIN STATS ==============
 
@@ -1604,9 +1605,8 @@ router.get('/email-templates', requireAdmin, async (req, res) => {
 router.get('/email-templates/:type', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1622,9 +1622,8 @@ router.put('/email-templates/:type', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
     const { jsonContent, subject, name, textContent } = req.body;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1652,9 +1651,8 @@ router.put('/email-templates/:type', requireAdmin, async (req, res) => {
 router.post('/email-templates/:type/reset', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1669,9 +1667,8 @@ router.post('/email-templates/:type/reset', requireAdmin, async (req, res) => {
 router.post('/email-templates/:type/preview', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1723,6 +1720,26 @@ router.post('/email-templates/:type/preview', requireAdmin, async (req, res) => 
         duration: '45 Sekunden',
         startedAt: '23.12.2025, 14:30 Uhr',
       },
+      welcome: {
+        userName: 'Anna Schmidt',
+        userEmail: 'anna.schmidt@example.com',
+        verificationLink: 'https://example.com/email-bestaetigen/abc123xyz',
+      },
+      poll_finalized: {
+        pollTitle: 'Teammeeting Q1 2025',
+        pollType: 'survey',
+        statusLabel: 'Umfrage abgeschlossen',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        pollLink: 'https://example.com/poll/abc123',
+        buttonLink: 'https://example.com/poll/abc123#results',
+        buttonLabel: 'Ergebnisse anzeigen →',
+        resultsPublic: 'true',
+        finalOptionText: 'Catering mit vegetarischen Optionen',
+        slotSummaryHtml: '',
+      },
     };
     
     const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
@@ -1737,9 +1754,8 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
     const { recipientEmail } = req.body;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1792,6 +1808,26 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
         duration: '5 Sekunden',
         startedAt: new Date().toLocaleString('de-DE'),
       },
+      welcome: {
+        userName: 'Test Nutzer',
+        userEmail: recipientEmail,
+        verificationLink: 'https://example.com/email-bestaetigen/test',
+      },
+      poll_finalized: {
+        pollTitle: 'Test-Umfrage',
+        pollType: 'survey',
+        statusLabel: 'Umfrage abgeschlossen',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        pollLink: 'https://example.com/poll/test',
+        buttonLink: 'https://example.com/poll/test#results',
+        buttonLabel: 'Ergebnisse anzeigen →',
+        resultsPublic: 'true',
+        finalOptionText: 'Beispiel-Antwort',
+        slotSummaryHtml: '',
+      },
     };
     
     const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
@@ -1807,9 +1843,8 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
 router.get('/email-templates/:type/variables', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     

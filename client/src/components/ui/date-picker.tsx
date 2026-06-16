@@ -43,6 +43,18 @@ export function DatePicker({
 
   const locale = i18n.language === 'de' ? de : enUS
   const displayPlaceholder = placeholder ?? t('ui.datePicker.placeholder')
+  const calendarClassNames = {
+    cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+    day_today: "border border-primary/40 bg-background text-foreground rounded-full",
+  }
+  const calendarModifiersStyles = {
+    selected: {
+      backgroundColor: 'hsl(var(--primary))',
+      color: 'white',
+      borderRadius: '50%',
+      fontWeight: 'bold',
+    },
+  }
 
   const handleSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
@@ -110,6 +122,8 @@ export function DatePicker({
               initialFocus
               locale={locale}
               weekStartsOn={1}
+              classNames={calendarClassNames}
+              modifiersStyles={calendarModifiersStyles}
             />
           </div>
         )}
@@ -148,6 +162,8 @@ export function DatePicker({
             initialFocus
             locale={locale}
             weekStartsOn={1}
+            classNames={calendarClassNames}
+            modifiersStyles={calendarModifiersStyles}
           />
         </PopoverContent>
       </Popover>

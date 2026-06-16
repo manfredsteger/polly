@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { de, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
@@ -450,8 +452,9 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
 export default function CreateOrganization() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAuthenticated } = useAuth();
+  const dateLocale = i18n.language === "de" ? de : enUS;
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -491,7 +494,7 @@ export default function CreateOrganization() {
   }>>((groups, slot, index) => {
     if (!slot.date) {
       groups.push({
-        key: `undated-${slot.id}`,
+        key: `group-${slot.id}`,
         date: undefined,
         slots: [{ slot, index }],
       });
@@ -503,7 +506,7 @@ export default function CreateOrganization() {
       existingGroup.slots.push({ slot, index });
     } else {
       groups.push({
-        key: slot.date,
+        key: `group-${slot.id}`,
         date: slot.date,
         slots: [{ slot, index }],
       });
@@ -1614,7 +1617,7 @@ export default function CreateOrganization() {
                           open={templateDialogGroupKey === group.key}
                           onOpenChange={(open) => setTemplateDialogGroupKey(open ? group.key : null)}
                         >
-                          <DialogContent className="sm:max-w-3xl">
+                          <DialogContent className="grid max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
                             <DialogHeader>
                               <DialogTitle className="flex items-center gap-2">
                                 <Sparkles className="w-5 h-5 text-amber-500" />
@@ -1625,7 +1628,57 @@ export default function CreateOrganization() {
                               </DialogDescription>
                             </DialogHeader>
 
-                            <div className="space-y-5">
+                            <div className="min-h-0 space-y-5 overflow-y-auto pr-1">
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">{t('createOrganization.date')}</Label>
+                                <Calendar
+                                  mode="single"
+                                  selected={undefined}
+                                  onSelect={(date) => {
+                                    const dateStr = date
+                                      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+                                      : undefined;
+                                    updateSlots(groupIndexes, { date: dateStr });
+                                  }}
+                                  disabled={(date) => {
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0);
+                                    return date < today;
+                                  }}
+                                  modifiers={{
+                                    selected: (date) => (
+                                      !!dateValue &&
+                                      date.toDateString() === dateValue.toDateString()
+                                    ),
+                                  }}
+                                  modifiersStyles={{
+                                    selected: {
+                                      backgroundColor: 'hsl(var(--primary))',
+                                      color: 'white',
+                                      borderRadius: '50%',
+                                      fontWeight: 'bold',
+                                    },
+                                  }}
+                                  locale={dateLocale}
+                                  weekStartsOn={1}
+                                  classNames={{
+                                    cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+                                    day_today: "border border-primary/40 bg-background text-foreground rounded-full",
+                                  }}
+                                  className="mx-auto w-fit rounded-md border sm:mx-0"
+                                  data-testid={`input-template-date-${group.key}`}
+                                />
+                                {groupDate && (
+                                  <p className="text-sm font-medium text-primary">
+                                    {t('createOrganization.date')}:{" "}
+                                    {new Date(groupDate).toLocaleDateString(
+                                      i18n.language === "de" ? "de-DE" : "en-US",
+                                      { weekday: "short", day: "numeric", month: "short", year: "numeric" }
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+
                               <div>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                   {orgaTemplateDefinitions.map((template) => {
@@ -1716,7 +1769,7 @@ export default function CreateOrganization() {
                               )}
                             </div>
 
-                            <DialogFooter>
+                            <DialogFooter className="border-t bg-background pt-4">
                               <Button
                                 type="button"
                                 variant="outline"

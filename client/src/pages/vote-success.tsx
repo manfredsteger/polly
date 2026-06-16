@@ -97,10 +97,13 @@ export default function VoteSuccess() {
           </Card>
         )}
 
-        <Card className="mt-8 border-dashed border-slate-300/90 bg-white/80 shadow-sm">
+        <Card className="mt-8 border border-blue-500/40 bg-gradient-to-br from-blue-950/80 via-slate-900/95 to-slate-950 text-white shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
           <CardHeader className="pb-4">
-            <CardTitle className="text-2xl">{t('voteSuccess.inviteTitle')}</CardTitle>
-            <CardDescription className="text-base">
+            <CardTitle className="flex items-center gap-2 text-2xl text-blue-200">
+              <Link2 className="h-5 w-5 text-blue-300" />
+              {t('voteSuccess.inviteTitle')}
+            </CardTitle>
+            <CardDescription className="text-base text-blue-100/75">
               {t('voteSuccess.inviteDescription')}
             </CardDescription>
           </CardHeader>
@@ -109,10 +112,10 @@ export default function VoteSuccess() {
               <Input
                 value={publicLink}
                 readOnly
-                className="h-14 rounded-2xl border-slate-200 bg-white text-lg font-medium text-slate-500"
+                className="h-14 rounded-2xl border border-blue-400/20 bg-white/10 text-lg font-medium text-blue-50 placeholder:text-blue-100/40"
               />
               <Button
-                className="h-12 rounded-xl px-6 text-base font-medium whitespace-nowrap bg-slate-900 text-white hover:bg-slate-800"
+                className="h-12 rounded-xl border border-blue-300/20 bg-blue-500 px-6 text-base font-medium whitespace-nowrap text-white shadow-sm hover:bg-blue-400"
                 onClick={() => copyToClipboard(publicLink, t('voteSuccess.toasts.linkCopied'))}
               >
                 <Copy className="w-4 h-4 mr-2" />
@@ -123,25 +126,26 @@ export default function VoteSuccess() {
               <div className="space-y-2">
                 <Button
                   variant="ghost"
-                  className="px-0 text-sm text-muted-foreground hover:text-foreground"
+                  className="px-0 text-sm text-blue-100/70 hover:bg-transparent hover:text-blue-50"
                   onClick={() => setShowLinks((prev) => !prev)}
                 >
                   {showLinks ? t('voteSuccess.hideLinks') : t('voteSuccess.showLinks')}
                 </Button>
                 {showLinks && (
-                  <div className="rounded-xl border bg-muted/30 p-4">
-                    <label className="text-sm font-medium text-muted-foreground">
+                  <div className="rounded-xl border border-blue-400/20 bg-black/15 p-4">
+                    <label className="text-sm font-medium text-blue-100/70">
                       {t('voteSuccess.editVoteLink')}
                     </label>
                     <div className="mt-2 flex items-center space-x-2">
                       <Input
                         value={editLink}
                         readOnly
-                        className="font-mono text-sm"
+                        className="border border-blue-400/20 bg-white/10 font-mono text-sm text-blue-50"
                       />
                       <Button
                         variant="outline"
                         size="sm"
+                        className="border-blue-300/20 bg-white/5 text-blue-50 hover:bg-white/10 hover:text-blue-50"
                         onClick={() => copyToClipboard(editLink, t('voteSuccess.toasts.editLinkCopied'))}
                       >
                         <Copy className="w-4 h-4" />
@@ -165,7 +169,7 @@ export default function VoteSuccess() {
           <Button
             onClick={() => window.open(publicLink, '_blank')}
             variant="outline"
-            className="flex items-center justify-center whitespace-nowrap"
+            className="flex items-center justify-center whitespace-nowrap border-slate-300 bg-white/90 text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
           >
             <ExternalLink className="w-4 h-4 mr-2 shrink-0" />
             {t('voteSuccess.goToPoll')}

@@ -3,7 +3,7 @@ import { useRoute, Link } from 'wouter';
 import { useTranslation, Trans } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Copy, Mail, Calendar, Vote, ExternalLink, CheckCircle } from 'lucide-react';
+import { Copy, Mail, Calendar, Vote, ExternalLink, CheckCircle, Plus, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -277,7 +277,11 @@ export default function PollSuccess() {
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mt-8 justify-center">
           <Link href="/">
-            <Button variant="outline" className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto border-slate-300 bg-white/90 text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
               {t('pollSuccess.createNewPoll')}
             </Button>
           </Link>
@@ -285,6 +289,7 @@ export default function PollSuccess() {
             onClick={() => window.open(fullPublicLink, '_blank')}
             className="w-full sm:w-auto polly-button-primary"
           >
+            <ArrowRight className="w-4 h-4 mr-2" />
             {t('pollSuccess.goToVoting')}
           </Button>
         </div>

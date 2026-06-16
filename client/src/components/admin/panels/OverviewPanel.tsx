@@ -131,37 +131,37 @@ export function OverviewPanel({
       {/* Row 2: Poll creation cadence */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card
-          className="p-4 bg-orange-100/80 border-orange-400 cursor-pointer hover:shadow-md transition-shadow"
+          className="p-4 cursor-pointer border-amber-200 bg-gradient-to-r from-amber-500 to-orange-400 hover:shadow-md dark:border-amber-700/45 dark:from-amber-500 dark:to-orange-400 transition-shadow"
           onClick={() => onStatCardClick("polls")}
           data-testid="stat-monthly"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-foreground">{t('admin.overview.pollsCreated')}</p>
-              <p className="text-xs text-muted-foreground">{t('admin.overview.last30Days')}</p>
-              <p className="text-xl font-bold">{displayStats.monthlyPolls}</p>
+              <p className="text-sm text-white/80">{t('admin.overview.pollsCreated')}</p>
+              <p className="text-xs text-white/60">{t('admin.overview.last30Days')}</p>
+              <p className="text-xl font-bold text-white">{displayStats.monthlyPolls}</p>
             </div>
-            <TrendingUp className="w-6 h-6 text-orange-500" />
+            <TrendingUp className="w-6 h-6 text-amber-200" />
           </div>
         </Card>
-        <Card className="p-4 bg-blue-100/80 border-blue-300" data-testid="stat-weekly">
+        <Card className="p-4 cursor-pointer border-blue-200 bg-gradient-to-r from-sky-500 to-blue-500 hover:shadow-md dark:border-blue-700/45 dark:from-sky-500 dark:to-blue-500 transition-shadow" data-testid="stat-weekly">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-foreground">{t('admin.overview.pollsCreated')}</p>
-              <p className="text-xs text-muted-foreground">{t('admin.overview.last7Days')}</p>
-              <p className="text-xl font-bold">{displayStats.weeklyPolls}</p>
+              <p className="text-sm text-white/80">{t('admin.overview.pollsCreated')}</p>
+              <p className="text-xs text-white/60">{t('admin.overview.last7Days')}</p>
+              <p className="text-xl font-bold text-white">{displayStats.weeklyPolls}</p>
             </div>
-            <Clock className="w-6 h-6 text-blue-600" />
+            <Clock className="w-6 h-6 text-sky-200" />
           </div>
         </Card>
-        <Card className="p-4 bg-green-100/80 border-green-300" data-testid="stat-today">
+        <Card className="p-4 cursor-pointer border-emerald-200 bg-gradient-to-r from-emerald-500 to-green-400 hover:shadow-md dark:border-emerald-700/45 dark:from-emerald-500 dark:to-green-400 transition-shadow" data-testid="stat-today">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-foreground">{t('admin.overview.pollsCreated')}</p>
-              <p className="text-xs text-muted-foreground">{t('admin.overview.last24Hours')}</p>
-              <p className="text-xl font-bold">{displayStats.todayPolls}</p>
+              <p className="text-sm text-white/80">{t('admin.overview.pollsCreated')}</p>
+              <p className="text-xs text-white/60">{t('admin.overview.last24Hours')}</p>
+              <p className="text-xl font-bold text-white">{displayStats.todayPolls}</p>
             </div>
-            <Activity className="w-6 h-6 text-green-500" />
+            <Activity className="w-6 h-6 text-emerald-200" />
           </div>
         </Card>
       </div>
@@ -169,42 +169,48 @@ export function OverviewPanel({
       {/* Row 3: Poll types - Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card 
-          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => onStatCardClick("polls", { pollType: "schedule" })}
+        className="p-4 cursor-pointer border-emerald-200 bg-gradient-to-r from-emerald-700 to-green-700 hover:shadow-md dark:border-emerald-700/55 dark:from-emerald-900 dark:to-green-900 transition-shadow"
+             onClick={() => onStatCardClick("polls", { pollType: "schedule" })}
           data-testid="stat-schedule-polls"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">{t('admin.overview.schedulePolls')}</p>
-              <p className="text-xl font-bold">{displayStats.schedulePolls}</p>
+              <p className="text-sm text-white/80">{t('admin.overview.schedulePolls')}</p>
+              <p className="text-2xl font-bold text-white">{displayStats.schedulePolls}</p>
             </div>
-            <CalendarIcon className="w-6 h-6 text-polly-orange" />
+            <div className="flex h-11 w-11 items-center justify-center">
+              <CalendarIcon className="w-6 h-6 text-emerald-200" />
+            </div>
           </div>
         </Card>
-        <Card 
-          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => onStatCardClick("polls", { pollType: "survey" })}
+        <Card
+        className="p-4 cursor-pointer border-violet-200 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:shadow-md dark:border-violet-700/55 dark:from-violet-600 dark:to-fuchsia-600 transition-shadow"
+              onClick={() => onStatCardClick("polls", { pollType: "survey" })}
           data-testid="stat-survey-polls"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">{t('admin.overview.classicPolls')}</p>
-              <p className="text-xl font-bold">{displayStats.surveyPolls}</p>
+              <p className="text-sm text-white/80">{t('admin.overview.classicPolls')}</p>
+              <p className="text-2xl font-bold text-white">{displayStats.surveyPolls}</p>
             </div>
-            <FileText className="w-6 h-6 text-polly-blue" />
+            <div className="flex h-11 w-11 items-center justify-center">
+              <FileText className="w-6 h-6 text-violet-200" />
+            </div>
           </div>
         </Card>
         <Card
-          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => onStatCardClick("polls", { pollType: "organization" })}
+           className="p-4 cursor-pointer border-sky-200 bg-gradient-to-r from-sky-600 to-indigo-600 hover:shadow-md dark:border-sky-700/55 dark:from-sky-600 dark:to-indigo-600 transition-shadow"
+        onClick={() => onStatCardClick("polls", { pollType: "organization" })}
           data-testid="stat-organization-polls"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">{t('admin.overview.orgLists')}</p>
-              <p className="text-xl font-bold">{displayStats.organizationPolls}</p>
+              <p className="text-sm text-white/80">{t('admin.overview.orgLists')}</p>
+              <p className="text-2xl font-bold text-white">{displayStats.organizationPolls}</p>
             </div>
-            <ListChecks className="w-6 h-6 text-green-600" />
+            <div className="flex h-11 w-11 items-center justify-center">
+              <ListChecks className="w-6 h-6 text-sky-200" />
+            </div>
           </div>
         </Card>
       </div>

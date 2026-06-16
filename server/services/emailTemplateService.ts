@@ -1687,6 +1687,45 @@ function buildV3GenericBody(bodyHtml: string, fontFamily: string): string {
     ${v3BodyEnd()}`;
 }
 
+function buildV3CustomContentBody(text: string, ctx: V3BodyContext): string {
+  const paragraphs = text.split('\n\n').filter(p => p.trim());
+
+  const textParas: string[] = [];
+  const urlBlocks: Array<{ before: string; url: string }> = [];
+
+  for (const para of paragraphs) {
+    const m = para.match(/(https?:\/\/[^\s]+)/);
+    if (m) {
+      const url = m[1];
+      const before = para.substring(0, m.index).trim().replace(/:$/, '').trim();
+      urlBlocks.push({ before, url });
+    } else {
+      textParas.push(para);
+    }
+  }
+
+  const sublines = textParas
+    .map(p => v3Subline(htmlEscape(p).replace(/\n/g, '<br>')))
+    .join('');
+
+  const buttonSections = urlBlocks
+    .map(({ before, url }) =>
+      `${v3Divider()}${v3SingleButtonSection(
+        before ? htmlEscape(before) : htmlEscape(url),
+        'Link \u00f6ffnen \u2192',
+        url,
+        'primary',
+        ctx.primaryColor,
+        ctx.secondaryColor,
+      )}`
+    )
+    .join('');
+
+  return `${v3BodyStart()}
+      ${sublines}
+    ${v3BodyEnd()}${buttonSections}`;
+}
+
 const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>, ctx: V3BodyContext) => string> = {
   poll_created: buildV3PollCreatedBody,
   invitation: buildV3InvitationBody,
@@ -2171,7 +2210,7 @@ export class EmailTemplateService {
 
     const v3Builder = V3_BODY_BUILDERS[type];
     const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!v3Builder && !!template.textContent;
-    if ((template.isDefault && v3Builder) || shouldUsePollCreatedV3) {
+    if (v3Builder) {
       const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
       const ctx: V3BodyContext = {
         primaryColor: v3Data.primaryColor,
@@ -2179,6 +2218,7 @@ export class EmailTemplateService {
         fontFamily: v3Data.fontFamily,
       };
       let mergedVariables = { ...allVariables };
+      let bodyHtml: string;
       if (shouldUsePollCreatedV3 && template.textContent) {
         // Parse the custom template text into structured overrides for the V3 sections.
         // The greeting + subline become the intro paragraph (replacing the default tag+headline).
@@ -2195,8 +2235,16 @@ export class EmailTemplateService {
             .map(([key, value]) => [`pollCreatedOverride_${key}`, value as string])
         );
         mergedVariables = { ...allVariables, ...overrideVars, pollCreatedCustomIntro: customIntroText };
+        bodyHtml = v3Builder(mergedVariables, ctx);
+      } else if (!template.isDefault && template.textContent) {
+        // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
+        // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
+        // The outer v3Shell (logo, branding, footer) is always applied.
+        const renderedText = substituteVariables(template.textContent, allVariables, false);
+        bodyHtml = buildV3CustomContentBody(renderedText, ctx);
+      } else {
+        bodyHtml = v3Builder(mergedVariables, ctx);
       }
-      const bodyHtml = v3Builder(mergedVariables, ctx);
       const html = v3Shell(v3Data, bodyHtml);
       let textBase = template.textContent || '';
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {

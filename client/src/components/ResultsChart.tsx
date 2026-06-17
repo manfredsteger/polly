@@ -615,7 +615,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 type="button"
                 variant="outline"
                 onClick={openAndScrollToDetailedResults}
-                className="w-full md:w-auto md:min-w-[220px] h-12 text-base justify-between border-slate-300 text-slate-700 hover:bg-slate-50"
+                className="w-full md:w-auto md:min-w-[220px] h-12 text-base justify-between border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-800/60"
               >
                 {t('results.seeDetailedResultsTip')}
                 <ChevronRight className="w-5 h-5 ml-3" />
@@ -761,7 +761,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                         <td key={option.id} className="text-center py-3 px-3">
                           <div className="flex items-center justify-center">
                             <Badge className={yesCount === participantCount ? "bg-green-600 text-white" : "bg-slate-200 text-slate-700"}>
-                              {yesCount}/{participantCount} voted
+                              {yesCount}/{participantCount} {t('results.votedLabel')}
                             </Badge>
                           </div>
                         </td>
@@ -1136,7 +1136,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 size="icon"
                 className="h-8 w-8 rounded-sm bg-sky-100/60 text-slate-600 hover:bg-sky-100 hover:text-slate-800 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-700/70 dark:hover:text-slate-100"
                 onClick={() => setIsDetailedResultsOpen((prev) => !prev)}
-                aria-label={isDetailedResultsOpen ? "Collapse detailed results" : "Expand detailed results"}
+                aria-label={isDetailedResultsOpen ? t('results.collapseDetailedResults') : t('results.expandDetailedResults')}
               >
                 <ChevronDown className={`h-8 w-8 transition-transform ${isDetailedResultsOpen ? "rotate-180" : ""}`} />
               </Button>

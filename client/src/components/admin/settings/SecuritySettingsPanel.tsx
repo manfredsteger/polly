@@ -792,7 +792,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
           <div className="flex space-x-1 bg-muted p-1 rounded-lg">
             <button
               onClick={() => setUserTypeTab('guest')}
-              className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${userTypeTab === 'guest' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2.5 rounded-md border text-sm font-medium transition-all ${userTypeTab === 'guest' ? 'border-border bg-background shadow-sm text-foreground dark:bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
               data-testid="tab-guest-users"
             >
               <UserX className="w-4 h-4" />
@@ -801,7 +801,7 @@ export function SecuritySettingsPanel({ onBack }: { onBack: () => void }) {
             </button>
             <button
               onClick={() => setUserTypeTab('kitahub')}
-              className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${userTypeTab === 'kitahub' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2.5 rounded-md border text-sm font-medium transition-all ${userTypeTab === 'kitahub' ? 'border-border bg-background shadow-sm text-foreground dark:bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
               data-testid="tab-kitahub-users"
             >
               <Building2 className="w-4 h-4" />

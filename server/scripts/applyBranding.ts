@@ -69,6 +69,51 @@ export interface BrandingConfig {
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const LOCAL_CONFIG_PATH = path.join(PROJECT_ROOT, 'branding.local.json');
 const DEFAULT_CONFIG_PATH = path.join(PROJECT_ROOT, 'branding.default.json');
+const FALLBACK_DEFAULT_CONFIG: BrandingConfig = {
+  theme: {
+    primaryColor: '#7A3800',
+    secondaryColor: '#FDE4D2',
+    scheduleColor: '#7A3800',
+    surveyColor: '#166534',
+    organizationColor: '#075985',
+  },
+  branding: {
+    siteName: 'Poll',
+    siteNameAccent: 'y',
+    logoUrl: null,
+    faviconUrl: null,
+  },
+  footer: {
+    description: '',
+    copyrightText: '',
+    supportLinks: [],
+  },
+  wcag: {
+    enforcementEnabled: false,
+    enforceDefaultTheme: true,
+  },
+};
+
+function normalizeBrandingConfig(config: BrandingConfig): BrandingConfig {
+  const footer = config.footer
+    ? {
+        ...config.footer,
+        supportLinks: config.footer.supportLinks || config.footer.links || [],
+      }
+    : undefined;
+
+  return {
+    ...config,
+    branding: config.branding
+      ? {
+          ...config.branding,
+          faviconUrl: config.branding.faviconUrl ?? null,
+          logoUrl: config.branding.logoUrl ?? null,
+        }
+      : undefined,
+    footer,
+  };
+}
 
 /**
  * Check if branding.local.json exists
@@ -84,12 +129,13 @@ export function loadDefaultBrandingConfig(): BrandingConfig {
   if (fs.existsSync(DEFAULT_CONFIG_PATH)) {
     try {
       const content = fs.readFileSync(DEFAULT_CONFIG_PATH, 'utf-8');
-      return JSON.parse(content) as BrandingConfig;
+      return normalizeBrandingConfig(JSON.parse(content) as BrandingConfig);
     } catch (error) {
       console.error('[Branding] Error parsing branding.default.json:', error);
     }
   }
-  return {};
+  console.warn('[Branding] branding.default.json missing, using built-in defaults');
+  return FALLBACK_DEFAULT_CONFIG;
 }
 
 /**
@@ -99,7 +145,7 @@ export function loadLocalBrandingConfig(): BrandingConfig | null {
   if (fs.existsSync(LOCAL_CONFIG_PATH)) {
     try {
       const content = fs.readFileSync(LOCAL_CONFIG_PATH, 'utf-8');
-      return JSON.parse(content) as BrandingConfig;
+      return normalizeBrandingConfig(JSON.parse(content) as BrandingConfig);
     } catch (error) {
       console.error('[Branding] Error parsing branding.local.json:', error);
     }

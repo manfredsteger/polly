@@ -127,6 +127,9 @@ COPY migrations ./migrations
 # Copy built frontend
 COPY --from=builder /app/dist/public ./server/public
 
+# Copy runtime branding defaults used by admin reset/bootstrap flows
+COPY branding.default.json ./
+
 # Copy entrypoint script
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh

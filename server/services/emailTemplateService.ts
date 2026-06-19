@@ -568,6 +568,38 @@ function buildVoteConfirmationTemplate(): TemplateDefinition {
   };
 }
 
+function buildVoteUpdatedTemplate(): TemplateDefinition {
+  const linkBox = container('update-link-box', '#e8f4f8', '#1e3a4a', [
+    txt('ulb-t', 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.'),
+    btn('ulb-btn1', 'Ergebnisse anzeigen', 'resultsLink', 'secondary'),
+  ], 'secondary');
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('uh1', 'Ihre Abstimmung wurde aktualisiert', 'h1'),
+    txt('ut1', 'Hallo {{voterName}},'),
+    txt('ut2', 'Ihre Auswahl für die {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich aktualisiert.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    divider('ud1'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = linkBox.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(linkBox.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  return {
+    name: 'Abstimmung aktualisiert',
+    subject: '[{{siteName}}] Abstimmung aktualisiert - {{pollTitle}}',
+    jsonContent: tpl(allBlocks, topIds),
+    textContent: 'Ihre Abstimmung wurde aktualisiert\n\nHallo {{voterName}},\n\nIhre Auswahl für die {{pollType}} "{{pollTitle}}" wurde erfolgreich aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}',
+  };
+}
+
 // ---- password_reset with container ----
 function buildPasswordResetTemplate(): TemplateDefinition {
   const actionBox = container('action-box', '#f8f9fa', '#2a2a3e', [
@@ -641,6 +673,8 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
   invitation: buildInvitationTemplate(),
 
   vote_confirmation: buildVoteConfirmationTemplate(),
+
+  vote_updated: buildVoteUpdatedTemplate(),
 
   reminder: buildReminderTemplate(),
 
@@ -1029,6 +1063,15 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       siteName,
     },
     vote_confirmation: {
+      voterName: 'Anna Schmidt',
+      pollType: 'Terminumfrage',
+      pollTitle: 'Teammeeting Q1 2025',
+      publicLink: 'https://polly.example.com/poll/abc123',
+      resultsLink: 'https://polly.example.com/poll/abc123/results',
+      editLink: 'https://polly.example.com/edit/token123',
+      siteName,
+    },
+    vote_updated: {
       voterName: 'Anna Schmidt',
       pollType: 'Terminumfrage',
       pollTitle: 'Teammeeting Q1 2025',
@@ -1581,6 +1624,37 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
     ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}${editSection}`;
 }
 
+function buildV3VoteUpdatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const voterName = htmlEscape(vars.voterName || '');
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const pollType = vars.pollType || 'Umfrage';
+  const resultsLink = vars.resultsLink || '#';
+  const editLink = vars.editLink || '';
+  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
+  const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
+
+  const optionsBlock = selectedOptionsHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre aktuelle Auswahl</p>
+      ${selectedOptionsHtml}
+    </td></tr>`
+    : '';
+
+  const editSection = editLink
+    ? `${v3Divider()}
+    ${v3SingleButtonSection('Wenn Sie Ihre Auswahl erneut ändern möchten, können Sie dafür diesen Link verwenden.', 'Stimme weiter bearbeiten →', editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
+    : '';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Aktualisiert', ctx.primaryColor)}
+      ${v3SimpleHeadline('Ihre Abstimmung wurde aktualisiert', ctx.fontFamily)}
+      ${v3Subline(`${greeting} — Ihre Auswahl für die ${htmlEscape(pollType)} „${pollTitle}“ wurde erfolgreich aktualisiert.`)}
+    ${v3BodyEnd()}
+    ${optionsBlock}
+    ${v3Divider()}
+    ${v3SingleButtonSection('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen →', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}${editSection}`;
+}
+
 function buildV3PasswordResetBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
   const userName = htmlEscape(vars.userName || '');
   const resetLink = vars.resetLink || '#';
@@ -1765,6 +1839,7 @@ const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>
   invitation: buildV3InvitationBody,
   reminder: buildV3ReminderBody,
   vote_confirmation: buildV3VoteConfirmationBody,
+  vote_updated: buildV3VoteUpdatedBody,
   password_reset: buildV3PasswordResetBody,
   email_change: buildV3EmailChangeBody,
   password_changed: buildV3PasswordChangedBody,
@@ -1781,7 +1856,7 @@ export class EmailTemplateService {
     };
   }
 
-  private appendVoteConfirmationEditLink(
+  private appendVoteEditLink(
     text: string,
     variables: Record<string, string | undefined>
   ): string {
@@ -1808,7 +1883,7 @@ export class EmailTemplateService {
       .filter(Boolean);
   }
 
-  private appendVoteConfirmationSelectedOptions(
+  private appendVoteSelectedOptions(
     text: string,
     variables: Record<string, string | undefined>
   ): string {
@@ -1822,12 +1897,12 @@ export class EmailTemplateService {
     return text.trimEnd() + `\n\n${optionsSection}`;
   }
 
-  private enhanceVoteConfirmationTemplateText(
+  private enhanceVoteTemplateText(
     text: string,
     variables: Record<string, string | undefined>
   ): string {
-    let enhanced = this.appendVoteConfirmationSelectedOptions(text, variables);
-    enhanced = this.appendVoteConfirmationEditLink(enhanced, variables);
+    let enhanced = this.appendVoteSelectedOptions(text, variables);
+    enhanced = this.appendVoteEditLink(enhanced, variables);
     return enhanced;
   }
 
@@ -2334,8 +2409,8 @@ export class EmailTemplateService {
         // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
         // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
         // The outer v3Shell (logo, branding, footer) is always applied.
-        const customTemplateText = type === 'vote_confirmation'
-          ? this.enhanceVoteConfirmationTemplateText(template.textContent, allVariables)
+        const customTemplateText = type === 'vote_confirmation' || type === 'vote_updated'
+          ? this.enhanceVoteTemplateText(template.textContent, allVariables)
           : template.textContent;
         const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
         bodyHtml = buildV3CustomContentBody(renderedText, ctx);
@@ -2344,8 +2419,8 @@ export class EmailTemplateService {
       }
       const html = v3Shell(v3Data, bodyHtml);
       let textBase = template.textContent || '';
-      if (type === 'vote_confirmation') {
-        textBase = this.enhanceVoteConfirmationTemplateText(textBase, allVariables);
+      if (type === 'vote_confirmation' || type === 'vote_updated') {
+        textBase = this.enhanceVoteTemplateText(textBase, allVariables);
       }
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
         textBase = textBase
@@ -2363,8 +2438,8 @@ export class EmailTemplateService {
 
     let bodyHtml: string;
     if (!template.isDefault && template.textContent) {
-      const customTemplateText = type === 'vote_confirmation'
-        ? this.enhanceVoteConfirmationTemplateText(template.textContent, allVariables)
+      const customTemplateText = type === 'vote_confirmation' || type === 'vote_updated'
+        ? this.enhanceVoteTemplateText(template.textContent, allVariables)
         : template.textContent;
       const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);

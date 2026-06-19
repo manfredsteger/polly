@@ -402,6 +402,7 @@ export const EMAIL_TEMPLATE_TYPES = [
   'poll_created',
   'invitation', 
   'vote_confirmation',
+  'vote_updated',
   'reminder',
   'password_reset',
   'email_change',
@@ -432,6 +433,15 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   vote_confirmation: [
+    { key: 'voterName', description: 'Name des Abstimmenden' },
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'pollType', description: 'Umfragetyp' },
+    { key: 'publicLink', description: 'Link zur Umfrage' },
+    { key: 'resultsLink', description: 'Link zu den Ergebnissen' },
+    { key: 'editLink', description: 'Link zum Bearbeiten der eigenen Stimme' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  vote_updated: [
     { key: 'voterName', description: 'Name des Abstimmenden' },
     { key: 'pollTitle', description: 'Titel der Umfrage' },
     { key: 'pollType', description: 'Umfragetyp' },

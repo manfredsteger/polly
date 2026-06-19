@@ -197,6 +197,15 @@ describe('EmailService Integration — Template System', () => {
       assertRequiredHeaders(lastMailOptions);
     });
 
+    it('sendVoteUpdatedEmail has all required headers', async () => {
+      await emailService.sendVoteUpdatedEmail(
+        'voter@test.com', 'Anna', 'Weihnachtsfeier', 'schedule',
+        'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results'
+      );
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+      assertRequiredHeaders(lastMailOptions);
+    });
+
     it('sendReminderEmail has all required headers', async () => {
       await emailService.sendReminderEmail(
         'user@test.com', 'Chef', 'Wichtige Umfrage',
@@ -344,6 +353,18 @@ describe('EmailService Integration — Template System', () => {
         'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results', undefined, 'https://polly.example.com/edit/token123'
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('vote_confirmation', expect.objectContaining({
+        voterName: 'Anna',
+        pollTitle: 'Weihnachtsfeier',
+        editLink: 'https://polly.example.com/edit/token123',
+      }));
+    });
+
+    it('sendVoteUpdatedEmail calls renderEmail with vote_updated', async () => {
+      await emailService.sendVoteUpdatedEmail(
+        'voter@test.com', 'Anna', 'Weihnachtsfeier', 'schedule',
+        'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results', undefined, 'https://polly.example.com/edit/token123'
+      );
+      expect(renderEmailSpy).toHaveBeenCalledWith('vote_updated', expect.objectContaining({
         voterName: 'Anna',
         pollTitle: 'Weihnachtsfeier',
         editLink: 'https://polly.example.com/edit/token123',

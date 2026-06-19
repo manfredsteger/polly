@@ -833,6 +833,8 @@
         "invitation_desc": "Einladung zur Teilnahme an einer Umfrage",
         "vote_confirmation": "Abstimmungsbestätigung",
         "vote_confirmation_desc": "Bestätigung nach erfolgreicher Abstimmung",
+        "vote_updated": "Abstimmung aktualisiert",
+        "vote_updated_desc": "Bestätigung nach Aktualisierung einer bestehenden Abstimmung",
         "reminder": "Erinnerung",
         "reminder_desc": "Erinnerung an ausstehende Abstimmung",
         "password_reset": "Passwort zurücksetzen",

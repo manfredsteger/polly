@@ -1695,6 +1695,14 @@ router.post('/email-templates/:type/preview', requireAdmin, async (req, res) => 
         resultsLink: 'https://example.com/poll/abc123/results',
         editLink: 'https://example.com/edit/vote-token-abc123',
       },
+      vote_updated: {
+        voterName: 'Anna Schmidt',
+        pollTitle: 'Sommerfeier Termin',
+        pollType: 'Terminumfrage',
+        publicLink: 'https://example.com/poll/abc123',
+        resultsLink: 'https://example.com/poll/abc123/results',
+        editLink: 'https://example.com/edit/vote-token-abc123',
+      },
       reminder: {
         senderName: 'Max Mustermann',
         pollTitle: 'Wichtige Abstimmung',
@@ -1778,6 +1786,14 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
         message: 'Dies ist eine Test-E-Mail.',
       },
       vote_confirmation: {
+        voterName: 'Test Nutzer',
+        pollTitle: 'Test-Umfrage',
+        pollType: 'Umfrage',
+        publicLink: 'https://example.com/poll/test',
+        resultsLink: 'https://example.com/poll/test/results',
+        editLink: 'https://example.com/edit/test-vote-token',
+      },
+      vote_updated: {
         voterName: 'Test Nutzer',
         pollTitle: 'Test-Umfrage',
         pollType: 'Umfrage',

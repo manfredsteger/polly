@@ -219,7 +219,7 @@ describe('Poll CRUD Routes', () => {
       const editToken = voteRes.body.voterEditToken;
       expect(editToken).toBeTruthy();
 
-      const emailSpy = vi.spyOn(emailService, 'sendVotingConfirmationEmail').mockResolvedValue(undefined);
+      const emailSpy = vi.spyOn(emailService, 'sendVoteUpdatedEmail').mockResolvedValue(undefined);
 
       const updateRes = await request(app)
         .put(`/api/v1/votes/edit/${editToken}`)

@@ -784,7 +784,7 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       const editLink = `${baseUrl}/edit/${editToken}`;
       const selectedOptions = getSelectedOptionTexts(poll, updatedResults);
 
-      emailService.sendVotingConfirmationEmail(
+      emailService.sendVoteUpdatedEmail(
         voterEmail,
         voterName,
         poll.title,

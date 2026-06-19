@@ -304,6 +304,53 @@ export class EmailService {
     }
   }
 
+  async sendVoteUpdatedEmail(
+    voterEmail: string,
+    voterName: string,
+    pollTitle: string,
+    pollType: 'schedule' | 'survey' | 'organization',
+    publicLink: string,
+    resultsLink: string,
+    selectedOptions?: string[],
+    editLink?: string
+  ): Promise<void> {
+    if (!voterEmail) return;
+
+    try {
+      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
+
+      const selectedOptionsHtml =
+        selectedOptions && selectedOptions.length > 0
+          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
+              .map(
+                opt =>
+                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
+              )
+              .join('')}</ul>`
+          : '';
+
+      const rendered = await this.renderTemplate('vote_updated', {
+        voterName,
+        pollTitle,
+        pollType: pollTypeText,
+        publicLink: validateEmailUrl(publicLink),
+        resultsLink: validateEmailUrl(resultsLink),
+        editLink: editLink ? validateEmailUrl(editLink) : undefined,
+        selectedOptionsHtml,
+      });
+
+      await this.sendMail({
+        to: voterEmail,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+      });
+    } catch (error) {
+      console.error('Failed to send vote updated email:', error);
+      throw error;
+    }
+  }
+
   async sendReminderEmail(
     recipientEmail: string,
     senderName: string,

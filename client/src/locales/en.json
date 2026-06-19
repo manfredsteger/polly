@@ -833,6 +833,8 @@
         "invitation_desc": "Invitation to participate in a poll",
         "vote_confirmation": "Vote Confirmation",
         "vote_confirmation_desc": "Confirmation after successful voting",
+        "vote_updated": "Vote Updated",
+        "vote_updated_desc": "Confirmation after updating an existing vote",
         "reminder": "Reminder",
         "reminder_desc": "Reminder for pending votes",
         "password_reset": "Password Reset",

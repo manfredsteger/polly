@@ -35,7 +35,7 @@ describe('EmailTemplateService', () => {
   let origTheme: any;
   let origEmailFooter: any;
   const modifiedTemplateTypes = [
-    'poll_created', 'invitation', 'vote_confirmation',
+    'poll_created', 'invitation', 'vote_confirmation', 'vote_updated',
     'reminder', 'password_reset',
   ] as const;
   const origTemplates: Record<string, any> = {};
@@ -104,17 +104,19 @@ describe('EmailTemplateService', () => {
     }
   });
   describe('Default Templates', () => {
-    it('should have all 9 template types defined', () => {
+    it('should have all email template types defined', () => {
       const expectedTypes = [
         'poll_created',
         'invitation',
         'vote_confirmation',
+        'vote_updated',
         'reminder',
         'password_reset',
         'email_change',
         'password_changed',
         'test_report',
-        'welcome'
+        'welcome',
+        'poll_finalized',
       ];
 
       for (const type of expectedTypes) {
@@ -547,6 +549,7 @@ describe('EmailTemplateService', () => {
           { type: 'invitation', vars: { pollTitle: 'T', inviterName: 'A', publicLink: 'https://a.com', message: '' } },
           { type: 'reminder', vars: { pollTitle: 'T', senderName: 'A', pollLink: 'https://a.com', expiresAt: '' } },
           { type: 'vote_confirmation', vars: { voterName: 'A', pollType: 'Umfrage', pollTitle: 'T', resultsLink: 'https://a.com' } },
+          { type: 'vote_updated', vars: { voterName: 'A', pollType: 'Umfrage', pollTitle: 'T', resultsLink: 'https://a.com' } },
           { type: 'welcome', vars: { userName: 'A', verificationLink: 'https://a.com' } },
         ];
 
@@ -2149,6 +2152,54 @@ describe('EmailTemplateService', () => {
       });
 
       expect(result.text.match(/Stimme bearbeiten:/g)?.length).toBe(1);
+    });
+
+    it('should auto-append editLink for custom vote updated templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_updated');
+      await service.saveTemplate(
+        'vote_updated',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Ihre Abstimmung wurde aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_updated', {
+        voterName: 'Robin',
+        pollTitle: 'Updated Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        editLink: 'https://example.com/edit/custom-token',
+      });
+
+      expect(result.html).toContain('https://example.com/edit/custom-token');
+      expect(result.text).toContain('Stimme bearbeiten: https://example.com/edit/custom-token');
+    });
+
+    it('should auto-append selected options for custom vote updated templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_updated');
+      await service.saveTemplate(
+        'vote_updated',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Ihre Abstimmung wurde aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_updated', {
+        voterName: 'Robin',
+        pollTitle: 'Updated Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        selectedOptionsHtml: '<ul><li>Option A</li><li>Option B</li></ul>',
+      });
+
+      expect(result.html).toContain('Ihre Auswahl');
+      expect(result.html).toContain('Option A');
+      expect(result.html).toContain('Option B');
+      expect(result.text).toContain('Ihre Auswahl:');
+      expect(result.text).toContain('- Option A');
+      expect(result.text).toContain('- Option B');
     });
 
     it('should XSS-escape option text passed via emailService selectedOptions', async () => {

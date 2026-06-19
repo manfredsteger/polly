@@ -58,6 +58,62 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { PollWithOptions } from "@shared/schema";
 
+type CreatorMeta = {
+  label: string | null;
+  name: string | null;
+  email: string | null;
+  badgeClassName: string | null;
+};
+
+function getCreatorMeta(poll: PollWithOptions, t: (key: string) => string): CreatorMeta {
+  if (poll.user) {
+    return {
+      label: null,
+      name: poll.user.name || poll.user.username || poll.user.email,
+      email: poll.user.email,
+      badgeClassName: null,
+    };
+  }
+
+  if (poll.creatorEmail) {
+    return {
+      label: t('admin.polls.guestCreator'),
+      name: null,
+      email: poll.creatorEmail,
+      badgeClassName: 'bg-amber-100 text-amber-900 border-amber-200',
+    };
+  }
+
+  return {
+    label: t('admin.polls.unknownCreator'),
+    name: t('admin.polls.anonymousCreator'),
+    email: null,
+    badgeClassName: 'bg-muted text-muted-foreground border-border',
+  };
+}
+
+function CreatorIdentity({ poll }: { poll: PollWithOptions }) {
+  const { t } = useTranslation();
+  const creator = getCreatorMeta(poll, t);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-1">
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <User className="w-3 h-3" />
+        {creator.name || creator.email || t('admin.polls.anonymousCreator')}
+      </span>
+      {creator.label && creator.name && creator.email && creator.name !== creator.email ? (
+        <span className="text-xs text-muted-foreground">{creator.email}</span>
+      ) : null}
+      {creator.label && creator.badgeClassName ? (
+        <Badge variant="outline" className={creator.badgeClassName}>
+          {creator.label}
+        </Badge>
+      ) : null}
+    </div>
+  );
+}
+
 interface PollsPanelProps {
   polls: PollWithOptions[] | undefined;
   selectedPoll: PollWithOptions | null;
@@ -270,15 +326,10 @@ export function PollsPanel({
                       data-testid={`poll-row-${poll.publicToken}`}
                     >
                       <TableCell className="font-medium">
-                        <div>
+                        <div className="space-y-2">
                           <p className="font-medium">{poll.title}</p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                              <User className="w-3 h-3" />
-                              {poll.user?.username || poll.user?.email || poll.creatorEmail || t('admin.polls.anonymousCreator')}
-                            </span>
-                            <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
-                          </div>
+                          <CreatorIdentity poll={poll} />
+                          <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
                         </div>
                       </TableCell>
                       <TableCell>
@@ -371,11 +422,10 @@ function PollDetailView({
         </Button>
         <div>
           <h2 className="text-xl font-bold">{poll.title}</h2>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-              <User className="w-3.5 h-3.5" />
-              {poll.user?.username || poll.user?.email || poll.creatorEmail || t('admin.polls.anonymousCreator')}
-            </span>
+          <div className="mt-1">
+            <CreatorIdentity poll={poll} />
+          </div>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
             <TokenPill token={poll.adminToken} label={t('admin.polls.adminToken')} />
           </div>

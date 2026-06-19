@@ -224,7 +224,7 @@ describe('Poll CRUD Routes', () => {
       const updateRes = await request(app)
         .put(`/api/v1/votes/edit/${editToken}`)
         .send({
-          votes: [{ optionId, response: 'maybe' }],
+          votes: [{ optionId, response: 'no' }],
         });
 
       expect(updateRes.status).toBe(200);
@@ -233,7 +233,7 @@ describe('Poll CRUD Routes', () => {
       expect(emailSpy).toHaveBeenCalledWith(
         'edit-mailer-routes@example.com',
         'Edited Vote Mailer',
-        'Test Schedule Poll Routes',
+        'Updated Schedule Poll',
         'schedule',
         expect.stringContaining(`/poll/${publicToken}`),
         expect.stringContaining(`/poll/${publicToken}#results`),

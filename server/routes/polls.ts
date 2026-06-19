@@ -12,6 +12,20 @@ import { adminCacheService } from "../services/adminCacheService";
 
 const router = Router();
 
+function getReminderSelectionsForEmail(
+  poll: { options: Array<{ id: number; text: string }>; votes?: Array<{ voterEmail: string; optionId: number; response: string }> },
+  email: string
+): string[] | undefined {
+  const normalized = email.toLowerCase();
+  const optionMap = new Map<number, string>(poll.options.map((opt) => [opt.id, opt.text]));
+  const selections = (poll.votes || [])
+    .filter((vote) => vote.voterEmail?.toLowerCase() === normalized && vote.response === 'yes')
+    .map((vote) => optionMap.get(vote.optionId) || '')
+    .filter(Boolean);
+
+  return selections.length > 0 ? selections : undefined;
+}
+
 // Create poll (anonymous or authenticated, with rate limiting)
 // For logged-in users, email must be verified
 router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res) => {
@@ -1004,8 +1018,13 @@ router.post('/:id/send-reminder', async (req, res) => {
     // Pass the raw date string (ISO format) - emailService will format it
     const expiresAtISO = poll.expiresAt ? new Date(poll.expiresAt).toISOString() : undefined;
     
-    const results = await emailService.sendBulkReminders(
-      participantEmails,
+    const personalizedReminders = participantEmails.map((email) => ({
+      email,
+      selectedOptions: getReminderSelectionsForEmail(poll, email),
+    }));
+
+    const results = await emailService.sendPersonalizedReminders(
+      personalizedReminders,
       poll.title,
       senderName,
       pollLink,

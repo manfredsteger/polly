@@ -356,7 +356,8 @@ export class EmailService {
     senderName: string,
     pollTitle: string,
     pollLink: string,
-    expiresAt?: Date | null
+    expiresAt?: Date | null,
+    selectedOptions?: string[]
   ): Promise<void> {
     try {
       const validatedLink = validateEmailUrl(pollLink);
@@ -372,12 +373,23 @@ export class EmailService {
         ? `Die Umfrage endet am ${new Date(expiresAt).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr.`
         : '';
 
+      const selectedOptionsHtml =
+        selectedOptions && selectedOptions.length > 0
+          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
+              .map(
+                opt =>
+                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
+              )
+              .join('')}</ul>`
+          : '';
+
       const rendered = await this.renderTemplate('reminder', {
         senderName,
         pollTitle,
         pollLink: validatedLink,
         expiresAt: expiryText,
         qrCodeUrl: qrCodeDataUrl,
+        selectedOptionsHtml,
       });
 
       await this.sendMail({
@@ -959,6 +971,36 @@ export class EmailService {
       } catch (error) {
         console.error(`Failed to send reminder to ${email}:`, error);
         failed.push(email);
+      }
+    }
+
+    return { sent, failed };
+  }
+
+  async sendPersonalizedReminders(
+    reminders: Array<{ email: string; selectedOptions?: string[] }>,
+    pollTitle: string,
+    senderName: string,
+    pollUrl: string,
+    expiresAt?: string
+  ): Promise<{ sent: number; failed: string[] }> {
+    const failed: string[] = [];
+    let sent = 0;
+
+    for (const reminder of reminders) {
+      try {
+        await this.sendReminderEmail(
+          reminder.email,
+          senderName,
+          pollTitle,
+          pollUrl,
+          expiresAt ? new Date(expiresAt) : null,
+          reminder.selectedOptions
+        );
+        sent++;
+      } catch (error) {
+        console.error(`Failed to send personalized reminder to ${reminder.email}:`, error);
+        failed.push(reminder.email);
       }
     }
 

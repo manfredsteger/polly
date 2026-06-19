@@ -2133,6 +2133,20 @@ describe('EmailTemplateService', () => {
       expect(result.text.match(/Option B/g)?.length).toBe(1);
     });
 
+    it('should render selected options for reminder emails when provided', async () => {
+      const result = await service.renderEmail('reminder', {
+        senderName: 'Alex',
+        pollTitle: 'Erinnerungs-Umfrage',
+        pollLink: 'https://example.com/poll/reminder',
+        expiresAt: 'Die Umfrage endet morgen.',
+        selectedOptionsHtml: '<ul><li>Montag 10 Uhr</li><li>Dienstag 14 Uhr</li></ul>',
+      });
+
+      expect(result.html).toContain('Ihre aktuelle Auswahl');
+      expect(result.html).toContain('Montag 10 Uhr');
+      expect(result.html).toContain('Dienstag 14 Uhr');
+    });
+
     it('should not duplicate editLink for custom vote confirmation templates when already present', async () => {
       const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
       await service.saveTemplate(

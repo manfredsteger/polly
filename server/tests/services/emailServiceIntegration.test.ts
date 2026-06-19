@@ -215,6 +215,20 @@ describe('EmailService Integration — Template System', () => {
       assertRequiredHeaders(lastMailOptions);
     });
 
+    it('sendPersonalizedReminders sends reminder emails with participant selections', async () => {
+      const result = await emailService.sendPersonalizedReminders(
+        [{ email: 'user@test.com', selectedOptions: ['Montag 10 Uhr'] }],
+        'Wichtige Umfrage',
+        'Chef',
+        'https://polly.example.com/poll/urgent',
+        '2025-12-31T23:59:00.000Z'
+      );
+
+      expect(result.sent).toBe(1);
+      expect(result.failed).toEqual([]);
+      expect(mockSendMail).toHaveBeenCalledTimes(1);
+    });
+
     it('sendPasswordResetEmail has all required headers', async () => {
       await emailService.sendPasswordResetEmail(
         'user@test.com', 'https://polly.example.com/reset/token123', 'Max'

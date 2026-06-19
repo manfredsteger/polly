@@ -1583,12 +1583,21 @@ function buildV3ReminderBody(vars: Record<string, string | undefined>, ctx: V3Bo
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const expiresAt = vars.expiresAt ? htmlEscape(vars.expiresAt) : '';
   const pollLink = vars.pollLink || '#';
+  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
+
+  const optionsBlock = selectedOptionsHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre aktuelle Auswahl</p>
+      ${selectedOptionsHtml}
+    </td></tr>`
+    : '';
 
   return `${v3BodyStart()}
       ${v3Tag('Erinnerung', ctx.primaryColor)}
       ${v3Headline('Erinnerung an', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(`${senderName} erinnert Sie freundlich an die Teilnahme. Ihre Stimme ist wichtig!${expiresAt ? ` ${expiresAt}` : ''}`)}
     ${v3BodyEnd()}
+    ${optionsBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('Bitte nehmen Sie sich kurz Zeit, um abzustimmen.', 'Jetzt abstimmen \u2192', pollLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
@@ -1894,6 +1903,20 @@ export class EmailTemplateService {
     if (alreadyContainsAllOptions) return text;
 
     const optionsSection = `Ihre Auswahl:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
+    return text.trimEnd() + `\n\n${optionsSection}`;
+  }
+
+  private appendReminderSelectedOptions(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    const optionLines = this.extractSelectedOptionsText(variables.selectedOptionsHtml);
+    if (optionLines.length === 0) return text;
+
+    const alreadyContainsAllOptions = optionLines.every(line => text.includes(line));
+    if (alreadyContainsAllOptions) return text;
+
+    const optionsSection = `Ihre aktuelle Auswahl:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
     return text.trimEnd() + `\n\n${optionsSection}`;
   }
 
@@ -2409,9 +2432,12 @@ export class EmailTemplateService {
         // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
         // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
         // The outer v3Shell (logo, branding, footer) is always applied.
-        const customTemplateText = type === 'vote_confirmation' || type === 'vote_updated'
-          ? this.enhanceVoteTemplateText(template.textContent, allVariables)
-          : template.textContent;
+        let customTemplateText = template.textContent;
+        if (type === 'vote_confirmation' || type === 'vote_updated') {
+          customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables);
+        } else if (type === 'reminder') {
+          customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables);
+        }
         const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
         bodyHtml = buildV3CustomContentBody(renderedText, ctx);
       } else {
@@ -2421,6 +2447,8 @@ export class EmailTemplateService {
       let textBase = template.textContent || '';
       if (type === 'vote_confirmation' || type === 'vote_updated') {
         textBase = this.enhanceVoteTemplateText(textBase, allVariables);
+      } else if (type === 'reminder') {
+        textBase = this.appendReminderSelectedOptions(textBase, allVariables);
       }
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
         textBase = textBase
@@ -2438,9 +2466,12 @@ export class EmailTemplateService {
 
     let bodyHtml: string;
     if (!template.isDefault && template.textContent) {
-      const customTemplateText = type === 'vote_confirmation' || type === 'vote_updated'
-        ? this.enhanceVoteTemplateText(template.textContent, allVariables)
-        : template.textContent;
+      let customTemplateText = template.textContent;
+      if (type === 'vote_confirmation' || type === 'vote_updated') {
+        customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables);
+      } else if (type === 'reminder') {
+        customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables);
+      }
       const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.htmlContent) {

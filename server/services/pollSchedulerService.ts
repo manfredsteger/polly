@@ -14,7 +14,13 @@ async function runExpiryReminderCheck(): Promise<void> {
 
     for (const poll of pollsToRemind) {
       try {
-        const voterEmails = await storage.getVoterEmailsForPoll(poll.id);
+        const fullPoll = await storage.getPoll(poll.id);
+        if (!fullPoll) {
+          await storage.markExpiryReminderSent(poll.id);
+          continue;
+        }
+
+        const voterEmails = await storage.getVoterEmailsForPoll(fullPoll.id);
         if (voterEmails.length === 0) {
           await storage.markExpiryReminderSent(poll.id);
           continue;
@@ -26,21 +32,27 @@ async function runExpiryReminderCheck(): Promise<void> {
           if (user) senderName = user.name || user.username || 'Jemand';
         }
 
-        const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
-        const expiresAt = poll.expiresAt ? new Date(poll.expiresAt) : null;
+        const pollLink = `${baseUrl}/poll/${fullPoll.publicToken}`;
+        const expiresAt = fullPoll.expiresAt ? new Date(fullPoll.expiresAt) : null;
+        const optionMap = new Map<number, string>(fullPoll.options.map((opt) => [opt.id, opt.text]));
+        const personalizedReminders = voterEmails.map((email) => ({
+          email,
+          selectedOptions: fullPoll.votes
+            .filter((vote) => vote.voterEmail?.toLowerCase() === email.toLowerCase() && vote.response === 'yes')
+            .map((vote) => optionMap.get(vote.optionId) || '')
+            .filter(Boolean),
+        }));
 
-        let sent = 0;
-        for (const email of voterEmails) {
-          try {
-            await emailService.sendReminderEmail(email, senderName, poll.title, pollLink, expiresAt);
-            sent++;
-          } catch (err) {
-            console.error(`[PollScheduler] Failed to send expiry reminder to ${email} for poll ${poll.id}:`, err);
-          }
-        }
+        const results = await emailService.sendPersonalizedReminders(
+          personalizedReminders,
+          fullPoll.title,
+          senderName,
+          pollLink,
+          expiresAt ? expiresAt.toISOString() : undefined
+        );
 
         await storage.markExpiryReminderSent(poll.id);
-        console.log(`[PollScheduler] Expiry reminder sent for poll "${poll.title}" (${sent}/${voterEmails.length} emails)`);
+        console.log(`[PollScheduler] Expiry reminder sent for poll "${fullPoll.title}" (${results.sent}/${voterEmails.length} emails)`);
       } catch (err) {
         console.error(`[PollScheduler] Error processing expiry reminder for poll ${poll.id}:`, err);
       }

@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
+import { emailService } from '../../services/emailService';
 
 let app: Express;
 let agent: ReturnType<typeof request.agent>;
@@ -22,6 +23,10 @@ describe('Poll CRUD Routes', () => {
     app = await createTestApp();
     agent = request.agent(app);
     await loginAsAdmin(agent);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('POST /api/v1/polls', () => {
@@ -196,6 +201,45 @@ describe('Poll CRUD Routes', () => {
     it('should return 404 for invalid edit token', async () => {
       const res = await request(app).get('/api/v1/votes/edit/invalid_edit_token_xyz');
       expect(res.status).toBe(404);
+    });
+
+    it('should send a confirmation email after editing votes via edit token', async () => {
+      const pollRes = await request(app).get(`/api/v1/polls/public/${publicToken}`);
+      const optionId = pollRes.body.options[0].id;
+
+      const voteRes = await request(app)
+        .post(`/api/v1/polls/${publicToken}/vote`)
+        .send({
+          votes: [{ optionId, response: 'yes' }],
+          voterName: 'Edited Vote Mailer',
+          voterEmail: 'edit-mailer-routes@example.com',
+        });
+
+      expect(voteRes.status).toBe(200);
+      const editToken = voteRes.body.voterEditToken;
+      expect(editToken).toBeTruthy();
+
+      const emailSpy = vi.spyOn(emailService, 'sendVotingConfirmationEmail').mockResolvedValue(undefined);
+
+      const updateRes = await request(app)
+        .put(`/api/v1/votes/edit/${editToken}`)
+        .send({
+          votes: [{ optionId, response: 'maybe' }],
+        });
+
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body.success).toBe(true);
+      expect(emailSpy).toHaveBeenCalledTimes(1);
+      expect(emailSpy).toHaveBeenCalledWith(
+        'edit-mailer-routes@example.com',
+        'Edited Vote Mailer',
+        'Test Schedule Poll Routes',
+        'schedule',
+        expect.stringContaining(`/poll/${publicToken}`),
+        expect.stringContaining(`/poll/${publicToken}#results`),
+        undefined,
+        expect.stringContaining(`/edit/${editToken}`)
+      );
     });
   });
 

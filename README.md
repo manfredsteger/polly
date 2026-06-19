@@ -307,10 +307,12 @@ These values can also be edited from the Admin Panel after first start. When set
 | `NODE_ENV` | Node environment | `production` |
 | `DATABASE_SSL` | Enable SSL for database connections | `false` |
 | `FORCE_HTTPS` | Force secure cookies (behind TLS-terminating proxy) | auto-detect from `APP_URL` |
+| `DOCKER` | Legacy runtime marker used by some deployments to indicate container execution | `true` |
 | `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export | auto-detected |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement | `false` |
 | `TEST_MODE_SECRET` | Custom header value for E2E test mode | `polly-e2e-test-mode` |
+| `RUN_VIA_INAPP` | Internal flag set by the in-app test runner so teardown keeps test data for manual cleanup | `1` |
 
 ## 🏗️ Tech Stack
 

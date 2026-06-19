@@ -264,7 +264,8 @@ export class EmailService {
     pollType: 'schedule' | 'survey' | 'organization',
     publicLink: string,
     resultsLink: string,
-    selectedOptions?: string[]
+    selectedOptions?: string[],
+    editLink?: string
   ): Promise<void> {
     if (!voterEmail) return;
 
@@ -287,6 +288,7 @@ export class EmailService {
         pollType: pollTypeText,
         publicLink: validateEmailUrl(publicLink),
         resultsLink: validateEmailUrl(resultsLink),
+        editLink: editLink ? validateEmailUrl(editLink) : undefined,
         selectedOptionsHtml,
       });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
+import { nanoid } from 'nanoid';
 import { createTestApp } from '../testApp';
 import { storage } from '../../storage';
 import type { Express } from 'express';
@@ -31,6 +32,21 @@ const BACKUP_KEY = '_test_deprovision_backup';
  */
 function basicAuth(user: string, pass: string): string {
   return 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64');
+}
+
+async function createDeprovisionTarget(kind: 'delete' | 'anonymize') {
+  const suffix = `${Date.now()}-${nanoid(6)}`;
+  const passwordHash = await bcrypt.hash('TestPass123!@', 10);
+
+  return storage.createUser({
+    username: `deprov_${kind}_${suffix}`,
+    email: `deprov-${kind}-${suffix}@test.com`,
+    passwordHash,
+    name: kind === 'delete' ? 'Delete Target' : 'Anon Target',
+    role: 'user',
+    provider: 'local',
+    isTestData: true,
+  });
 }
 
 describe('Deprovision Endpoint Security Tests', () => {
@@ -220,21 +236,12 @@ describe('Deprovision Endpoint Security Tests', () => {
 
   describe('Successful operations with valid credentials', () => {
     it('should delete a user with valid credentials', async () => {
-      const suffix = Date.now();
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .send({
-          username: `deprov_del_${suffix}`,
-          email: `deprov-del-${suffix}@test.com`,
-          password: 'TestPass123!@',
-          name: 'Delete Target',
-        });
-      expect([200, 201]).toContain(registerRes.status);
+      const user = await createDeprovisionTarget('delete');
 
       const res = await request(app)
         .delete('/api/v1/deprovision/user')
         .set('Authorization', basicAuth(DEPROVISION_USER, DEPROVISION_PASS))
-        .send({ email: `deprov-del-${suffix}@test.com`, action: 'delete' });
+        .send({ email: user.email, action: 'delete' });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -242,21 +249,12 @@ describe('Deprovision Endpoint Security Tests', () => {
     });
 
     it('should anonymize a user with valid credentials', async () => {
-      const suffix = Date.now();
-      const registerRes = await request(app)
-        .post('/api/v1/auth/register')
-        .send({
-          username: `deprov_anon_${suffix}`,
-          email: `deprov-anon-${suffix}@test.com`,
-          password: 'TestPass123!@',
-          name: 'Anon Target',
-        });
-      expect([200, 201]).toContain(registerRes.status);
+      const user = await createDeprovisionTarget('anonymize');
 
       const res = await request(app)
         .delete('/api/v1/deprovision/user')
         .set('Authorization', basicAuth(DEPROVISION_USER, DEPROVISION_PASS))
-        .send({ email: `deprov-anon-${suffix}@test.com`, action: 'anonymize' });
+        .send({ email: user.email, action: 'anonymize' });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);

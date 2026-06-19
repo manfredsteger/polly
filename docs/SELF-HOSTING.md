@@ -431,12 +431,14 @@ If you ship custom icons, replace `client/public/android-chrome-*.png` (and the 
 | `NODE_ENV` | Node environment (`production`, `development`) | `production` |
 | `DATABASE_SSL` | Enable SSL for database connections (e.g., managed PostgreSQL with TLS) | `false` |
 | `FORCE_HTTPS` | Force secure cookies even when `APP_URL` is not HTTPS (behind TLS-terminating proxy) | auto-detect from `APP_URL` |
+| `DOCKER` | Legacy runtime marker used by some deployments to indicate container execution | `true` |
 | `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
 | `SEED_DEMO_DATA` | Seed demo polls showing all three poll types on first start | `false` |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export (set automatically in Docker image) | auto-detected |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
 | `TEST_MODE_SECRET` | Custom header value for E2E test mode (`X-Test-Mode` header) | `polly-e2e-test-mode` |
+| `RUN_VIA_INAPP` | Internal flag set by the in-app test runner so teardown keeps test data for manual cleanup | `1` |
 
 ---
 

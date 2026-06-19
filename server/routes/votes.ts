@@ -130,6 +130,19 @@ const validateVoteResponses = (
   return null;
 };
 
+const getSelectedOptionTexts = (
+  poll: { options: Array<{ id: number; text?: string | null }> },
+  votes: Array<{ optionId: number; response: string }>
+) => {
+  const optionMap = new Map<number, string>(poll.options.map((opt) => [opt.id, opt.text || '']));
+  const opts = votes
+    .filter((vote) => vote.response === 'yes')
+    .map((vote) => optionMap.get(vote.optionId) || '')
+    .filter(Boolean);
+
+  return opts.length > 0 ? opts : undefined;
+};
+
 const editVotesUpdateSchema = z.object({
   votes: z.array(z.object({
     optionId: z.number(),
@@ -296,15 +309,10 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+        const editLink = voterEditToken ? `${baseUrl}/edit/${voterEditToken}` : undefined;
 
         // Collect selected option texts for confirmed selections in the email summary.
-        let selectedOptions: string[] | undefined;
-        const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
-        const opts = createdVotes
-          .filter((v: any) => v.response === 'yes')
-          .map((v: any) => optionMap.get(v.optionId) || '')
-          .filter(Boolean);
-        if (opts.length > 0) selectedOptions = opts;
+        const selectedOptions = getSelectedOptionTexts(poll, createdVotes);
         
         emailService.sendVotingConfirmationEmail(
           data.voterEmail,
@@ -313,7 +321,8 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
           poll.type as 'schedule' | 'survey' | 'organization',
           publicLink,
           resultsLink,
-          selectedOptions
+          selectedOptions,
+          editLink
         ).catch(err => {
           console.error('Error sending voting confirmation email:', err);
         });
@@ -518,13 +527,7 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
 
         // Collect selected option texts for confirmed selections in the email summary.
-        let selectedOptions: string[] | undefined;
-        const optionMap = new Map<number, string>(poll.options.map((opt: any) => [opt.id, opt.text || '']));
-        const opts = createdVotes
-          .filter((v: any) => v.response === 'yes')
-          .map((v: any) => optionMap.get(v.optionId) || '')
-          .filter(Boolean);
-        if (opts.length > 0) selectedOptions = opts;
+        const selectedOptions = getSelectedOptionTexts(poll, createdVotes);
         
         emailService.sendVotingConfirmationEmail(
           data.voterEmail,
@@ -771,6 +774,30 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       }
     }
 
+    const voterEmail = existingVotes[0]?.voterEmail;
+    const voterName = existingVotes[0]?.voterName;
+    if (voterEmail && voterName && updatedResults.length > 0) {
+      const { getBaseUrl } = await import('../utils/baseUrl');
+      const baseUrl = getBaseUrl();
+      const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
+      const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+      const editLink = `${baseUrl}/edit/${editToken}`;
+      const selectedOptions = getSelectedOptionTexts(poll, updatedResults);
+
+      emailService.sendVotingConfirmationEmail(
+        voterEmail,
+        voterName,
+        poll.title,
+        poll.type as 'schedule' | 'survey' | 'organization',
+        publicLink,
+        resultsLink,
+        selectedOptions,
+        editLink
+      ).catch(err => {
+        console.error('Error sending updated voting confirmation email:', err);
+      });
+    }
+
     res.json({ success: true, votes: updatedResults });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -875,6 +902,10 @@ router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => 
     const baseUrl = getBaseUrl();
     const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
     const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+    const editLink =
+      (poll.allowVoteEdit || poll.type === 'organization') && existingVotes[0].voterEditToken
+        ? `${baseUrl}/edit/${existingVotes[0].voterEditToken}`
+        : undefined;
 
     try {
       await emailService.sendVotingConfirmationEmail(
@@ -883,7 +914,9 @@ router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => 
         poll.title,
         poll.type as 'schedule' | 'survey' | 'organization',
         publicLink,
-        resultsLink
+        resultsLink,
+        undefined,
+        editLink
       );
       res.json({ success: true, message: 'Email sent successfully' });
     } catch (emailError: any) {

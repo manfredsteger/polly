@@ -2034,6 +2034,123 @@ describe('EmailTemplateService', () => {
       expect(result.html).not.toContain('<ul');
     });
 
+    it('should render an edit vote action when editLink is provided', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Chris',
+        pollTitle: 'Bearbeitbare Umfrage',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/editable#results',
+        editLink: 'https://example.com/edit/token123',
+      });
+
+      expect(result.html).toContain('Stimme bearbeiten');
+      expect(result.html).toContain('https://example.com/edit/token123');
+      expect(result.text).toContain('Stimme bearbeiten: https://example.com/edit/token123');
+    });
+
+    it('should omit the edit vote action when editLink is not provided', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Pat',
+        pollTitle: 'Nicht bearbeitbar',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/final#results',
+      });
+
+      expect(result.html).not.toContain('Stimme bearbeiten');
+      expect(result.text).not.toContain('Stimme bearbeiten:');
+    });
+
+    it('should auto-append editLink for custom vote confirmation templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Robin',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        editLink: 'https://example.com/edit/custom-token',
+      });
+
+      expect(result.html).toContain('https://example.com/edit/custom-token');
+      expect(result.text).toContain('Stimme bearbeiten: https://example.com/edit/custom-token');
+    });
+
+    it('should auto-append selected options for custom vote confirmation templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Robin',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        selectedOptionsHtml: '<ul><li>Option A</li><li>Option B</li></ul>',
+      });
+
+      expect(result.html).toContain('Ihre Auswahl');
+      expect(result.html).toContain('Option A');
+      expect(result.html).toContain('Option B');
+      expect(result.text).toContain('Ihre Auswahl:');
+      expect(result.text).toContain('- Option A');
+      expect(result.text).toContain('- Option B');
+    });
+
+    it('should not duplicate selected options for custom vote confirmation templates when already present', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nIhre Auswahl:\n- Option A\n- Option B\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Robin',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        selectedOptionsHtml: '<ul><li>Option A</li><li>Option B</li></ul>',
+      });
+
+      expect(result.text.match(/Option A/g)?.length).toBe(1);
+      expect(result.text.match(/Option B/g)?.length).toBe(1);
+    });
+
+    it('should not duplicate editLink for custom vote confirmation templates when already present', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nErgebnisse anzeigen: {{resultsLink}}\n\nStimme bearbeiten: {{editLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Jamie',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        editLink: 'https://example.com/edit/custom-token',
+      });
+
+      expect(result.text.match(/Stimme bearbeiten:/g)?.length).toBe(1);
+    });
+
     it('should XSS-escape option text passed via emailService selectedOptions', async () => {
       const { EmailService } = await import('../../services/emailService');
       const svc = new EmailService();

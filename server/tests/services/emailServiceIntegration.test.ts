@@ -341,11 +341,12 @@ describe('EmailService Integration — Template System', () => {
     it('sendVotingConfirmationEmail calls renderEmail with vote_confirmation', async () => {
       await emailService.sendVotingConfirmationEmail(
         'voter@test.com', 'Anna', 'Weihnachtsfeier', 'schedule',
-        'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results'
+        'https://polly.example.com/poll/xmas', 'https://polly.example.com/poll/xmas#results', undefined, 'https://polly.example.com/edit/token123'
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('vote_confirmation', expect.objectContaining({
         voterName: 'Anna',
         pollTitle: 'Weihnachtsfeier',
+        editLink: 'https://polly.example.com/edit/token123',
       }));
     });
 

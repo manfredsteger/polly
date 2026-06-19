@@ -124,6 +124,12 @@ COPY --from=builder /app/client/src ./client/src
 # Copy migrations for schema setup
 COPY migrations ./migrations
 
+# Copy documentation assets required by integration tests that run inside the container
+COPY README.md ./
+COPY .env.example ./
+COPY docs/openapi.yaml ./docs/openapi.yaml
+COPY docs/SELF-HOSTING.md ./docs/SELF-HOSTING.md
+
 # Copy built frontend
 COPY --from=builder /app/dist/public ./server/public
 

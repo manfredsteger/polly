@@ -1034,6 +1034,7 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       pollTitle: 'Teammeeting Q1 2025',
       publicLink: 'https://polly.example.com/poll/abc123',
       resultsLink: 'https://polly.example.com/poll/abc123/results',
+      editLink: 'https://polly.example.com/edit/token123',
       siteName,
     },
     reminder: {
@@ -1554,6 +1555,7 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const pollType = vars.pollType || 'Umfrage';
   const resultsLink = vars.resultsLink || '#';
+  const editLink = vars.editLink || '';
   const selectedOptionsHtml = vars.selectedOptionsHtml || '';
   const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
 
@@ -1564,6 +1566,11 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
     </td></tr>`
     : '';
 
+  const editSection = editLink
+    ? `${v3Divider()}
+    ${v3SingleButtonSection('Wenn Sie Ihre Auswahl später ändern möchten, können Sie dafür diesen Link verwenden.', 'Stimme bearbeiten →', editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
+    : '';
+
   return `${v3BodyStart()}
       ${v3Tag('Best\u00E4tigung', ctx.primaryColor)}
       ${v3SimpleHeadline('Vielen Dank f\u00FCr Ihre Teilnahme!', ctx.fontFamily)}
@@ -1571,7 +1578,7 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
     ${v3BodyEnd()}
     ${optionsBlock}
     ${v3Divider()}
-    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
+    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}${editSection}`;
 }
 
 function buildV3PasswordResetBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
@@ -1767,6 +1774,63 @@ const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>
 };
 
 export class EmailTemplateService {
+  private withCurrentVariables(template: EmailTemplate): EmailTemplate {
+    return {
+      ...template,
+      variables: EMAIL_TEMPLATE_VARIABLES[template.type as EmailTemplateType] as unknown as unknown[],
+    };
+  }
+
+  private appendVoteConfirmationEditLink(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    if (!variables.editLink) return text;
+
+    const hasEditPlaceholder = text.includes('{{editLink}}');
+    const hasRenderedEditLink = !!variables.editLink && text.includes(variables.editLink);
+    if (hasEditPlaceholder || hasRenderedEditLink) return text;
+
+    return text.trimEnd() + `\n\nStimme bearbeiten: {{editLink}}`;
+  }
+
+  private extractSelectedOptionsText(selectedOptionsHtml: string | undefined): string[] {
+    if (!selectedOptionsHtml) return [];
+
+    return selectedOptionsHtml
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '')
+      .replace(/<ul[^>]*>/gi, '')
+      .replace(/<\/ul>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+  }
+
+  private appendVoteConfirmationSelectedOptions(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    const optionLines = this.extractSelectedOptionsText(variables.selectedOptionsHtml);
+    if (optionLines.length === 0) return text;
+
+    const alreadyContainsAllOptions = optionLines.every(line => text.includes(line));
+    if (alreadyContainsAllOptions) return text;
+
+    const optionsSection = `Ihre Auswahl:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
+    return text.trimEnd() + `\n\n${optionsSection}`;
+  }
+
+  private enhanceVoteConfirmationTemplateText(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    let enhanced = this.appendVoteConfirmationSelectedOptions(text, variables);
+    enhanced = this.appendVoteConfirmationEditLink(enhanced, variables);
+    return enhanced;
+  }
+
   // Static method: Get default template by type
   static getDefaultTemplate(type: EmailTemplateType): {
     type: EmailTemplateType;
@@ -1849,7 +1913,7 @@ export class EmailTemplateService {
     for (const type of EMAIL_TEMPLATE_TYPES) {
       const dbTemplate = dbTemplates.find(t => t.type === type);
       if (dbTemplate) {
-        result.push(dbTemplate);
+        result.push(this.withCurrentVariables(dbTemplate));
       } else {
         // Return default template as a pseudo-template
         const defaultData = DEFAULT_TEMPLATES[type];
@@ -1878,7 +1942,7 @@ export class EmailTemplateService {
     const dbTemplate = await storage.getEmailTemplate(type);
     
     if (dbTemplate) {
-      return dbTemplate;
+      return this.withCurrentVariables(dbTemplate);
     }
 
     // Return default template
@@ -2123,9 +2187,13 @@ export class EmailTemplateService {
     
     let html = `<div style="padding: 16px 24px; font-family: ${theme.fontFamily};">`;
     for (const para of paragraphs) {
-      // Check if it looks like a URL
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
-      const withLinks = para.replace(urlRegex, `<a href="$1" style="color: ${theme.linkColor};">$1</a>`);
+      const safePara = htmlEscape(para);
+      // Linkify only after escaping so arbitrary HTML cannot be injected.
+      const urlRegex = /(https?:\/\/[^\s<]+)/g;
+      const withLinks = safePara.replace(
+        urlRegex,
+        `<a href="$1" style="color: ${theme.linkColor};">$1</a>`,
+      );
       html += `<p style="color: ${theme.textColor}; font-size: 16px; line-height: 1.5; margin: 0 0 16px 0;">${withLinks.replace(/\n/g, '<br>')}</p>`;
     }
     html += '</div>';
@@ -2266,13 +2334,19 @@ export class EmailTemplateService {
         // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
         // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
         // The outer v3Shell (logo, branding, footer) is always applied.
-        const renderedText = renderSafeCustomMarkup(template.textContent, allVariables);
+        const customTemplateText = type === 'vote_confirmation'
+          ? this.enhanceVoteConfirmationTemplateText(template.textContent, allVariables)
+          : template.textContent;
+        const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
         bodyHtml = buildV3CustomContentBody(renderedText, ctx);
       } else {
         bodyHtml = v3Builder(mergedVariables, ctx);
       }
       const html = v3Shell(v3Data, bodyHtml);
       let textBase = template.textContent || '';
+      if (type === 'vote_confirmation') {
+        textBase = this.enhanceVoteConfirmationTemplateText(textBase, allVariables);
+      }
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
         textBase = textBase
           .replace(/Den Administratorlink sicher aufbewahren\. Nur damit l\u00E4sst sich die Umfrage verwalten\./,
@@ -2289,7 +2363,10 @@ export class EmailTemplateService {
 
     let bodyHtml: string;
     if (!template.isDefault && template.textContent) {
-      const renderedText = renderSafeCustomMarkup(template.textContent, allVariables);
+      const customTemplateText = type === 'vote_confirmation'
+        ? this.enhanceVoteConfirmationTemplateText(template.textContent, allVariables)
+        : template.textContent;
+      const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.htmlContent) {
       bodyHtml = substituteVariables(template.htmlContent, allVariables, true);

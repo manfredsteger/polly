@@ -437,6 +437,7 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'pollType', description: 'Umfragetyp' },
     { key: 'publicLink', description: 'Link zur Umfrage' },
     { key: 'resultsLink', description: 'Link zu den Ergebnissen' },
+    { key: 'editLink', description: 'Link zum Bearbeiten der eigenen Stimme' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   reminder: [

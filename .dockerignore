@@ -48,6 +48,8 @@ test-results
 *.md
 !README.md
 docs
+!docs/openapi.yaml
+!docs/SELF-HOSTING.md
 TESTING.md
 SELF-HOSTING.md
 CONTRIBUTING.md

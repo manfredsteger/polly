@@ -52,7 +52,9 @@ function slugify(s) {
     .replace(/^-+|-+$/g, '');
 }
 
-// Mermaid-Blöcke + zugehörige Überschrift aus der Markdown-Datei extrahieren
+// Mermaid-Blöcke + zugehörige Überschrift aus der Markdown-Datei extrahieren.
+// Optionaler expliziter Dateiname per "%% render-as: mein-dateiname" als erste Zeile
+// im Mermaid-Block – überschreibt die automatische Benennung via Überschrift+Zähler.
 function extractBlocks(md) {
   const lines = md.split('\n');
   const blocks = [];
@@ -68,7 +70,10 @@ function extractBlocks(md) {
         code.push(lines[idx]);
         idx++;
       }
-      blocks.push({ heading: lastHeading, code: code.join('\n') });
+      const codeStr = code.join('\n');
+      const customMatch = codeStr.match(/^%%\s*render-as:\s*(\S+)/m);
+      const customFile = customMatch ? customMatch[1] : null;
+      blocks.push({ heading: lastHeading, code: codeStr, customFile });
     }
   }
   return blocks;
@@ -115,18 +120,28 @@ async function main() {
     await page.evaluate(async () => { await document.fonts.ready; });
 
     const results = [];
-    let n = 0;
+    let n = 0;       // Zähler nur für Blöcke ohne expliziten Dateinamen
+    let renderId = 0; // immer aufsteigend für eindeutige Render-IDs
     for (const block of blocks) {
-      n++;
-      const idx = String(n).padStart(2, '0');
-      const slug = slugify(block.heading) || `diagram-${idx}`;
-      const fileName = `${idx}-${slug}.png`;
+      renderId++;
+      const rid = String(renderId).padStart(2, '0');
+
+      let fileName;
+      if (block.customFile) {
+        // Expliziter Dateiname via "%% render-as: ..." – kein Zähler-Präfix
+        fileName = block.customFile.endsWith('.png') ? block.customFile : `${block.customFile}.png`;
+      } else {
+        n++;
+        const idx = String(n).padStart(2, '0');
+        const slug = slugify(block.heading) || `diagram-${idx}`;
+        fileName = `${idx}-${slug}.png`;
+      }
       const outPath = path.join(OUT_DIR, fileName);
 
       const svg = await page.evaluate(async (code, id) => {
         const { svg } = await window.mermaid.render(id, code);
         return svg;
-      }, block.code, `mmd-${idx}`);
+      }, block.code, `mmd-${rid}`);
 
       await page.evaluate((svgMarkup) => {
         const c = document.getElementById('container');

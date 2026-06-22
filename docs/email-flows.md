@@ -150,6 +150,289 @@ flowchart TD
 - Die **Passwort-geändert**-E-Mail (`password_changed`) enthält **bewusst keinen Link** – sie ist eine reine Sicherheits-Benachrichtigung.
 - Bei anonymen Erstellern/Votern (keine E-Mail-Adresse) wird **keine** E-Mail verschickt.
 
+### Einzelne Flows im Detail
+
+<details>
+<summary>1a · Registrierung &amp; E-Mail-Verifizierung</summary>
+
+![1a – Registrierung & E-Mail-Verifizierung](assets/email-flows/02a-registrierung-verifizierung.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02a-registrierung-verifizierung
+flowchart TD
+  reg([Registrierung]):::trigger --> authReg[POST /api/v1/auth/register]:::route
+  resend([Klick: E-Mail erneut senden]):::trigger --> authResend[POST /api/v1/auth/resend-verification]:::route
+  authReg --> mWelcome{{welcome}}:::mail
+  authResend --> mWelcome
+  mWelcome --> rUser(Nutzer):::recv
+  rUser --> lVerify[/"Verifizierungs-Link<br>/email-bestaetigen/TOKEN"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1b · E-Mail-Adresse ändern</summary>
+
+![1b – E-Mail-Adresse ändern](assets/email-flows/02b-email-adresse-aendern.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02b-email-adresse-aendern
+flowchart TD
+  emailChange([E-Mail-Adresse ändern]):::trigger --> authEmail[POST /api/v1/auth/request-email-change]:::route
+  authEmail --> mEmailChange{{email_change}}:::mail
+  mEmailChange --> rNewEmail(Neue E-Mail-Adresse):::recv
+  rNewEmail --> lConfirm[/"Bestätigungs-Link<br>/email-bestaetigen/TOKEN"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1c · Passwort vergessen</summary>
+
+![1c – Passwort vergessen](assets/email-flows/02c-passwort-vergessen.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02c-passwort-vergessen
+flowchart TD
+  forgot([Passwort vergessen]):::trigger --> authReset[POST /api/v1/auth/request-password-reset]:::route
+  authReset --> mReset{{password_reset}}:::mail
+  mReset --> rUser(Nutzer):::recv
+  rUser --> lReset[/"Reset-Link<br>/passwort-zuruecksetzen/TOKEN"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1d · Passwort geändert / zurückgesetzt</summary>
+
+![1d – Passwort geändert](assets/email-flows/02d-passwort-geaendert.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02d-passwort-geaendert
+flowchart TD
+  changedPw([Passwort geändert /<br>zurückgesetzt]):::trigger --> authChanged[POST /api/v1/auth/reset-password<br>oder /change-password]:::route
+  authChanged --> mChanged{{password_changed}}:::mail
+  mChanged --> rUser(Nutzer):::recv
+  rUser --> lNone[/"Keine Links<br>(reine Sicherheits-Benachrichtigung)"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1e · Umfrage erstellt</summary>
+
+![1e – Umfrage erstellt](assets/email-flows/02e-umfrage-erstellt.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02e-umfrage-erstellt
+flowchart TD
+  create([Umfrage erstellt]):::trigger --> condReg{Ersteller<br>registriert?}:::cond
+  condReg -->|Nein / anonym| skip[/"Keine E-Mail"/]:::link
+  condReg -->|Ja| pollRoute[POST /api/v1/polls<br>oder /api/v1/ai/create-poll]:::route
+  pollRoute --> mCreated{{poll_created}}:::mail
+  mCreated --> rCreator(Ersteller):::recv
+  rCreator --> lPublic[/"Öffentlicher Link<br>/poll/TOKEN"/]:::link
+  rCreator --> lAdmin[/"Admin-Link<br>/admin/TOKEN"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef cond fill:#fef9c3,stroke:#ca8a04,color:#713f12;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1f · Einladung</summary>
+
+![1f – Einladung](assets/email-flows/02f-einladung.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02f-einladung
+flowchart TD
+  invite([Ersteller lädt Teilnehmer ein]):::trigger --> inviteRoute[POST /api/v1/polls/admin/:token/invite]:::route
+  inviteRoute --> mInvite{{invitation}}:::mail
+  mInvite --> rInvitee(Eingeladene):::recv
+  rInvitee --> lPublic[/"Öffentlicher Link<br>/poll/TOKEN"/]:::link
+  rInvitee --> lQR[/"QR-Code"/]:::link
+  rInvitee --> lMsg[/"Optionale persönliche Nachricht"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1g · Stimme abgegeben</summary>
+
+![1g – Stimme abgegeben](assets/email-flows/02g-stimme-abgegeben.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02g-stimme-abgegeben
+flowchart TD
+  vote([Stimme abgegeben]):::trigger --> condEmail{E-Mail<br>angegeben?}:::cond
+  condEmail -->|Nein| skip[/"Keine E-Mail"/]:::link
+  condEmail -->|Ja| voteRoute[POST /api/v1/polls/:token/vote<br>oder /vote-bulk]:::route
+  resendVote([Klick: Bestätigung erneut senden]):::trigger --> resendRoute[POST /api/v1/polls/:token/resend-email]:::route
+  voteRoute --> mConfirm{{vote_confirmation}}:::mail
+  resendRoute --> mConfirm
+  mConfirm --> rVoter(Voter):::recv
+  rVoter --> lPublic[/"Öffentlicher Link"/]:::link
+  rVoter --> lResults[/"Ergebnis-Link<br>/poll/TOKEN#results"/]:::link
+  rVoter --> lEdit[/"Bearbeiten-Link<br>/edit/EDIT_TOKEN"/]:::link
+  rVoter --> lSel[/"Liste der abgegebenen Stimmen"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef cond fill:#fef9c3,stroke:#ca8a04,color:#713f12;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1h · Stimme bearbeitet</summary>
+
+![1h – Stimme bearbeitet](assets/email-flows/02h-stimme-bearbeitet.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02h-stimme-bearbeitet
+flowchart TD
+  editVote([Stimme bearbeitet]):::trigger --> editRoute[PUT /api/v1/votes/edit/:editToken]:::route
+  editRoute --> mUpdated{{vote_updated}}:::mail
+  mUpdated --> rVoter(Voter):::recv
+  rVoter --> lPublic[/"Öffentlicher Link"/]:::link
+  rVoter --> lResults[/"Ergebnis-Link<br>/poll/TOKEN#results"/]:::link
+  rVoter --> lEdit[/"Bearbeiten-Link<br>/edit/EDIT_TOKEN"/]:::link
+  rVoter --> lSel[/"Neue Stimmen-Liste"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1i · Erinnerung (manuell)</summary>
+
+![1i – Erinnerung (manuell)](assets/email-flows/02i-erinnerung-manuell.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02i-erinnerung-manuell
+flowchart TD
+  remind([Ersteller klickt Erinnern]):::trigger --> remindRoute[POST /api/v1/polls/admin/:token/remind]:::route
+  remindRoute --> mReminder{{reminder}}:::mail
+  mReminder --> rParts(Vom Ersteller angegebene Adressen):::recv
+  rParts --> lPublic[/"Öffentlicher Link"/]:::link
+  rParts --> lQR[/"QR-Code"/]:::link
+  rParts --> lExpiry[/"Ablaufdatum + optionale Nachricht"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
+<details>
+<summary>1j · Kontolöschung beantragen</summary>
+
+![1j – Kontolöschung beantragen](assets/email-flows/02j-kontoloesung-beantragen.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
+
+```mermaid
+%% render-as: 02j-kontoloesung-beantragen
+flowchart TD
+  delReq([Nutzer beantragt Kontolöschung]):::trigger --> delRoute[POST /api/v1/auth/request-deletion]:::route
+  delRoute --> mDelReq{{Löschanfrage-Hinweis}}:::mail
+  mDelReq --> rAdmins(Alle Admins):::recv
+  rAdmins --> lAdminPanel[/"Admin-Panel-Link<br>/admin?tab=deletion-requests"/]:::link
+
+  classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef route fill:#e5e7eb,stroke:#6b7280,color:#111827;
+  classDef mail fill:#ede9fe,stroke:#7c3aed,color:#4c1d95;
+  classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
+```
+
+</details>
+</details>
+
 ---
 
 ## 2. Admin-Aktionen

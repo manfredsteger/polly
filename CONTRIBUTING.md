@@ -77,7 +77,7 @@ polly/
 
 ## Tests schreiben
 
-Polly verwendet [Vitest](https://vitest.dev/) für Backend-Tests und [Playwright](https://playwright.dev/) für E2E-Tests.
+Polly verwendet [Vitest](https://vitest.dev/) für Backend-Tests und [Playwright](https://playwright.dev/) für E2E-Tests. Die Test-Suite umfasst derzeit **454+ Tests** (Unit, Integration, API, Services, Security, E2E).
 
 ### Backend-Tests ausführen
 

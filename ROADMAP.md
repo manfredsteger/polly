@@ -63,7 +63,15 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [x] Creator always included in finalization email recipients
 - [x] Frontend "End Poll" notify toggle wired to backend
 
-#### 5. Community & Stability
+#### 5. Branding & Stability ✅ *Released in beta.3*
+- [x] Favicon upload in admin panel + `FAVICON_URL` ENV-Var support
+- [x] Rich default footer (MIT-License link, GitHub icon, "Made in Bayern" tagline)
+- [x] `POLLY_COPYRIGHT_TEXT` ENV-Var locks the copyright line (admin field becomes read-only)
+- [x] Dynamic copyright year (rendered from current date)
+- [x] KISSKI service-partner block in Admin AI Settings (logo, GDPR notice, contact link)
+- [x] **Docker HTTP cookie fix**: Session cookie no longer marked `Secure` on plain-HTTP deployments — login works reliably on `http://localhost:3080` without HTTPS
+
+#### 6. Community & Stability
 - [ ] Community feedback collection and issue tracking
 - [ ] Performance optimization for large-scale deployments
 - [ ] Extended documentation for self-hosting
@@ -136,8 +144,9 @@ We welcome community input! If you have feature requests or suggestions:
 | **Alpha** | 2024 – Q1 2025 | Core functionality, foundation |
 | **Beta 0.1.0-beta.1** | 2025-02-24 | Initial public beta — all poll types, auth, Docker |
 | **Beta 0.1.0-beta.2** | 2026-04-10 | AI integration, schedule improvements, notification fixes |
+| **Beta 0.1.0-beta.3** | 2026-06-22 | Favicon, footer/copyright, Docker HTTP cookie fix, KISSKI admin block |
 | **Version 1.0** | Target: H2 2026 | European DC support, enterprise features |
 
 ---
 
-*Last updated: April 2026*
+*Last updated: June 2026*

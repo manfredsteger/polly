@@ -66,7 +66,8 @@ polly/
 │   ├── storage.ts          # Datenbank-Interface
 │   └── tests/              # Backend-Tests
 ├── shared/                 # Geteilte TypeScript-Typen
-│   └── schema.ts           # Drizzle-Schema & Zod-Validierung
+│   ├── schema.ts           # Drizzle-Schema & Zod-Validierung
+│   └── servicePartners.ts  # GWDG/KISSKI-Partnerdaten (README + Admin synchron)
 ├── docs/                   # Dokumentation
 │   ├── openapi.yaml        # API-Spezifikation
 │   └── SELF-HOSTING.md     # Deployment-Anleitung

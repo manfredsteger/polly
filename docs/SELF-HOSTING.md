@@ -44,7 +44,7 @@ That's it! The application auto-configures PostgreSQL and applies the database s
 
 ### Manual Deployment
 
-- Node.js 20 LTS or higher
+- Node.js 22 LTS or higher
 - PostgreSQL 15 or higher
 - npm 10+
 
@@ -222,8 +222,20 @@ When running via Docker, the admin account is automatically created or updated o
 | `ADMIN_PASSWORD` | Admin password | `Admin123!` |
 | `SITE_NAME` | Website name (main part) | `Poll` |
 | `SITE_NAME_ACCENT` | Accented part of the site name | `y` |
+| `FAVICON_URL` | Public URL of a custom favicon (PNG/ICO/SVG). Also uploadable via Admin Panel | `https://example.com/favicon.png` |
+| `LOGO_URL` | Public URL of a custom logo | `https://example.com/logo.png` |
+| `PRIMARY_COLOR` | Primary brand colour (hex) | `#F97316` |
+| `POLLY_COPYRIGHT_TEXT` | Footer copyright text (limited HTML: links, basic markup). When set, the admin form field is locked (read-only) | `© 2026 My Org` |
 
 > **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
+
+### HTTPS / Secure Cookies
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FORCE_HTTPS` | Force secure cookies behind a TLS-terminating reverse proxy. Set to `true` if your proxy terminates TLS but Polly itself runs on HTTP | auto-detected from `APP_URL` |
+
+> **Note:** On plain-HTTP deployments (e.g. `http://localhost:3080`) do **not** set `FORCE_HTTPS=true` — browsers will silently discard the session cookie and users cannot log in.
 
 ### Keycloak OIDC (Optional)
 

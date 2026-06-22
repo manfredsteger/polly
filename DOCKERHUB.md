@@ -23,7 +23,6 @@ docker run -d \
   -e DATABASE_URL=postgresql://user:pass@your-db:5432/polly \
   -e SESSION_SECRET=$(openssl rand -base64 32) \
   -e APP_URL=http://localhost:3080 \
-  -e VITE_APP_URL=http://localhost:3080 \
   -v polly-uploads:/app/uploads \
   manfredsteger/polly:beta
 ```
@@ -52,7 +51,7 @@ docker run -d \
 | `manfredsteger/polly:latest` | Latest stable release |
 | `manfredsteger/polly:beta` | Latest beta release |
 | `manfredsteger/polly:rc` | Latest release candidate |
-| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.2`) |
+| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.3`) |
 
 ## Environment Variables
 
@@ -71,12 +70,26 @@ docker run -d \
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `APP_URL` | Public URL of your instance | `http://localhost:3080` |
-| `VITE_APP_URL` | Same as APP_URL (for frontend) | `http://localhost:3080` |
-| `BASE_URL` | Base URL for links in emails | `http://localhost:3080` |
 | `ADMIN_USERNAME` | Initial admin username | `admin` |
 | `ADMIN_PASSWORD` | Initial admin password | `Admin123!` |
 | `ADMIN_EMAIL` | Admin email address | `admin@polly.local` |
 | `SEED_DEMO_DATA` | Load demo data on first start | `false` |
+
+> **Legacy aliases:** `BASE_URL`, `VITE_APP_URL` are supported as backward-compatible aliases for `APP_URL`.
+
+### Branding (Optional)
+
+These values can also be edited from the Admin Panel after first start. When set via ENV, the corresponding form field becomes read-only.
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SITE_NAME` | Site name shown in navbar/title | `Poll` |
+| `SITE_NAME_ACCENT` | Accented letter of the site name | `y` |
+| `FAVICON_URL` | Public URL of a custom favicon (PNG/ICO/SVG) | `https://example.com/favicon.png` |
+| `LOGO_URL` | Public URL of a custom logo | `https://example.com/logo.png` |
+| `PRIMARY_COLOR` | Primary brand colour (hex) | `#F97316` |
+| `POLLY_COPYRIGHT_TEXT` | Footer copyright text. When set, the admin field is locked | `© 2026 My Org` |
+| `FORCE_HTTPS` | Force secure cookies (set `true` behind a TLS-terminating reverse proxy) | `true` |
 
 ### Email (Optional)
 

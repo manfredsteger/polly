@@ -187,7 +187,7 @@ docker compose up -d
 ### Option 2: Local Development
 
 ```bash
-# Prerequisites: Node.js 20+, PostgreSQL 16+
+# Prerequisites: Node.js 22 LTS, PostgreSQL 15+
 
 # Clone and install
 git clone https://github.com/manfredsteger/polly.git

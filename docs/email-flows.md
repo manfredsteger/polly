@@ -54,8 +54,8 @@ flowchart TD
 
   emailChange([E-Mail-Adresse ändern]):::trigger --> authEmail[POST /api/v1/auth/request-email-change]:::route
   authEmail --> mEmailChange{{email_change}}:::mail
-  mEmailChange --> rOldEmail(Bestehende E-Mail-Adresse<br>siehe Hinweis):::recv
-  rOldEmail --> lConfirm[/"Bestätigungs-Link<br>/email-bestaetigen/TOKEN"/]:::link
+  mEmailChange --> rNewEmail(Neue E-Mail-Adresse):::recv
+  rNewEmail --> lConfirm[/"Bestätigungs-Link<br>/email-bestaetigen/TOKEN"/]:::link
 
   forgot([Passwort vergessen]):::trigger --> authReset[POST /api/v1/auth/request-password-reset]:::route
   authReset --> mReset{{password_reset}}:::mail
@@ -130,9 +130,9 @@ flowchart TD
 **Wichtig zu den Links:**
 - Die **Stimmbestätigung** (`vote_confirmation`) und **Stimm-Aktualisierung** (`vote_updated`) enthalten als einzige einen **Bearbeiten-Link** (`/edit/EDIT_TOKEN`), mit dem der Voter seine Stimme später ändern kann. Die Stimmbestätigung kann auch über „Bestätigung erneut senden" (`/resend-email`) erneut ausgelöst werden.
 - Die **Umfrage-erstellt**-E-Mail (`poll_created`) ist die einzige, die den **Admin-Link** (`/admin/TOKEN`) enthält – damit verwaltet der Ersteller seine Umfrage.
+- Die **E-Mail-Änderung**-Bestätigung (`email_change`) geht an die **neue** Adresse, damit der Nutzer deren Besitz bestätigt.
 - Die **Passwort-geändert**-E-Mail (`password_changed`) enthält **bewusst keinen Link** – sie ist eine reine Sicherheits-Benachrichtigung.
 - Bei anonymen Erstellern/Votern (keine E-Mail-Adresse) wird **keine** E-Mail verschickt.
-- **Hinweis zu `email_change`:** Aufgrund der aktuellen Aufruf-Reihenfolge im Code geht die Bestätigungs-E-Mail derzeit an die **bestehende (alte)** Adresse, nicht an die neue. Beabsichtigt ist der Versand an die neue Adresse – siehe Follow-up-Aufgabe.
 
 ---
 
@@ -142,7 +142,7 @@ E-Mails, die ein Administrator auslöst.
 
 ```mermaid
 flowchart TD
-  adminReset([Admin setzt Nutzer-Passwort zurück]):::trigger --> adminRoute[POST /api/v1/admin/users/:id/reset-password]:::route
+  adminReset([Admin setzt Nutzer-Passwort zurück]):::trigger --> adminRoute[POST /api/v1/admin/users/:id/send-password-reset]:::route
   adminRoute --> mReset{{password_reset}}:::mail
   mReset --> rUser(Betroffener Nutzer):::recv
   rUser --> lReset[/"Reset-Link<br>/passwort-zuruecksetzen/TOKEN"/]:::link
@@ -160,17 +160,17 @@ flowchart TD
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
 
-**Wichtig:** Der **Test-Bericht** (`test_report`) ist die einzige E-Mail mit einem **PDF-Anhang**.
+**Wichtig:** Der **Test-Bericht** (`test_report`) ist die einzige E-Mail mit einem **PDF-Anhang**. (Der Admin kann ein Passwort über `/set-password` auch direkt setzen – dabei wird **keine** E-Mail versendet.)
 
 ---
 
-## 3. Umfrage-Finalisierung
+## 3. Umfrage-Finalisierung (manuell)
 
-Wenn eine Umfrage abgeschlossen wird, hängen die E-Mails vom **Umfrage-Typ** ab. Die Finalisierung kann **manuell** (Admin) oder **automatisch** (Scheduler, siehe Abschnitt 4) erfolgen.
+Wenn ein Admin eine Umfrage manuell abschließt, hängen die E-Mails vom **Umfrage-Typ** ab. Den automatischen Ablauf über den Scheduler beschreibt Abschnitt 4.
 
 ```mermaid
 flowchart TD
-  final([Umfrage finalisiert<br>manuell oder Scheduler]):::trigger --> condType{Umfrage-Typ?}:::cond
+  final([Admin finalisiert Umfrage]):::trigger --> condType{Umfrage-Typ?}:::cond
 
   %% Schedule
   condType -->|Terminumfrage| schedRoute[PATCH /api/v1/polls/admin/:token<br>oder POST /admin/:token/finalize]:::route
@@ -211,7 +211,7 @@ flowchart TD
 **Wichtig zu den Links:**
 - Nur die **Terminumfrage-Finalisierung** (`sendFinalizationEmails`) enthält einen **ICS-Kalender-Anhang** (`termin.ics`) und – falls hinterlegt – einen **Video-Konferenz-Link**.
 - Bei der **Umfrage** richtet sich der Button-Link danach, ob die Ergebnisse öffentlich sind: Ergebnis-Link (`#results`) oder normaler Poll-Link.
-- Bei der **Orga-Liste** verschickt der Finalize-Zweig (`orgFinalize`) ausschließlich `sendOrgConfirmationEmails`: **Teilnehmer** bekommen ihre **personalisierte** Slot-Buchung, der **Organisator** eine **vollständige** Übersicht. `sendPollEndedEmails` wird hier nicht ausgelöst.
+- Bei der **manuellen** Orga-Listen-Finalisierung (`orgFinalize`) wird `sendOrgConfirmationEmails` ausgelöst: **Teilnehmer** bekommen ihre **personalisierte** Slot-Buchung, der **Organisator** eine **vollständige** Übersicht. Läuft eine Orga-Liste hingegen **automatisch** ab, sendet der Scheduler stattdessen `sendPollEndedEmails` (siehe Abschnitt 4).
 
 ---
 
@@ -223,15 +223,22 @@ E-Mails, die der `PollSchedulerService` (Prüfung jede Minute) ohne jede Nutzer-
 flowchart TD
   scheduler([PollSchedulerService<br>läuft periodisch]):::trigger --> condExpire{Umfrage-Status?}:::cond
 
-  condExpire -->|Läuft bald ab| autoRemind[sendPersonalizedReminders]:::route
+  %% Erinnerung vor Ablauf
+  condExpire -->|Läuft bald ab| autoRemind[runExpiryReminderCheck<br>sendPersonalizedReminders]:::route
   autoRemind --> mReminder{{reminder}}:::mail
-  mReminder --> rVoters(Bisherige Voter<br>vorhandene E-Mail-Adressen):::recv
+  mReminder --> rVoters(Bisherige Voter<br>E-Mail-Adressen aus Stimmen):::recv
   rVoters --> lPoll[/"Öffentlicher Link"/]:::link
   rVoters --> lQR[/"QR-Code"/]:::link
   rVoters --> lExpiry[/"Ablaufdatum + eigene Ja-Stimmen"/]:::link
 
-  condExpire -->|Abgelaufen| autoFinal[Auto-Finalisierung]:::route
-  autoFinal --> ref[/"→ siehe Abschnitt 3:<br>Umfrage-Finalisierung"/]:::link
+  %% Auto-Deaktivierung nach Ablauf
+  condExpire -->|Abgelaufen| autoDeact[runExpiredPollDeactivation<br>sendPollEndedEmails]:::route
+  autoDeact --> mEnded{{sendPollEndedEmails}}:::mail
+  mEnded --> rEndRecv(Bisherige Voter + Ersteller):::recv
+  rEndRecv --> condPub2{Ergebnisse<br>öffentlich?}:::cond
+  condPub2 -->|Ja| lResults2[/"Ergebnis-Link<br>/poll/TOKEN#results"/]:::link
+  condPub2 -->|Nein| lPoll2[/"Poll-Link"/]:::link
+  rEndRecv --> lContent[/"Gewinner-Option (Survey)<br>bzw. Slot-Übersicht (Orga)"/]:::link
 
   classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
   classDef cond fill:#fef9c3,stroke:#ca8a04,color:#713f12;
@@ -241,7 +248,9 @@ flowchart TD
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
 
-**Wichtig:** Die automatische Erinnerung geht an die **bereits abgestimmten** Voter (deren E-Mail-Adressen aus den vorhandenen Stimmen) und zeigt jedem seine eigenen „Ja"-Stimmen. Die automatische Finalisierung verschickt dieselben E-Mails wie die manuelle (Abschnitt 3).
+**Wichtig:**
+- Die **automatische Erinnerung** (`runExpiryReminderCheck`) geht an die bereits abgestimmten Voter (deren E-Mail-Adressen aus den vorhandenen Stimmen) und zeigt jedem seine eigenen „Ja"-Stimmen.
+- Die **automatische Deaktivierung** (`runExpiredPollDeactivation`) sendet beim Ablauf `sendPollEndedEmails` an Voter **und** Ersteller – sowohl für **Umfragen** als auch für **Orga-Listen** (Doppel-Benachrichtigungen werden über das `notification_logs`-Log verhindert). Terminumfragen werden in der Regel manuell finalisiert (Abschnitt 3, mit ICS-Anhang).
 
 ---
 
@@ -281,20 +290,18 @@ flowchart TD
 | 4 | `vote_confirmation` | Bestätigung erneut senden | `POST /api/v1/polls/:token/resend-email` | Voter | Öffentlicher Link, Ergebnis-Link, **Bearbeiten-Link** | – |
 | 5 | `vote_updated` | Stimme bearbeitet | `PUT /api/v1/votes/edit/:editToken` | Voter | Öffentlicher Link, Ergebnis-Link, **Bearbeiten-Link** | Neue Stimmen-Liste |
 | 6 | `reminder` (manuell) | Ersteller klickt „Erinnern" | `POST /api/v1/polls/admin/:token/remind` | Vom Ersteller angegebene Adressen | Öffentlicher Link, QR-Code | Ablaufdatum, optionale Nachricht |
-| 7 | `reminder` (automatisch) | Scheduler erkennt baldigen Ablauf | `PollSchedulerService` | Bisherige Voter | Öffentlicher Link, QR-Code | Ablaufdatum, eigene Ja-Stimmen |
+| 7 | `reminder` (automatisch) | Scheduler erkennt baldigen Ablauf | `PollSchedulerService` (`runExpiryReminderCheck`) | Bisherige Voter | Öffentlicher Link, QR-Code | Ablaufdatum, eigene Ja-Stimmen |
 | 8 | `password_reset` | Passwort vergessen (User) | `POST /api/v1/auth/request-password-reset` | Nutzer | Reset-Link | – |
-| 9 | `password_reset` | Admin setzt Passwort zurück | `POST /api/v1/admin/users/:id/reset-password` | Betroffener Nutzer | Reset-Link | – |
-| 10 | `email_change` | E-Mail-Adresse geändert | `POST /api/v1/auth/request-email-change` | Bestehende (alte) Adresse¹ | Bestätigungs-Link | – |
+| 9 | `password_reset` | Admin sendet Passwort-Reset | `POST /api/v1/admin/users/:id/send-password-reset` | Betroffener Nutzer | Reset-Link | – |
+| 10 | `email_change` | E-Mail-Adresse geändert | `POST /api/v1/auth/request-email-change` | Neue E-Mail-Adresse | Bestätigungs-Link | – |
 | 11 | `password_changed` | Passwort geändert / zurückgesetzt | `POST /api/v1/auth/reset-password`, `/change-password` | Nutzer | **Keine Links** | – |
 | 12 | `welcome` | Registrierung / erneut senden | `POST /api/v1/auth/register`, `/resend-verification` | Nutzer | Verifizierungs-Link | – |
 | 13 | `test_report` | Admin-Testlauf abgeschlossen | `TestRunnerService` | Admin | – | **PDF-Anhang** (testbericht-ID.pdf), Test-Statistiken |
-| 14 | `poll_finalized` (Schedule) | Terminumfrage finalisiert | `PATCH /api/v1/polls/admin/:token`, `POST /finalize`, Scheduler | Alle Teilnehmer | Poll-Link, Video-Link (optional) | **ICS-Kalender-Anhang** |
-| 15 | Poll-beendet (Survey) | Umfrage beendet | `PATCH /api/v1/polls/admin/:token`, `POST /finalize`, Scheduler | Alle Teilnehmer | Poll-Link **oder** Ergebnis-Link | Gewinner-Option |
-| 16 | Orga-Bestätigung | Orga-Liste finalisiert | `POST /api/v1/polls/admin/:token/finalize` (orgFinalize) | Teilnehmer + Organisator | Poll-Link | Personalisierte / vollständige Slot-Übersicht |
+| 14 | `poll_finalized` (Schedule) | Terminumfrage manuell finalisiert | `PATCH /api/v1/polls/admin/:token`, `POST /admin/:token/finalize` | Alle Teilnehmer | Poll-Link, Video-Link (optional) | **ICS-Kalender-Anhang** |
+| 15 | Poll-beendet (`sendPollEndedEmails`) | Umfrage manuell finalisiert **oder** Umfrage/Orga-Liste läuft automatisch ab | `PATCH /api/v1/polls/admin/:token`, `POST /finalize`, `PollSchedulerService` (`runExpiredPollDeactivation`) | Manuell: alle Teilnehmer · Auto: Voter + Ersteller | Poll-Link **oder** Ergebnis-Link | Gewinner-Option (Survey) / Slot-Übersicht (Orga) |
+| 16 | Orga-Bestätigung (`sendOrgConfirmationEmails`) | Orga-Liste manuell finalisiert | `POST /api/v1/polls/admin/:token/finalize` (orgFinalize) | Teilnehmer + Organisator | Poll-Link | Personalisierte / vollständige Slot-Übersicht |
 | 17 | Virus-Alert | ClamAV-Alarm bei Upload | `ImageService` | Alle Admins | **Kein Link** | Dateiname, Größe, Virus-Name, IP, Uploader |
 | 18 | Löschanfrage-Hinweis | Nutzer beantragt Kontolöschung | `POST /api/v1/auth/request-deletion` | Alle Admins | Admin-Panel-Link | – |
-
-¹ Aktuell geht die `email_change`-Bestätigung wegen der Aufruf-Reihenfolge an die bestehende Adresse statt an die neue. Beabsichtigt ist der Versand an die neue Adresse.
 
 ---
 

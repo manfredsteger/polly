@@ -1,0 +1,1 @@
+- [Mermaid diagram rendering](mermaid-rendering.md) — docs Mermaid diagrams committed as PNGs via `scripts/render-mermaid.mjs`; a stray ASCII `"` in an unquoted Mermaid label breaks Mermaid 11 parsing.

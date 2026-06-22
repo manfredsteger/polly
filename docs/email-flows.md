@@ -2,11 +2,18 @@
 
 Diese Datei dokumentiert **alle E-Mails**, die Polly verschickt: was sie auslöst, über welche Route bzw. welchen Service sie laufen, an wen sie gehen und – besonders wichtig – **welche Links und Anhänge** jede E-Mail enthält.
 
-> Die Diagramme sind in [Mermaid](https://mermaid.js.org/) geschrieben und werden direkt auf GitHub sowie in jedem Mermaid-fähigen Viewer gerendert.
+> Jedes Diagramm ist als **fertiges Bild** (PNG) eingebettet und damit überall direkt sichtbar – auch in der Replit-Vorschau und in einfachen Markdown-Viewern. Der zugehörige [Mermaid](https://mermaid.js.org/)-Quellcode bleibt darunter in einem einklappbaren Bereich („Mermaid-Quellcode anzeigen") erhalten und ist die bearbeitbare Quelle.
+>
+> **Bilder neu erzeugen** (nach Änderungen am Mermaid-Quellcode): `node scripts/render-mermaid.mjs` – das rendert alle Diagramme neu nach `docs/assets/email-flows/`.
 >
 > Alle API-Routen liegen unter dem Präfix `/api/v1` (es gibt zusätzlich Legacy-Aliase ohne Versionsnummer unter `/api`). In den Diagrammen sind die primären Routen angegeben.
 
 ## Legende der Knotenformen
+
+![Legende der Knotenformen – Diagramm](assets/email-flows/01-legende-der-knotenformen.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
 
 ```mermaid
 flowchart LR
@@ -27,6 +34,8 @@ flowchart LR
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
 
+</details>
+
 | Form | Bedeutung |
 |---|---|
 | Stadion `([…])` | Auslöser (User-Aktion, Admin-Aktion, Scheduler, System-Ereignis) |
@@ -41,6 +50,11 @@ flowchart LR
 ## 1. User-Aktionen
 
 E-Mails, die durch direkte Aktionen normaler Nutzer ausgelöst werden.
+
+![1. User-Aktionen – Diagramm](assets/email-flows/02-user-aktionen.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
 
 ```mermaid
 flowchart TD
@@ -106,7 +120,7 @@ flowchart TD
   rVoter2 --> lSel2[/"Neue Stimmen-Liste"/]:::link
 
   %% Erinnerung (manuell)
-  remind([Ersteller klickt „Erinnern"]):::trigger --> remindRoute[POST /api/v1/polls/admin/:token/remind]:::route
+  remind([Ersteller klickt „Erinnern“]):::trigger --> remindRoute[POST /api/v1/polls/admin/:token/remind]:::route
   remindRoute --> mReminder{{reminder}}:::mail
   mReminder --> rParts1(Vom Ersteller angegebene Adressen):::recv
   rParts1 --> lPublic5[/"Öffentlicher Link"/]:::link
@@ -127,6 +141,8 @@ flowchart TD
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
 
+</details>
+
 **Wichtig zu den Links:**
 - Die **Stimmbestätigung** (`vote_confirmation`) und **Stimm-Aktualisierung** (`vote_updated`) enthalten als einzige einen **Bearbeiten-Link** (`/edit/EDIT_TOKEN`), mit dem der Voter seine Stimme später ändern kann. Die Stimmbestätigung kann auch über „Bestätigung erneut senden" (`/resend-email`) erneut ausgelöst werden.
 - Die **Umfrage-erstellt**-E-Mail (`poll_created`) ist die einzige, die den **Admin-Link** (`/admin/TOKEN`) enthält – damit verwaltet der Ersteller seine Umfrage.
@@ -139,6 +155,11 @@ flowchart TD
 ## 2. Admin-Aktionen
 
 E-Mails, die ein Administrator auslöst.
+
+![2. Admin-Aktionen – Diagramm](assets/email-flows/03-admin-aktionen.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
 
 ```mermaid
 flowchart TD
@@ -160,6 +181,8 @@ flowchart TD
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
 
+</details>
+
 **Wichtig:** Der **Test-Bericht** (`test_report`) ist die einzige E-Mail mit einem **PDF-Anhang**. (Der Admin kann ein Passwort über `/set-password` auch direkt setzen – dabei wird **keine** E-Mail versendet.)
 
 ---
@@ -167,6 +190,11 @@ flowchart TD
 ## 3. Umfrage-Finalisierung (manuell)
 
 Wenn ein Admin eine Umfrage manuell abschließt, hängen die E-Mails vom **Umfrage-Typ** ab. Den automatischen Ablauf über den Scheduler beschreibt Abschnitt 4.
+
+![3. Umfrage-Finalisierung (manuell) – Diagramm](assets/email-flows/04-umfrage-finalisierung-manuell.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
 
 ```mermaid
 flowchart TD
@@ -208,6 +236,8 @@ flowchart TD
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
 
+</details>
+
 **Wichtig zu den Links:**
 - Nur die **Terminumfrage-Finalisierung** (`sendFinalizationEmails`) enthält einen **ICS-Kalender-Anhang** (`termin.ics`) und – falls hinterlegt – einen **Video-Konferenz-Link**.
 - Bei der **Umfrage** richtet sich der Button-Link danach, ob die Ergebnisse öffentlich sind: Ergebnis-Link (`#results`) oder normaler Poll-Link.
@@ -218,6 +248,11 @@ flowchart TD
 ## 4. Automatischer Scheduler
 
 E-Mails, die der `PollSchedulerService` (Prüfung jede Minute) ohne jede Nutzer-Interaktion auslöst.
+
+![4. Automatischer Scheduler – Diagramm](assets/email-flows/05-automatischer-scheduler.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
 
 ```mermaid
 flowchart TD
@@ -248,6 +283,8 @@ flowchart TD
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
 
+</details>
+
 **Wichtig:**
 - Die **automatische Erinnerung** (`runExpiryReminderCheck`) geht an die bereits abgestimmten Voter (deren E-Mail-Adressen aus den vorhandenen Stimmen) und zeigt jedem seine eigenen „Ja"-Stimmen.
 - Die **automatische Deaktivierung** (`runExpiredPollDeactivation`) sendet beim Ablauf `sendPollEndedEmails` an Voter **und** Ersteller – sowohl für **Umfragen** als auch für **Orga-Listen** (Doppel-Benachrichtigungen werden über das `notification_logs`-Log verhindert). Terminumfragen werden in der Regel manuell finalisiert (Abschnitt 3, mit ICS-Anhang).
@@ -257,6 +294,11 @@ flowchart TD
 ## 5. Sicherheits-Alert
 
 E-Mail, die das System bei einem erkannten Virus auslöst.
+
+![5. Sicherheits-Alert – Diagramm](assets/email-flows/06-sicherheits-alert.png)
+
+<details>
+<summary>Mermaid-Quellcode anzeigen</summary>
 
 ```mermaid
 flowchart TD
@@ -275,6 +317,8 @@ flowchart TD
   classDef recv fill:#dcfce7,stroke:#16a34a,color:#14532d;
   classDef link fill:#ffe4e6,stroke:#e11d48,color:#881337;
 ```
+
+</details>
 
 **Wichtig:** Der Sicherheits-Alert enthält **keinen Link**, sondern nur Metadaten zum blockierten Upload.
 

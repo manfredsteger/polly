@@ -82,10 +82,10 @@ flowchart TD
   rUser3 --> lNone1[/"Keine Links"/]:::link
 
   %% Umfrage erstellen
-  create([Umfrage erstellt]):::trigger --> condReg{Ersteller<br>registriert?}:::cond
-  condReg -->|Ja| pollRoute[POST /api/v1/polls<br>oder /api/v1/ai/create-poll]:::route
-  condReg -->|Nein / anonym| skip[/"Keine E-Mail"/]:::link
-  pollRoute --> mCreated{{poll_created}}:::mail
+  create([Umfrage erstellt]):::trigger --> pollRoute[POST /api/v1/polls<br>oder /api/v1/ai/create-poll]:::route
+  pollRoute --> condCreatorEmail{E-Mail-Adresse<br>vorhanden?}:::cond
+  condCreatorEmail -->|Nein – anonym,<br>keine E-Mail| skip[/"Keine E-Mail"/]:::link
+  condCreatorEmail -->|Ja| mCreated{{poll_created}}:::mail
   mCreated --> rCreator(Ersteller):::recv
   rCreator --> lPublic1[/"Öffentlicher Link<br>/poll/TOKEN"/]:::link
   rCreator --> lAdmin1[/"Admin-Link<br>/admin/TOKEN"/]:::link
@@ -148,7 +148,8 @@ flowchart TD
 - Die **Umfrage-erstellt**-E-Mail (`poll_created`) ist die einzige, die den **Admin-Link** (`/admin/TOKEN`) enthält – damit verwaltet der Ersteller seine Umfrage.
 - Die **E-Mail-Änderung**-Bestätigung (`email_change`) geht an die **neue** Adresse, damit der Nutzer deren Besitz bestätigt.
 - Die **Passwort-geändert**-E-Mail (`password_changed`) enthält **bewusst keinen Link** – sie ist eine reine Sicherheits-Benachrichtigung.
-- Bei anonymen Erstellern/Votern (keine E-Mail-Adresse) wird **keine** E-Mail verschickt.
+- **`poll_created`** wird auch an **anonyme Ersteller** verschickt – vorausgesetzt, sie geben beim Erstellen eine E-Mail-Adresse an. Gibt ein anonymer Ersteller eine E-Mail-Adresse an, die bereits zu einem registrierten Konto gehört, schlägt die Erstellung mit **409** fehl (Pflicht zur Anmeldung).
+- Bei Erstellern **ohne E-Mail-Adresse** (anonym, kein Adress-Feld ausgefüllt) und bei Votern ohne E-Mail wird **keine** E-Mail verschickt.
 
 ### Einzelne Flows im Detail
 
@@ -269,10 +270,15 @@ flowchart TD
 ```mermaid
 %% render-as: 02e-umfrage-erstellt
 flowchart TD
-  create([Umfrage erstellt]):::trigger --> condReg{Ersteller<br>registriert?}:::cond
-  condReg -->|Nein / anonym| skip[/"Keine E-Mail"/]:::link
-  condReg -->|Ja| pollRoute[POST /api/v1/polls<br>oder /api/v1/ai/create-poll]:::route
-  pollRoute --> mCreated{{poll_created}}:::mail
+  create([Umfrage erstellt]):::trigger --> condAuth{Nutzer<br>angemeldet?}:::cond
+  condAuth -->|Ja – registriert| pollRouteReg[POST /api/v1/polls<br>oder /api/v1/ai/create-poll]:::route
+  condAuth -->|Nein – anonym| condFormEmail{E-Mail im<br>Formular angegeben?}:::cond
+  condFormEmail -->|Nein| skip[/"Keine E-Mail"/]:::link
+  condFormEmail -->|Ja| condKnown{Gehört E-Mail zu<br>registriertem Konto?}:::cond
+  condKnown -->|Ja| errLogin[/"409 – Bitte anmelden"/]:::link
+  condKnown -->|Nein| pollRouteAnon[POST /api/v1/polls<br>E-Mail aus Formular]:::route
+  pollRouteReg --> mCreated{{poll_created}}:::mail
+  pollRouteAnon --> mCreated
   mCreated --> rCreator(Ersteller):::recv
   rCreator --> lPublic[/"Öffentlicher Link<br>/poll/TOKEN"/]:::link
   rCreator --> lAdmin[/"Admin-Link<br>/admin/TOKEN"/]:::link
@@ -611,7 +617,7 @@ flowchart TD
 
 | # | E-Mail-Typ | Auslöser | Route / Service | Empfänger | Enthaltene Links | Anhänge / Extras |
 |---|---|---|---|---|---|---|
-| 1 | `poll_created` | Umfrage erstellt (manuell / AI) | `POST /api/v1/polls`, `POST /api/v1/ai/create-poll` | Ersteller (nur registriert) | Öffentlicher Link, **Admin-Link** | – |
+| 1 | `poll_created` | Umfrage erstellt (manuell / AI) | `POST /api/v1/polls`, `POST /api/v1/ai/create-poll` | Ersteller (wenn E-Mail vorhanden – registriert oder anonym mit Adresse) | Öffentlicher Link, **Admin-Link** | – |
 | 2 | `invitation` | Ersteller lädt Teilnehmer ein | `POST /api/v1/polls/admin/:token/invite` | Eingeladene | Öffentlicher Link, QR-Code | Persönliche Nachricht (optional) |
 | 3 | `vote_confirmation` | Stimme abgegeben | `POST /api/v1/polls/:token/vote`, `/vote-bulk` | Voter (nur mit E-Mail) | Öffentlicher Link, Ergebnis-Link, **Bearbeiten-Link** | Liste der Stimmen |
 | 4 | `vote_confirmation` | Bestätigung erneut senden | `POST /api/v1/polls/:token/resend-email` | Voter | Öffentlicher Link, Ergebnis-Link, **Bearbeiten-Link** | – |

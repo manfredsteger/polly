@@ -155,7 +155,7 @@ flowchart TD
 <details>
 <summary>1a · Registrierung &amp; E-Mail-Verifizierung</summary>
 
-![1a – Registrierung & E-Mail-Verifizierung](assets/email-flows/02a-registrierung-verifizierung.png)
+<img src="assets/email-flows/02a-registrierung-verifizierung.png" alt="1a – Registrierung & E-Mail-Verifizierung" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -183,7 +183,7 @@ flowchart TD
 <details>
 <summary>1b · E-Mail-Adresse ändern</summary>
 
-![1b – E-Mail-Adresse ändern](assets/email-flows/02b-email-adresse-aendern.png)
+<img src="assets/email-flows/02b-email-adresse-aendern.png" alt="1b – E-Mail-Adresse ändern" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -209,7 +209,7 @@ flowchart TD
 <details>
 <summary>1c · Passwort vergessen</summary>
 
-![1c – Passwort vergessen](assets/email-flows/02c-passwort-vergessen.png)
+<img src="assets/email-flows/02c-passwort-vergessen.png" alt="1c – Passwort vergessen" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -235,7 +235,7 @@ flowchart TD
 <details>
 <summary>1d · Passwort geändert / zurückgesetzt</summary>
 
-![1d – Passwort geändert](assets/email-flows/02d-passwort-geaendert.png)
+<img src="assets/email-flows/02d-passwort-geaendert.png" alt="1d – Passwort geändert" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -261,7 +261,7 @@ flowchart TD
 <details>
 <summary>1e · Umfrage erstellt</summary>
 
-![1e – Umfrage erstellt](assets/email-flows/02e-umfrage-erstellt.png)
+<img src="assets/email-flows/02e-umfrage-erstellt.png" alt="1e – Umfrage erstellt" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -291,7 +291,7 @@ flowchart TD
 <details>
 <summary>1f · Einladung</summary>
 
-![1f – Einladung](assets/email-flows/02f-einladung.png)
+<img src="assets/email-flows/02f-einladung.png" alt="1f – Einladung" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -319,7 +319,7 @@ flowchart TD
 <details>
 <summary>1g · Stimme abgegeben</summary>
 
-![1g – Stimme abgegeben](assets/email-flows/02g-stimme-abgegeben.png)
+<img src="assets/email-flows/02g-stimme-abgegeben.png" alt="1g – Stimme abgegeben" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -353,7 +353,7 @@ flowchart TD
 <details>
 <summary>1h · Stimme bearbeitet</summary>
 
-![1h – Stimme bearbeitet](assets/email-flows/02h-stimme-bearbeitet.png)
+<img src="assets/email-flows/02h-stimme-bearbeitet.png" alt="1h – Stimme bearbeitet" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -382,7 +382,7 @@ flowchart TD
 <details>
 <summary>1i · Erinnerung (manuell)</summary>
 
-![1i – Erinnerung (manuell)](assets/email-flows/02i-erinnerung-manuell.png)
+<img src="assets/email-flows/02i-erinnerung-manuell.png" alt="1i – Erinnerung (manuell)" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>
@@ -410,7 +410,7 @@ flowchart TD
 <details>
 <summary>1j · Kontolöschung beantragen</summary>
 
-![1j – Kontolöschung beantragen](assets/email-flows/02j-kontoloesung-beantragen.png)
+<img src="assets/email-flows/02j-kontoloesung-beantragen.png" alt="1j – Kontolöschung beantragen" style="max-width:100%;">
 
 <details>
 <summary>Mermaid-Quellcode anzeigen</summary>

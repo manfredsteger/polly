@@ -18,3 +18,11 @@ A stray **ASCII straight double-quote** (`"`, 0x22) inside an **unquoted** node 
 **Fix:** use matching typographic quotes (`„…“`), or wrap the whole label in straight double-quotes (`["…"]`). The `[/"…"/]` parallelogram form is already proper quoting and is fine.
 
 **Why it matters:** GitHub's native Mermaid renderer hits the same error, so this is a latent rendering bug, not just a local-script issue.
+
+## Replit renderer: images inside `<details>` blocks
+
+Replit's Markdown renderer does **not** parse `![alt](path)` syntax inside HTML blocks (`<details>`, `<div>`, etc.) — it shows "Unsupported image" instead.
+
+**Fix:** Use plain HTML `<img src="…" alt="…" style="max-width:100%;">` for any image that sits inside a `<details>` block. Top-level images (outside HTML blocks) keep their Markdown `![](…)` syntax, which works fine.
+
+**How to apply:** If you add more diagram sub-sections inside `<details>`, always use `<img>` tags, not Markdown image syntax.

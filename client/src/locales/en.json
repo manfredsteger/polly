@@ -2531,6 +2531,7 @@
     "pleaseSelectOption": "Please vote for at least one option.",
     "alreadyVotedTitle": "You have already voted!",
     "alreadyVotedDescription": "Your vote has been successfully saved. This poll does not allow vote editing.",
+    "alreadyVotedEmailDescription": "has already voted in this poll. Because editing is disabled, a new vote cannot be submitted.",
     "yourAnswers": "Your answers:",
     "removing": "Removing...",
     "withdrawVote": "Withdraw vote",

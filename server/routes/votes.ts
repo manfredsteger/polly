@@ -309,7 +309,10 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
-        const editLink = voterEditToken ? `${baseUrl}/edit/${voterEditToken}` : undefined;
+        const editLink =
+          (poll.allowVoteEdit || poll.type === 'organization') && voterEditToken
+            ? `${baseUrl}/edit/${voterEditToken}`
+            : undefined;
 
         // Collect selected option texts for confirmed selections in the email summary.
         const selectedOptions = getSelectedOptionTexts(poll, createdVotes);
@@ -945,10 +948,6 @@ router.post('/polls/:token/votes-by-email', apiGeneralRateLimiter, async (req, r
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
-    }
-
-    if (poll.type !== 'organization') {
-      return res.status(400).json({ error: 'This endpoint is only available for organization polls' });
     }
 
     const { email } = req.body;

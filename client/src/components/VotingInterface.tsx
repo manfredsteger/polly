@@ -81,6 +81,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [hasOrgaChanges, setHasOrgaChanges] = useState(false);
   const [showSelfVote, setShowSelfVote] = useState(false);
   const [duplicateEmailError, setDuplicateEmailError] = useState<string | null>(null);
+  const [alreadyVotedWithEmail, setAlreadyVotedWithEmail] = useState<string | null>(null);
   const [emailRequiresLogin, setEmailRequiresLogin] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isUserEmailLocked, setIsUserEmailLocked] = useState(false);
@@ -304,6 +305,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     // Skip check if user is logged in and using their own email
     if (isAuthenticated && user && user.email.toLowerCase() === email.toLowerCase().trim()) {
       setEmailRequiresLogin(false);
+      setAlreadyVotedWithEmail(null);
       return;
     }
     
@@ -314,18 +316,27 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       
       if (result.requiresLogin) {
         setEmailRequiresLogin(true);
+        setAlreadyVotedWithEmail(null);
         if (containerRef.current) {
           containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       } else {
         setEmailRequiresLogin(false);
-        
-        if (poll.type === 'organization') {
-          try {
-            const voteResponse = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/votes-by-email`, { email: email.trim() });
-            const voteResult = await voteResponse.json();
-            
-            if (voteResult.hasVoted && voteResult.votes.length > 0) {
+
+        try {
+          const voteResponse = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/votes-by-email`, { email: email.trim() });
+          const voteResult = await voteResponse.json();
+
+          if (voteResult.hasVoted && voteResult.votes.length > 0) {
+            if (!poll.allowVoteEdit && poll.type !== 'organization') {
+              setAlreadyVotedWithEmail(email.trim());
+              setDuplicateEmailError(null);
+              return;
+            }
+
+            setAlreadyVotedWithEmail(null);
+
+            if (poll.type === 'organization') {
               const existingBookings: SlotBookingInfo[] = voteResult.votes
                 .filter((v: any) => v.response === 'yes')
                 .map((v: any) => ({
@@ -351,14 +362,18 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 });
               }
             }
-          } catch (error) {
-            console.error('Error fetching existing org votes:', error);
+          } else {
+            setAlreadyVotedWithEmail(null);
           }
+        } catch (error) {
+          console.error('Error fetching existing votes:', error);
+          setAlreadyVotedWithEmail(null);
         }
       }
     } catch (error) {
       console.error('Error checking email:', error);
       setEmailRequiresLogin(false);
+      setAlreadyVotedWithEmail(null);
     } finally {
       setIsCheckingEmail(false);
     }
@@ -404,8 +419,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     onError: (error) => {
       console.error('Vote error:', error);
       
-      // Clear any previous duplicate email error
+      // Clear any previous inline voting errors
       setDuplicateEmailError(null);
+      setAlreadyVotedWithEmail(null);
       
       // Try to parse the error message
       let errorMessage = t('votingInterface.voteCouldNotBeSaved');
@@ -424,6 +440,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
             } else if (errorData.errorCode === 'ALREADY_VOTED') {
               errorMessage = errorData.error || t('votingInterface.alreadyVotedDescription');
+              setAlreadyVotedWithEmail(voterEmail.trim());
               // Show toast with already voted message
               toast({
                 title: t('votingInterface.alreadyVoted'),
@@ -574,6 +591,15 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         title: t('votingInterface.loginRequired'),
         description: t('votingInterface.loginRequiredDescription'),
         variant: "destructive",
+      });
+      return;
+    }
+
+    if (submitBlockedByExistingVote) {
+      toast({
+        title: t('votingInterface.alreadyVoted'),
+        description: t('votingInterface.alreadyVotedEmailDescription'),
+        variant: "default",
       });
       return;
     }
@@ -838,6 +864,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
   const isPollExpired = poll.expiresAt && new Date() > new Date(poll.expiresAt);
   const canVote = poll.isActive && !isPollExpired;
+  const submitBlockedByExistingVote = Boolean(alreadyVotedWithEmail && !canEdit);
   const expiredScheduleOptionIds = useMemo(() => {
     if (poll.type !== 'schedule') return new Set<number>();
     const now = new Date();
@@ -1004,6 +1031,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   onChange={(e) => {
                     setVoterEmail(e.target.value);
                     setEmailRequiresLogin(false);
+                    setAlreadyVotedWithEmail(null);
+                    setDuplicateEmailError(null);
                   }}
                   onBlur={(e) => checkEmailRegistration(e.target.value)}
                   placeholder={t('votingInterface.emailPlaceholder')}
@@ -1048,6 +1077,23 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   {t('votingInterface.orUseOtherEmail')}
                 </span>
               </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {submitBlockedByExistingVote && (
+        <Alert className="border-amber-200 bg-amber-50" data-testid="alert-already-voted-email">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            <div className="space-y-2">
+              <p>
+                <strong>{t('votingInterface.alreadyVotedTitle')}</strong>
+              </p>
+              <p>
+                <code className="bg-amber-100 px-1 py-0.5 rounded text-sm">{alreadyVotedWithEmail}</code>{' '}
+                {t('votingInterface.alreadyVotedEmailDescription')}
+              </p>
             </div>
           </AlertDescription>
         </Alert>
@@ -1225,7 +1271,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                           ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
                           : 'polly-button-organization'
                       }`}
-                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
+                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || submitBlockedByExistingVote || orgaBookings.length === 0}
                       data-testid="button-submit-vote"
                     >
                       {voteMutation.isPending ? t('votingInterface.saving') : orgaBookings.length > 0 ? t('votingInterface.submit') : t('votingInterface.selectSlot')}
@@ -1263,7 +1309,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       className={`px-8 ${
                         poll.type === 'survey' ? 'polly-button-survey' : 'polly-button-schedule'
                       }`}
-                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || (Object.keys(votes).length === 0 && !poll.options.some((o: any) => o.isFreeText))}
+                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || submitBlockedByExistingVote || (Object.keys(votes).length === 0 && !poll.options.some((o: any) => o.isFreeText))}
                       data-testid="button-submit-vote"
                     >
                       {voteMutation.isPending ? t('votingInterface.saving') : t('votingInterface.submitVote')}

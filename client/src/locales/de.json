@@ -2531,6 +2531,7 @@
     "pleaseSelectOption": "Bitte stimmen Sie für mindestens eine Option ab.",
     "alreadyVotedTitle": "Sie haben bereits abgestimmt!",
     "alreadyVotedDescription": "Ihre Stimme wurde erfolgreich gespeichert. Bei dieser Umfrage kann die Stimme nicht geändert werden.",
+    "alreadyVotedEmailDescription": "hat bei dieser Umfrage bereits abgestimmt. Da das Ändern deaktiviert ist, kann keine neue Stimme eingereicht werden.",
     "yourAnswers": "Ihre Antworten:",
     "removing": "Wird entfernt...",
     "withdrawVote": "Stimme zurückziehen",

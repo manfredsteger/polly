@@ -1124,7 +1124,7 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       pollType: 'schedule',
       statusLabel: 'Termin bestätigt',
       confirmedDate: 'Montag, 15. Januar 2025',
-      confirmedTime: '<strong>Uhrzeit:</strong> 14:00 – 15:00 Uhr',
+      confirmedTime: '14:00 – 15:00 Uhr',
       pollLink: 'https://polly.example.com/poll/abc123',
       buttonLink: 'https://polly.example.com/poll/abc123',
       buttonLabel: 'Zur Umfrage \u2192',
@@ -1749,7 +1749,7 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
 
   if (pollType === 'schedule') {
     const confirmedDate = htmlEscape(vars.confirmedDate || '');
-    const confirmedTime = vars.confirmedTime || '';
+    const confirmedTime = htmlEscape(vars.confirmedTime || '');
     const videoConferenceUrl = vars.videoConferenceUrl || '';
     const videoLine = videoConferenceUrl
       ? `<br/><strong>Videokonferenz:</strong> <a href="${htmlEscape(videoConferenceUrl)}" style="color:${ctx.primaryColor};text-decoration:underline;">${htmlEscape(videoConferenceUrl)}</a>`
@@ -1757,7 +1757,7 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     return `${v3BodyStart()}
       ${v3Tag('Termin bestätigt', ctx.primaryColor)}
       ${v3Headline('Termin festgelegt für', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/>${confirmedTime}` : ''}${videoLine}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
+      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/><strong>Uhrzeit:</strong> ${confirmedTime}` : ''}${videoLine}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
     ${v3BodyEnd()}
     ${v3Divider()}
     ${v3SingleButtonSection('Klicken Sie auf den Button, um die Umfrage und Ergebnisse einzusehen.', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;

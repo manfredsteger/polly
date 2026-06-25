@@ -569,7 +569,7 @@ export class EmailService {
       statusLabel: 'Termin bestätigt',
       pollTitle,
       confirmedDate,
-      confirmedTime: confirmedTime ? `<strong>Uhrzeit:</strong> ${confirmedTime}` : '',
+      confirmedTime,
       pollLink,
       buttonLink: pollLink,
       buttonLabel: 'Zur Umfrage \u2192',

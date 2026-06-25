@@ -445,6 +445,8 @@
     "exportToPdf": "Export PDF",
     "noResults": "No results yet",
     "votesForPoll": "Votes for poll",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right",
     "total": "Total",
     "openAnswers": "Open answers",
     "noAnswersYet": "No answers submitted yet.",

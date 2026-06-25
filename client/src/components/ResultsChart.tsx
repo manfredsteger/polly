@@ -21,6 +21,7 @@ import {
   HelpCircle, 
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Calendar, 
   CalendarDays,
   Clock, 
@@ -56,6 +57,82 @@ function FormattedOptionText({ text, startTime, locale = 'en' }: { text: string;
     return <><span className="font-bold">{formatted.dateWithWeekday}</span> {formatted.time}</>;
   }
   return <>{text}</>;
+}
+
+function ScrollableTable({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [showBounce, setShowBounce] = useState(false);
+  const bouncedOnce = useRef(false);
+
+  const updateScrollState = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollState();
+    el.addEventListener('scroll', updateScrollState, { passive: true });
+    const ro = new ResizeObserver(updateScrollState);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', updateScrollState);
+      ro.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (canScrollRight && !bouncedOnce.current) {
+      bouncedOnce.current = true;
+      setShowBounce(true);
+      const t = setTimeout(() => setShowBounce(false), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [canScrollRight]);
+
+  const scrollBy = (dir: 'left' | 'right') => {
+    scrollRef.current?.scrollBy({ left: dir === 'right' ? 320 : -320, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="relative">
+      {canScrollLeft && (
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-14 z-10 bg-gradient-to-r from-card to-transparent" />
+      )}
+      {canScrollRight && (
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-14 z-10 bg-gradient-to-l from-card to-transparent" />
+      )}
+      {canScrollLeft && (
+        <button
+          type="button"
+          onClick={() => scrollBy('left')}
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-8 h-8 rounded-full bg-background/95 border border-border shadow-md text-foreground/60 hover:text-foreground hover:bg-background transition-all"
+          aria-label={t('results.scrollLeft')}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      )}
+      {canScrollRight && (
+        <button
+          type="button"
+          onClick={() => scrollBy('right')}
+          className={`absolute right-1 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-8 h-8 rounded-full bg-background/95 border border-border shadow-md text-foreground/60 hover:text-foreground hover:bg-background transition-all${showBounce ? ' animate-bounce' : ''}`}
+          aria-label={t('results.scrollRight')}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
+      <div ref={scrollRef} className="overflow-x-auto">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 interface ResultsChartProps {
@@ -644,7 +721,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <ScrollableTable>
               <table className="w-full border-collapse" data-testid="matrix-view-table">
                 <thead>
                   <tr>
@@ -770,7 +847,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                   </tr>
                 </tfoot>
               </table>
-            </div>
+            </ScrollableTable>
           </CardContent>
         </Card>
       )}
@@ -824,7 +901,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <ScrollableTable>
               <table className="w-full border-collapse" data-testid="orga-matrix-view-table">
                 <thead>
                   <tr>
@@ -934,7 +1011,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                   </tr>
                 </tfoot>
               </table>
-            </div>
+            </ScrollableTable>
           </CardContent>
         </Card>
       )}

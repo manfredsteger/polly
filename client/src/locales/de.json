@@ -740,6 +740,7 @@
       "details": "Details",
       "management": "Benutzerverwaltung",
       "deprovisioningEnabled": "Deprovisionierung aktiviert",
+      "deleteSsoHint": "SSO-Benutzer werden zentral über das IDM (Keycloak) verwaltet und können hier nicht gelöscht werden.",
       "confirmDelete": "Löschen bestätigen",
       "confirmDeleteDescription": "Möchten Sie diesen Benutzer wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "createUser": "Benutzer erstellen",

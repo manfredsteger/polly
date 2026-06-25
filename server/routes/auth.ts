@@ -506,6 +506,18 @@ router.post('/reset-password', async (req, res) => {
     emailService.sendPasswordChangedEmail(user.email, user.name)
       .catch((emailError) => console.error(`[Password Changed] Failed to send notification to ${user.email}:`, emailError));
 
+    res.clearCookie('polly.sid', { path: '/' });
+
+    if (req.session?.userId) {
+      req.session.destroy((sessionError) => {
+        if (sessionError) {
+          console.error('Password reset logout error:', sessionError);
+        }
+        res.json({ success: true, message: 'Passwort wurde erfolgreich zurückgesetzt' });
+      });
+      return;
+    }
+
     res.json({ success: true, message: 'Passwort wurde erfolgreich zurückgesetzt' });
   } catch (error) {
     console.error('Password reset error:', error);

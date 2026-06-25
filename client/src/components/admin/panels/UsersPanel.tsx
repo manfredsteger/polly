@@ -849,7 +849,7 @@ function UserDetailView({
                   <Button
                     variant="destructive"
                     className="w-full"
-                    disabled={deleteUserMutation.isPending || isDeprovisionEnabled}
+                    disabled={deleteUserMutation.isPending || isDeprovisionEnabled || !isLocal}
                   >
                     {deleteUserMutation.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -877,6 +877,11 @@ function UserDetailView({
               {isDeprovisionEnabled && (
                 <p className="text-xs text-muted-foreground mt-2">
                   {t('admin.users.deprovisioningEnabled')}
+                </p>
+              )}
+              {!isLocal && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {t('admin.users.deleteSsoHint')}
                 </p>
               )}
             </div>

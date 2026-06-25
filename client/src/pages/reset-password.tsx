@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 import { Key, CheckCircle, AlertCircle, Check, X } from "lucide-react";
 
 interface PasswordRequirement {
@@ -107,6 +108,7 @@ export default function ResetPassword() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/passwort-zuruecksetzen/:token");
   const { toast } = useToast();
+  const { logout } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [completed, setCompleted] = useState(false);
@@ -141,7 +143,12 @@ export default function ResetPassword() {
       const response = await apiRequest('POST', '/api/v1/auth/reset-password', data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      try {
+        await logout();
+      } catch (logoutError) {
+        console.warn('Logout after password reset failed:', logoutError);
+      }
       setCompleted(true);
     },
     onError: (error: any) => {

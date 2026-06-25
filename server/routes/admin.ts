@@ -274,6 +274,14 @@ router.post('/users/:id/set-password', requireAdmin, async (req, res) => {
 router.delete('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
     
     const deprovisionSetting = await storage.getSetting('deprovision_config');
     const deprovisionConfig = deprovisionSetting?.value as { enabled?: boolean } | null;
@@ -287,6 +295,12 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
     
     if (req.session.userId === userId) {
       return res.status(400).json({ error: 'Sie können sich selbst nicht löschen' });
+    }
+
+    if (user.provider !== 'local') {
+      return res.status(403).json({
+        error: 'SSO-Benutzer werden zentral über das IDM (Keycloak) verwaltet und können hier nicht gelöscht werden.',
+      });
     }
     
     await storage.deleteUser(userId);

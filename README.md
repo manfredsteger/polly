@@ -250,6 +250,8 @@ npm run dev
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
 | `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
 | `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived if not set) | `https://keycloak.example.com/realms/myrealm` |
+| `KEYCLOAK_ADMIN_CLIENT_ID` | Client ID for Keycloak Admin API calls (e.g. email-exists check). Falls back to `KEYCLOAK_CLIENT_ID` | — |
+| `KEYCLOAK_ADMIN_CLIENT_SECRET` | Client secret for Keycloak Admin API calls. Falls back to `KEYCLOAK_CLIENT_SECRET` | — |
 | `SSO_BUTTON_LABEL` | Custom login button text (e.g. "Kita Hub Login"). Also configurable in Admin panel | — |
 | `HIDE_LOGIN_FORM` | Hide local username+password login form when SSO is primary | `false` |
 

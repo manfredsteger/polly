@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertBanner } from "@/components/ui/AlertBanner";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Check, X, HelpCircle, Calendar, Clock, Mail, AlertTriangle, ListChecks, LogIn, User, Trash2 } from "lucide-react";
@@ -1083,20 +1084,17 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       )}
 
       {submitBlockedByExistingVote && (
-        <Alert className="border-amber-200 bg-amber-50" data-testid="alert-already-voted-email">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800">
-            <div className="space-y-2">
-              <p>
-                <strong>{t('votingInterface.alreadyVotedTitle')}</strong>
-              </p>
-              <p>
-                <code className="bg-amber-100 px-1 py-0.5 rounded text-sm">{alreadyVotedWithEmail}</code>{' '}
-                {t('votingInterface.alreadyVotedEmailDescription')}
-              </p>
-            </div>
-          </AlertDescription>
-        </Alert>
+        <AlertBanner variant="warning" data-testid="alert-already-voted-email">
+          <div className="space-y-2">
+            <p>
+              <strong>{t('votingInterface.alreadyVotedTitle')}</strong>
+            </p>
+            <p>
+              <code className="bg-amber-100 px-1 py-0.5 rounded text-sm">{alreadyVotedWithEmail}</code>{' '}
+              {t('votingInterface.alreadyVotedEmailDescription')}
+            </p>
+          </div>
+        </AlertBanner>
       )}
 
       {/* Duplicate Email Alert */}

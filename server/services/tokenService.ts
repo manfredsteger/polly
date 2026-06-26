@@ -274,4 +274,40 @@ export const tokenService = {
   async validateToken(accessToken: string): Promise<TokenValidationResult> {
     return this.validateAccessToken(accessToken);
   },
+
+  async checkEmailExistsInKeycloak(email: string): Promise<boolean> {
+    const config = getKeycloakConfig();
+    if (!config) return false;
+
+    try {
+      const tokenUrl = `${config.serverUrl}/realms/${config.realm}/protocol/openid-connect/token`;
+      const tokenRes = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: config.clientId,
+          client_secret: config.clientSecret || '',
+        }),
+      });
+
+      if (!tokenRes.ok) return false;
+
+      const { access_token } = await tokenRes.json() as { access_token: string };
+      if (!access_token) return false;
+
+      const adminUrl = `${config.serverUrl}/admin/realms/${config.realm}/users?email=${encodeURIComponent(email)}&exact=true`;
+      const adminRes = await fetch(adminUrl, {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+
+      if (!adminRes.ok) return false;
+
+      const users = await adminRes.json() as unknown[];
+      return Array.isArray(users) && users.length > 0;
+    } catch {
+      // Fail open — don't block voting if Keycloak is unreachable
+      return false;
+    }
+  },
 };

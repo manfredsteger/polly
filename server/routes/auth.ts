@@ -224,10 +224,16 @@ router.post('/check-email', async (req, res) => {
     // Add small constant delay to prevent timing attacks
     await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
 
-    // Check if email is registered (case-insensitive lookup in storage)
+    // Check if email is registered in Polly DB (Scenario 2)
     const existingUser = await storage.getUserByEmail(email.trim());
-    
-    // If user is currently logged in, check if it's their email
+
+    // If no Polly record, check Keycloak — user may exist there but never logged in (Scenario 3)
+    let isKitaHubUser = false;
+    if (!existingUser && tokenService.isOIDCEnabled()) {
+      isKitaHubUser = await tokenService.checkEmailExistsInKeycloak(email.trim());
+    }
+
+    // If user is currently logged in, check if it's their own email
     let isOwnEmail = false;
     if (req.session.userId) {
       const currentUser = await storage.getUser(req.session.userId);
@@ -237,9 +243,9 @@ router.post('/check-email', async (req, res) => {
     }
 
     res.json({
-      registered: !!existingUser,
-      requiresLogin: !!existingUser && !isOwnEmail,
-      isOwnEmail
+      registered: !!existingUser || isKitaHubUser,
+      requiresLogin: (!!existingUser || isKitaHubUser) && !isOwnEmail,
+      isOwnEmail,
     });
   } catch (error) {
     console.error('Error checking email:', error);

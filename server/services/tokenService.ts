@@ -279,6 +279,10 @@ export const tokenService = {
     const config = getKeycloakConfig();
     if (!config) return false;
 
+    const clientId = process.env.KEYCLOAK_ADMIN_CLIENT_ID || config.clientId;
+    const clientSecret = process.env.KEYCLOAK_ADMIN_CLIENT_SECRET || config.clientSecret || '';
+    console.log('[checkEmailExistsInKeycloak] using clientId:', clientId);
+
     try {
       const tokenUrl = `${config.serverUrl}/realms/${config.realm}/protocol/openid-connect/token`;
       const tokenRes = await fetch(tokenUrl, {
@@ -286,27 +290,39 @@ export const tokenService = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'client_credentials',
-          client_id: config.clientId,
-          client_secret: config.clientSecret || '',
+          client_id: clientId,
+          client_secret: clientSecret,
         }),
       });
 
-      if (!tokenRes.ok) return false;
+      if (!tokenRes.ok) {
+        const body = await tokenRes.text();
+        console.error('[checkEmailExistsInKeycloak] token request failed:', tokenRes.status, body);
+        return false;
+      }
 
       const { access_token } = await tokenRes.json() as { access_token: string };
-      if (!access_token) return false;
+      if (!access_token) {
+        console.error('[checkEmailExistsInKeycloak] no access_token in response');
+        return false;
+      }
 
       const adminUrl = `${config.serverUrl}/admin/realms/${config.realm}/users?email=${encodeURIComponent(email)}&exact=true`;
       const adminRes = await fetch(adminUrl, {
         headers: { Authorization: `Bearer ${access_token}` },
       });
 
-      if (!adminRes.ok) return false;
+      if (!adminRes.ok) {
+        const body = await adminRes.text();
+        console.error('[checkEmailExistsInKeycloak] admin API failed:', adminRes.status, body);
+        return false;
+      }
 
       const users = await adminRes.json() as unknown[];
+      console.log('[checkEmailExistsInKeycloak] users found:', users.length);
       return Array.isArray(users) && users.length > 0;
-    } catch {
-      // Fail open — don't block voting if Keycloak is unreachable
+    } catch (err) {
+      console.error('[checkEmailExistsInKeycloak] failed:', err);
       return false;
     }
   },

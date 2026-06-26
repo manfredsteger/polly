@@ -229,8 +229,10 @@ router.post('/check-email', async (req, res) => {
 
     // If no Polly record, check Keycloak — user may exist there but never logged in (Scenario 3)
     let isKitaHubUser = false;
+    console.log('[check-email] oidcEnabled:', tokenService.isOIDCEnabled(), 'existingUser:', !!existingUser);
     if (!existingUser && tokenService.isOIDCEnabled()) {
       isKitaHubUser = await tokenService.checkEmailExistsInKeycloak(email.trim());
+      console.log('[check-email] keycloak result:', isKitaHubUser);
     }
 
     // If user is currently logged in, check if it's their own email
@@ -246,6 +248,7 @@ router.post('/check-email', async (req, res) => {
       registered: !!existingUser || isKitaHubUser,
       requiresLogin: (!!existingUser || isKitaHubUser) && !isOwnEmail,
       isOwnEmail,
+      isKitaHubUser,
     });
   } catch (error) {
     console.error('Error checking email:', error);

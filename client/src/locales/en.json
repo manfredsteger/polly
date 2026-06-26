@@ -2551,6 +2551,7 @@
     "checkingEmail": "Checking email...",
     "loginRequiredAlert": "Login required",
     "emailBelongsToAccount": "belongs to a registered account. Please log in to vote with this email address.",
+    "emailBelongsToKitaHub": "belongs to a KITA HUB account. Please log in with your KITA HUB account to vote.",
     "loginNow": "Login now",
     "orUseOtherEmail": "or use a different email address",
     "emailAlreadyUsed": "This email address has already been used.",

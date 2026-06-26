@@ -2551,6 +2551,7 @@
     "checkingEmail": "E-Mail wird überprüft...",
     "loginRequiredAlert": "Anmeldung erforderlich",
     "emailBelongsToAccount": "gehört zu einem registrierten Konto. Bitte melden Sie sich an, um mit dieser E-Mail-Adresse abzustimmen.",
+    "emailBelongsToKitaHub": "gehört zu einem KITA HUB-Konto. Bitte melden Sie sich mit Ihrem KITA HUB-Konto an, um abzustimmen.",
     "loginNow": "Jetzt anmelden",
     "orUseOtherEmail": "oder eine andere E-Mail-Adresse verwenden",
     "emailAlreadyUsed": "Diese E-Mail-Adresse wurde bereits verwendet.",

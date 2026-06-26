@@ -84,6 +84,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [duplicateEmailError, setDuplicateEmailError] = useState<string | null>(null);
   const [alreadyVotedWithEmail, setAlreadyVotedWithEmail] = useState<string | null>(null);
   const [emailRequiresLogin, setEmailRequiresLogin] = useState(false);
+  const [isKitaHubEmail, setIsKitaHubEmail] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isUserEmailLocked, setIsUserEmailLocked] = useState(false);
   const allowMaybeForPoll = (poll.type === 'schedule' || poll.type === 'survey') && poll.allowMaybe === true;
@@ -317,12 +318,14 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       
       if (result.requiresLogin) {
         setEmailRequiresLogin(true);
+        setIsKitaHubEmail(!!result.isKitaHubUser);
         setAlreadyVotedWithEmail(null);
         if (containerRef.current) {
           containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       } else {
         setEmailRequiresLogin(false);
+        setIsKitaHubEmail(false);
 
         try {
           const voteResponse = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/votes-by-email`, { email: email.trim() });
@@ -1060,8 +1063,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 <strong>{t('votingInterface.loginRequiredAlert')}</strong>
               </p>
               <p>
-                <code className="bg-orange-100 px-1 py-0.5 rounded text-sm">{voterEmail}</code> 
-                {' '}{t('votingInterface.emailBelongsToAccount')}
+                <code className="bg-orange-100 px-1 py-0.5 rounded text-sm">{voterEmail}</code>
+                {' '}{isKitaHubEmail
+                  ? t('votingInterface.emailBelongsToKitaHub')
+                  : t('votingInterface.emailBelongsToAccount')}
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link href={`/anmelden?redirect=${encodeURIComponent(`/poll/${poll.publicToken}`)}`}>
@@ -1074,9 +1079,17 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     {t('votingInterface.loginNow')}
                   </Button>
                 </Link>
-                <span className="text-sm text-orange-700 self-center">
+                <button
+                  type="button"
+                  className="text-sm text-orange-700 self-center underline hover:text-orange-900"
+                  onClick={() => {
+                    setVoterEmail('');
+                    setEmailRequiresLogin(false);
+                    setIsKitaHubEmail(false);
+                  }}
+                >
                   {t('votingInterface.orUseOtherEmail')}
-                </span>
+                </button>
               </div>
             </div>
           </AlertDescription>

@@ -104,12 +104,15 @@ router.get('/polls/:token/export/pdf', apiGeneralRateLimiter, async (req, res) =
     
     const qrCodeDataUrl = await qrService.generateQRCode(pollUrl, 'png');
     
+    const includeParticipantTable = req.query.includeParticipants === '1';
+
     const pdfOptions = {
       logoUrl: customization.branding?.logoUrl || undefined,
       siteName: customization.branding?.siteName || 'Poll',
       siteNameAccent: customization.branding?.siteNameAccent || 'y',
       qrCodeDataUrl,
       pollUrl,
+      includeParticipantTable,
     };
     
     const pdfBuffer = await pdfService.generatePollResultsPDF(results, pdfOptions);

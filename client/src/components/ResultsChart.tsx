@@ -12,6 +12,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -169,6 +179,9 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   const [orgFinalizeNotify, setOrgFinalizeNotify] = useState(true);
   const [isDetailedResultsOpen, setIsDetailedResultsOpen] = useState(false);
   const detailedResultsRef = useRef<HTMLDivElement>(null);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfIncludeParticipants, setPdfIncludeParticipants] = useState(false);
+  const [pdfExporting, setPdfExporting] = useState(false);
   const localeCode = i18n.language === 'de' ? 'de-DE' : 'en-US';
 
   const openAndScrollToDetailedResults = () => {
@@ -449,8 +462,36 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   };
 
   const handleExportPDF = () => {
-    if (publicToken) {
-      window.open(`/api/v1/polls/${publicToken}/export/pdf`, '_blank');
+    setPdfIncludeParticipants(false);
+    setPdfDialogOpen(true);
+  };
+
+  const handlePdfDownload = async () => {
+    if (!publicToken) return;
+    setPdfExporting(true);
+    try {
+      const url = `/api/v1/polls/${publicToken}/export/pdf${pdfIncludeParticipants ? '?includeParticipants=1' : ''}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        toast({ title: t('common.error'), description: t('results.pdfExportError'), variant: 'destructive' });
+        return;
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      const disposition = response.headers.get('Content-Disposition');
+      const filenameMatch = disposition?.match(/filename="?([^";\n]+)"?/);
+      a.download = filenameMatch?.[1] || 'results.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+      setPdfDialogOpen(false);
+    } catch {
+      toast({ title: t('common.error'), description: t('results.pdfExportError'), variant: 'destructive' });
+    } finally {
+      setPdfExporting(false);
     }
   };
 
@@ -1643,6 +1684,35 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* PDF Export Dialog */}
+      <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('results.pdfExportDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('results.pdfExportDialogDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-3 py-2">
+            <Checkbox
+              id="pdf-include-participants"
+              checked={pdfIncludeParticipants}
+              onCheckedChange={(checked) => setPdfIncludeParticipants(checked === true)}
+            />
+            <Label htmlFor="pdf-include-participants" className="cursor-pointer">
+              {t('results.pdfIncludeParticipants')}
+            </Label>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPdfDialogOpen(false)} disabled={pdfExporting}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handlePdfDownload} disabled={pdfExporting}>
+              {pdfExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+              {t('results.pdfExportDownload')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

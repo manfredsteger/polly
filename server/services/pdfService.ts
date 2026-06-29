@@ -157,6 +157,7 @@ interface PDFOptions {
   siteNameAccent?: string;
   qrCodeDataUrl?: string;
   pollUrl?: string;
+  includeParticipantTable?: boolean;
 }
 
 export function generateHTMLTemplate(results: PollResults, options: PDFOptions = {}): string {
@@ -187,6 +188,64 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
   const orgSlotInfo = poll.type === 'organization'
     ? (poll.maxSlotsPerUser ? `Max. ${poll.maxSlotsPerUser} Slot${poll.maxSlotsPerUser !== 1 ? 's' : ''}/Person` : 'Unbegrenzt')
     : null;
+
+  // ── Voter matrix table HTML ─────────────────────────────────────────────
+  let voterMatrixHtml = '';
+  if (options.includeParticipantTable && results.votes && results.votes.length > 0) {
+    // Deduplicate votes: keep latest per (voterKey, optionId)
+    const deduped = new Map<string, typeof results.votes[0]>();
+    for (const vote of results.votes) {
+      const voterKey = vote.userId ? `user_${vote.userId}` : `email_${vote.voterEmail || vote.voterName}`;
+      const key = `${voterKey}__${vote.optionId}`;
+      const existing = deduped.get(key);
+      if (!existing || (vote.updatedAt && existing.updatedAt && vote.updatedAt > existing.updatedAt) || (!existing.updatedAt && vote.id > existing.id)) {
+        deduped.set(key, vote);
+      }
+    }
+
+    // Build participant map
+    const participantMap = new Map<string, { name: string; responses: Map<number, string> }>();
+    for (const vote of deduped.values()) {
+      const voterKey = vote.userId ? `user_${vote.userId}` : `email_${vote.voterEmail || vote.voterName}`;
+      if (!participantMap.has(voterKey)) {
+        participantMap.set(voterKey, { name: vote.voterName || vote.voterEmail || '–', responses: new Map() });
+      }
+      participantMap.get(voterKey)!.responses.set(vote.optionId, vote.response);
+    }
+
+    const participants = Array.from(participantMap.values());
+
+    const responseSymbol = (r?: string) => {
+      if (r === 'yes') return '<span class="vm-yes">&#10003;</span>';
+      if (r === 'maybe') return '<span class="vm-maybe">?</span>';
+      if (r === 'no') return '<span class="vm-no">&#10007;</span>';
+      return '<span class="vm-empty">–</span>';
+    };
+
+    const headerCells = results.options.map(opt => `<th class="vm-th">${opt.text}</th>`).join('');
+    const bodyRows = participants.map(p => {
+      const cells = results.options.map(opt => `<td class="vm-td">${responseSymbol(p.responses.get(opt.id))}</td>`).join('');
+      return `<tr><td class="vm-name">${p.name}</td>${cells}</tr>`;
+    }).join('');
+
+    voterMatrixHtml = `
+    <div style="margin-top: 28px;">
+      <h2 class="section-title">Teilnehmerliste</h2>
+      <div class="vm-wrapper">
+        <table class="vm-table">
+          <thead>
+            <tr>
+              <th class="vm-th vm-name-th">Teilnehmer</th>
+              ${headerCells}
+            </tr>
+          </thead>
+          <tbody>
+            ${bodyRows}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
 
   // ── Options HTML ────────────────────────────────────────────────────────
   const optionsHtml = hasStats ? results.stats.map((stat, index) => {
@@ -421,6 +480,28 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
     }
     .footer a { color: #bbb; text-decoration: none; }
 
+    /* ── Voter matrix table ── */
+    .vm-wrapper { overflow-x: auto; }
+    .vm-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12px; table-layout: auto;
+    }
+    .vm-table thead tr { background: #f0f3ff; }
+    .vm-th {
+      padding: 6px 10px; border: 1px solid #dde2f0;
+      font-weight: 700; color: #1a1a2e; text-align: center;
+      font-size: 11px; white-space: normal; word-break: break-word;
+      max-width: 90px;
+    }
+    .vm-name-th { text-align: left; min-width: 110px; max-width: 160px; }
+    .vm-table tbody tr:nth-child(even) { background: #f8f9fa; }
+    .vm-td { padding: 5px 8px; border: 1px solid #e5e7eb; text-align: center; }
+    .vm-name { padding: 5px 10px; border: 1px solid #e5e7eb; font-weight: 500; color: #1a1a2e; word-break: break-word; }
+    .vm-yes   { color: #16a34a; font-weight: 700; font-size: 14px; }
+    .vm-maybe { color: #d97706; font-weight: 700; font-size: 14px; }
+    .vm-no    { color: #dc2626; font-weight: 700; font-size: 14px; }
+    .vm-empty { color: #bbb; font-size: 12px; }
+
     @media print {
       body { padding: 20px 30px; }
       .option-card, .description-section, .letterhead { page-break-inside: avoid; }
@@ -525,6 +606,8 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
       ${formatDateTime(bestOptionData.startTime)} – ${formatDateTime(bestOptionData.endTime)}
     </div>` : ''}
   </div>` : ''}
+
+  ${voterMatrixHtml}
 
   <div class="footer">
     Erstellt mit <a href="https://github.com/manfredsteger/polly">${siteName}${siteNameAccent}</a>&nbsp;&nbsp;|&nbsp;&nbsp;Exportiert am ${formatDateTime(new Date())}

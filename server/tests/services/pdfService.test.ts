@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { PDFService } from '../../services/pdfService';
+import { PDFService, generateHTMLTemplate } from '../../services/pdfService';
 import { PollResults } from '@shared/schema';
 import { execSync } from 'child_process';
 import { existsSync } from 'fs';
@@ -10,8 +10,6 @@ describe('PDF Service', () => {
 
   beforeAll(async () => {
     pdfService = new PDFService();
-    
-    // Check if Chromium is available
     chromiumAvailable = checkChromiumAvailable();
     if (!chromiumAvailable) {
       console.log('⚠️  Chromium not available - PDF generation tests will be skipped');
@@ -24,24 +22,18 @@ describe('PDF Service', () => {
   });
 
   function checkChromiumAvailable(): boolean {
-    // Check environment variable
     if (process.env.PUPPETEER_EXECUTABLE_PATH && existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
       return true;
     }
-    
-    // Check common paths
     const possiblePaths = [
       '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
       '/usr/bin/chromium',
       '/usr/bin/chromium-browser',
       '/usr/bin/google-chrome',
     ];
-    
     for (const p of possiblePaths) {
       if (existsSync(p)) return true;
     }
-    
-    // Try which command
     try {
       const result = execSync('which chromium || which chromium-browser || which google-chrome 2>/dev/null', { encoding: 'utf8' }).trim();
       return !!result;
@@ -50,7 +42,6 @@ describe('PDF Service', () => {
     }
   }
 
-  // Mock poll results for testing
   function createMockPollResults(): PollResults {
     return {
       poll: {
@@ -58,16 +49,29 @@ describe('PDF Service', () => {
         title: 'Test Terminumfrage',
         description: 'Eine Beschreibung für die Testumfrage',
         type: 'schedule',
-        createdAt: new Date('2024-12-10'),
-        expiresAt: new Date('2024-12-31'),
-        isActive: true,
-        resultsPublic: true,
-        allowVoteEditing: true,
+        userId: null,
+        creatorEmail: null,
         publicToken: 'test-token-123',
         adminToken: 'admin-token-123',
-        creatorId: null,
-        multipleSelectionsPerPerson: false,
+        isActive: true,
+        isAnonymous: false,
+        allowAnonymousVoting: true,
+        allowMultipleSlots: true,
+        maxSlotsPerUser: null,
+        allowVoteEdit: false,
+        allowVoteWithdrawal: false,
+        resultsPublic: true,
+        allowMaybe: true,
+        notifyCreatorOnVote: true,
         isTestData: true,
+        expiresAt: new Date('2024-12-31'),
+        videoConferenceUrl: null,
+        finalOptionId: null,
+        enableExpiryReminder: false,
+        expiryReminderHours: 24,
+        expiryReminderSent: false,
+        createdAt: new Date('2024-12-10'),
+        updatedAt: new Date('2024-12-10'),
       },
       options: [
         {
@@ -125,11 +129,10 @@ describe('PDF Service', () => {
 
       expect(pdfBuffer).toBeInstanceOf(Buffer);
       expect(pdfBuffer.length).toBeGreaterThan(0);
-      
-      // Check PDF magic bytes (%PDF-)
+
       const header = pdfBuffer.slice(0, 5).toString('ascii');
       expect(header).toBe('%PDF-');
-    }, 60000); // Increase timeout for first PDF generation (browser startup)
+    }, 60000);
 
     it('should include branding options in PDF', async () => {
       if (!chromiumAvailable) {
@@ -207,20 +210,205 @@ describe('PDF Service', () => {
     });
   });
 
-  describe('HTML Template Generation', () => {
-    it('should contain SVG icons instead of emoji entities', async () => {
-      // This test verifies the template includes inline SVGs
-      // We can't directly test the private function, but we can verify the PDF contains expected structure
-      if (!chromiumAvailable) {
-        console.log('  ⏭️  Skipping: Chromium not available');
-        return;
-      }
-
+  describe('HTML Template Generation (unit, no Chromium required)', () => {
+    it('should include poll title in the HTML', () => {
       const results = createMockPollResults();
-      const pdfBuffer = await pdfService.generatePollResultsPDF(results);
-      
-      // PDF should be generated without errors (indicating SVGs rendered correctly)
-      expect(pdfBuffer.length).toBeGreaterThan(1000);
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('Test Terminumfrage');
+    });
+
+    it('should include all letterhead fields', () => {
+      const results = createMockPollResults();
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('Status');
+      expect(html).toContain('Umfragetyp');
+      expect(html).toContain('Gestartet am');
+      expect(html).toContain('Endet am');
+      expect(html).toContain('Ergebnisse');
+      expect(html).toContain('Abstimmung');
+      expect(html).toContain('Anonyme Teilnahme');
+    });
+
+    it('should show active status for active polls', () => {
+      const results = createMockPollResults();
+      results.poll.isActive = true;
+      results.poll.finalOptionId = null;
+      results.poll.expiresAt = new Date(Date.now() + 86400000); // tomorrow
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('lh-status-active');
+      expect(html).toContain('Aktiv');
+    });
+
+    it('should show closed status for inactive polls', () => {
+      const results = createMockPollResults();
+      results.poll.isActive = false;
+      results.poll.finalOptionId = null;
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('lh-status-closed');
+      expect(html).toContain('Abgeschlossen');
+    });
+
+    it('should show finalized status when finalOptionId is set', () => {
+      const results = createMockPollResults();
+      results.poll.finalOptionId = 1;
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('lh-status-finalized');
+      expect(html).toContain('Finalisiert');
+    });
+
+    it('should show expired status for polls past expiresAt', () => {
+      const results = createMockPollResults();
+      results.poll.isActive = true;
+      results.poll.finalOptionId = null;
+      results.poll.expiresAt = new Date('2020-01-01'); // past date
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('lh-status-expired');
+      expect(html).toContain('Abgelaufen');
+    });
+
+    it('should render markdown in description', () => {
+      const results = createMockPollResults();
+      results.poll.description = '**Fettgedruckt** und _kursiv_\n\n## Überschrift';
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('<strong>Fettgedruckt</strong>');
+      expect(html).toContain('<em>kursiv</em>');
+      expect(html).toContain('<h2>');
+    });
+
+    it('should render markdown lists', () => {
+      const results = createMockPollResults();
+      results.poll.description = '- Punkt 1\n- Punkt 2\n- Punkt 3';
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('<ul>');
+      expect(html).toContain('<li>');
+      expect(html).toContain('Punkt 1');
+    });
+
+    it('should render markdown blockquotes', () => {
+      const results = createMockPollResults();
+      results.poll.description = '> Ein wichtiger Hinweis';
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('<blockquote>');
+    });
+
+    it('should strip script tags from markdown description', () => {
+      const results = createMockPollResults();
+      results.poll.description = 'Normaler Text <script>alert("xss")</script> Ende';
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('<script>');
+      expect(html).not.toContain('alert("xss")');
+    });
+
+    it('should include poll URL as clickable link when provided', () => {
+      const results = createMockPollResults();
+      const html = generateHTMLTemplate(results, { pollUrl: 'https://example.com/poll/abc' });
+      expect(html).toContain('https://example.com/poll/abc');
+      expect(html).toContain('poll-link');
+    });
+
+    it('should show no expiry date when expiresAt is null', () => {
+      const results = createMockPollResults();
+      results.poll.expiresAt = null;
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('—');
+    });
+
+    it('should show "Vielleicht"-Option label for schedule polls', () => {
+      const results = createMockPollResults();
+      results.poll.type = 'schedule';
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('"Vielleicht"-Option');
+    });
+
+    it('should NOT show "Vielleicht"-Option label for survey polls', () => {
+      const results = createMockPollResults();
+      results.poll.type = 'survey';
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('"Vielleicht"-Option');
+    });
+
+    it('should show org slot info for organization polls with maxSlotsPerUser', () => {
+      const results = createMockPollResults();
+      results.poll.type = 'organization';
+      results.poll.maxSlotsPerUser = 3;
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('Slots pro Person');
+      expect(html).toContain('Max. 3 Slots/Person');
+    });
+
+    it('should show "Unbegrenzt" for organization polls without slot limit', () => {
+      const results = createMockPollResults();
+      results.poll.type = 'organization';
+      results.poll.maxSlotsPerUser = null;
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('Slots pro Person');
+      expect(html).toContain('Unbegrenzt');
+    });
+
+    it('should show video conference URL when set', () => {
+      const results = createMockPollResults();
+      results.poll.videoConferenceUrl = 'https://zoom.us/j/123456789';
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('Videokonferenz');
+      expect(html).toContain('https://zoom.us/j/123456789');
+    });
+
+    it('should NOT show video conference section when not set', () => {
+      const results = createMockPollResults();
+      results.poll.videoConferenceUrl = null;
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('Videokonferenz');
+    });
+
+    it('should include Polly link in footer', () => {
+      const results = createMockPollResults();
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('polly');
+      expect(html).toContain('Erstellt mit');
+    });
+
+    it('should include description div when description is set', () => {
+      const results = createMockPollResults();
+      results.poll.description = 'Eine Beschreibung';
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('<div class="description-section">');
+    });
+
+    it('should NOT include description div when description is null', () => {
+      const results = createMockPollResults();
+      results.poll.description = null;
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('<div class="description-section">');
+    });
+
+    it('should render correctly with custom branding', () => {
+      const results = createMockPollResults();
+      const html = generateHTMLTemplate(results, {
+        siteName: 'Mein',
+        siteNameAccent: 'Tool',
+      });
+      expect(html).toContain('MeinTool');
+    });
+
+    it('should show Ergebnisse section with options', () => {
+      const results = createMockPollResults();
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('Ergebnisse');
+      expect(html).toContain('option-card');
+      expect(html).toContain('Beste Option');
+    });
+
+    it('should show empty state when no options are present', () => {
+      const results: PollResults = {
+        ...createMockPollResults(),
+        options: [],
+        stats: [],
+        votes: [],
+        participantCount: 0,
+        responseRate: 0,
+      };
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('Keine Optionen vorhanden');
     });
   });
 
@@ -231,12 +419,11 @@ describe('PDF Service', () => {
         return;
       }
 
-      // Generate two PDFs in sequence - tests browser recovery
       const results = createMockPollResults();
-      
+
       const pdf1 = await pdfService.generatePollResultsPDF(results);
       expect(pdf1).toBeInstanceOf(Buffer);
-      
+
       const pdf2 = await pdfService.generatePollResultsPDF(results);
       expect(pdf2).toBeInstanceOf(Buffer);
     });
@@ -245,9 +432,8 @@ describe('PDF Service', () => {
 
 describe('PDF Service - Docker Environment', () => {
   it('should detect Chromium path in Docker environment', () => {
-    // In Docker, PUPPETEER_EXECUTABLE_PATH should be set
     const dockerChromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    
+
     if (process.env.DOCKER_ENV === 'true' || dockerChromiumPath) {
       expect(dockerChromiumPath).toBeDefined();
       expect(existsSync(dockerChromiumPath!)).toBe(true);
@@ -259,10 +445,9 @@ describe('PDF Service - Docker Environment', () => {
 
   it('should have correct Chromium permissions in Docker', () => {
     const chromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    
+
     if (chromiumPath && existsSync(chromiumPath)) {
       try {
-        // Check if executable
         execSync(`test -x ${chromiumPath}`);
         console.log('  ✓ Chromium is executable');
       } catch {

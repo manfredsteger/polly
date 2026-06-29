@@ -2764,6 +2764,8 @@
     "resultsPublic": "Ergebnisse öffentlich",
     "resultsPrivate": "Ergebnisse privat",
     "resultsPublicDescription": "Dürfen Teilnehmende die Ergebnisse einsehen?",
+    "notifyCreatorOnVote": "Benachrichtigung bei neuer Abstimmung",
+    "notifyCreatorOnVoteDescription": "Per E-Mail informiert werden, sobald jemand abstimmt.",
     "creationOptions": "Erstellungsoptionen",
     "settings": "Einstellungen",
     "loggedInAs": "Angemeldet als {{name}}",

@@ -98,6 +98,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       allowVoteWithdrawal: data.allowVoteWithdrawal,
       resultsPublic: data.resultsPublic,
       allowMaybe: data.allowMaybe,
+      notifyCreatorOnVote: data.notifyCreatorOnVote,
       videoConferenceUrl: data.type === 'schedule' ? (data.videoConferenceUrl || null) : null,
       isTestData: req.isTestMode === true,
     };
@@ -218,7 +219,7 @@ router.patch('/admin/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl, notifyParticipants, enableExpiryReminder, expiryReminderHours } = req.body;
+    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, notifyCreatorOnVote, videoConferenceUrl, notifyParticipants, enableExpiryReminder, expiryReminderHours } = req.body;
     
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
@@ -230,6 +231,7 @@ router.patch('/admin/:token', async (req, res) => {
     if (allowVoteWithdrawal !== undefined) updates.allowVoteWithdrawal = allowVoteWithdrawal;
     if (allowMaybe !== undefined) updates.allowMaybe = allowMaybe;
     if (allowMultipleSlots !== undefined) updates.allowMultipleSlots = allowMultipleSlots;
+    if (notifyCreatorOnVote !== undefined) updates.notifyCreatorOnVote = notifyCreatorOnVote;
     if (videoConferenceUrl !== undefined && poll.type === 'schedule') {
       if (videoConferenceUrl && typeof videoConferenceUrl === 'string') {
         try {

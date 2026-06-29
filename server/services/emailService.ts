@@ -351,6 +351,38 @@ export class EmailService {
     }
   }
 
+  async sendNewVoteNotificationEmail(
+    creatorEmail: string,
+    voterName: string,
+    pollTitle: string,
+    pollType: 'schedule' | 'survey' | 'organization',
+    adminLink: string,
+    resultsLink: string
+  ): Promise<void> {
+    if (!creatorEmail) return;
+
+    try {
+      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
+
+      const rendered = await this.renderTemplate('new_vote_notification', {
+        voterName,
+        pollTitle,
+        pollType: pollTypeText,
+        adminLink: validateEmailUrl(adminLink),
+        resultsLink: validateEmailUrl(resultsLink),
+      });
+
+      await this.sendMail({
+        to: creatorEmail,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+      });
+    } catch (error) {
+      console.error('Failed to send new vote notification email:', error);
+    }
+  }
+
   async sendReminderEmail(
     recipientEmail: string,
     senderName: string,

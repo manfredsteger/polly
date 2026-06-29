@@ -53,6 +53,7 @@ export const polls = pgTable("polls", {
   allowVoteWithdrawal: boolean("allow_vote_withdrawal").default(false).notNull(), // allow voters to completely withdraw/delete their votes
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
+  notifyCreatorOnVote: boolean("notify_creator_on_vote").default(true).notNull(), // notify the poll creator by email when a new vote is cast
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   videoConferenceUrl: text("video_conference_url"),
@@ -403,6 +404,7 @@ export const EMAIL_TEMPLATE_TYPES = [
   'invitation', 
   'vote_confirmation',
   'vote_updated',
+  'new_vote_notification',
   'reminder',
   'password_reset',
   'email_change',
@@ -448,6 +450,14 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'publicLink', description: 'Link zur Umfrage' },
     { key: 'resultsLink', description: 'Link zu den Ergebnissen' },
     { key: 'editLink', description: 'Link zum Bearbeiten der eigenen Stimme' },
+    { key: 'siteName', description: 'Name der Plattform' },
+  ],
+  new_vote_notification: [
+    { key: 'voterName', description: 'Name des Abstimmenden' },
+    { key: 'pollTitle', description: 'Titel der Umfrage' },
+    { key: 'pollType', description: 'Umfragetyp' },
+    { key: 'adminLink', description: 'Admin-Link zur Umfrage' },
+    { key: 'resultsLink', description: 'Link zu den Ergebnissen' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   reminder: [

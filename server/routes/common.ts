@@ -78,6 +78,7 @@ export const createPollSchemaBase = z.object({
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
   allowMaybe: z.boolean().optional().default(true),
+  notifyCreatorOnVote: z.boolean().optional().default(true),
   videoConferenceUrl: z.string().max(2000).refine(
     (url) => isValidHttpHttpsUrl(url),
     { message: 'Please enter a valid HTTP/HTTPS URL.' }

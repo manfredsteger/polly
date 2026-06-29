@@ -208,6 +208,7 @@ export default function Poll() {
     allowVoteEdit: false,
     allowVoteWithdrawal: false,
     resultsPublic: true,
+    notifyCreatorOnVote: true,
     allowMaybe: true,
     allowMultipleSlots: false
   });
@@ -332,6 +333,7 @@ export default function Poll() {
         allowVoteEdit: poll.allowVoteEdit ?? false,
         allowVoteWithdrawal: poll.allowVoteWithdrawal ?? false,
         resultsPublic: poll.resultsPublic ?? true,
+        notifyCreatorOnVote: poll.notifyCreatorOnVote ?? true,
         allowMaybe: poll.allowMaybe ?? true,
         allowMultipleSlots: poll.allowMultipleSlots ?? false
       });
@@ -355,7 +357,7 @@ export default function Poll() {
   }, [poll, editDialogOpen]);
   
   const updatePollMutation = useMutation({
-    mutationFn: async (updates: { title?: string; description?: string; videoConferenceUrl?: string | null; expiresAt?: string | null; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean }) => {
+    mutationFn: async (updates: { title?: string; description?: string; videoConferenceUrl?: string | null; expiresAt?: string | null; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean; notifyCreatorOnVote?: boolean }) => {
       if (!effectiveAdminToken) throw new Error('No admin token');
       const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}`, updates);
       return response.json();
@@ -1282,6 +1284,18 @@ export default function Poll() {
                         data-testid="switch-edit-resultsPublic"
                       />
                     </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="edit-notifyCreatorOnVote">{t('pollCreation.notifyCreatorOnVote')}</Label>
+                        <p className="text-sm text-muted-foreground">{t('pollCreation.notifyCreatorOnVoteDescription')}</p>
+                      </div>
+                      <Switch
+                        id="edit-notifyCreatorOnVote"
+                        checked={editForm.notifyCreatorOnVote}
+                        onCheckedChange={(checked) => setEditForm({ ...editForm, notifyCreatorOnVote: checked })}
+                        data-testid="switch-edit-notifyCreatorOnVote"
+                      />
+                    </div>
                     {(poll?.type === 'schedule' || poll?.type === 'survey') && (
                       <div className="flex items-center justify-between">
                         <div>
@@ -1811,6 +1825,7 @@ export default function Poll() {
                       allowVoteEdit: poll.allowVoteEdit ?? false,
                       allowVoteWithdrawal: poll.allowVoteWithdrawal ?? false,
                       resultsPublic: poll.resultsPublic ?? true,
+                      notifyCreatorOnVote: poll.notifyCreatorOnVote ?? true,
                       allowMaybe: poll.allowMaybe ?? true,
                       allowMultipleSlots: poll.allowMultipleSlots ?? false
                     });

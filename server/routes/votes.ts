@@ -342,6 +342,44 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         entriesToDelete.forEach(key => recentEmailSends.delete(key));
       }
     }
+
+    // Notify the poll creator about a new vote (with anti-spam check).
+    // Only fires on a genuinely new vote (not edits/withdrawals) and never when
+    // the creator votes on their own poll.
+    if (
+      !isTestMode &&
+      poll.notifyCreatorOnVote &&
+      poll.creatorEmail &&
+      createdVotes.length > 0 &&
+      existingVotes.length === 0 &&
+      poll.creatorEmail.toLowerCase() !== data.voterEmail.toLowerCase()
+    ) {
+      const now = Date.now();
+      const creatorKey = `creator:${poll.id}:${data.voterEmail.toLowerCase()}`;
+      const lastSent = recentEmailSends.get(creatorKey);
+
+      if (!lastSent || (now - lastSent) > EMAIL_COOLDOWN) {
+        // Mark the cooldown before any await so concurrent first-time votes
+        // cannot both pass the check and trigger duplicate creator emails.
+        recentEmailSends.set(creatorKey, now);
+
+        const { getBaseUrl } = await import('../utils/baseUrl');
+        const baseUrl = getBaseUrl();
+        const adminLink = `${baseUrl}/admin/${poll.adminToken}`;
+        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+
+        emailService.sendNewVoteNotificationEmail(
+          poll.creatorEmail,
+          data.voterName,
+          poll.title,
+          poll.type as 'schedule' | 'survey' | 'organization',
+          adminLink,
+          resultsLink
+        ).catch(err => {
+          console.error('Error sending new vote notification email:', err);
+        });
+      }
+    }
     
     res.json({ 
       success: true, 
@@ -554,6 +592,44 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
           }
         });
         entriesToDelete.forEach(key => recentEmailSends.delete(key));
+      }
+    }
+
+    // Notify the poll creator about a new vote (with anti-spam check).
+    // Only fires on a genuinely new vote (not edits/withdrawals) and never when
+    // the creator votes on their own poll.
+    if (
+      !isTestMode &&
+      poll.notifyCreatorOnVote &&
+      poll.creatorEmail &&
+      createdVotes.length > 0 &&
+      existingVotes.length === 0 &&
+      poll.creatorEmail.toLowerCase() !== data.voterEmail.toLowerCase()
+    ) {
+      const now = Date.now();
+      const creatorKey = `creator:${poll.id}:${data.voterEmail.toLowerCase()}`;
+      const lastSent = recentEmailSends.get(creatorKey);
+
+      if (!lastSent || (now - lastSent) > EMAIL_COOLDOWN) {
+        // Mark the cooldown before any await so concurrent first-time votes
+        // cannot both pass the check and trigger duplicate creator emails.
+        recentEmailSends.set(creatorKey, now);
+
+        const { getBaseUrl } = await import('../utils/baseUrl');
+        const baseUrl = getBaseUrl();
+        const adminLink = `${baseUrl}/admin/${poll.adminToken}`;
+        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+
+        emailService.sendNewVoteNotificationEmail(
+          poll.creatorEmail,
+          data.voterName,
+          poll.title,
+          poll.type as 'schedule' | 'survey' | 'organization',
+          adminLink,
+          resultsLink
+        ).catch(err => {
+          console.error('Error sending new vote notification email:', err);
+        });
       }
     }
     

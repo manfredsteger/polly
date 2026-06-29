@@ -77,6 +77,7 @@ interface OrgaFormData {
   allowVoteEdit: boolean;
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
+  notifyCreatorOnVote: boolean;
   slots: OrgaSlot[];
   expiresAt: string | null;
   isDayMode?: boolean;
@@ -466,6 +467,7 @@ export default function CreateOrganization() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [notifyCreatorOnVote, setNotifyCreatorOnVote] = useState(true);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [isDayMode, setIsDayMode] = useState(false);
   const [dayModeDate, setDayModeDate] = useState<string>("");
@@ -560,6 +562,7 @@ export default function CreateOrganization() {
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setNotifyCreatorOnVote(stored.data.notifyCreatorOnVote ?? true);
       setIsDayMode(stored.data.isDayMode ?? false);
       setDayModeDate(stored.data.dayModeDate ?? "");
       setDayModeDates(stored.data.dayModeDates ?? (stored.data.dayModeDate ? [stored.data.dayModeDate] : []));
@@ -663,6 +666,7 @@ export default function CreateOrganization() {
         if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
         if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.notifyCreatorOnVote === "boolean") setNotifyCreatorOnVote(s.notifyCreatorOnVote);
         if (typeof s.allowMultipleSlots === "boolean") setAllowMultipleSlots(s.allowMultipleSlots);
       }
     } catch (_) {}
@@ -836,6 +840,7 @@ export default function CreateOrganization() {
             allowVoteEdit,
             allowVoteWithdrawal,
             resultsPublic,
+            notifyCreatorOnVote,
             slots,
             expiresAt: expiresAt ? expiresAt.toISOString() : null,
             isDayMode,
@@ -1255,6 +1260,7 @@ export default function CreateOrganization() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
+      notifyCreatorOnVote,
       options: optionsData,
     };
   };
@@ -1511,6 +1517,21 @@ export default function CreateOrganization() {
                   onCheckedChange={setResultsPublic}
                   data-testid="switch-results-public"
                   aria-label={t('pollCreation.resultsPublic')}
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="space-y-0.5">
+                  <Label>{t('pollCreation.notifyCreatorOnVote')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('pollCreation.notifyCreatorOnVoteDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={notifyCreatorOnVote}
+                  onCheckedChange={setNotifyCreatorOnVote}
+                  data-testid="switch-notify-creator-on-vote"
+                  aria-label={t('pollCreation.notifyCreatorOnVote')}
                 />
               </div>
 

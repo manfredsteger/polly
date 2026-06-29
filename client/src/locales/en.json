@@ -2764,6 +2764,8 @@
     "resultsPublic": "Results public",
     "resultsPrivate": "Results private",
     "resultsPublicDescription": "Can participants view the results?",
+    "notifyCreatorOnVote": "Notify me on new vote",
+    "notifyCreatorOnVoteDescription": "Get an email whenever someone votes.",
     "creationOptions": "Creation Options",
     "settings": "Settings",
     "loggedInAs": "Logged in as {{name}}",

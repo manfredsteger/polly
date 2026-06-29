@@ -48,6 +48,7 @@ interface SurveyFormData {
   creatorEmail: string;
   options: SurveyOption[];
   allowVoteEdit: boolean;
+  notifyCreatorOnVote?: boolean;
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   allowMaybe: boolean;
@@ -132,6 +133,7 @@ export default function CreateSurvey() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [notifyCreatorOnVote, setNotifyCreatorOnVote] = useState(true);
   const [allowMaybe, setAllowMaybe] = useState(false);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const nextIdRef = useRef(2);
@@ -172,6 +174,7 @@ export default function CreateSurvey() {
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setNotifyCreatorOnVote(stored.data.notifyCreatorOnVote ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
       if (stored.data.options && stored.data.options.length >= 2) {
         const restored = stored.data.options.map((o: SurveyOption, i: number) => ({ ...o, id: o.id ?? String(i) }));
@@ -213,6 +216,7 @@ export default function CreateSurvey() {
       if (s && typeof s === "object") {
         if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
         if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.notifyCreatorOnVote === "boolean") setNotifyCreatorOnVote(s.notifyCreatorOnVote);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
         if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
       }
@@ -297,7 +301,7 @@ export default function CreateSurvey() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, notifyCreatorOnVote, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-survey'
         );
         
@@ -395,6 +399,7 @@ export default function CreateSurvey() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
+      notifyCreatorOnVote,
       allowMaybe,
       options: validOptions.map((option, index) => {
         const opt: any = {
@@ -595,6 +600,20 @@ export default function CreateSurvey() {
                       onCheckedChange={setResultsPublic}
                       data-testid="switch-results-public"
                       aria-label={t('pollCreation.resultsPublic')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.notifyCreatorOnVote')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.notifyCreatorOnVoteDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifyCreatorOnVote}
+                      onCheckedChange={setNotifyCreatorOnVote}
+                      data-testid="switch-notify-creator-on-vote"
+                      aria-label={t('pollCreation.notifyCreatorOnVote')}
                     />
                   </div>
                   <div className="flex items-center justify-between pt-4 border-t">

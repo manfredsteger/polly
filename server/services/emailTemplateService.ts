@@ -600,6 +600,39 @@ function buildVoteUpdatedTemplate(): TemplateDefinition {
   };
 }
 
+// ---- new_vote_notification: notify creator on new vote ----
+function buildNewVoteNotificationTemplate(): TemplateDefinition {
+  const adminBox = container('nvn-admin-box', '#f8f9fa', '#2a2a3e', [
+    txt('nvn-ab-t', 'Hier können Sie die aktuellen Ergebnisse einsehen und die Umfrage verwalten.'),
+    btn('nvn-ab-btn', 'Ergebnisse anzeigen', 'adminLink', 'primary'),
+  ]);
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('nvn-h1', 'Neue Abstimmung eingegangen', 'h1'),
+    txt('nvn-t1', 'Hallo,'),
+    txt('nvn-t2', '<strong>{{voterName}}</strong> hat soeben an Ihrer {{pollType}} <strong>"{{pollTitle}}"</strong> teilgenommen.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    divider('nvn-d1'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = adminBox.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(adminBox.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  return {
+    name: 'Neue Abstimmung (Ersteller)',
+    subject: '[{{siteName}}] Neue Abstimmung – {{pollTitle}}',
+    jsonContent: tpl(allBlocks, topIds),
+    textContent: 'Neue Abstimmung eingegangen\n\nHallo,\n\n{{voterName}} hat soeben an Ihrer {{pollType}} "{{pollTitle}}" teilgenommen.\n\nErgebnisse anzeigen: {{adminLink}}',
+  };
+}
+
 // ---- password_reset with container ----
 function buildPasswordResetTemplate(): TemplateDefinition {
   const actionBox = container('action-box', '#f8f9fa', '#2a2a3e', [
@@ -675,6 +708,8 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
   vote_confirmation: buildVoteConfirmationTemplate(),
 
   vote_updated: buildVoteUpdatedTemplate(),
+
+  new_vote_notification: buildNewVoteNotificationTemplate(),
 
   reminder: buildReminderTemplate(),
 
@@ -1078,6 +1113,14 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       publicLink: 'https://polly.example.com/poll/abc123',
       resultsLink: 'https://polly.example.com/poll/abc123/results',
       editLink: 'https://polly.example.com/edit/token123',
+      siteName,
+    },
+    new_vote_notification: {
+      voterName: 'Anna Schmidt',
+      pollType: 'Terminumfrage',
+      pollTitle: 'Teammeeting Q1 2025',
+      adminLink: 'https://polly.example.com/admin/abc123',
+      resultsLink: 'https://polly.example.com/poll/abc123#results',
       siteName,
     },
     reminder: {
@@ -1578,6 +1621,25 @@ function buildV3InvitationBody(vars: Record<string, string | undefined>, ctx: V3
     ${v3SingleButtonSection('Klicken Sie auf den Button, um zur Abstimmung zu gelangen.', 'Jetzt abstimmen \u2192', publicLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
 
+function buildV3NewVoteNotificationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const voterName = htmlEscape(vars.voterName || '');
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const pollType = vars.pollType || 'Umfrage';
+  const adminLink = vars.adminLink || '#';
+  const resultsLink = vars.resultsLink || '#';
+  const participant = voterName || 'Ein Teilnehmer';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Neue Abstimmung', ctx.primaryColor)}
+      ${v3SimpleHeadline('Neue Abstimmung eingegangen', ctx.fontFamily)}
+      ${v3Subline(`${participant} hat soeben an Ihrer ${htmlEscape(pollType)} \u201E${pollTitle}\u201C teilgenommen.`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3LinkSection('Verwaltung', 'Umfrage verwalten', 'Hier k\u00F6nnen Sie die Umfrage verwalten und alle Stimmen einsehen.', 'Umfrage verwalten \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3Divider()}
+    ${v3LinkSection('Ergebnisse', 'Ergebnisse ansehen', 'Sehen Sie sich die aktuellen Ergebnisse der Umfrage an.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}`;
+}
+
 function buildV3ReminderBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
   const senderName = htmlEscape(vars.senderName || '');
   const pollTitle = htmlEscape(vars.pollTitle || '');
@@ -1849,6 +1911,7 @@ const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>
   reminder: buildV3ReminderBody,
   vote_confirmation: buildV3VoteConfirmationBody,
   vote_updated: buildV3VoteUpdatedBody,
+  new_vote_notification: buildV3NewVoteNotificationBody,
   password_reset: buildV3PasswordResetBody,
   email_change: buildV3EmailChangeBody,
   password_changed: buildV3PasswordChangedBody,

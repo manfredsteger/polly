@@ -344,6 +344,12 @@ flowchart TD
   rVoter --> lResults[/"Ergebnis-Link<br>/poll/TOKEN#results"/]:::link
   rVoter --> lEdit[/"Bearbeiten-Link<br>/edit/EDIT_TOKEN"/]:::link
   rVoter --> lSel[/"Liste der abgegebenen Stimmen"/]:::link
+  voteRoute --> condCreator{notifyCreatorOnVote<br>und neue Stimme?}:::cond
+  condCreator -->|Nein| skipCreator[/"Keine Creator-Mail"/]:::link
+  condCreator -->|Ja| mNewVote{{new_vote_notification}}:::mail
+  mNewVote --> rCreator(Ersteller):::recv
+  rCreator --> lAdmin[/"Admin-Link<br>/admin/ADMIN_TOKEN"/]:::link
+  rCreator --> lResults2[/"Ergebnis-Link<br>/poll/TOKEN#results"/]:::link
 
   classDef trigger fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
   classDef cond fill:#fef9c3,stroke:#ca8a04,color:#713f12;
@@ -622,6 +628,7 @@ flowchart TD
 | 3 | `vote_confirmation` | Stimme abgegeben | `POST /api/v1/polls/:token/vote`, `/vote-bulk` | Voter (nur mit E-Mail) | Öffentlicher Link, Ergebnis-Link, **Bearbeiten-Link** | Liste der Stimmen |
 | 4 | `vote_confirmation` | Bestätigung erneut senden | `POST /api/v1/polls/:token/resend-email` | Voter | Öffentlicher Link, Ergebnis-Link, **Bearbeiten-Link** | – |
 | 5 | `vote_updated` | Stimme bearbeitet | `PUT /api/v1/votes/edit/:editToken` | Voter | Öffentlicher Link, Ergebnis-Link, **Bearbeiten-Link** | Neue Stimmen-Liste |
+| 5a | `new_vote_notification` | Neue Stimme abgegeben (nur Erststimme, `notifyCreatorOnVote=true`) | `POST /api/v1/polls/:token/vote`, `/vote-bulk` | Ersteller (wenn E-Mail vorhanden, nicht eigene Stimme) | **Admin-Link**, Ergebnis-Link | Name der abstimmenden Person |
 | 6 | `reminder` (manuell) | Ersteller klickt „Erinnern" | `POST /api/v1/polls/admin/:token/remind` | Vom Ersteller angegebene Adressen | Öffentlicher Link, QR-Code | Ablaufdatum, optionale Nachricht |
 | 7 | `reminder` (automatisch) | Scheduler erkennt baldigen Ablauf | `PollSchedulerService` (`runExpiryReminderCheck`) | Bisherige Voter | Öffentlicher Link, QR-Code | Ablaufdatum, eigene Ja-Stimmen |
 | 8 | `password_reset` | Passwort vergessen (User) | `POST /api/v1/auth/request-password-reset` | Nutzer | Reset-Link | – |

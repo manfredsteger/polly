@@ -44,6 +44,7 @@ interface PollFormData {
   allowVoteEdit: boolean;
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
+  notifyCreatorOnVote: boolean;
   expiresAt: string | null;
   videoConferenceUrl?: string;
 }
@@ -63,6 +64,7 @@ export default function CreatePoll() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [notifyCreatorOnVote, setNotifyCreatorOnVote] = useState(true);
   const [videoConferenceUrl, setVideoConferenceUrl] = useState("");
   const [videoConferenceUrlError, setVideoConferenceUrlError] = useState<"" | "invalid">("");
   const [settingsExpanded, setSettingsExpanded] = useState(false);
@@ -94,6 +96,7 @@ export default function CreatePoll() {
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setNotifyCreatorOnVote(stored.data.notifyCreatorOnVote ?? true);
       setVideoConferenceUrl(stored.data.videoConferenceUrl || "");
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
@@ -141,6 +144,7 @@ export default function CreatePoll() {
         if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
         if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.notifyCreatorOnVote === "boolean") setNotifyCreatorOnVote(s.notifyCreatorOnVote);
       }
     } catch (_) {}
   }, []);
@@ -175,6 +179,7 @@ export default function CreatePoll() {
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
+          notifyCreatorOnVote: notifyCreatorOnVote,
           videoConferenceUrl: videoConferenceUrl.trim() || undefined,
           options: options.map((option) => {
             const opt: any = {
@@ -263,6 +268,7 @@ export default function CreatePoll() {
             allowVoteEdit,
             allowVoteWithdrawal,
             resultsPublic,
+            notifyCreatorOnVote,
             expiresAt: expiresAt ? expiresAt.toISOString() : null,
             videoConferenceUrl: videoConferenceUrl || undefined
           },
@@ -401,6 +407,7 @@ export default function CreatePoll() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
+      notifyCreatorOnVote,
       videoConferenceUrl: trimmedVideoConferenceUrl || undefined,
       options: options.map((option) => {
         const opt: any = {
@@ -641,6 +648,20 @@ export default function CreatePoll() {
                       onCheckedChange={setResultsPublic}
                       data-testid="switch-results-public"
                       aria-label={t('pollCreation.resultsPublic')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.notifyCreatorOnVote')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.notifyCreatorOnVoteDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifyCreatorOnVote}
+                      onCheckedChange={setNotifyCreatorOnVote}
+                      data-testid="switch-notify-creator-on-vote"
+                      aria-label={t('pollCreation.notifyCreatorOnVote')}
                     />
                   </div>
                 </div>

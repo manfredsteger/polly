@@ -110,6 +110,7 @@ describe('EmailTemplateService', () => {
         'invitation',
         'vote_confirmation',
         'vote_updated',
+        'new_vote_notification',
         'reminder',
         'password_reset',
         'email_change',

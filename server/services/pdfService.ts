@@ -69,14 +69,73 @@ function getPollTypeName(type: string): string {
 // Configure marked for consistent GFM output
 marked.setOptions({ gfm: true, breaks: true } as Parameters<typeof marked.setOptions>[0]);
 
+// ── Allowlist-based HTML sanitizer ─────────────────────────────────────────
+// Works at tag level: only whitelisted tags are kept; all attributes are
+// stripped except `href` on <a> tags (http/https only). Raw HTML tokens from
+// marked and any unknown tags are silently removed.
+const SAFE_HTML_TAGS = new Set([
+  'p', 'strong', 'b', 'em', 'i', 'del', 's', 'u',
+  'code', 'pre', 'kbd', 'samp',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'ul', 'ol', 'li',
+  'blockquote',
+  'hr', 'br',
+  'a',
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+  'span',
+]);
+const VOID_TAGS = new Set(['br', 'hr']);
+const SAFE_URL_RE = /^https?:\/\//i;
+
+// Tags whose entire element (opening + content + closing) must be removed.
+// These can carry executable code or style injection, so content must go too.
+const CONTENT_STRIP_TAGS = ['script', 'style', 'template', 'svg', 'math', 'noscript', 'iframe', 'object', 'embed', 'frame'];
+
+function sanitizeAllowlist(html: string): string {
+  let out = html;
+
+  // 1. Strip entire dangerous element blocks including their inner content
+  for (const tag of CONTENT_STRIP_TAGS) {
+    out = out.replace(
+      new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, 'gi'),
+      ''
+    );
+    // Also strip self-closing / lone opening dangerous tags
+    out = out.replace(new RegExp(`<${tag}\\b[^>]*\\/?>`, 'gi'), '');
+  }
+
+  // 2. Strip HTML comments
+  out = out.replace(/<!--[\s\S]*?-->/g, '');
+
+  // 3. Allowlist-based tag filter — keep only safe tags, strip all attributes
+  //    (except validated href on <a>)
+  out = out.replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*?)(\/?)\s*>/g,
+    (_match, slash, rawTag, attrs, selfClose) => {
+      const tag = rawTag.toLowerCase();
+      if (!SAFE_HTML_TAGS.has(tag)) return '';   // strip unknown/disallowed tags
+      if (slash) return `</${tag}>`;              // safe closing tag
+
+      if (tag === 'a') {
+        // Extract href — support double-quoted, single-quoted, or unquoted
+        const hrefMatch = attrs.match(
+          /\bhref\s*=\s*(?:"([^"]*?)"|'([^']*?)'|([^\s>]*))/i
+        );
+        const href = hrefMatch
+          ? (hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? '').trim()
+          : '';
+        return SAFE_URL_RE.test(href)
+          ? `<a href="${href}">`
+          : '<a>';  // keep anchor element but drop unsafe href
+      }
+      return `<${tag}>`;
+    }
+  );
+  return out;
+}
+
 function markdownToHtml(md: string): string {
   const rawHtml = marked.parse(md, { async: false }) as string;
-  return rawHtml
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^>]*(?:>[\s\S]*?<\/iframe>|\/?>)/gi, '')
-    .replace(/<object\b[^>]*>[\s\S]*?<\/object>/gi, '')
-    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/\bjavascript:/gi, '#');
+  return sanitizeAllowlist(rawHtml);
 }
 
 function getPollStatus(poll: Poll): { label: string; cssClass: string } {
@@ -370,7 +429,6 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
 </head>
 <body>
 
-  <!-- Document header -->
   <div class="doc-header">
     <div class="brand-bar">
       <div class="brand-left">
@@ -383,7 +441,6 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
     ${options.pollUrl ? `<div class="poll-link"><a href="${options.pollUrl}">${options.pollUrl}</a></div>` : ''}
   </div>
 
-  <!-- Letterhead: key settings at a glance -->
   <div class="letterhead">
     <div class="lh-grid">
       <div class="lh-item">
@@ -433,10 +490,8 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
     </div>` : ''}
   </div>
 
-  <!-- Description (markdown rendered) -->
   ${descriptionHtml ? `<div class="description-section">${descriptionHtml}</div>` : ''}
 
-  <!-- Meta stats -->
   <div class="meta-stats">
     <div class="meta-stat">
       <span class="meta-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
@@ -448,7 +503,6 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
     </div>
   </div>
 
-  <!-- QR code -->
   ${options.qrCodeDataUrl ? `
   <div class="qr-section">
     <div style="font-size: 12px; color: #666; margin-bottom: 10px;">QR-Code zum Teilen der Umfrage</div>
@@ -456,7 +510,6 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
     ${options.pollUrl ? `<div style="font-size: 10px; color: #999; margin-top: 6px; word-break: break-all;">${options.pollUrl}</div>` : ''}
   </div>` : ''}
 
-  <!-- Results -->
   <h2 class="section-title">Ergebnisse</h2>
 
   <div class="options-grid">

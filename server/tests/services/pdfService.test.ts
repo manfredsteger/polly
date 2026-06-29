@@ -299,6 +299,75 @@ describe('PDF Service', () => {
       expect(html).not.toContain('alert("xss")');
     });
 
+    it('should strip non-allowlisted tags (div, iframe, object, embed)', () => {
+      const results = createMockPollResults();
+      results.poll.description = [
+        '<div style="color:red">div content</div>',
+        '<iframe src="https://evil.com"></iframe>',
+        '<object data="evil.swf"></object>',
+        '<embed src="evil.swf">',
+      ].join('\n');
+      const html = generateHTMLTemplate(results);
+      const descStart = html.indexOf('<div class="description-section">');
+      const descEnd = html.indexOf('</div>', descStart);
+      const descHtml = html.slice(descStart, descEnd);
+      expect(descHtml).not.toContain('<div style=');
+      expect(descHtml).not.toContain('<iframe');
+      expect(descHtml).not.toContain('<object');
+      expect(descHtml).not.toContain('<embed');
+    });
+
+    it('should strip all attributes from non-anchor allowlisted tags', () => {
+      const results = createMockPollResults();
+      results.poll.description = '<p class="evil" onclick="alert()">Text</p>';
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('class="evil"');
+      expect(html).not.toContain('onclick');
+      expect(html).toContain('<p>Text</p>');
+    });
+
+    it('should strip javascript: href but keep anchor text', () => {
+      const results = createMockPollResults();
+      results.poll.description = '[Klick mich](javascript:alert("xss"))';
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('javascript:');
+      expect(html).toContain('Klick mich');
+    });
+
+    it('should strip data: href on anchor tags', () => {
+      const results = createMockPollResults();
+      results.poll.description = '[Link](data:text/html,<script>alert(1)</script>)';
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('data:text/html');
+      expect(html).toContain('Link');
+    });
+
+    it('should keep valid http/https links in anchor tags', () => {
+      const results = createMockPollResults();
+      results.poll.description = '[Offizielle Website](https://example.com/info)';
+      const html = generateHTMLTemplate(results);
+      expect(html).toContain('<a href="https://example.com/info">');
+      expect(html).toContain('Offizielle Website');
+    });
+
+    it('should strip img tags (SSRF prevention in Puppeteer context)', () => {
+      const results = createMockPollResults();
+      results.poll.description = '![Bild](https://example.com/image.png)';
+      const html = generateHTMLTemplate(results);
+      const descStart = html.indexOf('<div class="description-section">');
+      const descEnd = html.indexOf('</div>', descStart);
+      const descHtml = html.slice(descStart, descEnd);
+      expect(descHtml).not.toContain('<img');
+    });
+
+    it('should strip HTML comments from description', () => {
+      const results = createMockPollResults();
+      results.poll.description = 'Text <!-- Kommentar --> mehr Text';
+      const html = generateHTMLTemplate(results);
+      expect(html).not.toContain('<!--');
+      expect(html).not.toContain('-->');
+    });
+
     it('should include poll URL as clickable link when provided', () => {
       const results = createMockPollResults();
       const html = generateHTMLTemplate(results, { pollUrl: 'https://example.com/poll/abc' });

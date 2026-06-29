@@ -1720,6 +1720,16 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Footer {{link:URL}} and {{siteUrl}} template syntax', () => {
+    let savedCustomization: any;
+
+    beforeAll(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+
+    afterAll(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     afterEach(async () => {
       const service = new EmailTemplateService();
       await service.setEmailFooter({

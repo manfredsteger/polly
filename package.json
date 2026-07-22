@@ -90,6 +90,7 @@
     "nodemailer": "^7.0.5",
     "openai": "^6.25.0",
     "openid-client": "^6.8.1",
+    "otplib": "^13.4.1",
     "pdfkit": "^0.17.1",
     "pg": "^8.16.3",
     "prettier": "^3.8.0",

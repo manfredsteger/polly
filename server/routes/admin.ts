@@ -275,6 +275,24 @@ router.post('/users/:id/set-password', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/users/:id/reset-mfa', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    await storage.updateUser(userId, { totpSecret: null, totpEnabled: false });
+    res.json({ success: true, message: 'MFA wurde zurückgesetzt' });
+  } catch (error) {
+    console.error('Admin reset MFA error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
 router.delete('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);

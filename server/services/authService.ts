@@ -380,8 +380,8 @@ export const authService = {
     return bcrypt.compare(password, hash);
   },
 
-  sanitizeUser(user: User): Omit<User, 'passwordHash'> {
-    const { passwordHash, ...safeUser } = user as User & { passwordHash?: string };
+  sanitizeUser(user: User): Omit<User, 'passwordHash' | 'totpSecret'> {
+    const { passwordHash, totpSecret, ...safeUser } = user as User & { passwordHash?: string; totpSecret?: string | null };
     return safeUser;
   }
 };

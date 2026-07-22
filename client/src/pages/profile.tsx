@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, User, Mail, Building, Shield, Moon, Sun, Monitor, Calendar, Save, Key, ExternalLink, AlertCircle, Trash2, Clock } from "lucide-react";
+import { ArrowLeft, User, Mail, Building, Shield, Moon, Sun, Monitor, Calendar, Save, Key, ExternalLink, AlertCircle, Trash2, Clock, ShieldCheck, ShieldOff, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { ThemePreference } from "@shared/schema";
 import { useTranslation } from 'react-i18next';
@@ -59,6 +59,66 @@ export default function Profile() {
   const [emailPassword, setEmailPassword] = useState("");
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const [mfaSetupOpen, setMfaSetupOpen] = useState(false);
+  const [mfaDisableOpen, setMfaDisableOpen] = useState(false);
+  const [mfaQrDataUrl, setMfaQrDataUrl] = useState('');
+  const [mfaManualKey, setMfaManualKey] = useState('');
+  const [mfaSetupCode, setMfaSetupCode] = useState('');
+  const [mfaDisableInput, setMfaDisableInput] = useState('');
+
+  const { data: mfaStatus, refetch: refetchMfa } = useQuery<{ enabled: boolean }>({
+    queryKey: ['/api/v1/auth/mfa/status'],
+    enabled: !!user,
+  });
+
+  const mfaSetupInitMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/v1/auth/mfa/setup-init');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setMfaQrDataUrl(data.qrCode ?? '');
+      setMfaManualKey(data.secret ?? '');
+      setMfaSetupCode('');
+      setMfaSetupOpen(true);
+    },
+    onError: (error: any) => {
+      toast({ title: t('common.error'), description: parseErrorMessage(error), variant: 'destructive' });
+    },
+  });
+
+  const mfaSetupConfirmMutation = useMutation({
+    mutationFn: async (token: string) => {
+      const res = await apiRequest('POST', '/api/v1/auth/mfa/setup-confirm', { token });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('profile.mfaActivated'), description: t('profile.mfaActivatedDescription') });
+      setMfaSetupOpen(false);
+      setMfaSetupCode('');
+      refetchMfa();
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: t('profile.mfaInvalidCode'), variant: 'destructive' });
+    },
+  });
+
+  const mfaDisableMutation = useMutation({
+    mutationFn: async (payload: { token?: string; password?: string }) => {
+      const res = await apiRequest('POST', '/api/v1/auth/mfa/disable', payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('profile.mfaDisabled'), description: t('profile.mfaDisabledDescription') });
+      setMfaDisableOpen(false);
+      setMfaDisableInput('');
+      refetchMfa();
+    },
+    onError: (error: any) => {
+      toast({ title: t('common.error'), description: parseErrorMessage(error), variant: 'destructive' });
+    },
+  });
 
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ['/api/v1/user/profile'],
@@ -465,6 +525,129 @@ export default function Profile() {
                 )}
               </CardContent>
             </Card>
+
+            {isLocalAccount && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5" />
+                    {t('profile.mfa')}
+                  </CardTitle>
+                  <CardDescription>{t('profile.mfaDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg">
+                    <div>
+                      <p className="font-medium">
+                        {mfaStatus?.enabled ? t('profile.mfaEnabled') : t('profile.mfaNotEnabled')}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{t('profile.mfaDescription')}</p>
+                    </div>
+                    {mfaStatus?.enabled ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => { setMfaDisableInput(''); setMfaDisableOpen(true); }}
+                        data-testid="button-mfa-disable"
+                      >
+                        <ShieldOff className="w-4 h-4 mr-2" />
+                        {t('profile.mfaDisable')}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() => mfaSetupInitMutation.mutate()}
+                        disabled={mfaSetupInitMutation.isPending}
+                        data-testid="button-mfa-setup"
+                      >
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                        {t('profile.mfaSetup')}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* MFA Setup Dialog */}
+            <Dialog open={mfaSetupOpen} onOpenChange={setMfaSetupOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{t('profile.mfaSetup')}</DialogTitle>
+                  <DialogDescription>{t('profile.mfaSetupStep1Description')}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-sm font-medium">{t('profile.mfaSetupStep1')}</p>
+                  {mfaQrDataUrl && (
+                    <div className="flex justify-center p-4 bg-white rounded-lg border">
+                      <img src={mfaQrDataUrl} alt="MFA QR Code" className="w-48 h-48" data-testid="mfa-setup-qr" />
+                    </div>
+                  )}
+                  {mfaManualKey && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground font-medium">{t('profile.mfaManualEntry')}</p>
+                      <code className="block text-xs bg-muted px-3 py-2 rounded font-mono break-all">{mfaManualKey}</code>
+                    </div>
+                  )}
+                  <p className="text-sm font-medium">{t('profile.mfaSetupStep2')}</p>
+                  <p className="text-xs text-muted-foreground">{t('profile.mfaSetupStep2Description')}</p>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={mfaSetupCode}
+                    onChange={(e) => setMfaSetupCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder={t('profile.mfaCodePlaceholder')}
+                    maxLength={6}
+                    data-testid="input-mfa-setup-code"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setMfaSetupOpen(false)}>{t('common.cancel')}</Button>
+                  <Button
+                    onClick={() => mfaSetupConfirmMutation.mutate(mfaSetupCode)}
+                    disabled={mfaSetupCode.length !== 6 || mfaSetupConfirmMutation.isPending}
+                    data-testid="button-mfa-setup-confirm"
+                  >
+                    {mfaSetupConfirmMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {t('profile.mfaConfirm')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* MFA Disable Dialog */}
+            <Dialog open={mfaDisableOpen} onOpenChange={setMfaDisableOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{t('profile.mfaDisable')}</DialogTitle>
+                  <DialogDescription>{t('profile.mfaDisableConfirm')}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={mfaDisableInput}
+                    onChange={(e) => setMfaDisableInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder={t('profile.mfaCodePlaceholder')}
+                    maxLength={6}
+                    data-testid="input-mfa-disable-code"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setMfaDisableOpen(false)}>{t('common.cancel')}</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => mfaDisableMutation.mutate({ token: mfaDisableInput })}
+                    disabled={mfaDisableInput.length !== 6 || mfaDisableMutation.isPending}
+                    data-testid="button-mfa-disable-confirm"
+                  >
+                    {mfaDisableMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {t('profile.mfaDisable')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <Card>
               <CardHeader>

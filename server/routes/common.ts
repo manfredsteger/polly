@@ -17,6 +17,7 @@ export const API_BASE = `/api/${API_VERSION}`;
 declare module "express-session" {
   interface SessionData {
     userId?: number;
+    pendingMfaUserId?: number;
     keycloakCodeVerifier?: string;
     keycloakState?: string;
     keycloakReturnTo?: string;

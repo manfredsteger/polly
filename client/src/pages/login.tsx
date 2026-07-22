@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Eye, EyeOff, ShieldCheck, QrCode, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { PasswordStrengthIndicator, usePasswordPolicy, validatePasswordWithPolicy } from '@/components/PasswordStrengthIndicator';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 const PENDING_LOGIN_REDIRECT_KEY = 'polly-pending-login-redirect';
 
@@ -89,8 +90,21 @@ export default function Login() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
+  type MfaStep = 'none' | 'verify' | 'setup-forced';
+  const [mfaStep, setMfaStep] = useState<MfaStep>('none');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaQrDataUrl, setMfaQrDataUrl] = useState('');
+  const [mfaManualKey, setMfaManualKey] = useState('');
+
   const clearPendingRedirect = () => {
     sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
+  };
+
+  const doNavigateAfterLogin = (role: string) => {
+    const hasExplicitRedirect = redirectUrl !== '/';
+    clearPendingRedirect();
+    if (role === 'admin' && !hasExplicitRedirect) navigate('/admin');
+    else navigate(redirectUrl);
   };
 
   useEffect(() => {
@@ -120,17 +134,70 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const loggedInUser = await login(loginForm.usernameOrEmail, loginForm.password);
-      const hasExplicitRedirect = redirectUrl !== '/';
-      if (loggedInUser.role === 'admin' && !hasExplicitRedirect) {
-        clearPendingRedirect();
-        navigate('/admin');
-      } else {
-        clearPendingRedirect();
-        navigate(redirectUrl);
+      const res = await apiRequest('POST', '/api/v1/auth/login', {
+        usernameOrEmail: loginForm.usernameOrEmail,
+        password: loginForm.password,
+      });
+      const data = await res.json();
+
+      if (data.requiresMfa) {
+        setMfaStep('verify');
+        setMfaCode('');
+        setIsLoading(false);
+        return;
       }
+
+      if (data.requiresMfaSetup) {
+        const initRes = await apiRequest('POST', '/api/v1/auth/mfa/setup-init');
+        const initData = await initRes.json();
+        setMfaQrDataUrl(initData.qrCode ?? '');
+        setMfaManualKey(initData.secret ?? '');
+        setMfaCode('');
+        setMfaStep('setup-forced');
+        setIsLoading(false);
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
     } catch (err: any) {
       const rawError = err?.message || t('auth.loginError');
+      setError(parseErrorMessage(rawError));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const res = await apiRequest('POST', '/api/v1/auth/mfa/validate', { token: mfaCode.replace(/\s/g, '') });
+      const data = await res.json();
+      if (!data.user) throw new Error(t('auth.mfaStep.invalidCode'));
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
+    } catch (err: any) {
+      const rawError = err?.message || t('auth.mfaStep.invalidCode');
+      setError(parseErrorMessage(rawError));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForcedSetupConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const res = await apiRequest('POST', '/api/v1/auth/mfa/setup-confirm', {
+        token: mfaCode.replace(/\s/g, ''),
+        forcedSetup: true,
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(t('profile.mfaInvalidCode'));
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
+    } catch (err: any) {
+      const rawError = err?.message || t('profile.mfaInvalidCode');
       setError(parseErrorMessage(rawError));
     } finally {
       setIsLoading(false);
@@ -184,6 +251,117 @@ export default function Login() {
       ? '/api/v1/auth/keycloak'
       : `/api/v1/auth/keycloak?redirect=${encodeURIComponent(redirectUrl)}`;
   };
+
+  if (mfaStep === 'verify') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl flex items-center justify-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-polly-orange" />
+              {t('auth.mfaStep.title')}
+            </CardTitle>
+            <CardDescription>{t('auth.mfaStep.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <div className="polly-alert-error rounded-lg p-4 flex items-start gap-3 mb-4">
+                <AlertCircle className="polly-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">{error}</div>
+              </div>
+            )}
+            <form onSubmit={handleMfaVerify} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="mfa-code">{t('auth.mfaStep.title')}</Label>
+                <Input
+                  id="mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('auth.mfaStep.codePlaceholder')}
+                  maxLength={6}
+                  autoFocus
+                  data-testid="input-mfa-code"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading || mfaCode.length !== 6} data-testid="button-mfa-verify">
+                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                {isLoading ? t('auth.mfaStep.verifying') : t('auth.mfaStep.verify')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => { setMfaStep('none'); setError(null); setMfaCode(''); }}
+                data-testid="button-mfa-back"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                {t('auth.mfaStep.backToLogin')}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (mfaStep === 'setup-forced') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl flex items-center justify-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-polly-orange" />
+              {t('auth.mfaSetupRequired.title')}
+            </CardTitle>
+            <CardDescription>{t('auth.mfaSetupRequired.description')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="polly-alert-error rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="polly-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">{error}</div>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">{t('profile.mfaSetupStep1Description')}</p>
+            {mfaQrDataUrl && (
+              <div className="flex justify-center p-4 bg-white rounded-lg border">
+                <img src={mfaQrDataUrl} alt="MFA QR Code" className="w-48 h-48" data-testid="mfa-qr-code" />
+              </div>
+            )}
+            {mfaManualKey && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-medium">{t('profile.mfaManualEntry')}</p>
+                <code className="block text-xs bg-muted px-3 py-2 rounded font-mono break-all">{mfaManualKey}</code>
+              </div>
+            )}
+            <form onSubmit={handleForcedSetupConfirm} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="mfa-setup-code">{t('profile.mfaSetupStep2')}</Label>
+                <Input
+                  id="mfa-setup-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('profile.mfaCodePlaceholder')}
+                  maxLength={6}
+                  data-testid="input-mfa-setup-code"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading || mfaCode.length !== 6} data-testid="button-mfa-setup-confirm">
+                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                {t('profile.mfaConfirm')}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">

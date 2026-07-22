@@ -67,6 +67,7 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const [policyLowercase, setPolicyLowercase] = useState<boolean>(DEFAULT_POLICY.requireLowercase);
   const [policyNumbers, setPolicyNumbers] = useState<boolean>(DEFAULT_POLICY.requireNumbers);
   const [policySpecial, setPolicySpecial] = useState<boolean>(DEFAULT_POLICY.requireSpecialChars);
+  const [adminMfaRequired, setAdminMfaRequired] = useState<boolean>(false);
 
   useEffect(() => {
     if (authMethods) {
@@ -90,6 +91,9 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       setPolicyLowercase(p.requireLowercase ?? DEFAULT_POLICY.requireLowercase);
       setPolicyNumbers(p.requireNumbers ?? DEFAULT_POLICY.requireNumbers);
       setPolicySpecial(p.requireSpecialChars ?? DEFAULT_POLICY.requireSpecialChars);
+    }
+    if (customization?.mfa) {
+      setAdminMfaRequired(customization.mfa.adminMfaRequired ?? false);
     }
   }, [customization]);
 
@@ -199,6 +203,31 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       requireNumbers: policyNumbers,
       requireSpecialChars: policySpecial,
     });
+  };
+
+  const saveMfaMutation = useMutation({
+    mutationFn: async (mfa: { adminMfaRequired: boolean }) => {
+      const res = await apiRequest('PUT', '/api/v1/admin/customization', { mfa });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      toast({
+        title: t('admin.auth.mfaPolicySaved'),
+        description: t('admin.auth.mfaPolicySavedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.auth.mfaPolicySaveError'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSaveMfa = () => {
+    saveMfaMutation.mutate({ adminMfaRequired });
   };
 
   const handleTestConnection = async () => {
@@ -566,6 +595,56 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 t('admin.auth.passwordPolicySaveBtn')
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <ShieldCheck className="w-5 h-5 mr-2" />
+              {t('admin.auth.mfaPolicy')}
+            </div>
+            {saveMfaMutation.isPending && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            )}
+          </CardTitle>
+          <CardDescription>{t('admin.auth.mfaPolicyDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="switch-admin-mfa-required" className="text-sm font-normal cursor-pointer">
+                {t('admin.auth.adminMfaRequired')}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.auth.adminMfaRequiredDescription')}</p>
+            </div>
+            <Switch
+              id="switch-admin-mfa-required"
+              checked={adminMfaRequired}
+              onCheckedChange={setAdminMfaRequired}
+              data-testid="switch-admin-mfa-required"
+            />
+          </div>
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{t('admin.auth.mfaPolicyNote')}</AlertDescription>
+          </Alert>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveMfa}
+              disabled={saveMfaMutation.isPending}
+              data-testid="button-save-mfa-policy"
+            >
+              {saveMfaMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t('admin.auth.mfaPolicySaveBtn')
               )}
             </Button>
           </div>

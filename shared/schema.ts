@@ -21,6 +21,8 @@ export const users = pgTable("users", {
   isInitialAdmin: boolean("is_initial_admin").default(false).notNull(), // Initial admin created on first start - shows warning banner
   deletionRequestedAt: timestamp("deletion_requested_at", { withTimezone: true }), // GDPR: User requested account deletion
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  totpSecret: text("totp_secret"), // Base32 TOTP secret (null = MFA not configured)
+  totpEnabled: boolean("totp_enabled").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -723,6 +725,11 @@ export const passwordPolicySettingsSchema = z.object({
 });
 export type PasswordPolicySettings = z.infer<typeof passwordPolicySettingsSchema>;
 
+export const mfaSettingsSchema = z.object({
+  adminMfaRequired: z.boolean().default(false),
+});
+export type MfaSettings = z.infer<typeof mfaSettingsSchema>;
+
 export const customizationSettingsSchema = z.object({
   theme: themeSettingsSchema.default({}),
   branding: brandingSettingsSchema.default({}),
@@ -731,6 +738,7 @@ export const customizationSettingsSchema = z.object({
   wcag: wcagSettingsSchema.default({}),
   language: languageSettingsSchema.default({}),
   passwordPolicy: passwordPolicySettingsSchema.default({}),
+  mfa: mfaSettingsSchema.default({}),
 });
 
 export type ThemeSettings = z.infer<typeof themeSettingsSchema>;

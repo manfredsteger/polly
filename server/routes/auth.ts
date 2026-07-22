@@ -15,7 +15,9 @@ import {
   EMAIL_CHECK_WINDOW,
 } from "./common";
 import { registrationRateLimiter, passwordResetRateLimiter } from "../services/apiRateLimiterService";
+import bcrypt from 'bcryptjs';
 import { validatePasswordAgainstPolicy } from "../lib/passwordPolicy";
+import { generateTotpSecret, generateTotpQrCode, verifyTotpToken } from "../lib/totpService";
 
 const router = Router();
 
@@ -290,21 +292,46 @@ router.post('/login', async (req, res) => {
     }
 
     await loginRateLimiter.recordSuccessfulLogin(data.usernameOrEmail, clientIp);
-    
-    req.session.regenerate((regenerateErr) => {
-      if (regenerateErr) {
-        console.error('Session regenerate error:', regenerateErr);
-        return res.status(500).json({ error: 'Interner Fehler' });
-      }
-      req.session.userId = user.id;
-      req.session.save((err) => {
-        if (err) {
-          console.error('Session save error:', err);
+
+    const loginCustomization = await storage.getCustomizationSettings();
+    const adminMfaRequired = loginCustomization.mfa?.adminMfaRequired ?? false;
+
+    if (user.totpEnabled) {
+      // MFA configured → pending step
+      req.session.regenerate((err) => {
+        if (err) return res.status(500).json({ error: 'Interner Fehler' });
+        req.session.pendingMfaUserId = user.id;
+        req.session.save((saveErr) => {
+          if (saveErr) return res.status(500).json({ error: 'Interner Fehler' });
+          return res.json({ requiresMfa: true });
+        });
+      });
+    } else if (user.role === 'admin' && adminMfaRequired && user.provider === 'local') {
+      // Admin without MFA but policy requires it → force setup
+      req.session.regenerate((err) => {
+        if (err) return res.status(500).json({ error: 'Interner Fehler' });
+        req.session.pendingMfaUserId = user.id;
+        req.session.save((saveErr) => {
+          if (saveErr) return res.status(500).json({ error: 'Interner Fehler' });
+          return res.json({ requiresMfaSetup: true });
+        });
+      });
+    } else {
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error('Session regenerate error:', regenerateErr);
           return res.status(500).json({ error: 'Interner Fehler' });
         }
-        res.json({ user: authService.sanitizeUser(user) });
+        req.session.userId = user.id;
+        req.session.save((err) => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ error: 'Interner Fehler' });
+          }
+          res.json({ user: authService.sanitizeUser(user) });
+        });
       });
-    });
+    }
   } catch (error) {
     // Validation errors are expected for missing/invalid fields,
     // return 400 without treating them as server errors.
@@ -780,6 +807,158 @@ router.get('/keycloak/callback', async (req, res) => {
   } catch (error) {
     console.error('Keycloak callback error:', error);
     res.redirect('/?error=auth_error');
+  }
+});
+
+// ============================================================
+// MFA / TOTP Endpoints
+// ============================================================
+
+// GET /mfa/status — current user's MFA status (requires auth)
+router.get('/mfa/status', requireAuth, async (req, res) => {
+  try {
+    const userId = await extractUserId(req);
+    const user = await storage.getUser(userId!);
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    return res.json({ enabled: user.totpEnabled });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/setup-init — generate TOTP secret + QR code (requires auth or pending session)
+router.post('/mfa/setup-init', async (req, res) => {
+  try {
+    const userId = req.session?.userId ?? req.session?.pendingMfaUserId;
+    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    if (user.totpEnabled) return res.status(400).json({ error: 'MFA ist bereits aktiviert' });
+
+    const secret = generateTotpSecret();
+    const customization = await storage.getCustomizationSettings();
+    const siteName = customization.branding?.siteName || 'Polly';
+    const qrCode = await generateTotpQrCode(user.email, secret, siteName);
+
+    // Temporarily store secret in session until confirmed
+    (req.session as any).pendingTotpSecret = secret;
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
+
+    return res.json({ secret, qrCode });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/setup-confirm — verify TOTP code and enable MFA
+router.post('/mfa/setup-confirm', async (req, res) => {
+  try {
+    const userId = req.session?.userId ?? req.session?.pendingMfaUserId;
+    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+
+    const { token } = req.body;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'TOTP-Code fehlt' });
+    }
+
+    const secret = (req.session as any).pendingTotpSecret;
+    if (!secret) return res.status(400).json({ error: 'Kein laufendes MFA-Setup gefunden' });
+
+    if (!verifyTotpToken(token.replace(/\s/g, ''), secret)) {
+      return res.status(400).json({ error: 'Ungültiger TOTP-Code' });
+    }
+
+    await storage.updateUser(userId, { totpSecret: secret, totpEnabled: true });
+    delete (req.session as any).pendingTotpSecret;
+
+    // If this was a forced-setup flow (admin must configure MFA), complete login now
+    if (!req.session.userId && req.session.pendingMfaUserId) {
+      const setupUserId = req.session.pendingMfaUserId;
+      await new Promise<void>((resolve, reject) =>
+        req.session.regenerate((err) => (err ? reject(err) : resolve()))
+      );
+      req.session.userId = setupUserId;
+      await new Promise<void>((resolve, reject) =>
+        req.session.save((err) => (err ? reject(err) : resolve()))
+      );
+      const updatedUser = await storage.getUser(setupUserId);
+      return res.json({ success: true, user: updatedUser ? authService.sanitizeUser(updatedUser) : null });
+    }
+
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/validate — second step: validate TOTP during login
+router.post('/mfa/validate', async (req, res) => {
+  try {
+    const pendingUserId = req.session?.pendingMfaUserId;
+    if (!pendingUserId) {
+      return res.status(400).json({ error: 'Kein ausstehender MFA-Login' });
+    }
+
+    const { token } = req.body;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'TOTP-Code fehlt' });
+    }
+
+    const user = await storage.getUser(pendingUserId);
+    if (!user || !user.totpSecret || !user.totpEnabled) {
+      return res.status(400).json({ error: 'MFA nicht konfiguriert' });
+    }
+
+    if (!verifyTotpToken(token.replace(/\s/g, ''), user.totpSecret)) {
+      return res.status(401).json({ error: 'Ungültiger TOTP-Code' });
+    }
+
+    // Complete the login
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve()))
+    );
+    req.session.userId = user.id;
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
+
+    return res.json({ user: authService.sanitizeUser(user) });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/disable — disable MFA (requires TOTP code or current password as fallback)
+router.post('/mfa/disable', requireAuth, async (req, res) => {
+  try {
+    const userId = await extractUserId(req);
+    const user = await storage.getUser(userId!);
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    if (!user.totpEnabled) return res.status(400).json({ error: 'MFA ist nicht aktiviert' });
+
+    const { token, password } = req.body;
+
+    if (token) {
+      if (!verifyTotpToken(String(token).replace(/\s/g, ''), user.totpSecret!)) {
+        return res.status(400).json({ error: 'Ungültiger TOTP-Code' });
+      }
+    } else if (password) {
+        const valid = await bcrypt.compare(String(password), user.passwordHash!);
+      if (!valid) return res.status(400).json({ error: 'Ungültiges Passwort' });
+    } else {
+      return res.status(400).json({ error: 'TOTP-Code oder Passwort erforderlich' });
+    }
+
+    await storage.updateUser(userId!, { totpSecret: null, totpEnabled: false });
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
   }
 });
 

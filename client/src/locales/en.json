@@ -270,7 +270,7 @@
       "strong": "Strong"
     },
     "passwordRequirements": {
-      "minLength": "At least 8 characters",
+      "minLength": "At least {{count}} characters",
       "uppercase": "At least one uppercase letter",
       "lowercase": "At least one lowercase letter",
       "number": "At least one number",
@@ -612,7 +612,7 @@
     "deletionCancelledTitle": "Deletion Request Cancelled",
     "deletionCancelledDescription": "Your account will no longer be deleted.",
     "passwordMismatchError": "Passwords do not match.",
-    "passwordTooShort": "Password must be at least 8 characters long.",
+    "passwordTooShort": "The password does not meet the password policy.",
     "fillAllFields": "Please fill in all fields.",
     "unknownError": "An unknown error occurred.",
     "pleaseLogin": "Please log in to view your profile.",
@@ -1432,8 +1432,8 @@
         "description": "Configure Matrix messenger for real-time notifications"
       },
       "oidc": {
-        "title": "OIDC/Keycloak",
-        "description": "Set up OpenID Connect authentication"
+        "title": "Authentication",
+        "description": "Local accounts, SSO/Keycloak and password policy"
       },
       "pentest": {
         "title": "Pentest Tools",
@@ -2296,6 +2296,22 @@
       "modelVeryStrong": "Very powerful",
       "modelLargest": "Largest model",
       "modelVeryFast": "Very fast"
+    },
+    "auth": {
+      "passwordPolicy": "Password Policy (local accounts)",
+      "passwordPolicyDescription": "Requirements for new passwords of local user accounts. For SSO/Keycloak, the identity provider's policies apply.",
+      "minLength": "Minimum length (characters)",
+      "minLengthHint": "Recommendation: at least 12 characters",
+      "requireUppercase": "Uppercase letters required",
+      "requireLowercase": "Lowercase letters required",
+      "requireNumbers": "Numbers required",
+      "requireSpecialChars": "Special characters required",
+      "specialCharsSet": "Allowed special characters: ! @ # $ % ^ & * ( ) _ + - = [ ] { } ; ' : \" \\ | , . < > / ? ` ~",
+      "passwordPolicySaveBtn": "Save",
+      "passwordPolicySaved": "Password policy saved",
+      "passwordPolicySavedDescription": "The new requirements apply immediately to all password actions.",
+      "passwordPolicySaveError": "Error saving password policy",
+      "policyNote": "The password policy applies exclusively to local accounts. For SSO/Keycloak, the identity provider governs password requirements."
     }
   },
   "email": {
@@ -3283,7 +3299,7 @@
     "sendResetLink": "Send Reset Link"
   },
   "resetPassword": {
-    "minChars": "At least 8 characters",
+    "minChars": "At least {{count}} characters",
     "uppercase": "At least one uppercase letter",
     "lowercase": "At least one lowercase letter",
     "number": "At least one number",
@@ -3296,7 +3312,7 @@
     "passwordsDontMatch": "Passwords do not match",
     "invalidToken": "Invalid or missing token.",
     "unknownError": "An unknown error occurred.",
-    "requirementsNotMet": "Password does not meet all requirements (8 characters, upper/lowercase, number, special character).",
+    "requirementsNotMet": "The password does not meet all password policy requirements.",
     "invalidLink": "Invalid Link",
     "requestNewLink": "Request New Link",
     "passwordChanged": "Password Changed",

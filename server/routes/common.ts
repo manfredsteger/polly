@@ -61,7 +61,7 @@ export const registerSchema = z.object({
   username: z.string().min(3).max(30),
   email: z.string().email(),
   name: z.string().min(1).max(100),
-  password: passwordSchema,
+  password: z.string().min(1),
 });
 
 export const createPollSchemaBase = z.object({

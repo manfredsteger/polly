@@ -247,10 +247,14 @@ router.post('/users/:id/set-password', requireAdmin, async (req, res) => {
     }
 
     const { password } = req.body ?? {};
-    const { passwordSchema } = await import('./common');
-    const parsed = passwordSchema.safeParse(password);
-    if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0]?.message || 'Passwort erfüllt nicht die Anforderungen' });
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Passwort erforderlich' });
+    }
+    const { validatePasswordAgainstPolicy: validateAdminPw } = await import('../lib/passwordPolicy');
+    const adminPwPolicy = (await storage.getCustomizationSettings()).passwordPolicy;
+    const adminPwErrors = validateAdminPw(password, adminPwPolicy);
+    if (adminPwErrors.length > 0) {
+      return res.status(400).json({ error: adminPwErrors[0] });
     }
 
     const user = await storage.getUser(userId);
@@ -261,7 +265,7 @@ router.post('/users/:id/set-password', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Passwort kann nur für lokale Konten gesetzt werden' });
     }
 
-    const passwordHash = await bcrypt.hash(parsed.data, 12);
+    const passwordHash = await bcrypt.hash(password, 12);
     await storage.updateUser(userId, { passwordHash });
 
     res.json({ success: true, message: 'Passwort wurde aktualisiert' });

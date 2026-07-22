@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import type { CustomizationSettings } from "@shared/schema";
 import { 
   Key,
   KeyRound,
@@ -24,7 +25,8 @@ import {
   UserPlus,
   UserX,
   Info,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck
 } from "lucide-react";
 
 interface OidcConfig {
@@ -36,12 +38,20 @@ interface OidcConfig {
   callbackUrl: string;
 }
 
+const DEFAULT_POLICY = {
+  minLength: 12,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSpecialChars: true,
+};
+
 export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isTesting, setIsTesting] = useState(false);
-  
+
   const { data: authMethods } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string }>({
     queryKey: ['/api/v1/auth/methods'],
   });
@@ -52,7 +62,12 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean>(true);
   const [ssoButtonLabel, setSsoButtonLabel] = useState<string>('');
-  
+  const [policyMinLength, setPolicyMinLength] = useState<number>(DEFAULT_POLICY.minLength);
+  const [policyUppercase, setPolicyUppercase] = useState<boolean>(DEFAULT_POLICY.requireUppercase);
+  const [policyLowercase, setPolicyLowercase] = useState<boolean>(DEFAULT_POLICY.requireLowercase);
+  const [policyNumbers, setPolicyNumbers] = useState<boolean>(DEFAULT_POLICY.requireNumbers);
+  const [policySpecial, setPolicySpecial] = useState<boolean>(DEFAULT_POLICY.requireSpecialChars);
+
   useEffect(() => {
     if (authMethods) {
       setRegistrationEnabled(authMethods.registrationEnabled);
@@ -62,6 +77,21 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const { data: settings } = useQuery<any[]>({
     queryKey: ['/api/v1/admin/settings'],
   });
+
+  const { data: customization } = useQuery<CustomizationSettings>({
+    queryKey: ['/api/v1/admin/customization'],
+  });
+
+  useEffect(() => {
+    if (customization?.passwordPolicy) {
+      const p = customization.passwordPolicy;
+      setPolicyMinLength(p.minLength ?? DEFAULT_POLICY.minLength);
+      setPolicyUppercase(p.requireUppercase ?? DEFAULT_POLICY.requireUppercase);
+      setPolicyLowercase(p.requireLowercase ?? DEFAULT_POLICY.requireLowercase);
+      setPolicyNumbers(p.requireNumbers ?? DEFAULT_POLICY.requireNumbers);
+      setPolicySpecial(p.requireSpecialChars ?? DEFAULT_POLICY.requireSpecialChars);
+    }
+  }, [customization]);
 
   const ssoLabelFromDb = settings?.find((s: any) => s.key === 'oidc_button_label')?.value;
   const ssoLabelIsFromEnv = !ssoLabelFromDb && !!authMethods?.ssoButtonLabel;
@@ -137,6 +167,38 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 
   const handleSaveSsoLabel = () => {
     saveSsoLabelMutation.mutate(ssoButtonLabel.trim());
+  };
+
+  const savePolicyMutation = useMutation({
+    mutationFn: async (policy: typeof DEFAULT_POLICY) => {
+      const res = await apiRequest('PUT', '/api/v1/admin/customization', { passwordPolicy: policy });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/password-policy'] });
+      toast({
+        title: t('admin.auth.passwordPolicySaved'),
+        description: t('admin.auth.passwordPolicySavedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.auth.passwordPolicySaveError'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSavePolicy = () => {
+    savePolicyMutation.mutate({
+      minLength: policyMinLength,
+      requireUppercase: policyUppercase,
+      requireLowercase: policyLowercase,
+      requireNumbers: policyNumbers,
+      requireSpecialChars: policySpecial,
+    });
   };
 
   const handleTestConnection = async () => {
@@ -429,6 +491,84 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <ShieldCheck className="w-5 h-5 mr-2" />
+              {t('admin.auth.passwordPolicy')}
+            </div>
+            {savePolicyMutation.isPending && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            )}
+          </CardTitle>
+          <CardDescription>{t('admin.auth.passwordPolicyDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="policy-min-length">{t('admin.auth.minLength')}</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="policy-min-length"
+                type="number"
+                min={8}
+                max={128}
+                value={policyMinLength}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= 8 && v <= 128) setPolicyMinLength(v);
+                }}
+                className="w-24"
+                data-testid="input-policy-min-length"
+              />
+              <p className="text-xs text-muted-foreground">{t('admin.auth.minLengthHint')}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {[
+              { id: 'policy-uppercase', key: 'requireUppercase', label: t('admin.auth.requireUppercase'), value: policyUppercase, setter: setPolicyUppercase },
+              { id: 'policy-lowercase', key: 'requireLowercase', label: t('admin.auth.requireLowercase'), value: policyLowercase, setter: setPolicyLowercase },
+              { id: 'policy-numbers', key: 'requireNumbers', label: t('admin.auth.requireNumbers'), value: policyNumbers, setter: setPolicyNumbers },
+              { id: 'policy-special', key: 'requireSpecialChars', label: t('admin.auth.requireSpecialChars'), value: policySpecial, setter: setPolicySpecial },
+            ].map(({ id, label, value, setter }) => (
+              <div key={id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                <Label htmlFor={id} className="cursor-pointer text-sm font-normal">{label}</Label>
+                <Switch
+                  id={id}
+                  checked={value}
+                  onCheckedChange={setter}
+                  data-testid={`switch-${id}`}
+                />
+              </div>
+            ))}
+          </div>
+
+          {policySpecial && (
+            <p className="text-xs text-muted-foreground">{t('admin.auth.specialCharsSet')}</p>
+          )}
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{t('admin.auth.policyNote')}</AlertDescription>
+          </Alert>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSavePolicy}
+              disabled={savePolicyMutation.isPending}
+              data-testid="button-save-password-policy"
+            >
+              {savePolicyMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t('admin.auth.passwordPolicySaveBtn')
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

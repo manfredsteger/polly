@@ -714,6 +714,15 @@ export const languageSettingsSchema = z.object({
   defaultLanguage: z.enum(['de', 'en']).default('en'),
 });
 
+export const passwordPolicySettingsSchema = z.object({
+  minLength: z.number().int().min(8).max(128).default(12),
+  requireUppercase: z.boolean().default(true),
+  requireLowercase: z.boolean().default(true),
+  requireNumbers: z.boolean().default(true),
+  requireSpecialChars: z.boolean().default(true),
+});
+export type PasswordPolicySettings = z.infer<typeof passwordPolicySettingsSchema>;
+
 export const customizationSettingsSchema = z.object({
   theme: themeSettingsSchema.default({}),
   branding: brandingSettingsSchema.default({}),
@@ -721,6 +730,7 @@ export const customizationSettingsSchema = z.object({
   matrix: matrixSettingsSchema.default({}),
   wcag: wcagSettingsSchema.default({}),
   language: languageSettingsSchema.default({}),
+  passwordPolicy: passwordPolicySettingsSchema.default({}),
 });
 
 export type ThemeSettings = z.infer<typeof themeSettingsSchema>;

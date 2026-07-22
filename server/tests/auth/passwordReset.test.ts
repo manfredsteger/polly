@@ -171,7 +171,7 @@ describe('Auth - Password Reset', () => {
   });
 
   describe('Password Validation', () => {
-    it('should reject passwords shorter than 8 characters', async () => {
+    it('should reject passwords that are too short (below policy minimum)', async () => {
       const resetToken = await storage.createPasswordResetToken(testUserId);
 
       const response = await request(app)
@@ -182,17 +182,17 @@ describe('Auth - Password Reset', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('mindestens 8 Zeichen');
+      expect(response.body.error).toContain('mindestens');
     });
 
-    it('should accept passwords with 8+ characters', async () => {
+    it('should accept passwords that meet the policy (12+ chars, complexity)', async () => {
       const resetToken = await storage.createPasswordResetToken(testUserId);
 
       const response = await request(app)
         .post('/api/v1/auth/reset-password')
         .send({
           token: resetToken.token,
-          newPassword: 'ExactlyEight',
+          newPassword: 'ValidPass12!',
         });
 
       expect(response.status).toBe(200);

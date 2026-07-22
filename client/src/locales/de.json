@@ -270,7 +270,7 @@
       "strong": "Stark"
     },
     "passwordRequirements": {
-      "minLength": "Mindestens 8 Zeichen",
+      "minLength": "Mindestens {{count}} Zeichen",
       "uppercase": "Mindestens ein Großbuchstabe",
       "lowercase": "Mindestens ein Kleinbuchstabe",
       "number": "Mindestens eine Zahl",
@@ -612,7 +612,7 @@
     "deletionCancelledTitle": "Löschantrag zurückgezogen",
     "deletionCancelledDescription": "Ihr Konto wird nicht mehr gelöscht.",
     "passwordMismatchError": "Die Passwörter stimmen nicht überein.",
-    "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+    "passwordTooShort": "Das Passwort erfüllt nicht die Passwort-Policy.",
     "fillAllFields": "Bitte füllen Sie alle Felder aus.",
     "unknownError": "Ein unbekannter Fehler ist aufgetreten.",
     "pleaseLogin": "Bitte melden Sie sich an, um Ihr Profil zu sehen.",
@@ -1432,8 +1432,8 @@
         "description": "Matrix-Messenger für Echtzeit-Benachrichtigungen konfigurieren"
       },
       "oidc": {
-        "title": "OIDC/Keycloak",
-        "description": "OpenID Connect Authentifizierung einrichten"
+        "title": "Authentifizierung",
+        "description": "Lokale Konten, SSO/Keycloak und Passwort-Policy"
       },
       "pentest": {
         "title": "Pentest-Tools",
@@ -2296,6 +2296,22 @@
       "modelVeryStrong": "Sehr stark",
       "modelLargest": "Größtes Modell",
       "modelVeryFast": "Sehr schnell"
+    },
+    "auth": {
+      "passwordPolicy": "Passwort-Policy (lokale Konten)",
+      "passwordPolicyDescription": "Anforderungen an neue Passwörter lokaler Benutzerkonten. Für SSO/Keycloak gelten die Richtlinien des Identitätsproviders.",
+      "minLength": "Mindestlänge (Zeichen)",
+      "minLengthHint": "Empfehlung: min. 12 Zeichen",
+      "requireUppercase": "Großbuchstaben erforderlich",
+      "requireLowercase": "Kleinbuchstaben erforderlich",
+      "requireNumbers": "Ziffern erforderlich",
+      "requireSpecialChars": "Sonderzeichen erforderlich",
+      "specialCharsSet": "Erlaubte Sonderzeichen: ! @ # $ % ^ & * ( ) _ + - = [ ] { } ; ' : \" \\ | , . < > / ? ` ~",
+      "passwordPolicySaveBtn": "Speichern",
+      "passwordPolicySaved": "Passwort-Policy gespeichert",
+      "passwordPolicySavedDescription": "Die neuen Anforderungen gelten ab sofort für alle Passwort-Aktionen.",
+      "passwordPolicySaveError": "Fehler beim Speichern der Passwort-Policy",
+      "policyNote": "Die Passwort-Policy gilt ausschließlich für lokale Konten. Bei SSO/Keycloak regelt der Identitätsprovider die Passwortanforderungen."
     }
   },
   "email": {
@@ -3283,7 +3299,7 @@
     "sendResetLink": "Link zum Zurücksetzen senden"
   },
   "resetPassword": {
-    "minChars": "Mindestens 8 Zeichen",
+    "minChars": "Mindestens {{count}} Zeichen",
     "uppercase": "Mindestens ein Großbuchstabe",
     "lowercase": "Mindestens ein Kleinbuchstabe",
     "number": "Mindestens eine Zahl",
@@ -3296,7 +3312,7 @@
     "passwordsDontMatch": "Passwörter stimmen nicht überein",
     "invalidToken": "Ungültiger oder fehlender Token.",
     "unknownError": "Ein unbekannter Fehler ist aufgetreten.",
-    "requirementsNotMet": "Das Passwort erfüllt nicht alle Anforderungen (8 Zeichen, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen).",
+    "requirementsNotMet": "Das Passwort erfüllt nicht alle Anforderungen der Passwort-Policy.",
     "invalidLink": "Ungültiger Link",
     "requestNewLink": "Neuen Link anfordern",
     "passwordChanged": "Passwort geändert",

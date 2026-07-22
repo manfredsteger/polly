@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { validatePasswordWithPolicy, usePasswordPolicy } from '@/components/PasswordStrengthIndicator';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -67,6 +68,8 @@ export default function Profile() {
   const { data: authMethods } = useQuery<{ local: boolean; keycloak: boolean; keycloakAccountUrl?: string }>({
     queryKey: ['/api/v1/auth/methods'],
   });
+
+  const { data: passwordPolicy } = usePasswordPolicy();
 
   useEffect(() => {
     if (profile) {
@@ -226,7 +229,7 @@ export default function Profile() {
       });
       return;
     }
-    if (newPassword.length < 8) {
+    if (!validatePasswordWithPolicy(newPassword, passwordPolicy)) {
       toast({
         title: t('common.error'),
         description: t('profile.passwordTooShort'),

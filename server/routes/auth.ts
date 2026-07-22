@@ -15,6 +15,7 @@ import {
   EMAIL_CHECK_WINDOW,
 } from "./common";
 import { registrationRateLimiter, passwordResetRateLimiter } from "../services/apiRateLimiterService";
+import { validatePasswordAgainstPolicy } from "../lib/passwordPolicy";
 
 const router = Router();
 
@@ -328,6 +329,13 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
     }
     
     const data = registerSchema.parse(req.body);
+
+    const customizationReg = await storage.getCustomizationSettings();
+    const regPolicyErrors = validatePasswordAgainstPolicy(data.password, customizationReg.passwordPolicy);
+    if (regPolicyErrors.length > 0) {
+      return res.status(400).json({ error: regPolicyErrors[0] });
+    }
+
     const user = await authService.localRegister(
       data.username,
       data.email,
@@ -447,6 +455,17 @@ router.post('/logout', (req, res) => {
   });
 });
 
+// Public: current password policy (needed by frontend for real-time validation)
+router.get('/password-policy', async (_req, res) => {
+  try {
+    const customization = await storage.getCustomizationSettings();
+    res.json(customization.passwordPolicy);
+  } catch (error) {
+    console.error('Password policy fetch error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
 // Request password reset (for local accounts, with rate limiting)
 router.post('/request-password-reset', passwordResetRateLimiter, async (req, res) => {
   try {
@@ -488,9 +507,10 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Token und neues Passwort erforderlich' });
     }
 
-    // Validate password strength
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen lang sein' });
+    const resetCustomization = await storage.getCustomizationSettings();
+    const resetPolicyErrors = validatePasswordAgainstPolicy(newPassword, resetCustomization.passwordPolicy);
+    if (resetPolicyErrors.length > 0) {
+      return res.status(400).json({ error: resetPolicyErrors[0] });
     }
 
     const resetToken = await storage.getPasswordResetToken(token);
@@ -560,6 +580,12 @@ router.post('/change-password', requireAuth, async (req, res) => {
     const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValid) {
       return res.status(400).json({ error: 'Aktuelles Passwort ist falsch' });
+    }
+
+    const changeCustomization = await storage.getCustomizationSettings();
+    const changePolicyErrors = validatePasswordAgainstPolicy(newPassword, changeCustomization.passwordPolicy);
+    if (changePolicyErrors.length > 0) {
+      return res.status(400).json({ error: changePolicyErrors[0] });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,15 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
+import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-interface PasswordRequirement {
-  label: string;
-  met: boolean;
-}
+import { PasswordStrengthIndicator, usePasswordPolicy, validatePasswordWithPolicy } from '@/components/PasswordStrengthIndicator';
 
 const PENDING_LOGIN_REDIRECT_KEY = 'polly-pending-login-redirect';
+
 
 function isSafeRedirectPath(value: string | null): value is string {
   return !!value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/anmelden');
@@ -25,104 +22,6 @@ function readRedirectFromSearch(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
   const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
   return isSafeRedirectPath(redirect) ? redirect : null;
-}
-
-function PasswordStrengthIndicator({ password, confirmPassword }: { password: string; confirmPassword: string }) {
-  const { t } = useTranslation();
-  
-  const requirements: PasswordRequirement[] = useMemo(() => [
-    { label: t('auth.passwordRequirements.minLength'), met: password.length >= 8 },
-    { label: t('auth.passwordRequirements.uppercase'), met: /[A-Z]/.test(password) },
-    { label: t('auth.passwordRequirements.lowercase'), met: /[a-z]/.test(password) },
-    { label: t('auth.passwordRequirements.number'), met: /[0-9]/.test(password) },
-    { label: t('auth.passwordRequirements.special'), met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password) },
-  ], [password, t]);
-
-  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
-  const allRequirementsMet = requirements.every(r => r.met);
-  
-  const strengthPercentage = (requirements.filter(r => r.met).length / requirements.length) * 100;
-  
-  const getStrengthColor = () => {
-    if (strengthPercentage < 40) return 'bg-red-500';
-    if (strengthPercentage < 80) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
-
-  const getStrengthLabel = () => {
-    if (strengthPercentage < 40) return t('auth.passwordStrength.weak');
-    if (strengthPercentage < 80) return t('auth.passwordStrength.medium');
-    return t('auth.passwordStrength.strong');
-  };
-
-  if (password.length === 0) return null;
-
-  return (
-    <div className="space-y-3 mt-2 p-3 bg-muted/50 rounded-lg border" data-testid="password-strength-indicator">
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">{t('auth.passwordStrength.label')}</span>
-          <span className={`font-medium ${strengthPercentage === 100 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
-            {getStrengthLabel()}
-          </span>
-        </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-300 ${getStrengthColor()}`}
-            style={{ width: `${strengthPercentage}%` }}
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-1.5">
-        {requirements.map((req, index) => (
-          <div 
-            key={index} 
-            className={`flex items-center gap-2 text-xs ${req.met ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
-            data-testid={`password-requirement-${index}`}
-          >
-            {req.met ? (
-              <Check className="h-3.5 w-3.5 flex-shrink-0" />
-            ) : (
-              <X className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/50" />
-            )}
-            <span>{req.label}</span>
-          </div>
-        ))}
-        
-        {confirmPassword.length > 0 && (
-          <div 
-            className={`flex items-center gap-2 text-xs ${passwordsMatch ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}
-            data-testid="password-match-indicator"
-          >
-            {passwordsMatch ? (
-              <Check className="h-3.5 w-3.5 flex-shrink-0" />
-            ) : (
-              <X className="h-3.5 w-3.5 flex-shrink-0" />
-            )}
-            <span>{t('auth.passwordsMatch')}</span>
-          </div>
-        )}
-      </div>
-
-      {allRequirementsMet && passwordsMatch && (
-        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 font-medium pt-1 border-t border-green-200 dark:border-green-800">
-          <Check className="h-4 w-4" />
-          <span>{t('auth.passwordMeetsRequirements')}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function validatePassword(password: string): boolean {
-  return (
-    password.length >= 8 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password) &&
-    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)
-  );
 }
 
 function useParseErrorMessage() {
@@ -182,6 +81,8 @@ export default function Login() {
     return email ?? '';
   };
 
+  const { data: passwordPolicy } = usePasswordPolicy();
+
   const [loginForm, setLoginForm] = useState({ usernameOrEmail: getEmailFromUrl(), password: '' });
   const [registerForm, setRegisterForm] = useState({ username: '', email: getEmailFromUrl(), name: '', password: '', confirmPassword: '' });
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -236,7 +137,7 @@ export default function Login() {
     }
   };
 
-  const isPasswordValid = validatePassword(registerForm.password);
+  const isPasswordValid = validatePasswordWithPolicy(registerForm.password, passwordPolicy);
   const passwordsMatch = registerForm.password === registerForm.confirmPassword;
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const emailValid = isValidEmail(registerForm.email);

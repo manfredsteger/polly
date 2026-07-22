@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { passwordSchema, createPollSchema, createPollSchemaBase, registerSchema } from '../../routes/common';
+import { validatePasswordAgainstPolicy, DEFAULT_PASSWORD_POLICY } from '../../lib/passwordPolicy';
 
 export const testMeta = {
   category: 'api' as const,
@@ -123,6 +124,59 @@ describe('Validation Schemas - Unit Tests', () => {
         password: 'SecurePass123!',
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('validatePasswordAgainstPolicy()', () => {
+    const fullPolicy = DEFAULT_PASSWORD_POLICY;
+
+    it('should accept a password that meets all default policy requirements', () => {
+      const errors = validatePasswordAgainstPolicy('SecurePass123!', fullPolicy);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should reject a password shorter than the minimum length', () => {
+      const errors = validatePasswordAgainstPolicy('Ab1!', fullPolicy);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors.some(e => e.includes('12'))).toBe(true);
+    });
+
+    it('should reject a password without uppercase when required', () => {
+      const errors = validatePasswordAgainstPolicy('securepass123!', { ...fullPolicy, requireUppercase: true });
+      expect(errors.some(e => e.toLowerCase().includes('großbuchstabe'))).toBe(true);
+    });
+
+    it('should reject a password without lowercase when required', () => {
+      const errors = validatePasswordAgainstPolicy('SECUREPASS123!', { ...fullPolicy, requireLowercase: true });
+      expect(errors.some(e => e.toLowerCase().includes('kleinbuchstabe'))).toBe(true);
+    });
+
+    it('should reject a password without numbers when required', () => {
+      const errors = validatePasswordAgainstPolicy('SecurePassword!', { ...fullPolicy, requireNumbers: true });
+      expect(errors.some(e => e.toLowerCase().includes('zahl'))).toBe(true);
+    });
+
+    it('should reject a password without special chars when required', () => {
+      const errors = validatePasswordAgainstPolicy('SecurePass1234', { ...fullPolicy, requireSpecialChars: true });
+      expect(errors.some(e => e.toLowerCase().includes('sonderzeichen'))).toBe(true);
+    });
+
+    it('should accept a password when all complexity rules are disabled', () => {
+      const relaxed = { minLength: 6, requireUppercase: false, requireLowercase: false, requireNumbers: false, requireSpecialChars: false };
+      const errors = validatePasswordAgainstPolicy('simple', relaxed);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should return multiple errors for a password violating multiple rules', () => {
+      const errors = validatePasswordAgainstPolicy('abc', fullPolicy);
+      expect(errors.length).toBeGreaterThan(1);
+    });
+
+    it('should respect a custom minLength', () => {
+      const policy = { ...fullPolicy, minLength: 20 };
+      const errors = validatePasswordAgainstPolicy('SecurePass123!', policy);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors.some(e => e.includes('20'))).toBe(true);
     });
   });
 });

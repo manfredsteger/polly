@@ -300,7 +300,7 @@ router.post('/upload/image', imageService.getUploadMiddleware().single('image'),
     requestIp: req.ip || req.socket.remoteAddress || undefined,
   };
   
-  const result = await imageService.processUpload(req.file, scanContext);
+  const result = await imageService.processUpload(req.file, scanContext, { allowSvg: false });
   
   if (!result.success) {
     let statusCode = 500;

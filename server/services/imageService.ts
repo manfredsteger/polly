@@ -182,7 +182,9 @@ export class ImageService {
       },
       fileFilter: (req, file, cb) => {
         if (file.mimetype === 'image/svg+xml' && !allowSvg) {
-          cb(new Error('SVG-Dateien sind für diesen Upload nicht erlaubt'));
+          const err = new Error('SVG-Dateien sind für diesen Upload nicht erlaubt') as Error & { status: number };
+          err.status = 400;
+          cb(err);
           return;
         }
         if (ALLOWED_MIME_PREFIXES.some(prefix => file.mimetype.startsWith(prefix))) {
@@ -194,12 +196,28 @@ export class ImageService {
     });
   }
 
-  async processUpload(file: Express.Multer.File, context?: ScanContext): Promise<UploadResult> {
+  async processUpload(file: Express.Multer.File, context?: ScanContext, options?: { allowSvg?: boolean }): Promise<UploadResult> {
     if (!validateImageMagicBytes(file.buffer)) {
       console.warn(`[ImageService] Magic-Byte-Prüfung fehlgeschlagen: ${file.originalname} (${file.mimetype})`);
       return {
         success: false,
         error: 'Nur Bilddateien sind erlaubt',
+        invalidFileType: true,
+      };
+    }
+
+    const _svgTextStart = file.buffer.slice(0, 1024).toString('utf8').toLowerCase().trimStart();
+    const isSvgContent = file.mimetype === 'image/svg+xml' ||
+      _svgTextStart.startsWith('<svg') ||
+      _svgTextStart.startsWith('<?xml') ||
+      _svgTextStart.startsWith('<!doctype svg') ||
+      /^[\s\S]{0,300}<svg[\s>]/i.test(_svgTextStart);
+
+    if (isSvgContent && options?.allowSvg === false) {
+      console.warn(`[ImageService] SVG content blocked (endpoint disallows SVG): ${file.originalname} (${file.mimetype})`);
+      return {
+        success: false,
+        error: 'SVG-Dateien sind für diesen Upload nicht erlaubt',
         invalidFileType: true,
       };
     }
@@ -271,8 +289,7 @@ export class ImageService {
 
     await this.ensureUploadDir();
 
-    const isSvg = file.mimetype === 'image/svg+xml' ||
-      file.buffer.slice(0, 512).toString('utf8').toLowerCase().trimStart().startsWith('<svg');
+    const isSvg = isSvgContent;
     const isIco = file.mimetype === 'image/x-icon';
     const isBmp = file.mimetype === 'image/bmp';
 

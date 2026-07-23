@@ -233,6 +233,7 @@ router.patch('/admin/:token', async (req, res) => {
     if (allowMaybe !== undefined) updates.allowMaybe = allowMaybe;
     if (allowMultipleSlots !== undefined) updates.allowMultipleSlots = allowMultipleSlots;
     if (notifyCreatorOnVote !== undefined) updates.notifyCreatorOnVote = notifyCreatorOnVote;
+    if (sanitizedClosingMessage !== undefined) updates.closingMessage = sanitizedClosingMessage;
     if (videoConferenceUrl !== undefined && poll.type === 'schedule') {
       if (videoConferenceUrl && typeof videoConferenceUrl === 'string') {
         try {

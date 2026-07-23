@@ -905,6 +905,17 @@ router.post('/mfa/validate', async (req, res) => {
       return res.status(400).json({ error: 'Kein ausstehender MFA-Login' });
     }
 
+    // Rate limiting: failed MFA attempts share the same lockout as login failures
+    const clientIp = req.ip || 'unknown';
+    const mfaRateLimitKey = `mfa:${pendingUserId}`;
+    const rateLimitCheck = await loginRateLimiter.checkRateLimit(mfaRateLimitKey, clientIp);
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({
+        error: rateLimitCheck.message || 'Zu viele Anmeldeversuche',
+        retryAfter: rateLimitCheck.retryAfter,
+      });
+    }
+
     const { token } = req.body;
     if (!token || typeof token !== 'string') {
       return res.status(400).json({ error: 'TOTP-Code fehlt' });
@@ -915,9 +926,22 @@ router.post('/mfa/validate', async (req, res) => {
       return res.status(400).json({ error: 'MFA nicht konfiguriert' });
     }
 
-    if (!verifyTotpToken(token.replace(/\s/g, ''), user.totpSecret)) {
+    const cleanToken = token.replace(/\s/g, '');
+
+    // Anti-replay: reject a TOTP code that has already been used in this time window
+    if (user.lastUsedTotpToken && user.lastUsedTotpToken === cleanToken) {
+      await loginRateLimiter.recordFailedAttempt(mfaRateLimitKey, clientIp);
+      return res.status(401).json({ error: 'Dieser TOTP-Code wurde bereits verwendet' });
+    }
+
+    if (!verifyTotpToken(cleanToken, user.totpSecret)) {
+      await loginRateLimiter.recordFailedAttempt(mfaRateLimitKey, clientIp);
       return res.status(401).json({ error: 'Ungültiger TOTP-Code' });
     }
+
+    // Mark token as used before completing the session upgrade
+    await storage.updateUser(user.id, { lastUsedTotpToken: cleanToken });
+    await loginRateLimiter.recordSuccessfulLogin(mfaRateLimitKey, clientIp);
 
     // Complete the login
     await new Promise<void>((resolve, reject) =>
@@ -942,20 +966,38 @@ router.post('/mfa/disable', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     if (!user.totpEnabled) return res.status(400).json({ error: 'MFA ist nicht aktiviert' });
 
+    // Policy check: when adminMfaRequired is active, admins cannot self-service-disable MFA.
+    // Doing so would circumvent the organisational security policy. Another admin must use
+    // the admin panel to reset MFA (e.g. when the admin loses their authenticator device).
+    const disableCustomization = await storage.getCustomizationSettings();
+    const adminMfaPolicy = disableCustomization.mfa?.adminMfaRequired ?? false;
+    if (adminMfaPolicy && user.role === 'admin') {
+      return res.status(403).json({
+        error: 'MFA-Deaktivierung nicht erlaubt: Die Admin-MFA-Pflicht ist aktiv. Wenden Sie sich an einen anderen Administrator.',
+        code: 'ADMIN_MFA_POLICY_ACTIVE',
+      });
+    }
+
     const { token, password } = req.body;
 
     if (token) {
-      if (!verifyTotpToken(String(token).replace(/\s/g, ''), user.totpSecret!)) {
+      const cleanToken = String(token).replace(/\s/g, '');
+      // Anti-replay: reject a TOTP code that has already been used in this time window
+      if (user.lastUsedTotpToken && user.lastUsedTotpToken === cleanToken) {
+        return res.status(400).json({ error: 'Dieser TOTP-Code wurde bereits verwendet' });
+      }
+      if (!verifyTotpToken(cleanToken, user.totpSecret!)) {
         return res.status(400).json({ error: 'Ungültiger TOTP-Code' });
       }
+      await storage.updateUser(userId!, { lastUsedTotpToken: cleanToken });
     } else if (password) {
-        const valid = await bcrypt.compare(String(password), user.passwordHash!);
+      const valid = await bcrypt.compare(String(password), user.passwordHash!);
       if (!valid) return res.status(400).json({ error: 'Ungültiges Passwort' });
     } else {
       return res.status(400).json({ error: 'TOTP-Code oder Passwort erforderlich' });
     }
 
-    await storage.updateUser(userId!, { totpSecret: null, totpEnabled: false });
+    await storage.updateUser(userId!, { totpSecret: null, totpEnabled: false, lastUsedTotpToken: null });
     return res.json({ success: true });
   } catch {
     return res.status(500).json({ error: 'Interner Fehler' });

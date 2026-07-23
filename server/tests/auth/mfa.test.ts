@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createTestApp } from '../testApp';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 import { storage } from '../../storage';
-import { generateTotpForTest } from '../../lib/totpService';
+import { generateTotpForTest, generateTotpSecret } from '../../lib/totpService';
 import type { Express } from 'express';
 
 export const testMeta = {
@@ -354,5 +354,245 @@ describe('MFA - Admin policy settings', () => {
       .send({ mfa: { adminMfaRequired: false } });
     expect(res.status).toBe(200);
     expect(res.body.mfa?.adminMfaRequired).toBe(false);
+  });
+});
+
+// ─── Security: Token Replay Prevention ───────────────────────────────────────
+describe('MFA - Token replay prevention', () => {
+  let app: Express;
+  let testUserId: number | null = null;
+  let testUsername: string;
+  let testPassword: string;
+  let totpSecret: string;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+    testUsername = `mfa_replay_${Date.now()}`;
+    testPassword = 'TestReplay123!';
+    const setupAgent = request.agent(app);
+
+    const regRes = await setupAgent
+      .post('/api/v1/auth/register')
+      .set('x-test-meta', JSON.stringify({ isTestData: true }))
+      .send({
+        username: testUsername,
+        email: `${testUsername}@test.example`,
+        name: 'MFA Replay Tester',
+        password: testPassword,
+      });
+    testUserId = regRes.body.user?.id ?? null;
+
+    const initRes = await setupAgent.post('/api/v1/auth/mfa/setup-init');
+    totpSecret = initRes.body.secret;
+    const token = generateTotpForTest(totpSecret);
+    await setupAgent.post('/api/v1/auth/mfa/setup-confirm').send({ token });
+  });
+
+  afterAll(async () => {
+    if (testUserId) {
+      try { await storage.updateUser(testUserId, { lastUsedTotpToken: null }); } catch { /* ignore */ }
+      try { await storage.deleteUser(testUserId); } catch { /* ignore */ }
+    }
+  });
+
+  it('POST /mfa/validate rejects a TOTP code marked as already used (replay attack)', async () => {
+    const loginAgent = request.agent(app);
+    await loginAgent
+      .post('/api/v1/auth/login')
+      .send({ usernameOrEmail: testUsername, password: testPassword });
+
+    const token = generateTotpForTest(totpSecret);
+    if (testUserId) {
+      await storage.updateUser(testUserId, { lastUsedTotpToken: token });
+    }
+
+    const res = await loginAgent
+      .post('/api/v1/auth/mfa/validate')
+      .send({ token });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/bereits verwendet/i);
+
+    if (testUserId) {
+      await storage.updateUser(testUserId, { lastUsedTotpToken: null });
+    }
+  });
+
+  it('POST /mfa/validate succeeds when lastUsedTotpToken is a different (older) token', async () => {
+    const loginAgent = request.agent(app);
+    await loginAgent
+      .post('/api/v1/auth/login')
+      .send({ usernameOrEmail: testUsername, password: testPassword });
+
+    const currentToken = generateTotpForTest(totpSecret);
+    if (testUserId) {
+      await storage.updateUser(testUserId, { lastUsedTotpToken: '999999' });
+    }
+
+    const res = await loginAgent
+      .post('/api/v1/auth/mfa/validate')
+      .send({ token: currentToken });
+    expect(res.status).toBe(200);
+    expect(res.body.user).toBeTruthy();
+  });
+
+  it('POST /mfa/disable rejects a TOTP code marked as already used (replay attack)', async () => {
+    // Reset any previously used token from earlier tests in this describe block
+    // so the login+validate step is not blocked by replay protection
+    if (testUserId) {
+      await storage.updateUser(testUserId, { lastUsedTotpToken: null });
+    }
+
+    const loginAgent = request.agent(app);
+    await loginAgent
+      .post('/api/v1/auth/login')
+      .send({ usernameOrEmail: testUsername, password: testPassword });
+
+    // Use a fresh token to complete login
+    const loginToken = generateTotpForTest(totpSecret);
+    await loginAgent.post('/api/v1/auth/mfa/validate').send({ token: loginToken });
+
+    // Simulate a previously used disable token
+    const disableToken = generateTotpForTest(totpSecret);
+    if (testUserId) {
+      await storage.updateUser(testUserId, { lastUsedTotpToken: disableToken });
+    }
+
+    const res = await loginAgent
+      .post('/api/v1/auth/mfa/disable')
+      .send({ token: disableToken });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/bereits verwendet/i);
+
+    if (testUserId) {
+      await storage.updateUser(testUserId, { lastUsedTotpToken: null });
+    }
+  });
+});
+
+// ─── Security: Brute-force protection on /mfa/validate ───────────────────────
+describe('MFA - Brute-force protection on /mfa/validate', () => {
+  let app: Express;
+  let testUserId: number | null = null;
+  let testUsername: string;
+  let testPassword: string;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+    testUsername = `mfa_ratelimit_${Date.now()}`;
+    testPassword = 'TestRateLimit123!';
+    const setupAgent = request.agent(app);
+
+    const regRes = await setupAgent
+      .post('/api/v1/auth/register')
+      .set('x-test-meta', JSON.stringify({ isTestData: true }))
+      .send({
+        username: testUsername,
+        email: `${testUsername}@test.example`,
+        name: 'MFA RateLimit Tester',
+        password: testPassword,
+      });
+    testUserId = regRes.body.user?.id ?? null;
+
+    const initRes = await setupAgent.post('/api/v1/auth/mfa/setup-init');
+    const token = generateTotpForTest(initRes.body.secret);
+    await setupAgent.post('/api/v1/auth/mfa/setup-confirm').send({ token });
+  });
+
+  afterAll(async () => {
+    if (testUserId) {
+      try { await storage.deleteUser(testUserId); } catch { /* ignore */ }
+    }
+  });
+
+  it('POST /mfa/validate returns 429 after 5 consecutive wrong attempts', async () => {
+    const loginAgent = request.agent(app);
+    await loginAgent
+      .post('/api/v1/auth/login')
+      .send({ usernameOrEmail: testUsername, password: testPassword });
+
+    for (let i = 0; i < 5; i++) {
+      const res = await loginAgent
+        .post('/api/v1/auth/mfa/validate')
+        .send({ token: '000000' });
+      expect(res.status).toBe(401);
+    }
+
+    const res = await loginAgent
+      .post('/api/v1/auth/mfa/validate')
+      .send({ token: '000000' });
+    expect(res.status).toBe(429);
+    expect(res.body).toHaveProperty('retryAfter');
+  });
+});
+
+// ─── Security: Admin MFA policy blocks self-disable ───────────────────────────
+describe('MFA - Admin policy blocks self-disable', () => {
+  let app: Express;
+  let adminUserId: number | null = null;
+  let testAgent: ReturnType<typeof request.agent>;
+  let totpSecret: string;
+  let origMfa: any;
+  let origAdminTotpEnabled: boolean;
+  let origAdminTotpSecret: string | null;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+
+    const origSettings = await storage.getCustomizationSettings();
+    origMfa = origSettings.mfa;
+
+    // Login as admin FIRST — before MFA is enabled, so no TOTP challenge
+    // This gives us a properly established session (session.userId is set)
+    testAgent = await loginAsAdmin(app);
+
+    // Get admin ID and save current MFA state for cleanup
+    const adminUser = await storage.getUserByUsername(ADMIN_USERNAME);
+    adminUserId = adminUser?.id ?? null;
+    origAdminTotpEnabled = adminUser?.totpEnabled ?? false;
+    origAdminTotpSecret = adminUser?.totpSecret ?? null;
+
+    // Enable MFA directly in storage AFTER login (so the existing session stays valid,
+    // but any future login would require TOTP)
+    totpSecret = generateTotpSecret();
+    if (adminUserId) {
+      await storage.updateUser(adminUserId, {
+        totpSecret,
+        totpEnabled: true,
+        lastUsedTotpToken: null,
+      });
+    }
+
+    // Activate admin MFA policy — now admins must not be able to self-disable
+    await storage.setCustomizationSettings({ mfa: { adminMfaRequired: true } });
+  });
+
+  afterAll(async () => {
+    if (adminUserId) {
+      try {
+        await storage.updateUser(adminUserId, {
+          totpSecret: origAdminTotpSecret,
+          totpEnabled: origAdminTotpEnabled,
+          lastUsedTotpToken: null,
+        });
+      } catch { /* ignore */ }
+    }
+    await storage.setCustomizationSettings({ mfa: origMfa ?? { adminMfaRequired: false } });
+  });
+
+  it('POST /mfa/disable returns 403 for admin user when adminMfaRequired policy is active (TOTP path)', async () => {
+    const token = generateTotpForTest(totpSecret);
+    const res = await testAgent
+      .post('/api/v1/auth/mfa/disable')
+      .send({ token });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('ADMIN_MFA_POLICY_ACTIVE');
+  });
+
+  it('POST /mfa/disable returns 403 for admin user when adminMfaRequired policy is active (password fallback path)', async () => {
+    const res = await testAgent
+      .post('/api/v1/auth/mfa/disable')
+      .send({ password: ADMIN_PASSWORD });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('ADMIN_MFA_POLICY_ACTIVE');
   });
 });

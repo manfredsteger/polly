@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   totpSecret: text("totp_secret"), // Base32 TOTP secret (null = MFA not configured)
   totpEnabled: boolean("totp_enabled").default(false).notNull(),
   mfaRequired: boolean("mfa_required").default(false).notNull(), // Admin-forced MFA setup for this user
+  lastUsedTotpToken: text("last_used_totp_token"), // Anti-replay: stores last validated TOTP code
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

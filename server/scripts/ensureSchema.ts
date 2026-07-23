@@ -44,6 +44,7 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'users', column: 'totp_secret', definition: 'TEXT' },
   { table: 'users', column: 'totp_enabled', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'users', column: 'mfa_required', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'users', column: 'last_used_totp_token', definition: 'TEXT' },
 ];
 
 async function ensureSchema(): Promise<void> {

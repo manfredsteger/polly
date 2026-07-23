@@ -42,6 +42,7 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'polls', column: 'video_conference_url', definition: 'TEXT' },
   { table: 'users', column: 'totp_secret', definition: 'TEXT' },
   { table: 'users', column: 'totp_enabled', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
+  { table: 'users', column: 'mfa_required', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
 ];
 
 async function ensureSchema(): Promise<void> {

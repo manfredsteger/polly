@@ -794,9 +794,16 @@
       "saveError": "Error saving user",
       "passwordSectionTitle": "Manage Password",
       "resetMfa": "Reset MFA",
-      "resetMfaDescription": "Disable two-factor authentication for this user (e.g. if they lost their device)",
+      "resetMfaDescription": "Disable two-factor authentication (e.g. if the user lost their device). The user can then log in without MFA.",
       "resetMfaSuccess": "MFA has been reset",
-      "resetMfaSuccessDescription": "The user can now log in without MFA and set it up again if needed."
+      "resetMfaSuccessDescription": "The user can now log in without MFA and set it up again if needed.",
+      "requireMfa": "Require MFA",
+      "requireMfaActive": "MFA required",
+      "requireMfaDescription": "Force the user to set up MFA on their next login before they can access the system.",
+      "requireMfaSuccess": "MFA requirement activated",
+      "requireMfaSuccessDescription": "The user will be prompted to set up MFA on their next login.",
+      "unrequireMfaSuccess": "MFA requirement removed",
+      "unrequireMfaSuccessDescription": "The user is no longer required to set up MFA."
     },
     "userManagement": "User Management",
     "createUser": "Create User",

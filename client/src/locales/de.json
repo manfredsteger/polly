@@ -794,9 +794,16 @@
       "saveError": "Fehler beim Speichern des Benutzers",
       "passwordSectionTitle": "Passwort verwalten",
       "resetMfa": "MFA zurücksetzen",
-      "resetMfaDescription": "Zwei-Faktor-Authentisierung für diesen Benutzer deaktivieren (z. B. bei verlorenem Gerät)",
+      "resetMfaDescription": "Zwei-Faktor-Authentisierung deaktivieren (z. B. bei verlorenem Gerät). Benutzer kann sich danach ohne MFA anmelden.",
       "resetMfaSuccess": "MFA wurde zurückgesetzt",
-      "resetMfaSuccessDescription": "Der Benutzer kann sich nun ohne MFA anmelden und ggf. neu einrichten."
+      "resetMfaSuccessDescription": "Der Benutzer kann sich nun ohne MFA anmelden und ggf. neu einrichten.",
+      "requireMfa": "MFA erzwingen",
+      "requireMfaActive": "MFA-Pflicht aktiv",
+      "requireMfaDescription": "Benutzer muss MFA beim nächsten Login einrichten, bevor er sich anmelden kann.",
+      "requireMfaSuccess": "MFA-Pflicht aktiviert",
+      "requireMfaSuccessDescription": "Beim nächsten Login wird der Benutzer zur MFA-Einrichtung aufgefordert.",
+      "unrequireMfaSuccess": "MFA-Pflicht aufgehoben",
+      "unrequireMfaSuccessDescription": "Der Benutzer muss MFA nicht mehr einrichten."
     },
     "userManagement": "Benutzerverwaltung",
     "createUser": "Benutzer erstellen",

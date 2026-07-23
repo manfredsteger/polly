@@ -285,10 +285,33 @@ router.post('/users/:id/reset-mfa', requireAdmin, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
-    await storage.updateUser(userId, { totpSecret: null, totpEnabled: false });
+    await storage.updateUser(userId, { totpSecret: null, totpEnabled: false, mfaRequired: false });
     res.json({ success: true, message: 'MFA wurde zurückgesetzt' });
   } catch (error) {
     console.error('Admin reset MFA error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /users/:id/require-mfa — force or unforce MFA setup for a local user
+router.post('/users/:id/require-mfa', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    if (user.provider !== 'local') {
+      return res.status(400).json({ error: 'MFA-Pflicht gilt nur für lokale Konten' });
+    }
+    const required: boolean = req.body?.required !== false;
+    await storage.updateUser(userId, { mfaRequired: required });
+    res.json({ success: true, mfaRequired: required });
+  } catch (error) {
+    console.error('Admin require MFA error:', error);
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });

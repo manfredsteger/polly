@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   totpSecret: text("totp_secret"), // Base32 TOTP secret (null = MFA not configured)
   totpEnabled: boolean("totp_enabled").default(false).notNull(),
+  mfaRequired: boolean("mfa_required").default(false).notNull(), // Admin-forced MFA setup for this user
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

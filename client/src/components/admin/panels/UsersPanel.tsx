@@ -583,6 +583,26 @@ function UserDetailView({
     },
   });
 
+  const requireMfaMutation = useMutation({
+    mutationFn: async (required: boolean) => {
+      const response = await apiRequest('POST', `/api/v1/admin/users/${user.id}/require-mfa`, { required });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || t('admin.toast.error'));
+      }
+      return response.json();
+    },
+    onSuccess: (_data, required) => {
+      const title = required ? t('admin.users.requireMfaSuccess') : t('admin.users.unrequireMfaSuccess');
+      const description = required ? t('admin.users.requireMfaSuccessDescription') : t('admin.users.unrequireMfaSuccessDescription');
+      toast({ title, description });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('admin.toast.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("DELETE", `/api/v1/admin/users/${user.id}`);
@@ -862,25 +882,53 @@ function UserDetailView({
               </div>
             )}
 
-            {/* MFA Reset — local users with MFA enabled only */}
-            {isLocal && user.totpEnabled && (
-              <div className="border-t pt-4">
-                <p className="text-sm font-semibold mb-2">{t('admin.users.resetMfa')}</p>
-                <p className="text-xs text-muted-foreground mb-3">{t('admin.users.resetMfaDescription')}</p>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => resetMfaMutation.mutate()}
-                  disabled={resetMfaMutation.isPending}
-                  data-testid="button-reset-mfa"
-                >
-                  {resetMfaMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <ShieldOff className="w-4 h-4 mr-2" />
-                  )}
-                  {t('admin.users.resetMfa')}
-                </Button>
+            {/* MFA Management — local users only */}
+            {isLocal && (
+              <div className="border-t pt-4 space-y-3">
+                <p className="text-sm font-semibold">{t('profile.mfa')}</p>
+
+                {/* MFA Reset */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">{t('admin.users.resetMfaDescription')}</p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => resetMfaMutation.mutate()}
+                    disabled={resetMfaMutation.isPending || !user.totpEnabled}
+                    data-testid="button-reset-mfa"
+                  >
+                    {resetMfaMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <ShieldOff className="w-4 h-4 mr-2" />
+                    )}
+                    {t('admin.users.resetMfa')}
+                    {!user.totpEnabled && (
+                      <span className="ml-2 text-xs text-muted-foreground">({t('profile.mfaNotEnabled')})</span>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Require MFA — only when MFA not yet active */}
+                {!user.totpEnabled && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">{t('admin.users.requireMfaDescription')}</p>
+                    <Button
+                      variant={user.mfaRequired ? 'secondary' : 'outline'}
+                      className="w-full"
+                      onClick={() => requireMfaMutation.mutate(!user.mfaRequired)}
+                      disabled={requireMfaMutation.isPending}
+                      data-testid="button-require-mfa"
+                    >
+                      {requireMfaMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                      )}
+                      {user.mfaRequired ? t('admin.users.requireMfaActive') : t('admin.users.requireMfa')}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 

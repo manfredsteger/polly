@@ -306,8 +306,8 @@ router.post('/login', async (req, res) => {
           return res.json({ requiresMfa: true });
         });
       });
-    } else if (user.role === 'admin' && adminMfaRequired && user.provider === 'local') {
-      // Admin without MFA but policy requires it → force setup
+    } else if (user.provider === 'local' && (user.mfaRequired || (user.role === 'admin' && adminMfaRequired))) {
+      // User without MFA but policy requires it (per-user flag or admin-wide policy) → force setup
       req.session.regenerate((err) => {
         if (err) return res.status(500).json({ error: 'Interner Fehler' });
         req.session.pendingMfaUserId = user.id;
@@ -871,7 +871,7 @@ router.post('/mfa/setup-confirm', async (req, res) => {
       return res.status(400).json({ error: 'Ungültiger TOTP-Code' });
     }
 
-    await storage.updateUser(userId, { totpSecret: secret, totpEnabled: true });
+    await storage.updateUser(userId, { totpSecret: secret, totpEnabled: true, mfaRequired: false });
     delete (req.session as any).pendingTotpSecret;
 
     // If this was a forced-setup flow (admin must configure MFA), complete login now

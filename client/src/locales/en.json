@@ -792,7 +792,11 @@
       "addUserDescription": "Create a new user account for the system.",
       "totalCount": "{{count}} Users",
       "saveError": "Error saving user",
-      "passwordSectionTitle": "Manage Password"
+      "passwordSectionTitle": "Manage Password",
+      "resetMfa": "Reset MFA",
+      "resetMfaDescription": "Disable two-factor authentication for this user (e.g. if they lost their device)",
+      "resetMfaSuccess": "MFA has been reset",
+      "resetMfaSuccessDescription": "The user can now log in without MFA and set it up again if needed."
     },
     "userManagement": "User Management",
     "createUser": "Create User",

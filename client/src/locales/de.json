@@ -792,7 +792,11 @@
       "addUserDescription": "Erstellen Sie ein neues Benutzerkonto für das System.",
       "totalCount": "{{count}} Benutzer",
       "saveError": "Fehler beim Speichern des Benutzers",
-      "passwordSectionTitle": "Passwort verwalten"
+      "passwordSectionTitle": "Passwort verwalten",
+      "resetMfa": "MFA zurücksetzen",
+      "resetMfaDescription": "Zwei-Faktor-Authentisierung für diesen Benutzer deaktivieren (z. B. bei verlorenem Gerät)",
+      "resetMfaSuccess": "MFA wurde zurückgesetzt",
+      "resetMfaSuccessDescription": "Der Benutzer kann sich nun ohne MFA anmelden und ggf. neu einrichten."
     },
     "userManagement": "Benutzerverwaltung",
     "createUser": "Benutzer erstellen",

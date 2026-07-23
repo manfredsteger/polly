@@ -62,6 +62,7 @@ import {
   CheckCircle,
   XCircle,
   ShieldCheck,
+  ShieldOff,
   KeyRound,
   Mail,
   Save,
@@ -564,6 +565,24 @@ function UserDetailView({
     },
   });
 
+  const resetMfaMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', `/api/v1/admin/users/${user.id}/reset-mfa`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || t('admin.toast.error'));
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('admin.users.resetMfaSuccess'), description: t('admin.users.resetMfaSuccessDescription') });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('admin.toast.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("DELETE", `/api/v1/admin/users/${user.id}`);
@@ -840,6 +859,28 @@ function UserDetailView({
                     {t('admin.users.setPassword')}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* MFA Reset — local users with MFA enabled only */}
+            {isLocal && user.totpEnabled && (
+              <div className="border-t pt-4">
+                <p className="text-sm font-semibold mb-2">{t('admin.users.resetMfa')}</p>
+                <p className="text-xs text-muted-foreground mb-3">{t('admin.users.resetMfaDescription')}</p>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => resetMfaMutation.mutate()}
+                  disabled={resetMfaMutation.isPending}
+                  data-testid="button-reset-mfa"
+                >
+                  {resetMfaMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ShieldOff className="w-4 h-4 mr-2" />
+                  )}
+                  {t('admin.users.resetMfa')}
+                </Button>
               </div>
             )}
 

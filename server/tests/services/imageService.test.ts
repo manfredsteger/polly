@@ -449,6 +449,74 @@ describe('ImageService', () => {
       expect(result).not.toContain('<foreignObject');
       expect(result).toContain('<rect');
     });
+
+    it('should block CDATA section wrapping a script payload', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><script><![CDATA[alert(1)]]></script><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('<script');
+      expect(result).not.toContain('alert(1)');
+      expect(result).toContain('<rect');
+    });
+
+    it('should block tab character in javascript: URI (java\\tscript: bypass)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="java\tscript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should block newline character in javascript: URI (java\\nscript: bypass)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="java\nscript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should block carriage-return character in javascript: URI (java\\rscript: bypass)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="java\rscript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should block decimal entity-encoded "j" in javascript: URI (&#106;avascript: bypass)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="&#106;avascript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should block fully entity-encoded javascript: URI (all chars encoded)', () => {
+      const encoded = '&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;';
+      const malicious = `<svg xmlns="http://www.w3.org/2000/svg"><a href="${encoded}alert(1)"><rect/></a></svg>`;
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should strip an unknown/non-SVG element (allowlist enforcement)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><badtag class="xss">content</badtag><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('<badtag');
+      expect(result).toContain('<rect');
+    });
+
+    it('should strip a data: URI in an image href (exfiltration vector)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><image href="data:text/html,<script>alert(1)</script>"/><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('data:text/html');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should strip a vbscript: URI (alternative scripting protocol)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="vbscript:msgbox(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('vbscript:');
+    });
+
+    it('should strip an on* attribute on a non-element (animate tag attack)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><animate onbegin="alert(1)"/><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('onbegin');
+      expect(result).not.toContain('alert(1)');
+    });
   });
 
   describe('reencodeImage — polyglot neutralization (LSI pentest hardening)', () => {

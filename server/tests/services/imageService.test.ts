@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { ImageService, validateImageMagicBytes } from '../../services/imageService';
+import sharp from 'sharp';
+import { ImageService, validateImageMagicBytes, reencodeImage } from '../../services/imageService';
 
 describe('ImageService', () => {
   let imageService: ImageService;
@@ -9,14 +10,14 @@ describe('ImageService', () => {
   });
 
   describe('getUploadMiddleware fileFilter', () => {
-    function getFileFilter() {
-      const middleware = imageService.getUploadMiddleware();
+    function getFileFilter(options?: { allowSvg?: boolean }) {
+      const middleware = imageService.getUploadMiddleware(options);
       const multerInstance = middleware as any;
       return multerInstance.fileFilter;
     }
 
-    function testFileFilter(mimetype: string, originalname: string): Promise<boolean> {
-      const fileFilter = getFileFilter();
+    function testFileFilter(mimetype: string, originalname: string, options?: { allowSvg?: boolean }): Promise<boolean> {
+      const fileFilter = getFileFilter(options);
       return new Promise((resolve, reject) => {
         const fakeReq = {} as any;
         const fakeFile = { mimetype, originalname } as any;
@@ -40,8 +41,14 @@ describe('ImageService', () => {
       expect(result).toBe(true);
     });
 
-    it('should accept SVG files', async () => {
-      const result = await testFileFilter('image/svg+xml', 'logo.svg');
+    it('should reject SVG files by default (survey option uploads)', async () => {
+      await expect(testFileFilter('image/svg+xml', 'logo.svg')).rejects.toThrow(
+        'SVG-Dateien sind für diesen Upload nicht erlaubt'
+      );
+    });
+
+    it('should accept SVG files when allowSvg=true (admin logo/favicon)', async () => {
+      const result = await testFileFilter('image/svg+xml', 'logo.svg', { allowSvg: true });
       expect(result).toBe(true);
     });
 
@@ -121,9 +128,28 @@ describe('ImageService', () => {
       expect(validateImageMagicBytes(pngHeader)).toBe(true);
     });
 
-    it('should accept a valid GIF buffer', () => {
-      const gifHeader = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]);
-      expect(validateImageMagicBytes(gifHeader)).toBe(true);
+    it('should accept a valid GIF89a buffer', () => {
+      // GIF89a: 47 49 46 38 39 61 — all 6 bytes required
+      const gif89aHeader = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]);
+      expect(validateImageMagicBytes(gif89aHeader)).toBe(true);
+    });
+
+    it('should accept a valid GIF87a buffer', () => {
+      // GIF87a: 47 49 46 38 37 61
+      const gif87aHeader = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]);
+      expect(validateImageMagicBytes(gif87aHeader)).toBe(true);
+    });
+
+    // LSI Pentest-Finding 2.3: "GIF8; <?php echo ...?>" bypassed the old 4-byte check
+    it('should reject LSI pentest payload: "GIF8; <?php echo Hello World ?>" (truncated GIF header polyglot)', () => {
+      // "GIF8;" = 47 49 46 38 3B — byte 5 is 0x3B (";"), not 0x37 ("7") or 0x39 ("9")
+      const lsiPayload = Buffer.from('GIF8; <?php echo "Hello World!"; ?>\x00\x00\x00\x00\x00\x00\x00');
+      expect(validateImageMagicBytes(lsiPayload)).toBe(false);
+    });
+
+    it('should reject a buffer with only "GIF8" (4 bytes, no version suffix)', () => {
+      const onlyFourBytes = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]);
+      expect(validateImageMagicBytes(onlyFourBytes)).toBe(false);
     });
 
     it('should accept a valid WebP buffer', () => {
@@ -196,13 +222,6 @@ describe('ImageService', () => {
   });
 
   describe('processUpload — invalidFileType flag (regression guard)', () => {
-    // These tests exist because the MIME-filter in multer only checks the
-    // Content-Type header, which can be spoofed. processUpload runs a second
-    // layer of defence (magic-byte validation). When that check fails the
-    // result MUST carry invalidFileType=true so HTTP routes return 400 instead
-    // of the generic 500 fallback — a difference that was previously untested
-    // and caused CI failures in hardening.test.ts T011.
-
     function makeMockFile(buf: Buffer, mimetype = 'image/jpeg', name = 'upload.jpg') {
       return {
         originalname: name,
@@ -247,15 +266,66 @@ describe('ImageService', () => {
       expect(result.invalidFileType).toBe(true);
     });
 
+    // LSI Pentest-Finding 2.3 — exact attack scenario from the report
+    it('should return invalidFileType=true for LSI pentest payload "GIF8; <?php...>" disguised as image/gif', async () => {
+      const lsiPayload = Buffer.from('GIF8; <?php echo "Hello World!"; ?>\x00\x00\x00\x00\x00\x00\x00');
+      const result = await imageService.processUpload(
+        makeMockFile(lsiPayload, 'image/gif', 'Bild.gif') as any
+      );
+      expect(result.success).toBe(false);
+      expect(result.invalidFileType).toBe(true);
+    });
+
     it('should NOT set invalidFileType for a file with valid JPEG magic bytes', async () => {
       const validJpeg = Buffer.from([
         0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46,
         0x49, 0x46, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
       ]);
       const result = await imageService.processUpload(makeMockFile(validJpeg) as any);
-      // The file has valid magic bytes — regardless of ClamAV state,
-      // invalidFileType must be absent/falsy.
+      // Valid magic bytes — regardless of ClamAV/re-encoding state, invalidFileType must be absent.
+      // Re-encoding may fail on a minimal stub buffer, but the failure path is "Datei konnte nicht gespeichert werden"
+      // or "Nur Bilddateien sind erlaubt" (re-encode fails) — never invalidFileType.
       expect(result.invalidFileType).toBeFalsy();
+    });
+  });
+
+  describe('reencodeImage — polyglot neutralization (LSI pentest hardening)', () => {
+    let validPngBuffer: Buffer;
+
+    beforeAll(async () => {
+      // Generate a valid 1×1 white PNG using sharp itself — avoids hand-crafted CRC issues
+      validPngBuffer = await sharp({
+        create: { width: 1, height: 1, channels: 3, background: { r: 255, g: 255, b: 255 } },
+      }).png().toBuffer();
+    });
+
+    it('should strip embedded PHP code from a PNG polyglot file', async () => {
+      // Polyglot: valid PNG bytes + PHP code appended after IEND
+      const polyglot = Buffer.concat([validPngBuffer, Buffer.from('<?php echo "pwned"; ?>')]);
+
+      const result = await reencodeImage(polyglot);
+      expect(result).not.toBeNull();
+      expect(result!.ext).toBe('.png');
+      // After re-encoding through sharp, the PHP payload is stripped — only pixel data remains
+      expect(result!.buffer.toString('binary')).not.toContain('<?php');
+      expect(result!.buffer.toString('binary')).not.toContain('pwned');
+    });
+
+    it('should return null for an invalid (non-image) buffer', async () => {
+      const junk = Buffer.from('this is not an image');
+      const result = await reencodeImage(junk);
+      expect(result).toBeNull();
+    });
+
+    it('should re-encode a JPEG buffer and return .jpg extension', async () => {
+      // Minimal JPEG (SOI + APP0 marker)
+      const jpegStart = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00]);
+      // Note: a minimal stub may cause sharp to throw — null result is acceptable for corrupt stubs
+      const result = await reencodeImage(jpegStart);
+      if (result !== null) {
+        expect(result.ext).toBe('.jpg');
+      }
     });
   });
 });

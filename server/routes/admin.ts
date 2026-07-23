@@ -2203,7 +2203,7 @@ router.post('/test-runs/stop', requireAdmin, async (req, res) => {
 // ============== LOGO UPLOAD (admin) ==============
 
 router.post('/customization/logo', requireAdmin, (req, res, next) => {
-  const upload = imageService.getUploadMiddleware().single('logo');
+  const upload = imageService.getUploadMiddleware({ allowSvg: true }).single('logo');
   upload(req, res, (err: any) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -2270,7 +2270,7 @@ router.delete('/customization/logo', requireAdmin, async (req, res) => {
 // ============== FAVICON UPLOAD (admin) ==============
 
 router.post('/customization/favicon', requireAdmin, (req, res, next) => {
-  const upload = imageService.getUploadMiddleware().single('favicon');
+  const upload = imageService.getUploadMiddleware({ allowSvg: true }).single('favicon');
   upload(req, res, (err: any) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {

@@ -342,10 +342,10 @@ describe('MFA - Admin policy settings', () => {
       .put('/api/v1/admin/customization')
       .send({ mfa: { adminMfaRequired: true } });
     expect(res.status).toBe(200);
-    // Verify via GET (same session) to avoid race with other test files' afterAll snapshot restores
-    const getRes = await adminAgent.get('/api/v1/admin/customization');
-    expect(getRes.status).toBe(200);
-    expect(getRes.body.mfa?.adminMfaRequired).toBe(true);
+    // Check the PUT response body directly — it is built inside the same request handler
+    // (storage.setCustomizationSettings → getCustomizationSettings), so no concurrent
+    // test-file afterAll snapshot-restore can race between the write and the read.
+    expect(res.body.mfa?.adminMfaRequired).toBe(true);
   });
 
   it('PUT /admin/customization accepts mfa.adminMfaRequired = false', async () => {
@@ -353,8 +353,6 @@ describe('MFA - Admin policy settings', () => {
       .put('/api/v1/admin/customization')
       .send({ mfa: { adminMfaRequired: false } });
     expect(res.status).toBe(200);
-    const getRes = await adminAgent.get('/api/v1/admin/customization');
-    expect(getRes.status).toBe(200);
-    expect(getRes.body.mfa?.adminMfaRequired).toBe(false);
+    expect(res.body.mfa?.adminMfaRequired).toBe(false);
   });
 });

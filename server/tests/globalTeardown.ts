@@ -50,11 +50,14 @@ export default async function globalSetup() {
             email_verified, is_initial_admin, provider, is_test_data)
          VALUES ($1, $2, $3, $4, 'admin', true, false, 'local', false)
          ON CONFLICT (username) DO UPDATE SET
-           password_hash   = EXCLUDED.password_hash,
-           email           = EXCLUDED.email,
-           role            = 'admin',
-           email_verified  = true,
-           is_initial_admin = false`,
+           password_hash    = EXCLUDED.password_hash,
+           email            = EXCLUDED.email,
+           role             = 'admin',
+           email_verified   = true,
+           is_initial_admin = false,
+           totp_secret      = NULL,
+           totp_enabled     = FALSE,
+           mfa_required     = FALSE`,
         [adminUsername, adminEmail, passwordHash, adminUsername],
       );
       console.log(`[globalSetup] Admin "${adminUsername}" seeded with isInitialAdmin=false`);

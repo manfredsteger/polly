@@ -342,8 +342,10 @@ describe('MFA - Admin policy settings', () => {
       .put('/api/v1/admin/customization')
       .send({ mfa: { adminMfaRequired: true } });
     expect(res.status).toBe(200);
-    const settings = await storage.getCustomizationSettings();
-    expect(settings.mfa?.adminMfaRequired).toBe(true);
+    // Verify via GET (same session) to avoid race with other test files' afterAll snapshot restores
+    const getRes = await adminAgent.get('/api/v1/admin/customization');
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.mfa?.adminMfaRequired).toBe(true);
   });
 
   it('PUT /admin/customization accepts mfa.adminMfaRequired = false', async () => {
@@ -351,7 +353,8 @@ describe('MFA - Admin policy settings', () => {
       .put('/api/v1/admin/customization')
       .send({ mfa: { adminMfaRequired: false } });
     expect(res.status).toBe(200);
-    const settings = await storage.getCustomizationSettings();
-    expect(settings.mfa?.adminMfaRequired).toBe(false);
+    const getRes = await adminAgent.get('/api/v1/admin/customization');
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.mfa?.adminMfaRequired).toBe(false);
   });
 });

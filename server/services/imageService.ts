@@ -2,10 +2,78 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import sharp from 'sharp';
+import { JSDOM } from 'jsdom';
+import createDOMPurify from 'dompurify';
 import { clamavService } from './clamavService';
 import { emailService } from './emailService';
 import { storage } from '../storage';
 import type { InsertClamavScanLog } from '@shared/schema';
+
+/**
+ * Lazy-initialised DOMPurify instance backed by a JSDOM window.
+ * Created once and reused — JSDOM startup is expensive.
+ */
+let _domPurify: ReturnType<typeof createDOMPurify> | null = null;
+
+function getDOMPurify(): ReturnType<typeof createDOMPurify> {
+  if (!_domPurify) {
+    const { window } = new JSDOM('');
+    const purify = createDOMPurify(window as unknown as Window);
+
+    purify.addHook('afterSanitizeAttributes', (node: Element) => {
+      for (const attr of ['href', 'xlink:href', 'src', 'action']) {
+        if (node.hasAttribute(attr)) {
+          const val = node.getAttribute(attr) ?? '';
+          if (!val.startsWith('#')) {
+            node.removeAttribute(attr);
+          }
+        }
+      }
+    });
+
+    _domPurify = purify;
+  }
+  return _domPurify;
+}
+
+/**
+ * Sanitizes SVG content using DOMPurify (SVG + svgFilters profile) backed
+ * by a JSDOM DOM parser.
+ *
+ * Because the DOM parser resolves XML entity encoding before DOMPurify
+ * inspects attribute values, obfuscated vectors such as `javas&#x63;ript:`
+ * or `javascript&#58;` are normalised at parse time and then blocked by
+ * DOMPurify — something a regex pass cannot guarantee.
+ *
+ * Sanitization rules:
+ *  - SVG element/attribute allowlist enforced (non-SVG content stripped)
+ *  - <script>, <foreignObject>, event-handler attributes (on*) removed
+ *  - javascript: URIs blocked by DOMPurify URI validation
+ *  - All href / xlink:href / src / action attributes restricted to
+ *    same-document fragment references (#...) by a post-sanitize hook;
+ *    external and data: URIs are removed
+ *  - <use> is explicitly re-allowed (common in logos) but its href is
+ *    subject to the fragment-only hook above
+ *
+ * Returns `null` when parsing or sanitization throws — callers must treat
+ * null as a hard rejection (fail closed, reject the upload).
+ */
+export function sanitizeSvg(svgContent: string): string | null {
+  try {
+    const purify = getDOMPurify();
+    const sanitized = purify.sanitize(svgContent, {
+      USE_PROFILES: { svg: true, svgFilters: true },
+      ADD_TAGS: ['use'],
+      ADD_ATTR: ['href', 'xlink:href'],
+      RETURN_DOM: false,
+      RETURN_DOM_FRAGMENT: false,
+    });
+    return sanitized;
+  } catch (err) {
+    console.error('[ImageService] SVG sanitization error:', err);
+    return null;
+  }
+}
 
 export interface UploadResult {
   success: boolean;
@@ -214,7 +282,22 @@ export class ImageService {
     let finalExt: string;
 
     if (isSvg || isIco || isBmp) {
-      finalBuffer = file.buffer;
+      if (isSvg) {
+        const svgText = file.buffer.toString('utf8');
+        const sanitized = sanitizeSvg(svgText);
+        if (sanitized === null) {
+          console.warn(`[ImageService] SVG sanitization fehlgeschlagen (Upload abgelehnt): ${file.originalname}`);
+          return {
+            success: false,
+            error: 'SVG-Datei konnte nicht verarbeitet werden',
+            invalidFileType: true,
+          };
+        }
+        finalBuffer = Buffer.from(sanitized, 'utf8');
+        console.log(`[ImageService] SVG sanitized: ${file.originalname}`);
+      } else {
+        finalBuffer = file.buffer;
+      }
       finalExt = path.extname(file.originalname) || (isSvg ? '.svg' : isIco ? '.ico' : '.bmp');
     } else {
       const reencoded = await reencodeImage(file.buffer);

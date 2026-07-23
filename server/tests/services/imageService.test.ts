@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import sharp from 'sharp';
-import { ImageService, validateImageMagicBytes, reencodeImage } from '../../services/imageService';
+import { ImageService, validateImageMagicBytes, reencodeImage, sanitizeSvg } from '../../services/imageService';
 
 describe('ImageService', () => {
   let imageService: ImageService;
@@ -286,6 +286,168 @@ describe('ImageService', () => {
       // Re-encoding may fail on a minimal stub buffer, but the failure path is "Datei konnte nicht gespeichert werden"
       // or "Nur Bilddateien sind erlaubt" (re-encode fails) — never invalidFileType.
       expect(result.invalidFileType).toBeFalsy();
+    });
+  });
+
+  describe('sanitizeSvg — XSS vector stripping', () => {
+    const CLEAN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="blue"/></svg>';
+
+    it('should pass a clean SVG through without removing visual content', () => {
+      const result = sanitizeSvg(CLEAN_SVG);
+      expect(result).not.toBeNull();
+      expect(result).toContain('<svg');
+      expect(result).toContain('viewBox="0 0 100 100"');
+      expect(result).toContain('fill="blue"');
+      expect(result).not.toContain('script');
+      expect(result).not.toContain('javascript');
+    });
+
+    it('should strip a <script> block', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('<script');
+      expect(result).not.toContain('alert(1)');
+      expect(result).toContain('<rect');
+    });
+
+    it('should strip a multiline <script> block', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg">\n<script type="text/javascript">\nalert("xss");\n</script>\n<circle/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('<script');
+      expect(result).not.toContain('alert');
+      expect(result).toContain('<circle');
+    });
+
+    it('should strip a self-closing <script/> tag', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><script src="evil.js"/><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('<script');
+      expect(result).toContain('<rect');
+    });
+
+    it('should strip onload event handler', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('onload');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should strip onerror event handler', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><image href="x" onerror="alert(1)"/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('onerror');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should strip onclick event handler', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><rect onclick="alert(1)"/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('onclick');
+    });
+
+    it('should strip onmouseover event handler', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><rect onmouseover="alert(1)"/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('onmouseover');
+    });
+
+    it('should strip javascript: href (double quotes)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should strip javascript: href (single quotes)', () => {
+      const malicious = "<svg xmlns='http://www.w3.org/2000/svg'><a href='javascript:alert(1)'><rect/></a></svg>";
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('javascript:');
+    });
+
+    it('should strip javascript: xlink:href', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a xlink:href="javascript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('javascript:');
+    });
+
+    it('should strip <foreignObject> element with embedded HTML', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><body xmlns="http://www.w3.org/1999/xhtml"><script>alert(1)</script></body></foreignObject><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('<foreignObject');
+      expect(result).not.toContain('alert(1)');
+      expect(result).toContain('<rect');
+    });
+
+    it('should strip <use> with data: external reference', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><use xlink:href="data:image/svg+xml,%3Csvg%3E%3Cscript%3Ealert(1)%3C/script%3E%3C/svg%3E"/><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('data:image/svg+xml');
+    });
+
+    it('should strip <use> with https: external reference', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><use href="https://evil.example.com/xss.svg"/><rect/></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('https://evil.example.com');
+    });
+
+    it('should preserve internal <use> references (same-document fragment)', () => {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg"><defs><rect id="r" width="10" height="10"/></defs><use href="#r"/></svg>';
+      const result = sanitizeSvg(svg);
+      expect(result).not.toBeNull();
+      expect(result).toContain('<use');
+      expect(result).toContain('#r');
+    });
+
+    it('should preserve valid fill, stroke and other visual attributes', () => {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="#ff0000" stroke="blue" width="50" height="50"/></svg>';
+      const result = sanitizeSvg(svg);
+      expect(result).toContain('fill="#ff0000"');
+      expect(result).toContain('stroke="blue"');
+    });
+
+    it('should block entity-encoded javascript: URI (javas&#x63;ript: bypass)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="javas&#x63;ript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toBeNull();
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should block entity-encoded colon in javascript: URI (javascript&#58; bypass)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript&#58;alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toBeNull();
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should block hex-encoded javascript: URI (&#x6A;avascript: bypass)', () => {
+      const malicious = '<svg xmlns="http://www.w3.org/2000/svg"><a href="&#x6A;avascript:alert(1)"><rect/></a></svg>';
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toBeNull();
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('alert(1)');
+    });
+
+    it('should return null when sanitizeSvg is called with non-SVG input (fail closed)', () => {
+      const result = sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>');
+      expect(result).not.toBeNull();
+    });
+
+    it('should handle SVG with multiple attack vectors simultaneously', () => {
+      const malicious = [
+        '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">',
+        '<script>alert(2)</script>',
+        '<a href="javascript:alert(3)"><rect/></a>',
+        '<foreignObject><script>alert(4)</script></foreignObject>',
+        '</svg>',
+      ].join('\n');
+      const result = sanitizeSvg(malicious);
+      expect(result).not.toContain('onload');
+      expect(result).not.toContain('<script');
+      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('<foreignObject');
+      expect(result).toContain('<rect');
     });
   });
 

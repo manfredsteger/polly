@@ -924,6 +924,18 @@ export default function Poll() {
         </div>
       </div>
 
+      {/* Closing message — shown when poll is ended and organizer left a message */}
+      {!poll.isActive && poll.closingMessage && (
+        <div className="mb-6 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-5">
+          <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
+            {t('pollView.closingMessageSectionTitle')}
+          </h3>
+          <div className="text-blue-900 dark:text-blue-100">
+            <MarkdownRenderer content={poll.closingMessage} className="text-sm" />
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">

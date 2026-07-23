@@ -40,6 +40,7 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'poll_options', column: 'is_free_text', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'votes', column: 'free_text_answer', definition: 'TEXT' },
   { table: 'polls', column: 'video_conference_url', definition: 'TEXT' },
+  { table: 'polls', column: 'closing_message', definition: 'TEXT' },
   { table: 'users', column: 'totp_secret', definition: 'TEXT' },
   { table: 'users', column: 'totp_enabled', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'users', column: 'mfa_required', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },

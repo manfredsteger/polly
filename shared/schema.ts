@@ -60,6 +60,7 @@ export const polls = pgTable("polls", {
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   videoConferenceUrl: text("video_conference_url"),
+  closingMessage: text("closing_message"), // Organizer's message shown on results page when poll ends
   finalOptionId: integer("final_option_id"), // Creator's final chosen option - removes other options from calendar exports
   enableExpiryReminder: boolean("enable_expiry_reminder").default(false).notNull(),
   expiryReminderHours: integer("expiry_reminder_hours").default(24), // hours before expiry to send reminder

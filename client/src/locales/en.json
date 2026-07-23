@@ -3135,6 +3135,7 @@
     "notifyParticipants": "Notify participants",
     "notifyParticipantsYes": "Participants will be notified by email",
     "notifyParticipantsNo": "No notification to participants",
+    "closingMessageSectionTitle": "Organizer's message",
     "closingMessageLabel": "Personal message (optional)",
     "closingMessagePlaceholder": "Write a message to participants … Markdown is supported.",
     "closingMessagePreviewOn": "Preview",

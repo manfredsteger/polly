@@ -3135,6 +3135,7 @@
     "notifyParticipants": "Teilnehmer benachrichtigen",
     "notifyParticipantsYes": "Teilnehmer werden per E-Mail informiert",
     "notifyParticipantsNo": "Keine Benachrichtigung an Teilnehmer",
+    "closingMessageSectionTitle": "Nachricht des Organisators",
     "closingMessageLabel": "Persönliche Nachricht (optional)",
     "closingMessagePlaceholder": "Schreiben Sie eine Nachricht an die Teilnehmer … Markdown wird unterstützt.",
     "closingMessagePreviewOn": "Vorschau",

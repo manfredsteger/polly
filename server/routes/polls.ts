@@ -318,6 +318,11 @@ router.patch('/admin/:token', async (req, res) => {
     const updatedPoll = await storage.updatePoll(poll.id, updates);
     res.json(updatedPoll);
 
+    // Persist the closing message when a poll is ended
+    if (isActive === false && sanitizedClosingMessage !== undefined) {
+      await storage.updatePoll(poll.id, { closingMessage: sanitizedClosingMessage });
+    }
+
     // Send end-of-poll notifications if requested
     if (isActive === false && notifyParticipants === true) {
       try {

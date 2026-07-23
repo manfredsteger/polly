@@ -219,7 +219,8 @@ router.patch('/admin/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, notifyCreatorOnVote, videoConferenceUrl, notifyParticipants, enableExpiryReminder, expiryReminderHours } = req.body;
+    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, notifyCreatorOnVote, videoConferenceUrl, notifyParticipants, enableExpiryReminder, expiryReminderHours, closingMessage } = req.body;
+    const sanitizedClosingMessage = typeof closingMessage === 'string' ? closingMessage.slice(0, 5000) : undefined;
     
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
@@ -371,7 +372,8 @@ router.patch('/admin/:token', async (req, res) => {
                 confirmedTime,
                 pollLink,
                 icsBuffer,
-                poll.videoConferenceUrl
+                poll.videoConferenceUrl,
+                sanitizedClosingMessage
               );
             } else {
               // No confirmed date yet — send generic "poll ended" notification
@@ -380,7 +382,10 @@ router.patch('/admin/:token', async (req, res) => {
                 poll.title,
                 pollLink,
                 effectiveResultsPublic,
-                'survey'
+                'survey',
+                undefined,
+                undefined,
+                sanitizedClosingMessage
               );
             }
           } else if (poll.type === 'organization') {
@@ -405,7 +410,8 @@ router.patch('/admin/:token', async (req, res) => {
               effectiveResultsPublic,
               'organization',
               undefined,
-              slotSummary
+              slotSummary,
+              sanitizedClosingMessage
             );
           } else if (poll.type === 'survey') {
             let finalOptionText: string | undefined;
@@ -421,7 +427,9 @@ router.patch('/admin/:token', async (req, res) => {
               pollLink,
               effectiveResultsPublic,
               'survey',
-              finalOptionText
+              finalOptionText,
+              undefined,
+              sanitizedClosingMessage
             );
           }
         }

@@ -3,6 +3,33 @@ import { qrService } from './qrService';
 import { emailTemplateService } from './emailTemplateService';
 import type { EmailTemplateType } from '@shared/schema';
 import { getBaseUrl, validateEmailUrl, warnIfLocalhostInProduction } from '../utils/baseUrl';
+import { marked } from 'marked';
+import { JSDOM } from 'jsdom';
+import createDOMPurify from 'dompurify';
+
+const { window: _domWindow } = new JSDOM('');
+const _DOMPurify = createDOMPurify(_domWindow as any);
+
+function renderMarkdownToSafeHtml(markdown: string): string {
+  if (!markdown || !markdown.trim()) return '';
+  const rawHtml = marked.parse(markdown, { breaks: true }) as string;
+  return _DOMPurify.sanitize(rawHtml, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'a', 'code', 'pre'],
+    ALLOWED_ATTR: ['href'],
+  });
+}
+
+function markdownToPlainText(markdown: string): string {
+  if (!markdown || !markdown.trim()) return '';
+  return markdown
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .trim();
+}
 
 function escapeHtml(str: string): string {
   return str
@@ -584,7 +611,8 @@ export class EmailService {
     confirmedTime: string,
     pollLink: string,
     icsBuffer: Buffer,
-    videoConferenceUrl?: string | null
+    videoConferenceUrl?: string | null,
+    closingMessage?: string
   ): Promise<{ sent: number; failed: number }> {
     if (participantEmails.length === 0) {
       console.log('[Email] No participant emails for finalization notification');
@@ -595,6 +623,9 @@ export class EmailService {
     const videoConfHtml = videoConferenceUrl
       ? `<strong>Videokonferenz:</strong> <a href="${escapeHtml(videoConferenceUrl)}" style="color:#7A3800;text-decoration:underline;">${escapeHtml(videoConferenceUrl)}</a>`
       : '';
+
+    const closingMessageHtml = closingMessage ? renderMarkdownToSafeHtml(closingMessage) : '';
+    const closingMessageText = closingMessage ? markdownToPlainText(closingMessage) : '';
 
     const rendered = await this.renderTemplate('poll_finalized', {
       pollType: 'schedule',
@@ -608,6 +639,8 @@ export class EmailService {
       videoConferenceUrl: videoConferenceUrl || '',
       videoConferenceHtml: videoConfHtml,
       resultsPublic: 'true',
+      closingMessageHtml,
+      closingMessageText,
     });
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [
@@ -650,7 +683,8 @@ export class EmailService {
     resultsPublic: boolean,
     pollType: 'survey' | 'organization' = 'survey',
     finalOptionText?: string,
-    slotSummary?: Array<{ text: string; filled: number; total: number | null }>
+    slotSummary?: Array<{ text: string; filled: number; total: number | null }>,
+    closingMessage?: string
   ): Promise<{ sent: number; failed: number }> {
     if (recipientEmails.length === 0) {
       console.log('[Email] No recipient emails for poll-ended notification');
@@ -676,6 +710,9 @@ export class EmailService {
       slotSummaryHtml = `<ul style="margin:8px 0 0 0; padding-left:18px;">${rows.join('')}</ul>`;
     }
 
+    const closingMessageHtml = closingMessage ? renderMarkdownToSafeHtml(closingMessage) : '';
+    const closingMessageText = closingMessage ? markdownToPlainText(closingMessage) : '';
+
     const rendered = await this.renderTemplate('poll_finalized', {
       pollType,
       statusLabel: 'Umfrage beendet',
@@ -690,6 +727,8 @@ export class EmailService {
       videoConferenceHtml: '',
       finalOptionText: finalOptionText ? escapeHtml(finalOptionText) : '',
       slotSummaryHtml,
+      closingMessageHtml,
+      closingMessageText,
     });
 
     let sent = 0;

@@ -195,6 +195,8 @@ export default function Poll() {
   const [endPollDialogOpen, setEndPollDialogOpen] = useState(false);
   const [endPollResultsPublic, setEndPollResultsPublic] = useState(true);
   const [endPollNotifyParticipants, setEndPollNotifyParticipants] = useState(false);
+  const [endPollClosingMessage, setEndPollClosingMessage] = useState("");
+  const [endPollClosingMessagePreview, setEndPollClosingMessagePreview] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
@@ -357,7 +359,7 @@ export default function Poll() {
   }, [poll, editDialogOpen]);
   
   const updatePollMutation = useMutation({
-    mutationFn: async (updates: { title?: string; description?: string; videoConferenceUrl?: string | null; expiresAt?: string | null; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean; notifyCreatorOnVote?: boolean }) => {
+    mutationFn: async (updates: { title?: string; description?: string; videoConferenceUrl?: string | null; expiresAt?: string | null; isActive?: boolean; resultsPublic?: boolean; allowVoteEdit?: boolean; allowVoteWithdrawal?: boolean; allowMaybe?: boolean; allowMultipleSlots?: boolean; notifyParticipants?: boolean; notifyCreatorOnVote?: boolean; closingMessage?: string }) => {
       if (!effectiveAdminToken) throw new Error('No admin token');
       const response = await apiRequest("PATCH", `/api/v1/polls/admin/${effectiveAdminToken}`, updates);
       return response.json();
@@ -2180,7 +2182,14 @@ export default function Poll() {
       </Dialog>
       
       {/* End Poll Dialog */}
-      <Dialog open={endPollDialogOpen} onOpenChange={setEndPollDialogOpen}>
+      <Dialog open={endPollDialogOpen} onOpenChange={(open) => {
+        setEndPollDialogOpen(open);
+        if (!open) {
+          setEndPollClosingMessage("");
+          setEndPollClosingMessagePreview(false);
+          setEndPollNotifyParticipants(false);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center">
@@ -2229,10 +2238,53 @@ export default function Poll() {
               </div>
               <Switch
                 checked={endPollNotifyParticipants}
-                onCheckedChange={setEndPollNotifyParticipants}
+                onCheckedChange={(val) => {
+                  setEndPollNotifyParticipants(val);
+                  if (!val) {
+                    setEndPollClosingMessage("");
+                    setEndPollClosingMessagePreview(false);
+                  }
+                }}
                 data-testid="switch-end-poll-notify"
               />
             </div>
+
+            {endPollNotifyParticipants && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">{t('pollView.closingMessageLabel')}</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setEndPollClosingMessagePreview((p) => !p)}
+                  >
+                    {endPollClosingMessagePreview
+                      ? t('pollView.closingMessagePreviewOff')
+                      : t('pollView.closingMessagePreviewOn')}
+                  </Button>
+                </div>
+                {endPollClosingMessagePreview ? (
+                  <div className="min-h-[80px] rounded-md border bg-muted/30 p-3">
+                    {endPollClosingMessage.trim() ? (
+                      <MarkdownRenderer content={endPollClosingMessage} className="text-sm" />
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">{t('pollView.closingMessagePlaceholder')}</p>
+                    )}
+                  </div>
+                ) : (
+                  <Textarea
+                    value={endPollClosingMessage}
+                    onChange={(e) => setEndPollClosingMessage(e.target.value)}
+                    placeholder={t('pollView.closingMessagePlaceholder')}
+                    className="min-h-[80px] text-sm resize-none"
+                    maxLength={5000}
+                    data-testid="textarea-closing-message"
+                  />
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button 
@@ -2249,6 +2301,9 @@ export default function Poll() {
                   isActive: false, 
                   resultsPublic: endPollResultsPublic,
                   notifyParticipants: endPollNotifyParticipants,
+                  ...(endPollNotifyParticipants && endPollClosingMessage.trim()
+                    ? { closingMessage: endPollClosingMessage.trim() }
+                    : {}),
                 });
               }}
               disabled={updatePollMutation.isPending}

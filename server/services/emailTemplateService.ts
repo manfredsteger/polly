@@ -1816,11 +1816,22 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     const videoLine = videoConferenceUrl
       ? `<br/><strong>Videokonferenz:</strong> <a href="${htmlEscape(videoConferenceUrl)}" style="color:${ctx.primaryColor};text-decoration:underline;">${htmlEscape(videoConferenceUrl)}</a>`
       : '';
+    const scheduleClosingHtml = vars.closingMessageHtml || '';
+    const scheduleClosingBlock = scheduleClosingHtml
+      ? `${v3Divider()}
+    <tr><td style="padding: 0 40px 20px;">
+        <div style="background-color: #f8f5f0; border-left: 4px solid ${ctx.primaryColor}; border-radius: 4px; padding: 14px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #374151; line-height: 1.6;">
+          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Nachricht des Organisators</p>
+          <div style="margin: 0;">${scheduleClosingHtml}</div>
+        </div>
+      </td></tr>`
+      : '';
     return `${v3BodyStart()}
       ${v3Tag('Termin bestätigt', ctx.primaryColor)}
       ${v3Headline('Termin festgelegt für', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/><strong>Uhrzeit:</strong> ${confirmedTime}` : ''}${videoLine}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
     ${v3BodyEnd()}
+    ${scheduleClosingBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('Klicken Sie auf den Button, um die Umfrage und Ergebnisse einzusehen.', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
   }
@@ -1848,12 +1859,23 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     </td></tr>`;
   }
 
+  const closingMessageHtml = vars.closingMessageHtml || '';
+  const closingBlock = closingMessageHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+        <div style="background-color: #f8f5f0; border-left: 4px solid ${ctx.primaryColor}; border-radius: 4px; padding: 14px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #374151; line-height: 1.6;">
+          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Nachricht des Organisators</p>
+          <div style="margin: 0;">${closingMessageHtml}</div>
+        </div>
+      </td></tr>`
+    : '';
+
   return `${v3BodyStart()}
       ${v3Tag('Umfrage beendet', ctx.primaryColor)}
       ${v3Headline('Die Umfrage wurde abgeschlossen:', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(resultNote)}
     ${v3BodyEnd()}
     ${extraBlock}
+    ${closingBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
@@ -2512,6 +2534,11 @@ export class EmailTemplateService {
         textBase = this.enhanceVoteTemplateText(textBase, allVariables);
       } else if (type === 'reminder') {
         textBase = this.appendReminderSelectedOptions(textBase, allVariables);
+      } else if (type === 'poll_finalized') {
+        const closingMsgText = allVariables.closingMessageText;
+        if (closingMsgText && closingMsgText.trim()) {
+          textBase = textBase.trimEnd() + `\n\nNachricht des Organisators:\n${closingMsgText.trim()}`;
+        }
       }
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
         textBase = textBase

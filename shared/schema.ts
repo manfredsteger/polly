@@ -510,6 +510,7 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'videoConferenceUrl', description: 'Videokonferenz-Link als URL (falls vorhanden)' },
     { key: 'videoConferenceHtml', description: 'Videokonferenz-Link als klickbarer HTML-Link (falls vorhanden)' },
     { key: 'pollLink', description: 'Link zur Umfrage' },
+    { key: 'closingMessageHtml', description: 'Persönliche Nachricht des Organisators als sanitiertes HTML (optional)' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
 };

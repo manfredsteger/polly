@@ -2252,4 +2252,106 @@ describe('EmailTemplateService', () => {
       expect(capturedHtml).toContain('Ihre Auswahl');
     });
   });
+
+  describe('poll_finalized closing message', () => {
+    it('should render Markdown closingMessage as HTML in poll_finalized email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_finalized', {
+        pollType: 'survey',
+        statusLabel: 'Umfrage beendet',
+        pollTitle: 'Test-Umfrage',
+        pollLink: 'https://example.com/poll/abc',
+        buttonLink: 'https://example.com/poll/abc',
+        buttonLabel: 'Zur Umfrage',
+        resultsPublic: 'true',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        closingMessageHtml: '<p><strong>Danke</strong> an alle Teilnehmer!</p>',
+        closingMessageText: 'Danke an alle Teilnehmer!',
+      });
+
+      expect(result.html).toContain('Nachricht des Organisators');
+      expect(result.html).toContain('<strong>Danke</strong>');
+      expect(result.text).toContain('Nachricht des Organisators');
+      expect(result.text).toContain('Danke an alle Teilnehmer!');
+    });
+
+    it('should not render closing message block when closingMessageHtml is empty', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_finalized', {
+        pollType: 'survey',
+        statusLabel: 'Umfrage beendet',
+        pollTitle: 'Test-Umfrage',
+        pollLink: 'https://example.com/poll/abc',
+        buttonLink: 'https://example.com/poll/abc',
+        buttonLabel: 'Zur Umfrage',
+        resultsPublic: 'true',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        closingMessageHtml: '',
+        closingMessageText: '',
+      });
+
+      expect(result.html).not.toContain('Nachricht des Organisators');
+      expect(result.text).not.toContain('Nachricht des Organisators');
+    });
+
+    it('should sanitize XSS payloads in closingMessageHtml', async () => {
+      const { EmailService } = await import('../../services/emailService');
+      const svc = new EmailService();
+
+      let capturedHtml = '';
+      let capturedText = '';
+      vi.spyOn(svc as any, 'sendMail').mockImplementation(async (opts: any) => {
+        capturedHtml = opts.html || '';
+        capturedText = opts.text || '';
+      });
+
+      await svc.sendPollEndedEmails(
+        ['participant@example.com'],
+        'XSS-Umfrage',
+        'https://example.com/poll/xss',
+        true,
+        'survey',
+        undefined,
+        undefined,
+        '**Hallo!** <script>alert("xss")</script> [link](javascript:alert(1))'
+      );
+
+      expect(capturedHtml).not.toContain('<script>');
+      expect(capturedHtml).not.toContain('javascript:');
+      expect(capturedHtml).toContain('Nachricht des Organisators');
+      expect(capturedHtml).toContain('<strong>Hallo!</strong>');
+      expect(capturedText).toContain('Nachricht des Organisators');
+      expect(capturedText).toContain('Hallo!');
+    });
+
+    it('should include closingMessage block for schedule type in poll_finalized email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_finalized', {
+        pollType: 'schedule',
+        statusLabel: 'Termin bestätigt',
+        pollTitle: 'Team-Meeting',
+        pollLink: 'https://example.com/poll/abc',
+        buttonLink: 'https://example.com/poll/abc',
+        buttonLabel: 'Zur Umfrage',
+        confirmedDate: 'Montag, 15. Juli 2026',
+        confirmedTime: '10:00 – 11:00 Uhr',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        resultsPublic: 'true',
+        closingMessageHtml: '<p>Bitte <em>pünktlich</em> erscheinen.</p>',
+        closingMessageText: 'Bitte pünktlich erscheinen.',
+      });
+
+      expect(result.html).toContain('Nachricht des Organisators');
+      expect(result.html).toContain('<em>pünktlich</em>');
+      expect(result.text).toContain('Nachricht des Organisators');
+      expect(result.text).toContain('Bitte pünktlich erscheinen.');
+    });
+  });
 });

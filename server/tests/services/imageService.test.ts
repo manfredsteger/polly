@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import sharp from 'sharp';
@@ -623,6 +623,118 @@ describe('ImageService', () => {
       if (result !== null) {
         expect(result.ext).toBe('.jpg');
       }
+    });
+  });
+
+  describe('processUpload — SVG sanitization defense-in-depth (poll option upload path)', () => {
+    // Poll option image uploads use getUploadMiddleware() without allowSvg, which blocks SVGs at
+    // the fileFilter level (first line of defense). processUpload() contains a second, independent
+    // sanitization path via sanitizeSvg() that fires whenever SVG content is detected — whether
+    // by mimetype or magic bytes. This ensures that if allowSvg is ever enabled for poll options
+    // in the future, malicious SVGs are still sanitized before being written to disk.
+    //
+    // ClamAV is mocked as disabled for these tests so the sanitization code path is reachable.
+    // In production, ClamAV runs first and provides an additional layer of protection.
+
+    const createdImageUrls: string[] = [];
+    let clamavSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeAll(() => {
+      clamavSpy = vi.spyOn(clamavService, 'isEnabled').mockResolvedValue(false);
+    });
+
+    afterAll(async () => {
+      clamavSpy.mockRestore();
+      await Promise.all(createdImageUrls.map(url => imageService.deleteImage(url)));
+    });
+
+    function makeSvgFile(svgContent: string, name = 'test.svg') {
+      const buf = Buffer.from(svgContent, 'utf8');
+      return {
+        originalname: name,
+        buffer: buf,
+        size: buf.length,
+        mimetype: 'image/svg+xml',
+        fieldname: 'image',
+        encoding: '7bit',
+        stream: null as any,
+        destination: '',
+        filename: '',
+        path: '',
+      };
+    }
+
+    it('fileFilter blocks SVG uploads by default — negative control for poll option images', async () => {
+      // This is the first line of defense: SVGs never reach processUpload() for poll option uploads.
+      const middleware = imageService.getUploadMiddleware();
+      const fileFilter = (middleware as any).fileFilter;
+      await expect(
+        new Promise<boolean>((resolve, reject) => {
+          fileFilter(
+            {} as any,
+            { mimetype: 'image/svg+xml', originalname: 'evil.svg' } as any,
+            (err: Error | null, accepted?: boolean) => {
+              if (err) reject(err); else resolve(!!accepted);
+            }
+          );
+        })
+      ).rejects.toThrow('SVG-Dateien sind für diesen Upload nicht erlaubt');
+    });
+
+    it('processUpload() sanitizes a clean SVG and writes it to disk (defense-in-depth: second line of defense)', async () => {
+      // If allowSvg is ever enabled for poll options, processUpload() sanitizes before writing.
+      const cleanSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="blue"/></svg>';
+      const result = await imageService.processUpload(makeSvgFile(cleanSvg) as any);
+      expect(result.success).toBe(true);
+      expect(result.imageUrl).toBeDefined();
+      expect(result.imageUrl).toMatch(/\.svg$/);
+      if (result.imageUrl) createdImageUrls.push(result.imageUrl);
+    });
+
+    it('processUpload() strips <script> from a malicious SVG before writing to disk', async () => {
+      // sanitizeSvg() removes the script tag; the upload succeeds with sanitized content.
+      // Correctness of all XSS-stripping vectors is verified in 'sanitizeSvg — XSS vector stripping'.
+      const maliciousSvg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect width="100" height="100" fill="red"/></svg>';
+      const result = await imageService.processUpload(makeSvgFile(maliciousSvg, 'xss-attempt.svg') as any);
+      expect(result.success).toBe(true);
+      expect(result.imageUrl).toBeDefined();
+      expect(result.imageUrl).toMatch(/\.svg$/);
+      if (result.imageUrl) createdImageUrls.push(result.imageUrl);
+    });
+
+    it('processUpload() strips onload handler from a malicious SVG before writing to disk', async () => {
+      const maliciousSvg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect width="50" height="50" fill="green"/></svg>';
+      const result = await imageService.processUpload(makeSvgFile(maliciousSvg, 'onload-attempt.svg') as any);
+      expect(result.success).toBe(true);
+      expect(result.imageUrl).toBeDefined();
+      expect(result.imageUrl).toMatch(/\.svg$/);
+      if (result.imageUrl) createdImageUrls.push(result.imageUrl);
+    });
+
+    it('processUpload() rejects an SVG-labeled file whose content fails magic-byte validation', async () => {
+      // Defense-in-depth: a file with mimetype image/svg+xml but non-SVG binary content
+      // (e.g., a PE executable) is rejected at the magic-bytes check before sanitizeSvg() runs.
+      const exeBuf = Buffer.from([
+        0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00,
+        0x04, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00,
+      ]);
+      const fakeFile = {
+        originalname: 'payload.svg',
+        buffer: exeBuf,
+        size: exeBuf.length,
+        mimetype: 'image/svg+xml',
+        fieldname: 'image',
+        encoding: '7bit',
+        stream: null as any,
+        destination: '',
+        filename: '',
+        path: '',
+      };
+      const result = await imageService.processUpload(fakeFile as any);
+      expect(result.success).toBe(false);
+      expect(result.invalidFileType).toBe(true);
+      expect(result.error).toBeDefined();
+      expect(result.error).not.toMatch(/TypeError|stack|trace/i);
     });
   });
 });

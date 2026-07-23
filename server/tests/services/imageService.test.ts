@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import path from 'path';
+import fs from 'fs/promises';
 import sharp from 'sharp';
 import { ImageService, validateImageMagicBytes, reencodeImage, sanitizeSvg } from '../../services/imageService';
+import { clamavService } from '../../services/clamavService';
 
 describe('ImageService', () => {
   let imageService: ImageService;
@@ -516,6 +519,70 @@ describe('ImageService', () => {
       const result = sanitizeSvg(malicious);
       expect(result).not.toContain('onbegin');
       expect(result).not.toContain('alert(1)');
+    });
+  });
+
+  describe('processUpload — SVG sanitization (defense-in-depth)', () => {
+    const MALICIOUS_SVG = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)"><rect/></a></svg>';
+    const CLEAN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="blue"/></svg>';
+
+    let isEnabledSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      isEnabledSpy = vi.spyOn(clamavService, 'isEnabled').mockResolvedValue(false);
+    });
+
+    afterEach(() => {
+      isEnabledSpy.mockRestore();
+    });
+
+    function makeSvgFile(content: string, mimetype = 'image/svg+xml', name = 'logo.svg') {
+      const buf = Buffer.from(content, 'utf8');
+      return {
+        originalname: name,
+        buffer: buf,
+        size: buf.length,
+        mimetype,
+        fieldname: 'logo',
+        encoding: '7bit',
+        stream: null as any,
+        destination: '',
+        filename: '',
+        path: '',
+      };
+    }
+
+    it('admin path: processUpload sanitizes XSS vectors in SVG and succeeds', async () => {
+      const result = await imageService.processUpload(makeSvgFile(MALICIOUS_SVG) as any);
+      expect(result.success).toBe(true);
+      expect(result.imageUrl).toBeDefined();
+      expect(result.imageUrl).toMatch(/\.svg$/);
+    });
+
+    it('admin path: processUpload preserves visual content in a clean SVG', async () => {
+      const result = await imageService.processUpload(makeSvgFile(CLEAN_SVG) as any);
+      expect(result.success).toBe(true);
+      expect(result.imageUrl).toBeDefined();
+    });
+
+    it('defense-in-depth: content-detected SVG (non-SVG MIME) is also sanitized via processUpload', async () => {
+      const result = await imageService.processUpload(makeSvgFile(MALICIOUS_SVG, 'image/png', 'trick.png') as any);
+      expect(result.success).toBe(true);
+      expect(result.imageUrl).toBeDefined();
+    });
+
+    it('processUpload strips XSS from the written SVG file on disk (admin path end-to-end)', async () => {
+      const result = await imageService.processUpload(makeSvgFile(MALICIOUS_SVG) as any);
+      expect(result.success).toBe(true);
+      expect(result.imageUrl).toBeDefined();
+      const filename = path.basename(result.imageUrl!);
+      const filePath = path.join(process.cwd(), 'uploads', filename);
+      const writtenContent = await fs.readFile(filePath, 'utf8');
+      await fs.unlink(filePath).catch(() => {});
+      expect(writtenContent).not.toContain('<script');
+      expect(writtenContent).not.toContain('onload');
+      expect(writtenContent).not.toContain('javascript:');
+      expect(writtenContent).toContain('<rect');
     });
   });
 

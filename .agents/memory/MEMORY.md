@@ -1,2 +1,3 @@
 - [Mermaid diagram rendering](mermaid-rendering.md) — docs Mermaid diagrams committed as PNGs via `scripts/render-mermaid.mjs`; a stray ASCII `"` in an unquoted Mermaid label breaks Mermaid 11 parsing.
 - [Test app singleton + MFA test setup](test-app-singleton-mfa.md) — createTestApp() is a module-level singleton; all describe blocks share the same MemoryStore; login BEFORE enabling MFA to avoid TOTP challenge in session setup.
+- [SAST false positives](sast-false-positives.md) — image/whisper path-traversal, TOTP SHA-1, theme-cookie and CI postgres-string findings verified harmless; skip re-analysis unless code changed.

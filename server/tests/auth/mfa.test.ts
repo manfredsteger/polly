@@ -436,35 +436,52 @@ describe('MFA - Token replay prevention', () => {
   });
 
   it('POST /mfa/disable rejects a TOTP code marked as already used (replay attack)', async () => {
-    // Reset any previously used token from earlier tests in this describe block
-    // so the login+validate step is not blocked by replay protection
-    if (testUserId) {
-      await storage.updateUser(testUserId, { lastUsedTotpToken: null });
-    }
+    // Hermetic setup: dedicated user whose session is established by registration
+    // BEFORE MFA is enabled, so no MFA login/validate round-trip is needed at all.
+    // The previous version reused the shared user and completed a full MFA login
+    // without asserting those steps; when that setup silently failed, requireAuth
+    // answered 401 and this test failed with a misleading "expected 401 to be 400".
+    // registerSchema caps usernames at 30 chars — keep the prefix short
+    const username = `mfa_rd_${Date.now()}`;
+    const agent = request.agent(app);
+    let userId: number | null = null;
 
-    const loginAgent = request.agent(app);
-    await loginAgent
-      .post('/api/v1/auth/login')
-      .send({ usernameOrEmail: testUsername, password: testPassword });
+    try {
+      const regRes = await agent
+        .post('/api/v1/auth/register')
+        .set('x-test-meta', JSON.stringify({ isTestData: true }))
+        .send({
+          username,
+          email: `${username}@test.example`,
+          name: 'MFA Replay Disable Tester',
+          password: 'TestReplay123!',
+        });
+      expect(regRes.status).toBe(200);
+      userId = regRes.body.user?.id ?? null;
+      expect(userId).not.toBeNull();
 
-    // Use a fresh token to complete login
-    const loginToken = generateTotpForTest(totpSecret);
-    await loginAgent.post('/api/v1/auth/mfa/validate').send({ token: loginToken });
+      const initRes = await agent.post('/api/v1/auth/mfa/setup-init');
+      expect(initRes.status).toBe(200);
+      const secret = initRes.body.secret;
+      const confirmRes = await agent
+        .post('/api/v1/auth/mfa/setup-confirm')
+        .send({ token: generateTotpForTest(secret) });
+      expect(confirmRes.status).toBe(200);
 
-    // Simulate a previously used disable token
-    const disableToken = generateTotpForTest(totpSecret);
-    if (testUserId) {
-      await storage.updateUser(testUserId, { lastUsedTotpToken: disableToken });
-    }
+      // Simulate a previously used disable token. The replay guard compares the
+      // stored last-used code before validity is even checked, so it must win.
+      const disableToken = generateTotpForTest(secret);
+      await storage.updateUser(userId!, { lastUsedTotpToken: disableToken });
 
-    const res = await loginAgent
-      .post('/api/v1/auth/mfa/disable')
-      .send({ token: disableToken });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/bereits verwendet/i);
-
-    if (testUserId) {
-      await storage.updateUser(testUserId, { lastUsedTotpToken: null });
+      const res = await agent
+        .post('/api/v1/auth/mfa/disable')
+        .send({ token: disableToken });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/bereits verwendet/i);
+    } finally {
+      if (userId) {
+        try { await storage.deleteUser(userId); } catch { /* ignore */ }
+      }
     }
   });
 });

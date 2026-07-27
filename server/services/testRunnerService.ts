@@ -841,7 +841,20 @@ export async function updateScheduleConfig(config: Partial<TestScheduleConfig>):
   const { systemSettings } = await import('@shared/schema');
   
   const currentConfig = await getScheduleConfig();
-  const newConfig = normalizeScheduleConfig({ ...currentConfig, ...config });
+  // notifyEmail (legacy, single) and notifyEmails (current, list) are two
+  // representations of ONE logical field: the recipient list. When the update
+  // provides either of them, the update's recipients must REPLACE the stored
+  // ones entirely. Merging both layers (spread below) would union the stale
+  // stored notifyEmail back into the new list, making it impossible to ever
+  // remove a previously configured recipient.
+  const hasRecipientUpdate = config.notifyEmails !== undefined || config.notifyEmail !== undefined;
+  const newConfig = normalizeScheduleConfig({
+    ...currentConfig,
+    ...config,
+    ...(hasRecipientUpdate
+      ? { notifyEmails: config.notifyEmails, notifyEmail: config.notifyEmail }
+      : {}),
+  });
   
   if (newConfig.enabled) {
     newConfig.nextRun = calculateNextRun(newConfig.intervalDays, newConfig.runTime);

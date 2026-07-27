@@ -22,3 +22,8 @@ When a test needs an authenticated admin session AND the admin must have MFA ena
 - Use `loginAsAdmin(app)` for admin-role scenarios; it is reliable because it goes through the normal login endpoint which sets `req.session.userId`.
 - After the test, restore MFA state: `storage.updateUser(adminId, { totpSecret: orig, totpEnabled: origEnabled, lastUsedTotpToken: null })`.
 - Reference: `server/tests/auth/mfa.test.ts` — "Admin policy blocks self-disable" describe block.
+
+## Test-user registration gotchas
+- `registerSchema` caps usernames at 30 chars. Test usernames built as `prefix_${Date.now()}` carry a 13-digit epoch suffix, so prefixes longer than ~16 chars make registration fail with 400 (zod) — assert every setup response so this surfaces at the right line.
+- **Why:** a hermetic-test rewrite failed only because `mfa_replay_disable_` + epoch = 32 chars; un-asserted setup steps turn such failures into misleading downstream assertion errors (e.g. 401-vs-400 from requireAuth).
+- **How to apply:** when creating per-test users, keep the username prefix short (`mfa_rd_` style) and `expect(...).toBe(200)` every registration/setup response.

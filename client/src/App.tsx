@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
+import { PasswordStrengthIndicator, usePasswordPolicy, validatePasswordWithPolicy } from "@/components/PasswordStrengthIndicator";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
 
@@ -76,6 +77,7 @@ function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { data: passwordPolicy } = usePasswordPolicy();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -91,7 +93,7 @@ function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
       setError(t('forcePassword.passwordsMismatch'));
       return;
     }
-    if (newPassword.length < 8) {
+    if (!validatePasswordWithPolicy(newPassword, passwordPolicy)) {
       setError(t('forcePassword.passwordTooShort'));
       return;
     }
@@ -143,9 +145,19 @@ function ForcePasswordChangeGuard({ children }: { children: React.ReactNode }) {
               <Label htmlFor="force-confirm">{t('forcePassword.confirmPassword')}</Label>
               <Input id="force-confirm" type="password" autoComplete="off" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
             </div>
+            <PasswordStrengthIndicator password={newPassword} confirmPassword={confirmPassword} />
             <div className="flex gap-2 justify-end">
               <Button type="button" variant="outline" onClick={() => logout()}>{t('forcePassword.logout')}</Button>
-              <Button type="submit" disabled={loading}>{loading ? t('forcePassword.changing') : t('forcePassword.submit')}</Button>
+              <Button
+                type="submit"
+                disabled={
+                  loading ||
+                  !validatePasswordWithPolicy(newPassword, passwordPolicy) ||
+                  newPassword !== confirmPassword
+                }
+              >
+                {loading ? t('forcePassword.changing') : t('forcePassword.submit')}
+              </Button>
             </div>
           </form>
         </DialogContent>

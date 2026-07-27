@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { validatePasswordWithPolicy, usePasswordPolicy } from '@/components/PasswordStrengthIndicator';
+import { PasswordStrengthIndicator, validatePasswordWithPolicy, usePasswordPolicy } from '@/components/PasswordStrengthIndicator';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -846,7 +846,6 @@ export default function Profile() {
                 className="mt-1"
                 data-testid="input-new-password"
               />
-              <p className="text-xs text-muted-foreground mt-1">{t('profile.minCharacters')}</p>
             </div>
             <div>
               <Label htmlFor="confirmPassword">{t('profile.confirmNewPassword')}</Label>
@@ -860,6 +859,7 @@ export default function Profile() {
                 data-testid="input-confirm-password"
               />
             </div>
+            <PasswordStrengthIndicator password={newPassword} confirmPassword={confirmPassword} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
@@ -867,7 +867,11 @@ export default function Profile() {
             </Button>
             <Button 
               onClick={handlePasswordChange}
-              disabled={changePasswordMutation.isPending}
+              disabled={
+                changePasswordMutation.isPending ||
+                !validatePasswordWithPolicy(newPassword, passwordPolicy) ||
+                newPassword !== confirmPassword
+              }
               className="polly-button-primary"
               data-testid="button-submit-password"
             >

@@ -105,9 +105,53 @@ export interface TestScheduleConfig {
   lastRun?: string;
   nextRun?: string;
   notifyEmail?: string;
+  notifyEmails?: string[];
 }
 
 const TEST_SCHEDULE_KEY = 'test_schedule_config';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeNotificationRecipients(
+  notifyEmails?: string[],
+  notifyEmail?: string
+): string[] {
+  const rawValues = [
+    ...(Array.isArray(notifyEmails) ? notifyEmails : []),
+    ...(notifyEmail ? [notifyEmail] : []),
+  ];
+
+  const uniqueRecipients = new Set<string>();
+
+  for (const value of rawValues) {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
+      continue;
+    }
+    uniqueRecipients.add(trimmed);
+  }
+
+  return Array.from(uniqueRecipients);
+}
+
+function normalizeScheduleConfig(config?: Partial<TestScheduleConfig> | null): TestScheduleConfig {
+  const mergedConfig: TestScheduleConfig = {
+    enabled: false,
+    intervalDays: 7,
+    runTime: '03:00',
+    ...(config ?? {}),
+  };
+
+  const notifyEmails = normalizeNotificationRecipients(
+    mergedConfig.notifyEmails,
+    mergedConfig.notifyEmail
+  );
+
+  return {
+    ...mergedConfig,
+    notifyEmails,
+    notifyEmail: notifyEmails[0] ?? '',
+  };
+}
 
 function extractCategoryFromPath(filepath: string): string {
   const parts = filepath.split('/');
@@ -497,7 +541,7 @@ async function sendTestReportNotification(
   try {
     const config = await getScheduleConfig();
     
-    if (!config.notifyEmail) {
+    if (!config.notifyEmails?.length) {
       console.log('[TestRunner] No notification email configured, skipping email');
       return;
     }
@@ -530,25 +574,24 @@ async function sendTestReportNotification(
       console.error('[TestRunner] Failed to generate PDF for email:', pdfError);
     }
     
-    // Send email
-    await emailService.sendTestReportEmail(
-      config.notifyEmail,
-      {
-        id: testRun.id,
-        status: testRun.status,
-        triggeredBy: testRun.triggeredBy,
-        totalTests: testRun.totalTests ?? 0,
-        passed: testRun.passed ?? 0,
-        failed: testRun.failed ?? 0,
-        skipped: testRun.skipped ?? 0,
-        duration: testRun.duration,
-        startedAt: testRun.startedAt,
-        completedAt: testRun.completedAt,
-      },
-      pdfBuffer
-    );
-    
-    console.log(`[TestRunner] Email notification sent to ${config.notifyEmail} for run #${runId}`);
+    const reportPayload = {
+      id: testRun.id,
+      status: testRun.status,
+      triggeredBy: testRun.triggeredBy,
+      totalTests: testRun.totalTests ?? 0,
+      passed: testRun.passed ?? 0,
+      failed: testRun.failed ?? 0,
+      skipped: testRun.skipped ?? 0,
+      duration: testRun.duration,
+      startedAt: testRun.startedAt,
+      completedAt: testRun.completedAt,
+    };
+
+    for (const recipientEmail of config.notifyEmails) {
+      await emailService.sendTestReportEmail(recipientEmail, reportPayload, pdfBuffer);
+    }
+
+    console.log(`[TestRunner] Email notification sent to ${config.notifyEmails.join(', ')} for run #${runId}`);
   } catch (error) {
     console.error('[TestRunner] Failed to send email notification:', error);
   }
@@ -788,21 +831,17 @@ export async function getScheduleConfig(): Promise<TestScheduleConfig> {
     .where(eq(systemSettings.key, TEST_SCHEDULE_KEY));
   
   if (!setting) {
-    return {
-      enabled: false,
-      intervalDays: 7,
-      runTime: '03:00',
-    };
+    return normalizeScheduleConfig();
   }
   
-  return setting.value as TestScheduleConfig;
+  return normalizeScheduleConfig(setting.value as Partial<TestScheduleConfig>);
 }
 
 export async function updateScheduleConfig(config: Partial<TestScheduleConfig>): Promise<TestScheduleConfig> {
   const { systemSettings } = await import('@shared/schema');
   
   const currentConfig = await getScheduleConfig();
-  const newConfig = { ...currentConfig, ...config };
+  const newConfig = normalizeScheduleConfig({ ...currentConfig, ...config });
   
   if (newConfig.enabled) {
     newConfig.nextRun = calculateNextRun(newConfig.intervalDays, newConfig.runTime);

@@ -519,6 +519,21 @@ describe('Admin API - Comprehensive Functional Tests', () => {
   });
 
   describe('Tests & Monitoring', () => {
+    const TEST_SCHEDULE_KEY = 'test_schedule_config';
+    let savedScheduleSetting: any;
+
+    beforeAll(async () => {
+      savedScheduleSetting = await storage.getSetting(TEST_SCHEDULE_KEY);
+    });
+
+    afterAll(async () => {
+      if (savedScheduleSetting) {
+        await storage.setSetting(savedScheduleSetting);
+      } else {
+        await storage.deleteSetting(TEST_SCHEDULE_KEY);
+      }
+    });
+
     it('should get test environment', async () => {
       const res = await adminAgent.get('/api/v1/admin/tests/environment');
       expect(res.status).toBe(200);
@@ -538,6 +553,35 @@ describe('Admin API - Comprehensive Functional Tests', () => {
     it('should get test schedule', async () => {
       const res = await adminAgent.get('/api/v1/admin/tests/schedule');
       expect(res.status).toBe(200);
+    });
+
+    it('should normalize legacy single-recipient schedule config', async () => {
+      await storage.setSetting({
+        key: TEST_SCHEDULE_KEY,
+        value: {
+          enabled: false,
+          intervalDays: 7,
+          runTime: '03:00',
+          notifyEmail: 'legacy@example.com',
+        },
+        description: 'Automated test schedule configuration',
+      });
+
+      const res = await adminAgent.get('/api/v1/admin/tests/schedule');
+      expect(res.status).toBe(200);
+      expect(res.body.notifyEmail).toBe('legacy@example.com');
+      expect(res.body.notifyEmails).toEqual(['legacy@example.com']);
+    });
+
+    it('should save multiple notification recipients for test schedule', async () => {
+      const res = await adminAgent.put('/api/v1/admin/tests/schedule').send({
+        notifyEmails: ['first@example.com', 'second@example.com', 'first@example.com'],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.config.notifyEmail).toBe('first@example.com');
+      expect(res.body.config.notifyEmails).toEqual(['first@example.com', 'second@example.com']);
     });
 
     it('should get test configurations', async () => {

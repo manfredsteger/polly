@@ -37,4 +37,5 @@ export interface TestScheduleConfig {
   lastRun?: Date;
   nextRun?: Date;
   notifyEmail?: string;
+  notifyEmails?: string[];
 }

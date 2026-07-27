@@ -85,6 +85,7 @@ interface ScheduleConfig {
   intervalDays: number;
   runTime: string;
   notifyEmail?: string;
+  notifyEmails?: string[];
 }
 
 interface SmtpStatus {
@@ -93,6 +94,18 @@ interface SmtpStatus {
 
 interface TestsPanelProps {
   onBack: () => void;
+}
+
+function normalizeNotificationEmails(config?: ScheduleConfig | null): string[] {
+  const values = [
+    ...(config?.notifyEmails ?? []),
+    ...(config?.notifyEmail ? [config.notifyEmail] : []),
+  ];
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 export function TestsPanel({ onBack }: TestsPanelProps) {
@@ -140,24 +153,28 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     queryKey: ['/api/v1/email-status'],
   });
 
-  const [notifyEmail, setNotifyEmail] = useState('');
+  const [notifyEmails, setNotifyEmails] = useState<string[]>(['']);
   const [emailDirty, setEmailDirty] = useState(false);
 
   useEffect(() => {
     if (scheduleConfig && !emailDirty) {
-      setNotifyEmail(scheduleConfig.notifyEmail || '');
+      const normalized = normalizeNotificationEmails(scheduleConfig);
+      setNotifyEmails(normalized.length > 0 ? normalized : ['']);
     }
   }, [scheduleConfig, emailDirty]);
 
   const saveEmailMutation = useMutation({
-    mutationFn: async (email: string) => {
-      await apiRequest('PUT', '/api/v1/admin/tests/schedule', { notifyEmail: email || '' });
+    mutationFn: async (emails: string[]) => {
+      await apiRequest('PUT', '/api/v1/admin/tests/schedule', {
+        notifyEmails: emails,
+        notifyEmail: emails[0] || '',
+      });
     },
-    onSuccess: (_data, email) => {
+    onSuccess: (_data, emails) => {
       setEmailDirty(false);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/schedule'] });
       toast({
-        title: email
+        title: emails.length > 0
           ? t('admin.tests.notificationEmailSaved')
           : t('admin.tests.notificationEmailCleared'),
       });
@@ -169,6 +186,56 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       });
     },
   });
+
+  const configuredNotifyEmails = normalizeNotificationEmails(scheduleConfig);
+  const sanitizedNotifyEmails = Array.from(new Set(notifyEmails.map((email) => email.trim()).filter(Boolean)));
+  const invalidNotifyEmails = notifyEmails
+    .map((email, index) => ({ email: email.trim(), index }))
+    .filter(({ email }) => email.length > 0 && !isValidEmail(email));
+  const emailRows = notifyEmails.length > 0 ? notifyEmails : [''];
+  const hasEmailChanges =
+    sanitizedNotifyEmails.length !== configuredNotifyEmails.length ||
+    sanitizedNotifyEmails.some((email, index) => email !== configuredNotifyEmails[index]);
+
+  const handleNotifyEmailChange = (index: number, value: string) => {
+    setNotifyEmails((current) => current.map((email, currentIndex) => (
+      currentIndex === index ? value : email
+    )));
+    setEmailDirty(true);
+  };
+
+  const handleAddNotifyEmail = () => {
+    setNotifyEmails((current) => [...current, '']);
+    setEmailDirty(true);
+  };
+
+  const handleRemoveNotifyEmail = (index: number) => {
+    setNotifyEmails((current) => {
+      if (current.length === 1) {
+        return [''];
+      }
+      return current.filter((_, currentIndex) => currentIndex !== index);
+    });
+    setEmailDirty(true);
+  };
+
+  const handleSaveNotifyEmails = () => {
+    if (invalidNotifyEmails.length > 0) {
+      toast({
+        title: t('admin.tests.error'),
+        description: t('errors.invalidEmail'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    saveEmailMutation.mutate(sanitizedNotifyEmails);
+  };
+
+  const handleClearNotifyEmails = () => {
+    setNotifyEmails(['']);
+    setEmailDirty(false);
+    saveEmailMutation.mutate([]);
+  };
 
   const { data: testDataStats, refetch: refetchTestDataStats } = useQuery<{
     polls: number;
@@ -594,22 +661,56 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
               <span>{t('admin.tests.smtpNotConfigured')}</span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <Label htmlFor="notify-email" className="sr-only">{t('admin.tests.notificationEmail')}</Label>
-              <Input
-                id="notify-email"
-                type="email"
-                placeholder={t('admin.tests.notificationEmailPlaceholder')}
-                value={notifyEmail}
-                onChange={(e) => { setNotifyEmail(e.target.value); setEmailDirty(true); }}
-                data-testid="input-notify-email"
-              />
-            </div>
+          <div className="space-y-3">
+            {emailRows.map((notifyEmail, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Label htmlFor={`notify-email-${index}`} className="sr-only">
+                    {t('admin.tests.notificationEmail')}
+                  </Label>
+                  <Input
+                    id={`notify-email-${index}`}
+                    type="email"
+                    placeholder={t('admin.tests.notificationEmailPlaceholder')}
+                    value={notifyEmail}
+                    onChange={(e) => handleNotifyEmailChange(index, e.target.value)}
+                    data-testid={index === 0 ? "input-notify-email" : `input-notify-email-${index}`}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleRemoveNotifyEmail(index)}
+                  disabled={saveEmailMutation.isPending}
+                  data-testid={index === 0 ? "button-clear-notify-email" : `button-remove-notify-email-${index}`}
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  {t('admin.tests.clearEmail')}
+                </Button>
+              </div>
+            ))}
+            {invalidNotifyEmails.length > 0 && (
+              <p className="text-xs text-destructive">
+                {t('errors.invalidEmail')}
+              </p>
+            )}
             <Button
               size="sm"
-              onClick={() => saveEmailMutation.mutate(notifyEmail)}
-              disabled={saveEmailMutation.isPending || notifyEmail === (scheduleConfig?.notifyEmail || '')}
+              variant="ghost"
+              onClick={handleAddNotifyEmail}
+              disabled={saveEmailMutation.isPending}
+              data-testid="button-add-notify-email"
+            >
+              <Mail className="w-4 h-4 mr-1" />
+              {t('admin.tests.addAnotherEmail')}
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1" />
+            <Button
+              size="sm"
+              onClick={handleSaveNotifyEmails}
+              disabled={saveEmailMutation.isPending || !hasEmailChanges}
               data-testid="button-save-notify-email"
             >
               {saveEmailMutation.isPending ? (
@@ -619,24 +720,20 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
               )}
               {t('admin.tests.saveEmail')}
             </Button>
-            {scheduleConfig?.notifyEmail && (
+            {configuredNotifyEmails.length > 0 && (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  setNotifyEmail('');
-                  setEmailDirty(false);
-                  saveEmailMutation.mutate('');
-                }}
+                onClick={handleClearNotifyEmails}
                 disabled={saveEmailMutation.isPending}
-                data-testid="button-clear-notify-email"
+                data-testid="button-clear-all-notify-email"
               >
                 <X className="w-4 h-4 mr-1" />
-                {t('admin.tests.clearEmail')}
+                {t('admin.tests.clearAllEmails')}
               </Button>
             )}
           </div>
-          {!scheduleConfig?.notifyEmail && (
+          {configuredNotifyEmails.length === 0 && (
             <p className="text-xs text-muted-foreground">
               {t('admin.tests.noEmailConfigured')}
             </p>

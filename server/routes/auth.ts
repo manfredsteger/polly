@@ -297,7 +297,13 @@ router.post('/login', async (req, res) => {
     const loginCustomization = await storage.getCustomizationSettings();
     const adminMfaRequired = getEffectiveAdminMfaRequired(loginCustomization.mfa?.adminMfaRequired ?? false);
 
-    if (user.totpEnabled) {
+    // When the emergency env-var override (MFA_ADMIN_REQUIRED=false) is active,
+    // admin accounts bypass both the TOTP challenge AND the setup requirement,
+    // enabling recovery when all admins have lost their authenticator app.
+    const mfaRequiredForThisUser =
+      user.totpEnabled && (user.role !== 'admin' || adminMfaRequired);
+
+    if (mfaRequiredForThisUser) {
       // MFA configured → pending step
       req.session.regenerate((err) => {
         if (err) return res.status(500).json({ error: 'Interner Fehler' });

@@ -2374,6 +2374,7 @@
       "mfaCoverageDialogBodyAllReady": "All admins already have MFA set up. The policy can be activated immediately.",
       "mfaCoverageDialogConfirm": "Enable",
       "mfaCoverageDialogCancel": "Cancel",
+      "mfaCoverageDialogFetchError": "Could not retrieve admin MFA coverage. Please try again before enabling the policy.",
       "guestAccess": "Guest access",
       "guestAccessDescription": "Controls whether visitors who are not signed in may create polls and vote.",
       "allowGuestPollCreation": "Guests may create polls",

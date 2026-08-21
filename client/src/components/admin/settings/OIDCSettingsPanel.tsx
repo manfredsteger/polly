@@ -80,6 +80,7 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const [adminMfaRequired, setAdminMfaRequired] = useState<boolean>(false);
   const [showMfaConfirmDialog, setShowMfaConfirmDialog] = useState(false);
   const [mfaCoverage, setMfaCoverage] = useState<{ total: number; withMfa: number; withoutMfa: number; adminsMissingMfa: string[] } | null>(null);
+  const [mfaCoverageError, setMfaCoverageError] = useState(false);
   const [allowGuestPollCreation, setAllowGuestPollCreation] = useState<boolean>(true);
   const [allowGuestVoting, setAllowGuestVoting] = useState<boolean>(true);
 
@@ -258,8 +259,10 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
         const res = await apiRequest('GET', '/api/v1/admin/mfa-coverage');
         const data = await res.json();
         setMfaCoverage(data);
+        setMfaCoverageError(false);
       } catch {
         setMfaCoverage(null);
+        setMfaCoverageError(true);
       }
       setShowMfaConfirmDialog(true);
     } else {
@@ -718,16 +721,16 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
           <AlertDialogHeader>
             <AlertDialogTitle>{t('admin.auth.mfaCoverageDialogTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {mfaCoverage !== null ? (
+              {mfaCoverageError ? (
+                t('admin.auth.mfaCoverageDialogFetchError')
+              ) : mfaCoverage !== null ? (
                 mfaCoverage.withoutMfa === 0
                   ? t('admin.auth.mfaCoverageDialogBodyAllReady')
                   : t('admin.auth.mfaCoverageDialogBody', {
                       withoutMfa: mfaCoverage.withoutMfa,
                       total: mfaCoverage.total,
                     })
-              ) : (
-                t('admin.auth.mfaCoverageDialogTitle')
-              )}
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -740,6 +743,7 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
               {t('admin.auth.mfaCoverageDialogCancel')}
             </AlertDialogCancel>
             <AlertDialogAction
+              disabled={mfaCoverageError}
               onClick={() => {
                 // Set state to true now that the user has explicitly confirmed,
                 // then immediately persist — no second Save button press needed.

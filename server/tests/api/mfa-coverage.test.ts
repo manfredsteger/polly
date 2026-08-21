@@ -121,7 +121,7 @@ describe('MFA_ADMIN_REQUIRED env-var override', () => {
     delete process.env.MFA_ADMIN_REQUIRED;
   });
 
-  it('env MFA_ADMIN_REQUIRED=false bypasses the DB setting at login', async () => {
+  it('env MFA_ADMIN_REQUIRED=false bypasses the DB setup requirement for admin without TOTP', async () => {
     const username = `mfa_envovr_${Date.now()}`;
     const password = 'TestPass123!';
     const regAgent = request.agent(app);
@@ -139,9 +139,8 @@ describe('MFA_ADMIN_REQUIRED env-var override', () => {
     createdUserIds.push(userId);
     await storage.updateUser(userId, { role: 'admin', emailVerified: true } as any);
 
-    // With MFA_ADMIN_REQUIRED=false, the login should succeed without
-    // being redirected to MFA setup even though adminMfaRequired is true in DB.
-    // Use try/finally to guarantee the env var is always cleaned up.
+    // With MFA_ADMIN_REQUIRED=false the admin without TOTP should log in directly
+    // even though adminMfaRequired is true in DB.
     process.env.MFA_ADMIN_REQUIRED = 'false';
     try {
       const freshAgent = request.agent(app);
@@ -150,6 +149,54 @@ describe('MFA_ADMIN_REQUIRED env-var override', () => {
         .send({ usernameOrEmail: username, password });
       expect(loginRes.body.requiresMfaSetup).toBeFalsy();
       expect(loginRes.body.user).toBeDefined();
+    } finally {
+      delete process.env.MFA_ADMIN_REQUIRED;
+    }
+  });
+
+  it('env MFA_ADMIN_REQUIRED=false also bypasses the TOTP challenge for already-enrolled admins', async () => {
+    // This is the primary recovery scenario: an admin who HAS TOTP enabled
+    // but has lost their authenticator app should still be able to log in when
+    // the operator sets MFA_ADMIN_REQUIRED=false in the environment.
+    const username = `mfa_totp_ovr_${Date.now()}`;
+    const password = 'TestPass123!';
+    const regAgent = request.agent(app);
+    const regRes = await regAgent
+      .post('/api/v1/auth/register')
+      .set('x-test-meta', JSON.stringify({ isTestData: true }))
+      .send({
+        username,
+        email: `${username}@test.example`,
+        name: 'TOTP Override Tester',
+        password,
+      });
+    expect(regRes.status).toBeGreaterThanOrEqual(200);
+    const userId: number = regRes.body.user.id;
+    createdUserIds.push(userId);
+    // Mark as admin with TOTP enrolled (simulates lost-authenticator scenario)
+    await storage.updateUser(userId, {
+      role: 'admin',
+      emailVerified: true,
+      totpEnabled: true,
+      totpSecret: 'TESTSECRET234567',
+    } as any);
+
+    // Without the override the login should demand TOTP
+    const normalAgent = request.agent(app);
+    const normalRes = await normalAgent
+      .post('/api/v1/auth/login')
+      .send({ usernameOrEmail: username, password });
+    expect(normalRes.body.requiresMfa).toBe(true);
+
+    // With MFA_ADMIN_REQUIRED=false the login should succeed without TOTP
+    process.env.MFA_ADMIN_REQUIRED = 'false';
+    try {
+      const overrideAgent = request.agent(app);
+      const overrideRes = await overrideAgent
+        .post('/api/v1/auth/login')
+        .send({ usernameOrEmail: username, password });
+      expect(overrideRes.body.requiresMfa).toBeFalsy();
+      expect(overrideRes.body.user).toBeDefined();
     } finally {
       delete process.env.MFA_ADMIN_REQUIRED;
     }

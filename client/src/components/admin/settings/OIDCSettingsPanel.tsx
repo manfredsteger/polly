@@ -9,6 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { CustomizationSettings } from "@shared/schema";
@@ -68,6 +78,8 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const [policyNumbers, setPolicyNumbers] = useState<boolean>(DEFAULT_POLICY.requireNumbers);
   const [policySpecial, setPolicySpecial] = useState<boolean>(DEFAULT_POLICY.requireSpecialChars);
   const [adminMfaRequired, setAdminMfaRequired] = useState<boolean>(false);
+  const [showMfaConfirmDialog, setShowMfaConfirmDialog] = useState(false);
+  const [mfaCoverage, setMfaCoverage] = useState<{ total: number; withMfa: number; withoutMfa: number; adminsMissingMfa: string[] } | null>(null);
 
   useEffect(() => {
     if (authMethods) {
@@ -228,6 +240,23 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 
   const handleSaveMfa = () => {
     saveMfaMutation.mutate({ adminMfaRequired });
+  };
+
+  const handleMfaToggle = async (checked: boolean) => {
+    if (checked) {
+      // Fetch coverage before showing the confirmation dialog
+      try {
+        const res = await apiRequest('GET', '/api/v1/admin/mfa-coverage');
+        const data = await res.json();
+        setMfaCoverage(data);
+      } catch {
+        setMfaCoverage(null);
+      }
+      setAdminMfaRequired(true); // optimistic – reverted if dialog is cancelled
+      setShowMfaConfirmDialog(true);
+    } else {
+      setAdminMfaRequired(false);
+    }
   };
 
   const handleTestConnection = async () => {
@@ -625,7 +654,7 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
             <Switch
               id="switch-admin-mfa-required"
               checked={adminMfaRequired}
-              onCheckedChange={setAdminMfaRequired}
+              onCheckedChange={handleMfaToggle}
               data-testid="switch-admin-mfa-required"
             />
           </div>
@@ -650,6 +679,44 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={showMfaConfirmDialog} onOpenChange={setShowMfaConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('admin.auth.mfaCoverageDialogTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {mfaCoverage !== null ? (
+                mfaCoverage.withoutMfa === 0
+                  ? t('admin.auth.mfaCoverageDialogBodyAllReady')
+                  : t('admin.auth.mfaCoverageDialogBody', {
+                      withoutMfa: mfaCoverage.withoutMfa,
+                      total: mfaCoverage.total,
+                    })
+              ) : (
+                t('admin.auth.mfaCoverageDialogTitle')
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setAdminMfaRequired(false);
+                setShowMfaConfirmDialog(false);
+              }}
+            >
+              {t('admin.auth.mfaCoverageDialogCancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowMfaConfirmDialog(false);
+                saveMfaMutation.mutate({ adminMfaRequired: true });
+              }}
+            >
+              {t('admin.auth.mfaCoverageDialogConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card className="polly-card">
         <CardHeader>

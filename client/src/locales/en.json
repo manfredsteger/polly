@@ -2369,6 +2369,11 @@
       "mfaPolicySavedDescription": "The MFA policy has been updated.",
       "mfaPolicySaveError": "Error saving MFA settings",
       "mfaPolicyNote": "MFA applies to local accounts only. SSO accounts (Keycloak) are secured by the identity provider.",
+      "mfaCoverageDialogTitle": "Enable MFA requirement",
+      "mfaCoverageDialogBody": "{{withoutMfa}} of {{total}} admins have not yet set up MFA — they will be prompted to do so on their next login.",
+      "mfaCoverageDialogBodyAllReady": "All admins already have MFA set up. The policy can be activated immediately.",
+      "mfaCoverageDialogConfirm": "Enable",
+      "mfaCoverageDialogCancel": "Cancel",
       "adminResetMfa": "Reset MFA",
       "adminMfaResetSuccess": "MFA has been reset for this user.",
       "adminMfaResetError": "Error resetting MFA."

@@ -13,11 +13,10 @@ export default defineConfig({
     hookTimeout: 30000,
     teardownTimeout: 10000,
     pool: 'forks' as const,
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    // Vitest 4: poolOptions.forks.singleFork was removed; the equivalent is
+    // disabling file parallelism so all test files share one sequential fork.
+    fileParallelism: false,
+    maxWorkers: 1,
     isolate: false,
     sequence: {
       concurrent: false,

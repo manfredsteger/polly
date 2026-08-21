@@ -286,6 +286,11 @@ app.use((req, res, next) => {
     }
   }
 
+  // Warn when admin MFA enforcement is overridden by environment variable
+  if (process.env.MFA_ADMIN_REQUIRED === 'false') {
+    console.warn('[MFA] adminMfaRequired overridden by environment: MFA_ADMIN_REQUIRED=false');
+  }
+
   // Initialize ClamAV from environment variables (for Docker deployments)
   try {
     const { clamavService } = await import('./services/clamavService');

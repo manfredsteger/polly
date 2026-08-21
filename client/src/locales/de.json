@@ -2369,6 +2369,11 @@
       "mfaPolicySavedDescription": "Die MFA-Richtlinie wurde aktualisiert.",
       "mfaPolicySaveError": "Fehler beim Speichern der MFA-Einstellungen",
       "mfaPolicyNote": "MFA gilt nur für lokale Konten. SSO-Konten (Keycloak) werden durch den Identitätsprovider abgesichert.",
+      "mfaCoverageDialogTitle": "MFA-Pflicht aktivieren",
+      "mfaCoverageDialogBody": "{{withoutMfa}} von {{total}} Admins haben noch keine MFA eingerichtet — sie werden beim nächsten Login zur Einrichtung aufgefordert.",
+      "mfaCoverageDialogBodyAllReady": "Alle Admins haben bereits MFA eingerichtet. Die Richtlinie kann sofort aktiviert werden.",
+      "mfaCoverageDialogConfirm": "Aktivieren",
+      "mfaCoverageDialogCancel": "Abbrechen",
       "adminResetMfa": "MFA zurücksetzen",
       "adminMfaResetSuccess": "MFA wurde für diesen Benutzer zurückgesetzt.",
       "adminMfaResetError": "Fehler beim Zurücksetzen der MFA."

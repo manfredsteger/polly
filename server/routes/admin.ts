@@ -356,6 +356,24 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ============== MFA COVERAGE ==============
+
+router.get('/mfa-coverage', requireAdmin, async (req, res) => {
+  try {
+    const admins = await storage.getAdminUsers();
+    const withoutMfa = admins.filter(u => !u.totpEnabled);
+    res.json({
+      total: admins.length,
+      withMfa: admins.length - withoutMfa.length,
+      withoutMfa: withoutMfa.length,
+      adminsMissingMfa: withoutMfa.map(u => u.username),
+    });
+  } catch (error) {
+    console.error('Error fetching MFA coverage:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
 // ============== GDPR DELETION REQUESTS ==============
 
 router.get('/deletion-requests', requireAdmin, async (req, res) => {

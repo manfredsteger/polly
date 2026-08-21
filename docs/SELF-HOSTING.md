@@ -226,6 +226,7 @@ When running via Docker, the admin account is automatically created or updated o
 | `LOGO_URL` | Public URL of a custom logo | `https://example.com/logo.png` |
 | `PRIMARY_COLOR` | Primary brand colour (hex) | `#F97316` |
 | `POLLY_COPYRIGHT_TEXT` | Footer copyright text (limited HTML: links, basic markup). When set, the admin form field is locked (read-only) | `© 2026 My Org` |
+| `MFA_ADMIN_REQUIRED` | Emergency override: set to `false` to disable the admin MFA requirement at the server level, overriding the database setting. Useful when all admin accounts have lost their authenticator app. Remove or leave unset to use the value configured in the admin panel. | *(unset)* |
 
 > **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
 

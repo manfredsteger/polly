@@ -18,6 +18,7 @@ import { registrationRateLimiter, passwordResetRateLimiter } from "../services/a
 import bcrypt from 'bcryptjs';
 import { validatePasswordAgainstPolicy } from "../lib/passwordPolicy";
 import { generateTotpSecret, generateTotpQrCode, verifyTotpToken } from "../lib/totpService";
+import { getEffectiveAdminMfaRequired } from "../lib/mfaPolicy";
 
 const router = Router();
 
@@ -294,7 +295,7 @@ router.post('/login', async (req, res) => {
     await loginRateLimiter.recordSuccessfulLogin(data.usernameOrEmail, clientIp);
 
     const loginCustomization = await storage.getCustomizationSettings();
-    const adminMfaRequired = loginCustomization.mfa?.adminMfaRequired ?? false;
+    const adminMfaRequired = getEffectiveAdminMfaRequired(loginCustomization.mfa?.adminMfaRequired ?? false);
 
     if (user.totpEnabled) {
       // MFA configured → pending step
@@ -970,7 +971,7 @@ router.post('/mfa/disable', requireAuth, async (req, res) => {
     // Doing so would circumvent the organisational security policy. Another admin must use
     // the admin panel to reset MFA (e.g. when the admin loses their authenticator device).
     const disableCustomization = await storage.getCustomizationSettings();
-    const adminMfaPolicy = disableCustomization.mfa?.adminMfaRequired ?? false;
+    const adminMfaPolicy = getEffectiveAdminMfaRequired(disableCustomization.mfa?.adminMfaRequired ?? false);
     if (adminMfaPolicy && user.role === 'admin') {
       return res.status(403).json({
         error: 'MFA-Deaktivierung nicht erlaubt: Die Admin-MFA-Pflicht ist aktiv. Wenden Sie sich an einen anderen Administrator.',

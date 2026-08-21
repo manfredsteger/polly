@@ -250,7 +250,10 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 
   const handleMfaToggle = async (checked: boolean) => {
     if (checked) {
-      // Fetch coverage before showing the confirmation dialog
+      // Fetch coverage then show the confirmation dialog.
+      // adminMfaRequired is NOT set here — it only becomes true when the user
+      // explicitly clicks the Confirm button, so Escape / backdrop-click /
+      // Cancel all leave the policy disabled with no further action required.
       try {
         const res = await apiRequest('GET', '/api/v1/admin/mfa-coverage');
         const data = await res.json();
@@ -258,7 +261,6 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
       } catch {
         setMfaCoverage(null);
       }
-      setAdminMfaRequired(true); // optimistic – reverted if dialog is cancelled
       setShowMfaConfirmDialog(true);
     } else {
       setAdminMfaRequired(false);
@@ -739,6 +741,9 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                // Set state to true now that the user has explicitly confirmed,
+                // then immediately persist — no second Save button press needed.
+                setAdminMfaRequired(true);
                 setShowMfaConfirmDialog(false);
                 saveMfaMutation.mutate({ adminMfaRequired: true });
               }}

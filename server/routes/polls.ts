@@ -36,8 +36,9 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
     let userId: number | null = null;
     let creatorEmail: string | null = null;
     
-    if (req.session?.userId) {
-      const sessionUser = await storage.getUser(req.session.userId);
+    const authenticatedUserId = await extractUserId(req);
+    if (authenticatedUserId) {
+      const sessionUser = await storage.getUser(authenticatedUserId);
       if (sessionUser) {
         userId = sessionUser.id;
         creatorEmail = sessionUser.email;
@@ -48,6 +49,13 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
         console.warn(`Authenticated user ${userId} tried to set different creatorEmail: ${data.creatorEmail}`);
       }
     } else {
+      const customization = await storage.getCustomizationSettings();
+      if (customization.guestAccess?.allowGuestPollCreation === false) {
+        return res.status(403).json({
+          error: 'Das Erstellen von Umfragen ist nur für angemeldete Benutzer möglich. Bitte melden Sie sich an.',
+          errorCode: 'GUEST_POLL_CREATION_DISABLED'
+        });
+      }
       creatorEmail = data.creatorEmail || null;
       
       if (creatorEmail) {

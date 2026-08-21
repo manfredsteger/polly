@@ -14,6 +14,21 @@ import { voteRateLimiter, emailRateLimiter, apiGeneralRateLimiter } from "../ser
 
 const router = Router();
 
+// Returns a 403 response body when the requester is a guest and guest voting
+// is disabled by the admin; returns null when the request may proceed.
+const checkGuestVotingAllowed = async (req: Parameters<typeof extractUserId>[0]) => {
+  const userId = await extractUserId(req);
+  if (userId) return null;
+  const customization = await storage.getCustomizationSettings();
+  if (customization.guestAccess?.allowGuestVoting === false) {
+    return {
+      error: 'Das Abstimmen ist nur für angemeldete Benutzer möglich. Bitte melden Sie sich an.',
+      errorCode: 'GUEST_VOTING_DISABLED' as const,
+    };
+  }
+  return null;
+};
+
 const isPastScheduleOption = (option: { startTime?: Date | string | null; endTime?: Date | string | null }) => {
   const now = new Date();
   if (option.endTime) {
@@ -170,6 +185,11 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         error: 'Diese Umfrage ist abgelaufen.',
         errorCode: 'POLL_EXPIRED'
       });
+    }
+
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
     }
 
     const data = bulkVoteSchema.parse(req.body);
@@ -429,6 +449,11 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
       });
     }
 
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
     const data = bulkVoteSchema.parse(req.body);
     const optionValidation = validateVoteOptionIds(poll, data.votes);
     if (optionValidation) {
@@ -680,6 +705,11 @@ router.delete('/polls/:token/vote', async (req, res) => {
       });
     }
 
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
     const { voterEmail, voterEditToken } = req.body;
     const currentUserId = await extractUserId(req);
     
@@ -800,6 +830,11 @@ router.get('/votes/edit/:editToken', async (req, res) => {
 // Update voter's votes by edit token
 router.put('/votes/edit/:editToken', async (req, res) => {
   try {
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
     const editToken = req.params.editToken;
     const { votes: updatedVotes } = editVotesUpdateSchema.parse(req.body);
 
@@ -894,6 +929,11 @@ router.put('/votes/edit/:editToken', async (req, res) => {
 // Withdraw votes via edit token
 router.delete('/votes/edit/:editToken', async (req, res) => {
   try {
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
     const editToken = req.params.editToken;
     const votes = await storage.getVotesByEditToken(editToken);
 

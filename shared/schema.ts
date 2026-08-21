@@ -734,6 +734,12 @@ export const mfaSettingsSchema = z.object({
 });
 export type MfaSettings = z.infer<typeof mfaSettingsSchema>;
 
+export const guestAccessSettingsSchema = z.object({
+  allowGuestPollCreation: z.boolean().default(true),
+  allowGuestVoting: z.boolean().default(true),
+});
+export type GuestAccessSettings = z.infer<typeof guestAccessSettingsSchema>;
+
 export const customizationSettingsSchema = z.object({
   theme: themeSettingsSchema.default({}),
   branding: brandingSettingsSchema.default({}),
@@ -743,6 +749,7 @@ export const customizationSettingsSchema = z.object({
   language: languageSettingsSchema.default({}),
   passwordPolicy: passwordPolicySettingsSchema.default({}),
   mfa: mfaSettingsSchema.default({}),
+  guestAccess: guestAccessSettingsSchema.default({}),
 });
 
 export type ThemeSettings = z.infer<typeof themeSettingsSchema>;

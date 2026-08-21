@@ -68,6 +68,8 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const [policyNumbers, setPolicyNumbers] = useState<boolean>(DEFAULT_POLICY.requireNumbers);
   const [policySpecial, setPolicySpecial] = useState<boolean>(DEFAULT_POLICY.requireSpecialChars);
   const [adminMfaRequired, setAdminMfaRequired] = useState<boolean>(false);
+  const [allowGuestPollCreation, setAllowGuestPollCreation] = useState<boolean>(true);
+  const [allowGuestVoting, setAllowGuestVoting] = useState<boolean>(true);
 
   useEffect(() => {
     if (authMethods) {
@@ -94,6 +96,10 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
     }
     if (customization?.mfa) {
       setAdminMfaRequired(customization.mfa.adminMfaRequired ?? false);
+    }
+    if (customization?.guestAccess) {
+      setAllowGuestPollCreation(customization.guestAccess.allowGuestPollCreation ?? true);
+      setAllowGuestVoting(customization.guestAccess.allowGuestVoting ?? true);
     }
   }, [customization]);
 
@@ -228,6 +234,31 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 
   const handleSaveMfa = () => {
     saveMfaMutation.mutate({ adminMfaRequired });
+  };
+
+  const saveGuestAccessMutation = useMutation({
+    mutationFn: async (guestAccess: { allowGuestPollCreation: boolean; allowGuestVoting: boolean }) => {
+      const res = await apiRequest('PUT', '/api/v1/admin/customization', { guestAccess });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      toast({
+        title: t('admin.auth.guestAccessSaved'),
+        description: t('admin.auth.guestAccessSavedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.auth.guestAccessSaveError'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSaveGuestAccess = () => {
+    saveGuestAccessMutation.mutate({ allowGuestPollCreation, allowGuestVoting });
   };
 
   const handleTestConnection = async () => {
@@ -645,6 +676,71 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 t('admin.auth.mfaPolicySaveBtn')
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <ShieldCheck className="w-5 h-5 mr-2" />
+              {t('admin.auth.guestAccess')}
+            </div>
+            {saveGuestAccessMutation.isPending && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            )}
+          </CardTitle>
+          <CardDescription>{t('admin.auth.guestAccessDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="switch-guest-poll-creation" className="text-sm font-normal cursor-pointer">
+                {t('admin.auth.allowGuestPollCreation')}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.auth.allowGuestPollCreationDescription')}</p>
+            </div>
+            <Switch
+              id="switch-guest-poll-creation"
+              checked={allowGuestPollCreation}
+              onCheckedChange={setAllowGuestPollCreation}
+              data-testid="switch-guest-poll-creation"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="switch-guest-voting" className="text-sm font-normal cursor-pointer">
+                {t('admin.auth.allowGuestVoting')}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.auth.allowGuestVotingDescription')}</p>
+            </div>
+            <Switch
+              id="switch-guest-voting"
+              checked={allowGuestVoting}
+              onCheckedChange={setAllowGuestVoting}
+              data-testid="switch-guest-voting"
+            />
+          </div>
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{t('admin.auth.guestAccessNote')}</AlertDescription>
+          </Alert>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveGuestAccess}
+              disabled={saveGuestAccessMutation.isPending}
+              data-testid="button-save-guest-access"
+            >
+              {saveGuestAccessMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t('admin.auth.guestAccessSaveBtn')
               )}
             </Button>
           </div>

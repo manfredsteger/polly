@@ -802,7 +802,7 @@ export default function CreateOrganization() {
       if (error?.message) {
         try {
           const errorData = JSON.parse(error.message.split(': ').slice(1).join(': '));
-          if (errorData.errorCode === 'REQUIRES_LOGIN') {
+          if (errorData.errorCode === 'REQUIRES_LOGIN' || errorData.errorCode === 'GUEST_POLL_CREATION_DISABLED') {
             errorMessage = errorData.error;
             requiresLogin = true;
           } else if (errorData.code === 'EMAIL_NOT_VERIFIED') {

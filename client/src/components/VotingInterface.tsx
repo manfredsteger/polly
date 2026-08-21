@@ -437,7 +437,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             if (errorData.errorCode === 'DUPLICATE_EMAIL_VOTE') {
               errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
               setDuplicateEmailError(voterEmail);
-            } else if (errorData.errorCode === 'REQUIRES_LOGIN') {
+            } else if (errorData.errorCode === 'REQUIRES_LOGIN' || errorData.errorCode === 'GUEST_VOTING_DISABLED') {
               errorMessage = errorData.error || t('votingInterface.loginRequiredDescription');
               setEmailRequiresLogin(true);
             } else if (errorData.errorCode === 'EMAIL_MISMATCH') {
@@ -816,7 +816,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       // Handle specific error codes
       if (errorCode === 'DUPLICATE_EMAIL_VOTE' || errorCode === 'USE_EDIT_LINK') {
         setDuplicateEmailError(voterEmail.trim());
-      } else if (errorCode === 'REQUIRES_LOGIN') {
+      } else if (errorCode === 'REQUIRES_LOGIN' || errorCode === 'GUEST_VOTING_DISABLED') {
         setEmailRequiresLogin(true);
       } else if (errorCode === 'ALREADY_VOTED') {
         // User has already voted - show info toast instead of error

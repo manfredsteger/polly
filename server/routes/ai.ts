@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "./common";
+import { requireAuth, extractUserId } from "./common";
 import {
   createPollFromDescription,
   refinePollSuggestion,
@@ -200,12 +200,20 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
   let userId: number | null = null;
   let creatorEmail: string | null = null;
 
-  if ((req.session as any)?.userId) {
-    const sessionUser = await storage.getUser((req.session as any).userId);
+  const authenticatedUserId = await extractUserId(req as any);
+  if (authenticatedUserId) {
+    const sessionUser = await storage.getUser(authenticatedUserId);
     if (!sessionUser) return res.status(401).json({ error: "Ungültige Session" });
     userId = sessionUser.id;
     creatorEmail = sessionUser.email;
   } else {
+    const customization = await storage.getCustomizationSettings();
+    if (customization.guestAccess?.allowGuestPollCreation === false) {
+      return res.status(403).json({
+        error: "Das Erstellen von Umfragen ist nur für angemeldete Benutzer möglich. Bitte melden Sie sich an.",
+        errorCode: "GUEST_POLL_CREATION_DISABLED",
+      });
+    }
     creatorEmail = bodyEmail || null;
     if (creatorEmail) {
       const registeredUser = await storage.getUserByEmail(creatorEmail.toLowerCase().trim());

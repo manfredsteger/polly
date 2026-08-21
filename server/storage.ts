@@ -850,7 +850,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomizationSettings(): Promise<CustomizationSettings> {
-    const [themeSetting, brandingSetting, footerSetting, wcagSetting, languageSetting, passwordPolicySetting, mfaSetting] = await Promise.all([
+    const [themeSetting, brandingSetting, footerSetting, wcagSetting, languageSetting, passwordPolicySetting, mfaSetting, guestAccessSetting] = await Promise.all([
       this.getSetting('customization_theme'),
       this.getSetting('customization_branding'),
       this.getSetting('customization_footer'),
@@ -858,6 +858,7 @@ export class DatabaseStorage implements IStorage {
       this.getSetting('customization_language'),
       this.getSetting('customization_password_policy'),
       this.getSetting('customization_mfa'),
+      this.getSetting('customization_guest_access'),
     ]);
 
     const settings = {
@@ -868,6 +869,7 @@ export class DatabaseStorage implements IStorage {
       language: languageSetting?.value || {},
       passwordPolicy: passwordPolicySetting?.value || {},
       mfa: mfaSetting?.value || {},
+      guestAccess: guestAccessSetting?.value || {},
     };
 
     return customizationSettingsSchema.parse(settings);
@@ -894,6 +896,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (settings.mfa) {
       await this.setSetting({ key: 'customization_mfa', value: settings.mfa });
+    }
+    if (settings.guestAccess) {
+      await this.setSetting({ key: 'customization_guest_access', value: settings.guestAccess });
     }
 
     return await this.getCustomizationSettings();

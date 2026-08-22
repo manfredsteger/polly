@@ -46,7 +46,7 @@ git push origin v0.1.0-beta.3
 1. **Validate**: TypeScript Check, Übersetzungen validieren, Unit-Tests ausführen, Build prüfen
 2. **Docker**: Image bauen und auf Docker Hub pushen
 3. **Docker Hub README**: `DOCKERHUB.md` automatisch als Docker Hub Repository-Beschreibung hochladen
-4. **GitHub Release**: Release mit Changelog auf GitHub erstellen
+4. **GitHub Release**: Release auf GitHub erstellen — der Release-Text übernimmt den passenden Abschnitt aus `CHANGELOG.md` (Fallback: Commit-Liste seit dem letzten Tag) plus taggenauen Quick Start und Vergleichslink; GitHubs automatische "What's Changed"-Notes sind deaktiviert, damit keine doppelten Änderungslisten in Benachrichtigungen landen
 5. **GitLab Mirror**: Tags automatisch zu GitLab spiegeln
 
 ### Docker Image Tags

@@ -31,8 +31,8 @@ Der Release-Prozess wird über Git-Tags gesteuert. Sobald ein Tag mit dem Prefix
 # 1. Sicherstellen, dass der freigegebene Beta-Branch aktiv ist
 git branch  # → muss "feature/guest-access-control" zeigen
 
-# 2. CHANGELOG.md abschließen und Paketversion setzen
-git add CHANGELOG.md
+# 2. CHANGELOG.md abschließen, Paketversion setzen und beide Paketdateien committen
+git add CHANGELOG.md package.json package-lock.json
 git commit -m "chore: prepare v0.1.0-beta.3 release"
 git push origin feature/guest-access-control
 
@@ -105,6 +105,7 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 - [ ] `CHANGELOG.md` abgeschlossen (`[Unreleased]` → `[x.y.z] - YYYY-MM-DD`, Version-History-Tabelle aktualisiert)
 - [ ] `ROADMAP.md` aktuell (neue Features eingetragen, Release-Timeline ergänzt)
 - [ ] `package.json` Version gesetzt (z.B. `0.1.0-beta.3`)
+- [ ] `package-lock.json` enthält dieselbe Projektversion wie `package.json`
 - [ ] `SELF-HOSTING.md` aktuell
 - [ ] `DOCKERHUB.md` aktuell (Versions-Tag-Beispiel, ENV-Vars)
 - [ ] Tag auf dem freigegebenen Beta-Commit erstellt und gepusht

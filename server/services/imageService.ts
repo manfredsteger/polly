@@ -322,7 +322,6 @@ export class ImageService {
         return {
           success: false,
           error: 'Nur Bilddateien sind erlaubt',
-          invalidFileType: true,
         };
       }
       finalBuffer = reencoded.buffer;

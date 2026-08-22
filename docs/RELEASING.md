@@ -28,31 +28,17 @@ Für automatisches Tag-Mirroring zu GitLab:
 Der Release-Prozess wird über Git-Tags gesteuert. Sobald ein Tag mit dem Prefix `v` gepusht wird, startet die Pipeline automatisch.
 
 ```bash
-# 1. Sicherstellen, dass der aktive Branch release ist
-git branch  # → muss "release" zeigen
+# 1. Sicherstellen, dass der freigegebene Beta-Branch aktiv ist
+git branch  # → muss "feature/guest-access-control" zeigen
 
-# 2. CHANGELOG.md: [Unreleased] → [0.1.0-beta.3] - YYYY-MM-DD, Version-History aktualisieren
+# 2. CHANGELOG.md abschließen und Paketversion setzen
 git add CHANGELOG.md
-git commit -m "chore: prepare CHANGELOG for v0.1.0-beta.3"
-git push origin release
+git commit -m "chore: prepare v0.1.0-beta.2 release"
+git push origin feature/guest-access-control
 
-# 3. Version in package.json auf die neue Version setzen, committen
-#    (package.json → "version": "0.1.0-beta.3")
-git add package.json
-git commit -m "chore: bump version to 0.1.0-beta.3"
-git push origin release
-
-# 4. release → main mergen (nur du als Benutzer, niemals der Agent!)
-git checkout main
-git pull origin main
-git merge --no-ff release -m "Merge release into main for v0.1.0-beta.3"
-git push origin main
-
-# 5. Tag auf main erstellen
-git tag -a v0.1.0-beta.3 -m "Beta Release 0.1.0-beta.3"
-
-# 6. Tag pushen → Pipeline startet automatisch
-git push origin v0.1.0-beta.3
+# 3. Tag auf dem geprüften Beta-Commit erstellen und pushen → Pipeline startet
+git tag -a v0.1.0-beta.2 -m "Beta Release 0.1.0-beta.2"
+git push origin v0.1.0-beta.2
 ```
 
 ### Was die Pipeline macht
@@ -69,7 +55,7 @@ Je nach Versionstyp werden automatisch zusätzliche Tags gesetzt:
 
 | Version | Image Tags |
 |---------|-----------|
-| `v0.1.0-beta.3` | `manfredsteger/polly:0.1.0-beta.3` + `manfredsteger/polly:beta` |
+| `v0.1.0-beta.2` | `manfredsteger/polly:0.1.0-beta.2` + `manfredsteger/polly:beta` |
 | `v0.1.0-rc.1` | `manfredsteger/polly:0.1.0-rc.1` + `manfredsteger/polly:rc` |
 | `v1.0.0` | `manfredsteger/polly:1.0.0` + `manfredsteger/polly:latest` |
 
@@ -83,11 +69,11 @@ docker login
 
 # Image bauen und pushen
 make release
-# → Fragt nach der Version (z.B. 0.1.0-beta.3)
+# → Fragt nach der Version (z.B. 0.1.0-beta.2)
 # → Baut, taggt und pusht automatisch
 
 # Oder mit expliziter Version:
-IMAGE_TAG=0.1.0-beta.3 make publish
+IMAGE_TAG=0.1.0-beta.2 make publish
 ```
 
 ---
@@ -103,26 +89,25 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 ### Aktuelle Versionsfolge
 
 ```
-0.1.0-beta.1  →  0.1.0-beta.2  →  0.1.0-beta.3  →  ...  →  0.1.0-rc.1  →  0.1.0
+0.1.0-beta.1  →  0.1.0-beta.2  →  ...  →  0.1.0-rc.1  →  0.1.0
 ```
 
 ---
 
 ## Checkliste vor einem Release
 
-- [ ] Aktiver Branch ist `release` (`git branch` prüfen)
-- [ ] `git pull origin release` — lokaler Stand aktuell
+- [ ] Aktiver Branch ist der freigegebene Beta-Branch (`feature/guest-access-control`)
+- [ ] `git pull origin feature/guest-access-control` — lokaler Stand aktuell
 - [ ] Alle Tests bestehen (`make test`)
 - [ ] TypeScript kompiliert fehlerfrei (`npx tsc --noEmit`)
 - [ ] Übersetzungen vollständig (`make validate-translations`)
 - [ ] Docker Build funktioniert lokal (`make build`)
 - [ ] `CHANGELOG.md` abgeschlossen (`[Unreleased]` → `[x.y.z] - YYYY-MM-DD`, Version-History-Tabelle aktualisiert)
 - [ ] `ROADMAP.md` aktuell (neue Features eingetragen, Release-Timeline ergänzt)
-- [ ] `package.json` Version gesetzt (z.B. `0.1.0-beta.3`)
+- [ ] `package.json` Version gesetzt (z.B. `0.1.0-beta.2`)
 - [ ] `SELF-HOSTING.md` aktuell
 - [ ] `DOCKERHUB.md` aktuell (Versions-Tag-Beispiel, ENV-Vars)
-- [ ] `release` → `main` gemergt (nur manuell durch den Benutzer!)
-- [ ] Tag auf `main` erstellt und gepusht
+- [ ] Tag auf dem freigegebenen Beta-Commit erstellt und gepusht
 
 ---
 
@@ -134,14 +119,9 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 2. **Tests schlagen fehl**: Lokal prüfen mit `make test`
 3. **Docker Build Fehler**: Lokal prüfen mit `make build`
 
-### Image existiert bereits
+### Tag oder Image existiert bereits
 
-Docker Hub erlaubt das Überschreiben bestehender Tags. Falls ein Tag nochmal gepusht werden soll:
-
-```bash
-# Tag lokal löschen und neu erstellen
-git tag -d v0.1.0-beta.3
-git push origin :refs/tags/v0.1.0-beta.3
-git tag -a v0.1.0-beta.3 -m "Beta Release 0.1.0-beta.3 (fixed)"
-git push origin v0.1.0-beta.3
-```
+Veröffentlichte Versions-Tags sind unveränderlich. Einen bestehenden Tag oder
+ein versioniertes Docker-Image nicht überschreiben; stattdessen die nächste
+freie Beta-Version verwenden. Nur die beweglichen Kanal-Tags (`beta`, `rc`,
+`latest`) werden von der Pipeline aktualisiert.

@@ -63,7 +63,7 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [x] Creator always included in finalization email recipients
 - [x] Frontend "End Poll" notify toggle wired to backend
 
-#### 5. Branding & Stability ✅ *Released in beta.3*
+#### 5. Branding & Stability ✅ *Released in beta.2*
 - [x] Favicon upload in admin panel + `FAVICON_URL` ENV-Var support
 - [x] Rich default footer (MIT-License link, GitHub icon, "Made in Bayern" tagline)
 - [x] `POLLY_COPYRIGHT_TEXT` ENV-Var locks the copyright line (admin field becomes read-only)
@@ -71,12 +71,18 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [x] KISSKI service-partner block in Admin AI Settings (logo, GDPR notice, contact link)
 - [x] **Docker HTTP cookie fix**: Session cookie no longer marked `Secure` on plain-HTTP deployments — login works reliably on `http://localhost:3080` without HTTPS
 
-#### 6. Community & Stability
+#### 6. Guest Access & Administrator Security ✅ *Released in beta.2*
+- [x] Separate admin settings for guest poll creation and guest voting
+- [x] Guest voting policy also protects vote changes and withdrawals
+- [x] Optional MFA requirement for administrators with coverage visibility before activation
+- [x] Server-side `MFA_ADMIN_REQUIRED=false` recovery override for lost authenticator incidents
+
+#### 7. Community & Stability
 - [ ] Community feedback collection and issue tracking
 - [ ] Performance optimization for large-scale deployments
 - [ ] Extended documentation for self-hosting
 
-#### 6. Additional Integrations
+#### 8. Additional Integrations
 - [ ] Additional language packs (community contributions welcome)
 - [ ] Webhook support for external automation
 - [ ] Enhanced calendar integrations
@@ -143,10 +149,9 @@ We welcome community input! If you have feature requests or suggestions:
 |-------|----------|-------|
 | **Alpha** | 2024 – Q1 2025 | Core functionality, foundation |
 | **Beta 0.1.0-beta.1** | 2025-02-24 | Initial public beta — all poll types, auth, Docker |
-| **Beta 0.1.0-beta.2** | 2026-04-10 | AI integration, schedule improvements, notification fixes |
-| **Beta 0.1.0-beta.3** | 2026-06-22 | Favicon, footer/copyright, Docker HTTP cookie fix, KISSKI admin block |
+| **Beta 0.1.0-beta.2** | 2026-08-22 | AI, schedule, notification, branding and Docker improvements; guest-access controls and administrator MFA policy |
 | **Version 1.0** | Target: H2 2026 | European DC support, enterprise features |
 
 ---
 
-*Last updated: June 2026*
+*Last updated: August 2026*

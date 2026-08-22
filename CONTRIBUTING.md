@@ -275,28 +275,29 @@ describe('Feature/Component Name', () => {
 
 ### Branch-Strategie
 
-Polly nutzt einen klassischen Release-Branch-Workflow:
+Der aktuelle öffentliche Beta-Stand wird vom freigegebenen Beta-Branch aus erstellt:
 
 | Branch | Zweck |
 |--------|-------|
-| `main` | Nur getaggte stabile Releases. Keine direkten Commits. |
-| `release` | Integrationsbranch für die nächste Version. **PRs immer hierhin.** |
-| `feature/<name>` | Dein Feature-Branch, abgezweigt von `release`. |
+| `main` | Upstream für stabile Releases; wird nicht als Teil eines Beta-Releases geändert. |
+| `feature/guest-access-control` | Freigegebener Branch für den aktuellen Beta-Stand und dessen Release-Tag. |
+| `feature/<name>` | Dein Feature-Branch, abgezweigt vom aktuell freigegebenen Beta-Branch. |
 
 **Workflow:**
 
 ```bash
-# Aktuellen release-Stand holen
-git fetch origin release
-git checkout -b feature/mein-feature origin/release
+# Aktuellen Beta-Stand holen
+git fetch origin feature/guest-access-control
+git checkout -b feature/mein-feature origin/feature/guest-access-control
 
 # … arbeiten, committen …
 
 git push origin feature/mein-feature
-# PR auf GitHub gegen Branch `release` öffnen
+# PR auf GitHub gegen den für die nächste Version vereinbarten Branch öffnen
 ```
 
-Maintainer kümmern sich um den Merge `release → main` und das Tagging am Release-Tag.
+Maintainer entscheiden den Zielbranch und erstellen den Release-Tag erst nach
+erfolgreichen Prüfungen.
 
 ### Vor dem Einreichen
 

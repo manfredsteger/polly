@@ -19,17 +19,21 @@ This guide covers deploying Polly on your own infrastructure, including universi
 ## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/manfredsteger/polly.git
+# Download the pinned release configuration and create your local settings
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
+cp .env.example .env
+# Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD in .env
 
-# Start with zero configuration
-docker compose up -d
+# Start the public beta image
+docker compose -f docker-compose.image.yml up -d
 
 # Open http://localhost:3080
 ```
 
-That's it! The application auto-configures PostgreSQL and applies the database schema on first start.
+The application auto-configures PostgreSQL and applies the database schema on first start.
+Use the versioned image tag in `docker-compose.image.yml` for reproducible
+deployments. The moving `:beta` tag is suitable for evaluation only.
 
 ---
 
@@ -57,11 +61,24 @@ That's it! The application auto-configures PostgreSQL and applies the database s
 Best for: Small to medium deployments, quick evaluation
 
 ```bash
-# Production with custom settings
+# Source checkout: production with custom settings
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
+cd polly
 cp .env.example .env
 nano .env  # Configure your settings
 
 docker compose up -d
+```
+
+For the published Docker image (without a local source checkout), use
+`docker-compose.image.yml` from this repository:
+
+```bash
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
+cd polly
+cp .env.example .env
+# Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD to strong values
+docker compose -f docker-compose.image.yml up -d
 ```
 
 ### Option 2: Docker with External Database
@@ -69,17 +86,55 @@ docker compose up -d
 Best for: Organizations with existing PostgreSQL infrastructure
 
 ```bash
-# Use external database
+# Preferred: use the pinned image Compose file without a bundled PostgreSQL container
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
+cd polly
+cp .env.example .env
+# Set DATABASE_URL, SESSION_SECRET and ADMIN_PASSWORD in .env
+docker compose -f docker-compose.image.external-db.yml up -d
+
+# Alternatively, run the container directly
 docker run -d \
   --name polly \
   -p 3080:5000 \
   -e DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly \
   -e SESSION_SECRET=your-secure-secret \
   -v polly-uploads:/app/uploads \
-  polly:latest
+  manfredsteger/polly:0.1.0-beta.2
 ```
 
-### Option 3: Kubernetes / Helm
+### Option 3: Portainer
+
+On an x86_64 or ARM64 host, create a **Stack** in Portainer and point it to the
+`v0.1.0-beta.2` release's `docker-compose.image.yml`, or paste its contents into the web
+editor. Add the following environment values in Portainer's stack settings
+before deploying:
+
+```dotenv
+POSTGRES_PASSWORD=use-a-long-random-password
+SESSION_SECRET=use-openssl-rand-base64-32
+ADMIN_PASSWORD=choose-a-unique-admin-password
+APP_URL=https://poll.example.com
+```
+
+Portainer stores named volumes declared by the stack. Do not remove
+`postgres_data` or `uploads_data` when updating the stack.
+
+### Option 4: Synology Container Manager
+
+1. In **Container Manager → Project**, create a project and import
+   `docker-compose.image.yml` from the `v0.1.0-beta.2` release.
+2. Create a `.env` file next to it containing the four variables shown in the
+   Portainer example.
+3. Deploy the project, then open `http://<nas-hostname>:3080`.
+4. For external access, place the project behind Synology's reverse proxy,
+   set `APP_URL` to the public HTTPS address, and set `FORCE_HTTPS=true`.
+
+The release image is built for both `linux/amd64` and `linux/arm64`. Check the
+CPU architecture of older Synology models before deploying; unsupported
+architectures cannot run the prebuilt image.
+
+### Option 5: Kubernetes / Helm
 
 Best for: Large-scale enterprise deployments
 
@@ -124,7 +179,7 @@ spec:
           claimName: polly-uploads
 ```
 
-### Option 4: Manual Deployment
+### Option 6: Manual Deployment
 
 Best for: Development, special requirements
 
@@ -229,6 +284,17 @@ When running via Docker, the admin account is automatically created or updated o
 | `MFA_ADMIN_REQUIRED` | Emergency override: set to `false` to disable the admin MFA requirement at the server level, overriding the database setting. Useful when all admin accounts have lost their authenticator app. Remove or leave unset to use the value configured in the admin panel. | *(unset)* |
 
 > **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
+
+### Guest Access & Administrator MFA
+
+The Admin Panel can independently allow or block guest poll creation and guest
+voting. Disabling guest voting prevents new guest votes and changes to existing
+guest votes, while public poll links remain viewable.
+
+When the administrator MFA policy is enabled, admins without MFA are prompted
+to enroll before they can continue. `MFA_ADMIN_REQUIRED=false` is deliberately
+an emergency-only deployment override: remove it after recovering administrator
+access so the policy configured in the Admin Panel takes effect again.
 
 ### HTTPS / Secure Cookies
 

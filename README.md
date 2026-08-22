@@ -1,7 +1,7 @@
 # Polly 🗳️
 
 [![Build Status](https://github.com/manfredsteger/polly/actions/workflows/ci.yml/badge.svg)](https://github.com/manfredsteger/polly/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.0--beta.3-blueviolet.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.0--beta.2-blueviolet.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/)
@@ -18,7 +18,7 @@ A modern, self-hosted polling and scheduling platform for teams. Create surveys,
 
 ```bash
 # Clone & Start - No configuration needed!
-git clone https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 docker compose up -d
 
@@ -147,6 +147,7 @@ make complete
 
 - **Multi-Language Support**: Full German (de) and English (en) interface with automatic browser detection. Easily extensible—add new languages by creating a translation JSON file in `client/src/locales/`
 - **Anonymous & Authenticated Voting**: Works for guests and registered users
+- **Guest Access Controls**: Administrators can separately enable or disable guest poll creation and guest voting without disabling public poll links
 - **Real-Time Updates**: Live voting with WebSocket connections and fullscreen presentation mode
 - **Email Notifications**: Vote confirmation, edit links, and expiry reminders via email
 - **Matrix Results View**: Visual participant × options grid with color-coded responses
@@ -164,6 +165,7 @@ make complete
 - **Local Login**: Email/password for registered users
 - **Keycloak OIDC**: Enterprise SSO integration (optional)
 - **Role-Based Access**: User, Admin, Manager roles
+- **Admin MFA Policy**: Require MFA for administrator accounts, with an emergency deployment override for account-recovery incidents
 
 ## 🚀 Detailed Setup
 
@@ -171,7 +173,7 @@ make complete
 
 ```bash
 # Clone the repository
-git clone https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 
 # Copy and customize environment
@@ -190,7 +192,7 @@ docker compose up -d
 # Prerequisites: Node.js 22 LTS, PostgreSQL 15+
 
 # Clone and install
-git clone https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 npm install
 
@@ -287,6 +289,7 @@ These values can also be edited from the Admin Panel after first start. When set
 | `LOGO_URL` | Public URL of the site logo | `https://example.com/logo.png` |
 | `PRIMARY_COLOR` | Primary brand colour (hex) | `#F97316` |
 | `POLLY_COPYRIGHT_TEXT` | Footer copyright text. Limited HTML supported (links, basic markup). When set, the admin field is locked. | `© 2026 My Org` |
+| `MFA_ADMIN_REQUIRED` | Emergency override: set to `false` to temporarily bypass the admin MFA setting during an account-recovery incident. Remove or leave unset to use the admin-panel setting. | — |
 
 ### Docker / Initial Admin — Optional
 
@@ -465,11 +468,14 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 The official image is published as `manfredsteger/polly` on Docker Hub:
 
 ```bash
-# Latest beta tag
+# Latest beta tag (evaluation)
 docker pull manfredsteger/polly:beta
 
 # Specific version (recommended for production)
-docker pull manfredsteger/polly:0.1.0-beta.3
+docker pull manfredsteger/polly:0.1.0-beta.2
+
+# Start the pinned image with PostgreSQL (Portainer/Synology compatible)
+docker compose -f docker-compose.image.yml up -d
 ```
 
 See [`docs/SELF-HOSTING.md`](docs/SELF-HOSTING.md) for production deployment instructions.
@@ -519,7 +525,8 @@ Polly is currently in **Beta Phase** (Q1 2025 – Q2 2026). Our focus areas:
 | 🤖 | **AI Voice & Agentic Poll Creation** – GWDG KISSKI Free Tier, Whisper STT | ✅ Released (beta.2) |
 | 🗓️ | **Schedule Poll Enhancements** – video conf URL, ICS labels, finalize UX | ✅ Released (beta.2) |
 | ✉️ | **Notifications** – End-Poll mails for all poll types, voter cancellation | ✅ Released (beta.2) |
-| 🐳 | **Docker Zero-Config** – fixed plain-HTTP cookie regression | ✅ Released (beta.3) |
+| 🛡️ | **Guest Access & Admin MFA** – separate guest policies plus a recoverable MFA requirement | ✅ Released (beta.2) |
+| 🐳 | **Docker Zero-Config** – fixed plain-HTTP cookie regression | ✅ Released (beta.2) |
 | 🔐 | **Keycloak SSO (OIDC)** – Enterprise single sign-on, full E2E coverage | In Progress |
 | 🔌 | **OpenAI-Compatible Provider Slots** – swap in custom inference endpoints | Planned (1.0) |
 | 💬 | **Matrix / Element Chatbot** – manage polls from Matrix chat | Planned (1.0) |
@@ -562,26 +569,28 @@ KISSKI is a BMBF-funded AI service center operated by the GWDG, providing free A
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
 | [SECURITY.md](SECURITY.md) | Security policy and vulnerability reporting |
 | [docs/openapi.yaml](docs/openapi.yaml) | OpenAPI 3.0 API specification |
-| [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) | Production deployment guide |
+| [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) | Production deployment guide (Docker, Portainer, Synology, reverse proxy) |
+| [docker-compose.image.yml](docker-compose.image.yml) | Pinned public Docker image with PostgreSQL |
+| [docker-compose.image.external-db.yml](docker-compose.image.external-db.yml) | Pinned public Docker image for an external PostgreSQL database |
 | [docs/FLUTTER_INTEGRATION.md](docs/FLUTTER_INTEGRATION.md) | Mobile app integration guide |
 
 ## 👥 Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
-**Branch strategy:**
+**Current beta branch:**
 
-- `main` – tagged stable releases only
-- `release` – integration branch for the next release; **PRs should target `release`**
-- `feature/<name>` – your topic branch, branched off `release`
+- `feature/guest-access-control` – source branch for the current public beta and its release tag
+- `main` – upstream stable branch; it is not changed as part of this beta release
+- `feature/<name>` – topic branches for future work
 
 Quick steps:
 
 1. Fork the repository and clone your fork
-2. Create a feature branch off `release`: `git checkout -b feature/amazing-feature release`
+2. Create a feature branch from the current beta branch: `git checkout -b feature/amazing-feature origin/feature/guest-access-control`
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to your fork (`git push origin feature/amazing-feature`)
-5. Open a Pull Request **against `release`**
+5. Open a Pull Request against the branch agreed for the next release
 
 ### Development Guidelines
 

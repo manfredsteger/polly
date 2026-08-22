@@ -1,7 +1,7 @@
 # Polly - Open-Source Polling & Scheduling Platform
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/manfredsteger/polly)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/manfredsteger/polly/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.2/LICENSE)
 
 **Self-hosted Doodle/Calendly alternative** for teams who need GDPR-compliant, cloud-independent coordination tools.
 
@@ -11,12 +11,21 @@
 docker pull manfredsteger/polly:beta
 
 # Option 1: Docker Compose (recommended)
-git clone https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
-docker compose up -d
+cp .env.example .env
+# Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD to strong values
+docker compose -f docker-compose.image.yml up -d
 # Open http://localhost:3080
 
-# Option 2: Docker Run with external database
+# Option 2: Docker Compose with an external database
+git clone --branch v0.1.0-beta.2 --depth 1 https://github.com/manfredsteger/polly.git
+cd polly
+cp .env.example .env
+# Set DATABASE_URL, SESSION_SECRET and ADMIN_PASSWORD in .env
+docker compose -f docker-compose.image.external-db.yml up -d
+
+# Option 3: Docker Run with external database
 docker run -d \
   --name polly \
   -p 3080:5000 \
@@ -24,7 +33,7 @@ docker run -d \
   -e SESSION_SECRET=$(openssl rand -base64 32) \
   -e APP_URL=http://localhost:3080 \
   -v polly-uploads:/app/uploads \
-  manfredsteger/polly:beta
+  manfredsteger/polly:0.1.0-beta.2
 ```
 
 **Default Admin Login:** `admin` / `Admin123!`
@@ -51,7 +60,7 @@ docker run -d \
 | `manfredsteger/polly:latest` | Latest stable release |
 | `manfredsteger/polly:beta` | Latest beta release |
 | `manfredsteger/polly:rc` | Latest release candidate |
-| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.3`) |
+| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.2`) |
 
 ## Environment Variables
 
@@ -74,6 +83,7 @@ docker run -d \
 | `ADMIN_PASSWORD` | Initial admin password | `Admin123!` |
 | `ADMIN_EMAIL` | Admin email address | `admin@polly.local` |
 | `SEED_DEMO_DATA` | Load demo data on first start | `false` |
+| `MFA_ADMIN_REQUIRED` | Set to `false` only to temporarily bypass the admin MFA setting during authenticator recovery. Remove or leave unset to use the admin-panel setting. | — |
 
 > **Legacy aliases:** `BASE_URL`, `VITE_APP_URL` are supported as backward-compatible aliases for `APP_URL`.
 
@@ -99,7 +109,7 @@ These values can also be edited from the Admin Panel after first start. When set
 | `SMTP_PORT` | SMTP port | `587` |
 | `SMTP_USER` | SMTP username | — |
 | `SMTP_PASSWORD` | SMTP password | — |
-| `EMAIL_FROM` | Sender address | `noreply@localhost` |
+| `FROM_EMAIL` | Sender address | `noreply@localhost` |
 
 ### Keycloak SSO (Optional)
 
@@ -134,7 +144,7 @@ docker compose --profile clamav up -d
 
 ## Docker Compose
 
-The included `docker-compose.yml` provides a zero-config setup with PostgreSQL:
+`docker-compose.image.yml` starts the pinned public image together with PostgreSQL:
 
 ```yaml
 services:
@@ -144,7 +154,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   app:
-    image: manfredsteger/polly:beta
+    image: manfredsteger/polly:0.1.0-beta.2
     ports:
       - "3080:5000"
     volumes:
@@ -158,7 +168,12 @@ volumes:
   uploads_data:
 ```
 
-Docker Compose auto-configures `DATABASE_URL`, `SESSION_SECRET`, `APP_URL`, and all other environment variables with sensible defaults.
+Set `POSTGRES_PASSWORD`, `SESSION_SECRET`, and `ADMIN_PASSWORD` in `.env`
+before starting. Use the pinned version tag for production; `:beta` intentionally
+advances to the newest beta release.
+
+The release image supports `linux/amd64` and `linux/arm64`, making it suitable
+for compatible x86_64 and ARM64 Portainer or Synology Container Manager hosts.
 
 ## Data Persistence
 
@@ -176,11 +191,11 @@ curl http://localhost:3080/api/v1/health
 
 ## Documentation
 
-- [Self-Hosting Guide](https://github.com/manfredsteger/polly/blob/main/docs/SELF-HOSTING.md) — Full deployment instructions, reverse proxy, backups
+- [Self-Hosting Guide](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.2/docs/SELF-HOSTING.md) — Full deployment instructions, reverse proxy, backups
 - [Release Notes](https://github.com/manfredsteger/polly/releases) — Changelog and download links
-- [Flutter Integration](https://github.com/manfredsteger/polly/blob/main/docs/FLUTTER_INTEGRATION.md) — Mobile app API documentation
-- [OpenAPI Spec](https://github.com/manfredsteger/polly/blob/main/docs/openapi.yaml) — Complete API reference
+- [Flutter Integration](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.2/docs/FLUTTER_INTEGRATION.md) — Mobile app API documentation
+- [OpenAPI Spec](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.2/docs/openapi.yaml) — Complete API reference
 
 ## License
 
-Polly is open-source software licensed under the [MIT License](https://github.com/manfredsteger/polly/blob/main/LICENSE).
+Polly is open-source software licensed under the [MIT License](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.2/LICENSE).

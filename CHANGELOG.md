@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0-beta.3] - 2026-06-22
+## [0.1.0-beta.2] - 2026-08-22
 
 ### Added
+
+#### Guest Access & Admin Security
+- **Guest access controls**: Administrators can independently allow or disable guest poll creation and guest voting from the admin settings.
+- **Guest poll creation protection**: The guest-creation policy covers both the standard poll form and AI-assisted poll creation.
+- **Guest voting protection**: Disabling guest voting also blocks guest vote edits and withdrawals while keeping public poll links readable.
+- **Admin MFA policy**: Optional server-wide requirement for administrator MFA, with a pre-activation warning and MFA coverage indicator in the admin panel.
+- **MFA emergency override**: `MFA_ADMIN_REQUIRED=false` lets self-hosters recover access without changing the database setting when administrator authenticators are unavailable.
+
+#### Branding
 - **Branding**: Favicon upload directly in the admin panel and `FAVICON_URL` ENV-Var support
 - **Footer**: New rich default footer with MIT-License link, GitHub repository icon and "Made in Bayern" tagline
 - **Footer**: `POLLY_COPYRIGHT_TEXT` ENV-Var locks the copyright line and disables the form field in the admin panel
@@ -25,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README roadmap section synchronised with `ROADMAP.md` (Beta runs Q1 2025 – Q2 2026, AI/Voice Control + OpenAI-compatible API marked as done)
 - Project structure section updated to reflect the modular `server/routes/` layout
 - New `Branding (ENV)` section in README and `.env.example` covering `SITE_NAME`, `SITE_NAME_ACCENT`, `FAVICON_URL`, `LOGO_URL`, `PRIMARY_COLOR`, `POLLY_COPYRIGHT_TEXT`
-- Contributing guide clarifies the branch strategy: PRs target `release`, never `main` directly
+ - Release and self-hosting documentation now reflects the public `feature/guest-access-control` beta branch, Docker tags, guest access controls, and the administrator MFA override.
 
 ### Tests
 - `packageMeta.test.ts` — guards `name` and `version` in `package.json`
@@ -38,9 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0-beta.2] - 2026-04-10
-
-### Added
+### Previously prepared beta.2 features
 
 #### AI-Powered Poll Creation (GWDG KISSKI Integration)
 - AI assistant for poll creation via natural language input (German & English)
@@ -192,13 +199,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 0.1.0-beta.3 | 2026-06-22 | Favicon upload, rich footer, Docker HTTP cookie fix, KISSKI admin block |
-| 0.1.0-beta.2 | 2026-04-10 | AI integration, schedule improvements, notification fixes |
+| 0.1.0-beta.2 | 2026-08-22 | Guest access controls, administrator MFA policy, AI integration, branding, Docker reliability, and notification improvements |
 | 0.1.0-beta.1 | 2025-02-24 | Initial beta release |
 
 ---
 
-[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.3...HEAD
-[0.1.0-beta.3]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.2...v0.1.0-beta.3
+[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.2...HEAD
 [0.1.0-beta.2]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/manfredsteger/polly/releases/tag/v0.1.0-beta.1

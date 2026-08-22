@@ -18,7 +18,7 @@ let _domPurify: ReturnType<typeof createDOMPurify> | null = null;
 function getDOMPurify(): ReturnType<typeof createDOMPurify> {
   if (!_domPurify) {
     const { window } = new JSDOM('');
-    const purify = createDOMPurify(window as unknown as Window);
+    const purify = createDOMPurify(window as unknown as Parameters<typeof createDOMPurify>[0]);
 
     purify.addHook('afterSanitizeAttributes', (node: Element) => {
       for (const attr of ['href', 'xlink:href', 'src', 'action']) {
@@ -137,7 +137,7 @@ export function validateImageMagicBytes(buffer: Buffer): boolean {
 
 export async function reencodeImage(buffer: Buffer): Promise<{ buffer: Buffer; ext: string } | null> {
   try {
-    const instance = sharp(buffer, { failOnError: true });
+    const instance = sharp(buffer);
     const { format } = await instance.metadata();
 
     if (!format) return null;
@@ -148,7 +148,6 @@ export async function reencodeImage(buffer: Buffer): Promise<{ buffer: Buffer; e
     }
 
     const reencoded = await instance
-      .withMetadata(false)
       .toFormat(mapping.format)
       .toBuffer();
 

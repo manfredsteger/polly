@@ -33,12 +33,12 @@ git branch  # → muss "feature/guest-access-control" zeigen
 
 # 2. CHANGELOG.md abschließen und Paketversion setzen
 git add CHANGELOG.md
-git commit -m "chore: prepare v0.1.0-beta.2 release"
+git commit -m "chore: prepare v0.1.0-beta.3 release"
 git push origin feature/guest-access-control
 
 # 3. Tag auf dem geprüften Beta-Commit erstellen und pushen → Pipeline startet
-git tag -a v0.1.0-beta.2 -m "Beta Release 0.1.0-beta.2"
-git push origin v0.1.0-beta.2
+git tag -a v0.1.0-beta.3 -m "Beta Release 0.1.0-beta.3"
+git push origin v0.1.0-beta.3
 ```
 
 ### Was die Pipeline macht
@@ -55,7 +55,7 @@ Je nach Versionstyp werden automatisch zusätzliche Tags gesetzt:
 
 | Version | Image Tags |
 |---------|-----------|
-| `v0.1.0-beta.2` | `manfredsteger/polly:0.1.0-beta.2` + `manfredsteger/polly:beta` |
+| `v0.1.0-beta.3` | `manfredsteger/polly:0.1.0-beta.3` + `manfredsteger/polly:beta` |
 | `v0.1.0-rc.1` | `manfredsteger/polly:0.1.0-rc.1` + `manfredsteger/polly:rc` |
 | `v1.0.0` | `manfredsteger/polly:1.0.0` + `manfredsteger/polly:latest` |
 
@@ -69,11 +69,11 @@ docker login
 
 # Image bauen und pushen
 make release
-# → Fragt nach der Version (z.B. 0.1.0-beta.2)
+# → Fragt nach der Version (z.B. 0.1.0-beta.3)
 # → Baut, taggt und pusht automatisch
 
 # Oder mit expliziter Version:
-IMAGE_TAG=0.1.0-beta.2 make publish
+IMAGE_TAG=0.1.0-beta.3 make publish
 ```
 
 ---
@@ -89,7 +89,7 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 ### Aktuelle Versionsfolge
 
 ```
-0.1.0-beta.1  →  0.1.0-beta.2  →  ...  →  0.1.0-rc.1  →  0.1.0
+0.1.0-beta.1  →  0.1.0-beta.2  →  0.1.0-beta.3  →  ...  →  0.1.0-rc.1  →  0.1.0
 ```
 
 ---
@@ -104,7 +104,7 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 - [ ] Docker Build funktioniert lokal (`make build`)
 - [ ] `CHANGELOG.md` abgeschlossen (`[Unreleased]` → `[x.y.z] - YYYY-MM-DD`, Version-History-Tabelle aktualisiert)
 - [ ] `ROADMAP.md` aktuell (neue Features eingetragen, Release-Timeline ergänzt)
-- [ ] `package.json` Version gesetzt (z.B. `0.1.0-beta.2`)
+- [ ] `package.json` Version gesetzt (z.B. `0.1.0-beta.3`)
 - [ ] `SELF-HOSTING.md` aktuell
 - [ ] `DOCKERHUB.md` aktuell (Versions-Tag-Beispiel, ENV-Vars)
 - [ ] Tag auf dem freigegebenen Beta-Commit erstellt und gepusht

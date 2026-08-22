@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.3] - 2026-08-22
+
+### Fixed
+- **Image uploads**: A valid image signature is no longer reported as an invalid file type when image re-encoding fails later in processing. This keeps upload validation feedback accurate across supported Sharp environments.
+
 ## [0.1.0-beta.2] - 2026-08-22
 
 ### Added
@@ -199,11 +204,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 0.1.0-beta.3 | 2026-08-22 | Public beta release with corrected image-upload error classification |
 | 0.1.0-beta.2 | 2026-08-22 | Guest access controls, administrator MFA policy, AI integration, branding, Docker reliability, and notification improvements |
 | 0.1.0-beta.1 | 2025-02-24 | Initial beta release |
 
 ---
 
-[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.2...HEAD
+[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.3...HEAD
+[0.1.0-beta.3]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.2...v0.1.0-beta.3
 [0.1.0-beta.2]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/manfredsteger/polly/releases/tag/v0.1.0-beta.1

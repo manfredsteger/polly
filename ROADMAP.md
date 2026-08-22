@@ -38,7 +38,7 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [ ] Session synchronization with identity provider
 - [ ] Documentation for enterprise SSO setup
 
-#### 2. AI-Powered Poll Creation & Voice Control (GWDG KISSKI Integration) ✅ *Released in beta.2*
+#### 2. AI-Powered Poll Creation & Voice Control (GWDG KISSKI Integration) ✅ *Released in beta.3*
 - [x] Integration with [GWDG KISSKI](https://kisski.gwdg.de) AI services
 - [x] **Free Tier included** for all Polly installations
 - [x] Voice-controlled poll creation with speech-to-text (GWDG Whisper API)
@@ -49,21 +49,21 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [x] AI rate limiting (configurable guest/user limits via admin panel)
 - [x] OpenAI-compatible provider support for custom deployments
 
-#### 3. Schedule Poll Enhancements ✅ *Released in beta.2*
+#### 3. Schedule Poll Enhancements ✅ *Released in beta.3*
 - [x] Video conference URL field (optional, shown in emails and ICS)
 - [x] Chronological date sorting in finalization view
 - [x] Finalize button visible on best-voted option
 - [x] Labeled voting links in calendar event descriptions
 - [x] CANCELLED events removed from ICS exports
 
-#### 4. Notification Improvements ✅ *Released in beta.2*
+#### 4. Notification Improvements ✅ *Released in beta.3*
 - [x] End Poll notifications for all poll types (not just Schedule)
 - [x] Survey finalization email shows winning option text
 - [x] Organization poll "End Poll" email shows slot summary
 - [x] Creator always included in finalization email recipients
 - [x] Frontend "End Poll" notify toggle wired to backend
 
-#### 5. Branding & Stability ✅ *Released in beta.2*
+#### 5. Branding & Stability ✅ *Released in beta.3*
 - [x] Favicon upload in admin panel + `FAVICON_URL` ENV-Var support
 - [x] Rich default footer (MIT-License link, GitHub icon, "Made in Bayern" tagline)
 - [x] `POLLY_COPYRIGHT_TEXT` ENV-Var locks the copyright line (admin field becomes read-only)
@@ -71,7 +71,7 @@ The beta phase focuses on enterprise readiness, AI integration, and community fe
 - [x] KISSKI service-partner block in Admin AI Settings (logo, GDPR notice, contact link)
 - [x] **Docker HTTP cookie fix**: Session cookie no longer marked `Secure` on plain-HTTP deployments — login works reliably on `http://localhost:3080` without HTTPS
 
-#### 6. Guest Access & Administrator Security ✅ *Released in beta.2*
+#### 6. Guest Access & Administrator Security ✅ *Released in beta.3*
 - [x] Separate admin settings for guest poll creation and guest voting
 - [x] Guest voting policy also protects vote changes and withdrawals
 - [x] Optional MFA requirement for administrators with coverage visibility before activation
@@ -149,7 +149,8 @@ We welcome community input! If you have feature requests or suggestions:
 |-------|----------|-------|
 | **Alpha** | 2024 – Q1 2025 | Core functionality, foundation |
 | **Beta 0.1.0-beta.1** | 2025-02-24 | Initial public beta — all poll types, auth, Docker |
-| **Beta 0.1.0-beta.2** | 2026-08-22 | AI, schedule, notification, branding and Docker improvements; guest-access controls and administrator MFA policy |
+| **Beta 0.1.0-beta.2** | 2026-08-22 | Release validation failed; no public Docker image or GitHub pre-release was created |
+| **Beta 0.1.0-beta.3** | 2026-08-22 | Public beta: AI, schedule, notification, branding and Docker improvements; guest-access controls and administrator MFA policy |
 | **Version 1.0** | Target: H2 2026 | European DC support, enterprise features |
 
 ---

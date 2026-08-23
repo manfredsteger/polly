@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.4] - 2026-08-23
+
+### Fixed
+- **Image uploads (branding & polls)**: A stale persisted scanner setting could keep blocking uploads even though `CLAMAV_ENABLED=false` was set at runtime, returning `503` for valid images. Explicit, non-empty ClamAV environment values (`CLAMAV_ENABLED`, `CLAMAV_HOST`, `CLAMAV_PORT`) now take precedence over the stored admin configuration; without them the admin panel remains authoritative.
+- **Upload security hardening**: Scanner, connection and configuration errors stay fail-secure. When scanning is effectively enabled — or its admin-managed state cannot be read — uploads are blocked instead of silently allowed.
+- **Survey voting**: Submitting a vote no longer requires a second click. The submit button is no longer disabled by the background email check triggered when leaving the email field, and duplicate submissions during an in-flight vote are prevented.
+- **MFA enforcement**: An admin with an enrolled authenticator app is now always challenged for a TOTP code after password or Keycloak browser login, even when the server-wide admin MFA setup policy is disabled. `MFA_ADMIN_REQUIRED=false` remains an emergency recovery override only.
+
+### Changed
+- **Docker Compose**: ClamAV environment variables are passed through empty when unset instead of exporting defaults, so admin-managed scanner settings are no longer unintentionally overridden by Compose. The documented ClamAV service host for the Compose profile is `clamav`.
+
 ## [0.1.0-beta.3] - 2026-08-22
 
 ### Fixed

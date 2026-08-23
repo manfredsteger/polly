@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import sharp from 'sharp';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { storage } from '../../storage';
@@ -168,6 +169,57 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
       } finally {
         if (previousEnabled === undefined) delete process.env.CLAMAV_ENABLED;
         else process.env.CLAMAV_ENABLED = previousEnabled;
+      }
+    });
+
+    it('uploads a valid PNG when CLAMAV_ENABLED=false overrides a stale enabled configuration', async () => {
+      await storage.setSetting({
+        key: 'clamav_config',
+        value: {
+          enabled: true,
+          host: '127.0.0.1',
+          port: TEST_SENTINEL_PORT,
+          timeout: 3000,
+          maxFileSize: 25 * 1024 * 1024,
+        },
+      });
+
+      const previousEnabled = process.env.CLAMAV_ENABLED;
+      process.env.CLAMAV_ENABLED = 'false';
+      const { clamavService } = await import('../../services/clamavService');
+      clamavService.clearConfigCache();
+
+      let imageUrl: string | undefined;
+      try {
+        // A complete, decodable PNG. Generate it with the same library used
+        // in production so this test exercises the full upload route rather
+        // than failing because of a truncated fixture.
+        const validPng = await sharp({
+          create: {
+            width: 1,
+            height: 1,
+            channels: 4,
+            background: { r: 18, g: 52, b: 86, alpha: 1 },
+          },
+        }).png().toBuffer();
+        const response = await request(app)
+          .post('/api/v1/upload/image')
+          .attach('image', validPng, {
+            filename: 'valid-upload.png',
+            contentType: 'image/png',
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.imageUrl).toMatch(/^\/uploads\/poll-image-.+\.png$/);
+        imageUrl = response.body.imageUrl;
+      } finally {
+        if (imageUrl) {
+          const { imageService } = await import('../../services/imageService');
+          await imageService.deleteImage(imageUrl);
+        }
+        if (previousEnabled === undefined) delete process.env.CLAMAV_ENABLED;
+        else process.env.CLAMAV_ENABLED = previousEnabled;
+        clamavService.clearConfigCache();
       }
     });
 

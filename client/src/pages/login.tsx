@@ -25,6 +25,14 @@ function readRedirectFromSearch(): string | null {
   return isSafeRedirectPath(redirect) ? redirect : null;
 }
 
+function readMfaStepFromSearch(): MfaStep {
+  return new URLSearchParams(window.location.search).get('mfa') === 'verify'
+    ? 'verify'
+    : 'none';
+}
+
+type MfaStep = 'none' | 'verify' | 'setup-forced';
+
 function useParseErrorMessage() {
   const { t } = useTranslation();
   
@@ -90,8 +98,7 @@ export default function Login() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
-  type MfaStep = 'none' | 'verify' | 'setup-forced';
-  const [mfaStep, setMfaStep] = useState<MfaStep>('none');
+  const [mfaStep, setMfaStep] = useState<MfaStep>(readMfaStepFromSearch);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaQrDataUrl, setMfaQrDataUrl] = useState('');
   const [mfaManualKey, setMfaManualKey] = useState('');

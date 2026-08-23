@@ -18,7 +18,10 @@ import { registrationRateLimiter, passwordResetRateLimiter } from "../services/a
 import bcrypt from 'bcryptjs';
 import { validatePasswordAgainstPolicy } from "../lib/passwordPolicy";
 import { generateTotpSecret, generateTotpQrCode, verifyTotpToken } from "../lib/totpService";
-import { getEffectiveAdminMfaRequired } from "../lib/mfaPolicy";
+import {
+  getEffectiveAdminMfaRequired,
+  requiresTotpChallenge,
+} from "../lib/mfaPolicy";
 
 const router = Router();
 
@@ -297,11 +300,13 @@ router.post('/login', async (req, res) => {
     const loginCustomization = await storage.getCustomizationSettings();
     const adminMfaRequired = getEffectiveAdminMfaRequired(loginCustomization.mfa?.adminMfaRequired ?? false);
 
-    // When the emergency env-var override (MFA_ADMIN_REQUIRED=false) is active,
-    // admin accounts bypass both the TOTP challenge AND the setup requirement,
-    // enabling recovery when all admins have lost their authenticator app.
-    const mfaRequiredForThisUser =
-      user.totpEnabled && (user.role !== 'admin' || adminMfaRequired);
+    // An enrolled MFA factor must always be challenged. The organisation policy
+    // controls whether unenrolled admins are forced to set MFA up; it must not
+    // silently turn an enrolled admin's MFA into password-only login.
+    //
+    // MFA_ADMIN_REQUIRED=false is the sole break-glass exception for admins who
+    // have lost their authenticator app.
+    const mfaRequiredForThisUser = requiresTotpChallenge(user);
 
     if (mfaRequiredForThisUser) {
       // MFA configured → pending step
@@ -796,11 +801,33 @@ router.get('/keycloak/callback', async (req, res) => {
       !req.session.keycloakReturnTo.startsWith('//')
         ? req.session.keycloakReturnTo
         : '/';
+
+    // Keycloak proves the primary identity, but it must not bypass an app-level
+    // TOTP factor that the user already enrolled. Keep the documented
+    // MFA_ADMIN_REQUIRED=false break-glass exception limited to administrators.
+    const requiresMfaChallenge = requiresTotpChallenge(user);
+    const mfaLoginUrl =
+      keycloakReturnTo === '/'
+        ? '/anmelden?mfa=verify'
+        : `/anmelden?mfa=verify&redirect=${encodeURIComponent(keycloakReturnTo)}`;
+
     req.session.regenerate((err) => {
       if (err) {
         console.error('Session regeneration error:', err);
         return res.redirect('/?error=session_error');
       }
+
+      if (requiresMfaChallenge) {
+        req.session.pendingMfaUserId = keycloakUserId;
+        return req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('Session save error:', saveErr);
+            return res.redirect('/?error=session_error');
+          }
+          return res.redirect(mfaLoginUrl);
+        });
+      }
+
       req.session.userId = keycloakUserId;
       req.session.lastActivity = Date.now();
       req.session.save((saveErr) => {

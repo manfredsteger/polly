@@ -154,6 +154,91 @@ describe('MFA_ADMIN_REQUIRED env-var override', () => {
     }
   });
 
+  it('requires TOTP for an enrolled admin even when the admin-wide setup policy is off', async () => {
+    const username = `mfa_admin_login_${Date.now()}`;
+    const password = 'TestPass123!';
+    const registrationAgent = request.agent(app);
+    const regRes = await registrationAgent
+      .post('/api/v1/auth/register')
+      .set('x-test-meta', JSON.stringify({ isTestData: true }))
+      .send({
+        username,
+        email: `${username}@test.example`,
+        name: 'Enrolled Admin Tester',
+        password,
+      });
+    expect(regRes.status).toBeGreaterThanOrEqual(200);
+    const userId: number = regRes.body.user.id;
+    createdUserIds.push(userId);
+    await storage.updateUser(userId, {
+      role: 'admin',
+      emailVerified: true,
+      totpEnabled: true,
+      totpSecret: 'TESTSECRET234567',
+    } as any);
+
+    // The policy controls forced setup for unenrolled admins, not whether an
+    // already-enrolled admin can bypass their own MFA factor.
+    await adminAgent
+      .put('/api/v1/admin/customization')
+      .send({ mfa: { adminMfaRequired: false } });
+
+    try {
+      const freshBrowser = request.agent(app);
+      const loginRes = await freshBrowser
+        .post('/api/v1/auth/login')
+        .send({ usernameOrEmail: username, password });
+
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.requiresMfa).toBe(true);
+      expect(loginRes.body.user).toBeUndefined();
+
+      // A pending MFA session must not grant access to protected endpoints.
+      const statusRes = await freshBrowser.get('/api/v1/auth/mfa/status');
+      expect(statusRes.status).toBe(401);
+    } finally {
+      await adminAgent
+        .put('/api/v1/admin/customization')
+        .send({ mfa: { adminMfaRequired: true } });
+    }
+  });
+
+  it('does not let the admin recovery override bypass TOTP for an enrolled non-admin', async () => {
+    const username = `mfa_user_ovr_${Date.now()}`;
+    const password = 'TestPass123!';
+    const registrationAgent = request.agent(app);
+    const regRes = await registrationAgent
+      .post('/api/v1/auth/register')
+      .set('x-test-meta', JSON.stringify({ isTestData: true }))
+      .send({
+        username,
+        email: `${username}@test.example`,
+        name: 'Enrolled User Tester',
+        password,
+      });
+    expect(regRes.status).toBeGreaterThanOrEqual(200);
+    const userId: number = regRes.body.user.id;
+    createdUserIds.push(userId);
+    await storage.updateUser(userId, {
+      totpEnabled: true,
+      totpSecret: 'TESTSECRET234567',
+    } as any);
+
+    process.env.MFA_ADMIN_REQUIRED = 'false';
+    try {
+      const freshBrowser = request.agent(app);
+      const loginRes = await freshBrowser
+        .post('/api/v1/auth/login')
+        .send({ usernameOrEmail: username, password });
+
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.requiresMfa).toBe(true);
+      expect(loginRes.body.user).toBeUndefined();
+    } finally {
+      delete process.env.MFA_ADMIN_REQUIRED;
+    }
+  });
+
   it('env MFA_ADMIN_REQUIRED=false also bypasses the TOTP challenge for already-enrolled admins', async () => {
     // This is the primary recovery scenario: an admin who HAS TOTP enabled
     // but has lost their authenticator app should still be able to log in when

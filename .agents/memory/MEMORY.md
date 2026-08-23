@@ -2,3 +2,4 @@
 - [Test app singleton + MFA test setup](test-app-singleton-mfa.md) — createTestApp() is a module-level singleton; all describe blocks share the same MemoryStore; login BEFORE enabling MFA to avoid TOTP challenge in session setup.
 - [SAST false positives](sast-false-positives.md) — image/whisper path-traversal, TOTP SHA-1, theme-cookie and CI postgres-string findings verified harmless; skip re-analysis unless code changed.
 - [Immutable release tags](release-pipeline.md) — a failed public tag stays permanent; fix the branch and use the next prerelease identifier, then monitor all gated artifact jobs.
+- [MFA enforcement boundary](mfa-enforcement-boundary.md) — enrolled app MFA is required after every browser primary login; setup policy and emergency recovery are separate decisions.

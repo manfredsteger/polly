@@ -277,6 +277,8 @@ npm run dev
 | `CLAMAV_PORT` | ClamAV daemon port | `3310` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token | — |
 
+When `CLAMAV_ENABLED`, `CLAMAV_HOST`, or `CLAMAV_PORT` is explicitly set, it overrides the persisted Admin → Security scanner configuration at runtime. Leave all three unset to manage ClamAV in the Admin Panel.
+
 ### Branding — Optional
 
 These values can also be edited from the Admin Panel after first start. When set via ENV, the corresponding form field becomes read-only (lock icon).

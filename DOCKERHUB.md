@@ -125,12 +125,12 @@ These values can also be edited from the Admin Panel after first start. When set
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `CLAMAV_ENABLED` | Enable virus scanning | `false` |
-| `CLAMAV_HOST` | ClamAV daemon host | `localhost` |
+| `CLAMAV_HOST` | ClamAV daemon host | — (set `clamav` when using the Compose profile) |
 | `CLAMAV_PORT` | ClamAV daemon port | `3310` |
 
 Start with ClamAV:
 ```bash
-docker compose --profile clamav up -d
+CLAMAV_ENABLED=true CLAMAV_HOST=clamav docker compose --profile clamav up -d
 ```
 
 ### AI Assistant (Optional)

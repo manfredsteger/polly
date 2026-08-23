@@ -100,9 +100,11 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@polly.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
       # ClamAV Antivirus Configuration
-      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-false}
-      CLAMAV_HOST: ${CLAMAV_HOST:-localhost}
-      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      # Leave unset to manage scanner settings in Admin → Security.
+      # Explicit values override a persisted scanner configuration at runtime.
+      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-}
+      CLAMAV_HOST: ${CLAMAV_HOST:-}
+      CLAMAV_PORT: ${CLAMAV_PORT:-}
       # Security Scanning
       PENTEST_TOOLS_API_TOKEN: ${PENTEST_TOOLS_API_TOKEN:-}
       # AI Assistant (Optional) — see docs/SELF-HOSTING.md for details

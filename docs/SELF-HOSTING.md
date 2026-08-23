@@ -344,6 +344,8 @@ make start-with-clamav
 | `CLAMAV_PORT` | ClamAV daemon port | `3310` |
 | `CLAMAV_ENABLED` | Enable scanning | `true` |
 
+> **Configuration priority:** Explicit non-empty `CLAMAV_ENABLED`, `CLAMAV_HOST`, and `CLAMAV_PORT` values override the persisted **Admin → Security** scanner setting at runtime. Leave all three unset to manage ClamAV in the Admin Panel. In particular, set `CLAMAV_ENABLED=false` to deliberately disable a stale enabled database setting.
+
 #### Features
 
 - **Automatic Scanning**: All file uploads are scanned before being stored

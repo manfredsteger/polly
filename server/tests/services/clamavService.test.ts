@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
@@ -141,6 +141,85 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
 
       expect(result.isClean).toBe(true);
       expect(result.scannerUnavailable).toBeUndefined();
+    });
+
+    it('uses an explicit CLAMAV_ENABLED=false override over a persisted enabled configuration', async () => {
+      await storage.setSetting({
+        key: 'clamav_config',
+        value: {
+          enabled: true,
+          host: '127.0.0.1',
+          port: TEST_SENTINEL_PORT,
+          timeout: 3000,
+          maxFileSize: 25 * 1024 * 1024,
+        },
+      });
+
+      const previousEnabled = process.env.CLAMAV_ENABLED;
+      process.env.CLAMAV_ENABLED = 'false';
+      try {
+        const { ClamAVService } = await import('../../services/clamavService');
+        const testService = new ClamAVService();
+        const config = await testService.getConfig();
+        const result = await testService.scanBuffer(Buffer.from('test file content'), 'test-file.jpg');
+
+        expect(config.enabled).toBe(false);
+        expect(result.isClean).toBe(true);
+      } finally {
+        if (previousEnabled === undefined) delete process.env.CLAMAV_ENABLED;
+        else process.env.CLAMAV_ENABLED = previousEnabled;
+      }
+    });
+
+    it('keeps an explicitly enabled scanner fail-secure when the persisted setting cannot be read', async () => {
+      const previousEnabled = process.env.CLAMAV_ENABLED;
+      const previousHost = process.env.CLAMAV_HOST;
+      const previousPort = process.env.CLAMAV_PORT;
+      const getSetting = vi.spyOn(storage, 'getSetting').mockRejectedValue(new Error('database unavailable'));
+      process.env.CLAMAV_ENABLED = 'true';
+      process.env.CLAMAV_HOST = '127.0.0.1';
+      process.env.CLAMAV_PORT = String(TEST_SENTINEL_PORT);
+
+      try {
+        const { ClamAVService } = await import('../../services/clamavService');
+        const testService = new ClamAVService();
+        const config = await testService.getConfig();
+        const result = await testService.scanBuffer(Buffer.from('test file content'), 'test-file.jpg');
+
+        expect(config.enabled).toBe(true);
+        expect(config.port).toBe(TEST_SENTINEL_PORT);
+        expect(result.isClean).toBe(false);
+        expect(result.scannerUnavailable).toBe(true);
+      } finally {
+        getSetting.mockRestore();
+        if (previousEnabled === undefined) delete process.env.CLAMAV_ENABLED;
+        else process.env.CLAMAV_ENABLED = previousEnabled;
+        if (previousHost === undefined) delete process.env.CLAMAV_HOST;
+        else process.env.CLAMAV_HOST = previousHost;
+        if (previousPort === undefined) delete process.env.CLAMAV_PORT;
+        else process.env.CLAMAV_PORT = previousPort;
+      }
+    });
+
+    it('blocks uploads when Admin-managed scanner configuration cannot be read', async () => {
+      const previousEnabled = process.env.CLAMAV_ENABLED;
+      delete process.env.CLAMAV_ENABLED;
+      const getSetting = vi.spyOn(storage, 'getSetting').mockRejectedValue(new Error('database unavailable'));
+
+      try {
+        const { ClamAVService } = await import('../../services/clamavService');
+        const testService = new ClamAVService();
+        const config = await testService.getConfig();
+        const result = await testService.scanBuffer(Buffer.from('test file content'), 'test-file.jpg');
+
+        expect(config.configurationUnavailable).toBe(true);
+        expect(result.isClean).toBe(false);
+        expect(result.scannerUnavailable).toBe(true);
+      } finally {
+        getSetting.mockRestore();
+        if (previousEnabled === undefined) delete process.env.CLAMAV_ENABLED;
+        else process.env.CLAMAV_ENABLED = previousEnabled;
+      }
     });
 
     it('should reject files exceeding maxFileSize', async () => {

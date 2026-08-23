@@ -86,6 +86,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [emailRequiresLogin, setEmailRequiresLogin] = useState(false);
   const [isKitaHubEmail, setIsKitaHubEmail] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+  const submitInFlightRef = useRef(false);
   const [isUserEmailLocked, setIsUserEmailLocked] = useState(false);
   const allowMaybeForPoll = (poll.type === 'schedule' || poll.type === 'survey') && poll.allowMaybe === true;
   
@@ -589,6 +591,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   };
 
   const handleSubmitVotes = async () => {
+    if (submitInFlightRef.current) return;
+
     // Block submission if email requires login
     if (emailRequiresLogin) {
       toast({
@@ -662,6 +666,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         return;
       }
     }
+
+    submitInFlightRef.current = true;
+    setIsSubmittingVote(true);
 
     try {
       if (poll.type === 'organization') {
@@ -838,6 +845,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      submitInFlightRef.current = false;
+      setIsSubmittingVote(false);
     }
   };
 
@@ -1282,10 +1292,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                           ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
                           : 'polly-button-organization'
                       }`}
-                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || submitBlockedByExistingVote || orgaBookings.length === 0}
+                      disabled={voteMutation.isPending || isSubmittingVote || !voterName.trim() || emailRequiresLogin || submitBlockedByExistingVote || orgaBookings.length === 0}
                       data-testid="button-submit-vote"
                     >
-                      {voteMutation.isPending ? t('votingInterface.saving') : orgaBookings.length > 0 ? t('votingInterface.submit') : t('votingInterface.selectSlot')}
+                      {voteMutation.isPending || isSubmittingVote ? t('votingInterface.saving') : orgaBookings.length > 0 ? t('votingInterface.submit') : t('votingInterface.selectSlot')}
                     </Button>
                     {hasPendingVoteChanges && (
                       <Button
@@ -1320,10 +1330,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       className={`px-8 ${
                         poll.type === 'survey' ? 'polly-button-survey' : 'polly-button-schedule'
                       }`}
-                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || submitBlockedByExistingVote || (Object.keys(votes).length === 0 && !poll.options.some((o: any) => o.isFreeText))}
+                      disabled={voteMutation.isPending || isSubmittingVote || !voterName.trim() || emailRequiresLogin || submitBlockedByExistingVote || (Object.keys(votes).length === 0 && !poll.options.some((o: any) => o.isFreeText))}
                       data-testid="button-submit-vote"
                     >
-                      {voteMutation.isPending ? t('votingInterface.saving') : t('votingInterface.submitVote')}
+                      {voteMutation.isPending || isSubmittingVote ? t('votingInterface.saving') : t('votingInterface.submitVote')}
                     </Button>
                     {hasPendingVoteChanges && (
                       <Button

@@ -79,9 +79,45 @@ const validateVoteOptionIds = (
 };
 
 const validateVoteResponses = (
-  poll: { type: string; allowMaybe?: boolean | null; options: Array<{ id: number; isFreeText?: boolean | null }> },
+  poll: { type: string; allowMaybe?: boolean | null; responseMode?: string | null; maxSelections?: number | null; options: Array<{ id: number; isFreeText?: boolean | null }> },
   voteItems: Array<{ optionId: number; response: string }>
 ) => {
+  if ((poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple') {
+    const hasInvalidSimpleResponse = voteItems.some((vote) => vote.response !== 'yes');
+    if (hasInvalidSimpleResponse) {
+      return {
+        status: 400,
+        body: {
+          error: 'This poll only accepts selecting options (yes responses).',
+          errorCode: 'INVALID_SIMPLE_RESPONSE',
+        },
+      };
+    }
+
+    const optionIds = voteItems.map((vote) => vote.optionId);
+    if (new Set(optionIds).size !== optionIds.length) {
+      return {
+        status: 400,
+        body: {
+          error: 'Duplicate options are not allowed.',
+          errorCode: 'DUPLICATE_OPTION_SELECTION',
+        },
+      };
+    }
+
+    const maxSelections = poll.maxSelections ?? 1;
+    if (voteItems.length > maxSelections) {
+      return {
+        status: 400,
+        body: {
+          error: `A maximum of ${maxSelections} option(s) may be selected.`,
+          errorCode: 'TOO_MANY_SELECTIONS',
+          maxSelections,
+        },
+      };
+    }
+  }
+
   if (poll.type === 'organization') {
     const hasInvalidOrganizationResponse = voteItems.some(
       (vote) => vote.response !== 'yes' && vote.response !== 'no'
@@ -261,6 +297,43 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
+    const isSimpleModePoll = (poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple';
+
+    if (isSimpleModePoll) {
+      // Atomic replacement with per-voter serialization: concurrent submissions
+      // cannot exceed maxSelections (advisory lock + in-transaction re-check).
+      try {
+        const replaceResult = await storage.replaceSimpleModeVotes({
+          pollId: poll.id,
+          lockIdentifier: data.voterEmail.toLowerCase().trim(),
+          editToken: voterEditToken || null,
+          voterEmail: data.voterEmail,
+          voteItems: data.votes.map(v => ({
+            optionId: v.optionId,
+            response: v.response,
+            comment: v.comment ?? null,
+            freeTextAnswer: (v as any).freeTextAnswer || null,
+          })),
+          maxSelections: Math.max(1, poll.maxSelections ?? 1),
+          newVoteTemplate: {
+            voterName: data.voterName,
+            voterEmail: data.voterEmail,
+            userId: userId,
+            isTestData: isTestMode,
+          },
+        });
+        createdVotes.push(...replaceResult.votes);
+        voterEditToken = replaceResult.editToken;
+      } catch (err: any) {
+        if (err?.message === 'TOO_MANY_SELECTIONS') {
+          return res.status(400).json({
+            error: `Es dürfen höchstens ${Math.max(1, poll.maxSelections ?? 1)} Optionen ausgewählt werden.`,
+            errorCode: 'TOO_MANY_SELECTIONS',
+          });
+        }
+        throw err;
+      }
+    } else {
     if (existingVotes.length > 0 && (poll.allowVoteEdit || poll.type === 'organization')) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
@@ -297,6 +370,7 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         createdVotes.push(result.vote);
         voterEditToken = result.editToken;
       }
+    }
     }
 
     // For organization polls: Broadcast slot update via WebSocket
@@ -523,6 +597,43 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
+    const isSimpleModePoll = (poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple';
+
+    if (isSimpleModePoll) {
+      // Atomic replacement with per-voter serialization: concurrent submissions
+      // cannot exceed maxSelections (advisory lock + in-transaction re-check).
+      try {
+        const replaceResult = await storage.replaceSimpleModeVotes({
+          pollId: poll.id,
+          lockIdentifier: data.voterEmail.toLowerCase().trim(),
+          editToken: voterEditToken || null,
+          voterEmail: data.voterEmail,
+          voteItems: data.votes.map(v => ({
+            optionId: v.optionId,
+            response: v.response,
+            comment: v.comment ?? null,
+            freeTextAnswer: (v as any).freeTextAnswer || null,
+          })),
+          maxSelections: Math.max(1, poll.maxSelections ?? 1),
+          newVoteTemplate: {
+            voterName: data.voterName,
+            voterEmail: data.voterEmail,
+            userId: userId,
+            isTestData: isTestMode,
+          },
+        });
+        createdVotes.push(...replaceResult.votes);
+        voterEditToken = replaceResult.editToken;
+      } catch (err: any) {
+        if (err?.message === 'TOO_MANY_SELECTIONS') {
+          return res.status(400).json({
+            error: `Es dürfen höchstens ${Math.max(1, poll.maxSelections ?? 1)} Optionen ausgewählt werden.`,
+            errorCode: 'TOO_MANY_SELECTIONS',
+          });
+        }
+        throw err;
+      }
+    } else {
     if (existingVotes.length > 0 && (poll.allowVoteEdit || poll.type === 'organization')) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
@@ -559,6 +670,7 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         createdVotes.push(result.vote);
         voterEditToken = result.editToken;
       }
+    }
     }
 
     // For organization polls: Broadcast slot update via WebSocket
@@ -800,6 +912,9 @@ router.get('/votes/edit/:editToken', async (req, res) => {
       title: fullPoll.title,
       description: fullPoll.description,
       type: fullPoll.type,
+      responseMode: fullPoll.responseMode,
+      maxSelections: fullPoll.maxSelections,
+      allowMaybe: fullPoll.allowMaybe,
       isActive: fullPoll.isActive,
       expiresAt: fullPoll.expiresAt,
       createdAt: fullPoll.createdAt,
@@ -879,12 +994,45 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       return res.status(responseValidation.status).json(responseValidation.body);
     }
 
-    const updatedResults = [];
-    for (const updatedVote of updatedVotes) {
-      const existingVote = existingVotes.find((v: any) => v.optionId === updatedVote.optionId);
-      if (existingVote) {
-        const updated = await storage.updateVote(existingVote.id, updatedVote.response);
-        updatedResults.push(updated);
+    const isSimpleMode = (poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple';
+
+    let updatedResults = [];
+    if (isSimpleMode) {
+      // Simple choice mode: the submitted list is the full replacement selection.
+      // Atomic per-voter replacement (advisory lock) so concurrent edits cannot
+      // exceed maxSelections.
+      const template = existingVotes[0];
+      try {
+        const replaceResult = await storage.replaceSimpleModeVotes({
+          pollId: poll.id,
+          lockIdentifier: editToken,
+          editToken,
+          voteItems: updatedVotes.map((v) => ({ optionId: v.optionId, response: v.response })),
+          maxSelections: Math.max(1, poll.maxSelections ?? 1),
+          newVoteTemplate: {
+            voterName: template.voterName,
+            voterEmail: template.voterEmail,
+            userId: template.userId ?? null,
+            isTestData: template.isTestData ?? false,
+          },
+        });
+        updatedResults = replaceResult.votes;
+      } catch (err: any) {
+        if (err?.message === 'TOO_MANY_SELECTIONS') {
+          return res.status(400).json({
+            error: `Es dürfen höchstens ${Math.max(1, poll.maxSelections ?? 1)} Optionen ausgewählt werden.`,
+            errorCode: 'TOO_MANY_SELECTIONS',
+          });
+        }
+        throw err;
+      }
+    } else {
+      for (const updatedVote of updatedVotes) {
+        const existingVote = existingVotes.find((v: any) => v.optionId === updatedVote.optionId);
+        if (existingVote) {
+          const updated = await storage.updateVote(existingVote.id, updatedVote.response);
+          updatedResults.push(updated);
+        }
       }
     }
 

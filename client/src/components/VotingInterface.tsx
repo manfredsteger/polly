@@ -14,6 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Check, X, HelpCircle, Calendar, Clock, Mail, AlertTriangle, ListChecks, LogIn, User, Trash2 } from "lucide-react";
 import type { PollWithOptions } from "@shared/schema";
 import { SimpleImageVoting } from "./SimpleImageVoting";
+import { SimpleChoiceVoting } from "./SimpleChoiceVoting";
 import { OrganizationSlotVoting } from "./OrganizationSlotVoting";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLiveVoting } from "@/hooks/useLiveVoting";
@@ -90,6 +91,23 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const submitInFlightRef = useRef(false);
   const [isUserEmailLocked, setIsUserEmailLocked] = useState(false);
   const allowMaybeForPoll = (poll.type === 'schedule' || poll.type === 'survey') && poll.allowMaybe === true;
+  const isSimpleChoiceMode = (poll.type === 'schedule' || poll.type === 'survey') && (poll as any).responseMode === 'simple';
+  const simpleMaxSelections = isSimpleChoiceMode ? Math.max(1, (poll as any).maxSelections ?? 1) : 1;
+  const simpleSelectedOptionIds = useMemo(
+    () => Object.entries(votes).filter(([, response]) => response === 'yes').map(([id]) => Number(id)),
+    [votes]
+  );
+  const handleSimpleSelectionChange = (selectedIds: number[]) => {
+    const next: Record<number, VoteResponse> = {};
+    selectedIds.forEach((id) => { next[id] = 'yes'; });
+    setVotes(next);
+    if (voterName && isConnected) {
+      const prevSet = new Set(simpleSelectedOptionIds);
+      const nextSet = new Set(selectedIds);
+      selectedIds.forEach((id) => { if (!prevSet.has(id)) sendVoteInProgress(String(id), 'yes'); });
+      simpleSelectedOptionIds.forEach((id) => { if (!nextSet.has(id)) sendVoteInProgress(String(id), null); });
+    }
+  };
   
   // Live slot updates from WebSocket for organization polls
   const [liveSlotUpdates, setLiveSlotUpdates] = useState<Record<number, { currentCount: number; maxCapacity: number | null }>>({});
@@ -1230,16 +1248,27 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                         {t('votingInterface.expiredOptionsNotice')}
                       </div>
                     )}
-                    <SimpleImageVoting
-                      options={poll.options.filter((o: any) => !o.isFreeText)}
-                      onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
-                      existingVotes={Object.fromEntries(
-                        Object.entries(votes).map(([id, response]) => [id, response])
-                      )}
-                      disabled={!canVote}
-                      allowMaybe={allowMaybeForPoll}
-                      expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
-                    />
+                    {isSimpleChoiceMode ? (
+                      <SimpleChoiceVoting
+                        options={poll.options.filter((o: any) => !o.isFreeText)}
+                        maxSelections={simpleMaxSelections}
+                        selectedOptionIds={simpleSelectedOptionIds}
+                        onChange={handleSimpleSelectionChange}
+                        disabled={!canVote}
+                        expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                      />
+                    ) : (
+                      <SimpleImageVoting
+                        options={poll.options.filter((o: any) => !o.isFreeText)}
+                        onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
+                        existingVotes={Object.fromEntries(
+                          Object.entries(votes).map(([id, response]) => [id, response])
+                        )}
+                        disabled={!canVote}
+                        allowMaybe={allowMaybeForPoll}
+                        expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                      />
+                    )}
                   </>
                 )}
                 <div className="space-y-1 mt-4">
@@ -1258,15 +1287,27 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 </div>
               </>
             ) : (
-              <SimpleImageVoting
-                options={poll.options.filter((o: any) => !o.isFreeText)}
-                onVote={() => {}}
-                existingVotes={{}}
-                disabled={true}
-                adminPreview={true}
-                allowMaybe={allowMaybeForPoll}
-                expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
-              />
+              isSimpleChoiceMode ? (
+                <SimpleChoiceVoting
+                  options={poll.options.filter((o: any) => !o.isFreeText)}
+                  maxSelections={simpleMaxSelections}
+                  selectedOptionIds={[]}
+                  onChange={() => {}}
+                  disabled={true}
+                  adminPreview={true}
+                  expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                />
+              ) : (
+                <SimpleImageVoting
+                  options={poll.options.filter((o: any) => !o.isFreeText)}
+                  onVote={() => {}}
+                  existingVotes={{}}
+                  disabled={true}
+                  adminPreview={true}
+                  allowMaybe={allowMaybeForPoll}
+                  expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                />
+              )
             )
           )}
 

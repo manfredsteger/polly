@@ -3,4 +3,6 @@
 - [SAST false positives](sast-false-positives.md) — image/whisper path-traversal, TOTP SHA-1, theme-cookie and CI postgres-string findings verified harmless; skip re-analysis unless code changed.
 - [Immutable release tags](release-pipeline.md) — a failed public tag stays permanent; fix the branch and use the next prerelease identifier, then monitor all gated artifact jobs.
 - [MFA enforcement boundary](mfa-enforcement-boundary.md) — enrolled app MFA is required after every browser primary login; setup policy and emergency recovery are separate decisions.
+- [Simple choice response mode](simple-choice-mode.md) — simple-mode vote writes must use the advisory-locked atomic replacement in storage; route-level validation alone is race-prone.
+- [Test vs dev database drift](test-db-drift.md) — vitest uses DATABASE_URL, dev server may use another DB; new columns must be applied to both, and drizzle push is interactive (prompts on ambiguous renames).
 - [ClamAV configuration precedence](clamav-configuration-precedence.md) — explicit runtime scanner settings override Admin values; unknown scanner state blocks uploads rather than failing open.

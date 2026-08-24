@@ -47,6 +47,8 @@ interface PollFormData {
   notifyCreatorOnVote: boolean;
   expiresAt: string | null;
   videoConferenceUrl?: string;
+  simpleMode?: boolean;
+  maxSelections?: number;
 }
 
 export default function CreatePoll() {
@@ -66,6 +68,8 @@ export default function CreatePoll() {
   const [resultsPublic, setResultsPublic] = useState(true);
   const [notifyCreatorOnVote, setNotifyCreatorOnVote] = useState(true);
   const [videoConferenceUrl, setVideoConferenceUrl] = useState("");
+  const [simpleMode, setSimpleMode] = useState(false);
+  const [maxSelections, setMaxSelections] = useState(1);
   const [videoConferenceUrlError, setVideoConferenceUrlError] = useState<"" | "invalid">("");
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<PollOption[]>([]);
@@ -98,6 +102,8 @@ export default function CreatePoll() {
       setResultsPublic(stored.data.resultsPublic ?? true);
       setNotifyCreatorOnVote(stored.data.notifyCreatorOnVote ?? true);
       setVideoConferenceUrl(stored.data.videoConferenceUrl || "");
+      setSimpleMode(stored.data.simpleMode ?? false);
+      setMaxSelections(stored.data.maxSelections ?? 1);
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
       }
@@ -145,6 +151,13 @@ export default function CreatePoll() {
         if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
         if (typeof s.notifyCreatorOnVote === "boolean") setNotifyCreatorOnVote(s.notifyCreatorOnVote);
+        if (s.responseMode === "simple") {
+          setSimpleMode(true);
+          const max = typeof s.maxSelections === "number" && Number.isInteger(s.maxSelections) && s.maxSelections >= 1 ? s.maxSelections : 1;
+          setMaxSelections(max);
+        } else if (s.responseMode === "classic") {
+          setSimpleMode(false);
+        }
       }
     } catch (_) {}
   }, []);
@@ -181,6 +194,8 @@ export default function CreatePoll() {
           resultsPublic: resultsPublic,
           notifyCreatorOnVote: notifyCreatorOnVote,
           videoConferenceUrl: videoConferenceUrl.trim() || undefined,
+          responseMode: simpleMode ? ("simple" as const) : ("classic" as const),
+          maxSelections: simpleMode ? Math.min(Math.max(1, maxSelections), options.length) : undefined,
           options: options.map((option) => {
             const opt: any = {
               text: option.text,
@@ -270,7 +285,9 @@ export default function CreatePoll() {
             resultsPublic,
             notifyCreatorOnVote,
             expiresAt: expiresAt ? expiresAt.toISOString() : null,
-            videoConferenceUrl: videoConferenceUrl || undefined
+            videoConferenceUrl: videoConferenceUrl || undefined,
+            simpleMode,
+            maxSelections
           },
           '/create-poll'
         );
@@ -409,6 +426,8 @@ export default function CreatePoll() {
       resultsPublic,
       notifyCreatorOnVote,
       videoConferenceUrl: trimmedVideoConferenceUrl || undefined,
+      responseMode: simpleMode ? ("simple" as const) : ("classic" as const),
+      maxSelections: simpleMode ? Math.min(Math.max(1, maxSelections), options.length) : undefined,
       options: options.map((option) => {
         const opt: any = {
           text: option.text,
@@ -608,7 +627,41 @@ export default function CreatePoll() {
               </button>
               {settingsExpanded && (
                 <div className="space-y-4 mt-4">
-                  <div className="flex items-center justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>{t('simpleChoice.modeLabel')}</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {t('simpleChoice.modeDescriptionSchedule')}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={simpleMode}
+                        onCheckedChange={setSimpleMode}
+                        data-testid="switch-simple-mode"
+                        aria-label={t('simpleChoice.modeLabel')}
+                      />
+                    </div>
+                    {simpleMode && (
+                      <div className="flex items-center gap-3">
+                        <Label htmlFor="maxSelections" className="shrink-0">{t('simpleChoice.maxSelectionsLabel')}</Label>
+                        <Input
+                          id="maxSelections"
+                          type="number"
+                          min={1}
+                          max={Math.max(1, options.length)}
+                          value={maxSelections}
+                          onChange={(e) => setMaxSelections(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-20"
+                          data-testid="input-max-selections"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {maxSelections <= 1 ? t('simpleChoice.singleChoiceHint') : t('simpleChoice.multipleChoiceHint', { count: maxSelections })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
                     <div className="space-y-0.5">
                       <Label>{t('pollCreation.allowVoteEdit')}</Label>
                       <p className="text-sm text-muted-foreground">

@@ -3508,5 +3508,21 @@
     "logout": "Log out",
     "changing": "Changing...",
     "submit": "Change password"
+  },
+  "simpleChoice": {
+    "modeLabel": "Simple choice",
+    "modeDescription": "Participants select options like on a ballot (instead of yes/maybe/no per option).",
+    "modeDescriptionSchedule": "Participants select dates like on a ballot (instead of yes/maybe/no per date).",
+    "maxSelectionsLabel": "Max. selections",
+    "singleChoiceHint": "Single choice: exactly one option can be selected",
+    "multipleChoiceHint": "Multiple choice: up to {{count}} options can be selected",
+    "selectOneHint": "Please select one option.",
+    "selectUpToHint": "Please select up to {{count}} options.",
+    "selectedCount": "{{selected}} of {{max}} selected",
+    "maxSelectionsReached": "You can select at most {{count}} options.",
+    "selectAtLeastOne": "Please select at least one option.",
+    "noFreeTextInSimpleMode": "Free-text questions are not available in simple choice mode.",
+    "select": "Select",
+    "selected": "Selected"
   }
 }

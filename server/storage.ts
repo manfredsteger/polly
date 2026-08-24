@@ -77,6 +77,15 @@ export interface IStorage {
   // Voting
   vote(vote: InsertVote): Promise<Vote>;
   createVote(vote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }>;
+  replaceSimpleModeVotes(params: {
+    pollId: string;
+    lockIdentifier: string;
+    editToken?: string | null;
+    voterEmail?: string | null;
+    voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
+    maxSelections: number;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+  }): Promise<{ votes: Vote[]; editToken: string }>;
   voteBulk(pollId: string, voterName: string, voterEmail: string, userId: number | null, voterEditToken: string | null, voteItems: Array<{ optionId: number; response: string }>): Promise<{ votes: Vote[]; alreadyVoted: boolean }>;
   updateVote(id: number, response: string, updates?: Pick<InsertVote, 'comment' | 'freeTextAnswer'>): Promise<Vote>;
   deleteVote(id: number): Promise<void>;
@@ -706,6 +715,93 @@ export class DatabaseStorage implements IStorage {
     const allowEditExisting = !!existingEditToken;
     const createdVote = await this.vote(voteWithToken, allowEditExisting);
     return { vote: createdVote, editToken };
+  }
+
+  /**
+   * Atomically replaces a voter's selection for simple-choice polls.
+   * Serializes concurrent requests per poll+voter via a transaction-scoped
+   * advisory lock, re-reads the current votes inside the transaction and
+   * re-enforces maxSelections so parallel submissions cannot exceed the limit.
+   */
+  async replaceSimpleModeVotes(params: {
+    pollId: string;
+    lockIdentifier: string; // stable per voter: edit token or lowercased email
+    editToken?: string | null;
+    voterEmail?: string | null;
+    voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
+    maxSelections: number;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+  }): Promise<{ votes: Vote[]; editToken: string }> {
+    const { pollId, lockIdentifier, voteItems, maxSelections, newVoteTemplate } = params;
+
+    if (voteItems.length > maxSelections) {
+      throw new Error('TOO_MANY_SELECTIONS');
+    }
+
+    return await db.transaction(async (tx) => {
+      const lockKey = `${pollId}-${lockIdentifier}`.split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+
+      // Re-read current votes inside the transaction (post-lock state)
+      let existingVotes: Vote[];
+      if (params.editToken) {
+        existingVotes = await tx.select().from(votes)
+          .where(and(eq(votes.pollId, pollId), eq(votes.voterEditToken, params.editToken)));
+      } else if (params.voterEmail) {
+        existingVotes = await tx.select().from(votes)
+          .where(and(eq(votes.pollId, pollId), eq(votes.voterEmail, params.voterEmail)));
+      } else {
+        existingVotes = [];
+      }
+
+      const editToken = params.editToken || existingVotes[0]?.voterEditToken || randomBytes(32).toString('hex');
+      const newOptionIds = new Set(voteItems.map((v) => v.optionId));
+
+      // Delete deselected votes
+      for (const existingVote of existingVotes) {
+        if (!newOptionIds.has(existingVote.optionId)) {
+          await tx.delete(votes).where(eq(votes.id, existingVote.id));
+        }
+      }
+
+      const result: Vote[] = [];
+      for (const item of voteItems) {
+        const existingVote = existingVotes.find((v) => v.optionId === item.optionId);
+        if (existingVote) {
+          const [updated] = await tx.update(votes)
+            .set({ response: item.response, comment: item.comment ?? existingVote.comment, updatedAt: new Date() })
+            .where(eq(votes.id, existingVote.id))
+            .returning();
+          result.push(updated);
+        } else {
+          const [created] = await tx.insert(votes).values({
+            pollId,
+            optionId: item.optionId,
+            voterName: newVoteTemplate.voterName,
+            voterEmail: newVoteTemplate.voterEmail,
+            response: item.response,
+            comment: item.comment ?? null,
+            freeTextAnswer: item.freeTextAnswer ?? null,
+            userId: newVoteTemplate.userId ?? null,
+            isTestData: newVoteTemplate.isTestData ?? false,
+            voterEditToken: editToken,
+          }).returning();
+          result.push(created);
+        }
+      }
+
+      // Post-condition: the voter's persisted selection must not exceed the limit
+      const finalVotes = await tx.select().from(votes)
+        .where(and(eq(votes.pollId, pollId), eq(votes.voterEditToken, editToken)));
+      if (finalVotes.length > maxSelections) {
+        throw new Error('TOO_MANY_SELECTIONS');
+      }
+
+      return { votes: result, editToken };
+    });
   }
 
   async updateVote(id: number, response: string, updates: Pick<InsertVote, 'comment' | 'freeTextAnswer'> = {}): Promise<Vote> {

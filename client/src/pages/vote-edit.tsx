@@ -25,6 +25,9 @@ interface SecurePoll {
   title: string;
   description: string | null;
   type: string;
+  responseMode?: string;
+  maxSelections?: number | null;
+  allowMaybe?: boolean;
   isActive: boolean;
   expiresAt: string | null;
   createdAt: string;
@@ -54,6 +57,8 @@ export default function VoteEditPage() {
   });
   const isPollExpired = voterData?.poll?.expiresAt ? new Date(voterData.poll.expiresAt) < new Date() : false;
   const isPollClosed = voterData ? (!voterData.poll.isActive || isPollExpired) : false;
+  const isSimpleMode = !!voterData && (voterData.poll.type === 'survey' || voterData.poll.type === 'schedule') && voterData.poll.responseMode === 'simple';
+  const maxSelections = Math.max(1, voterData?.poll.maxSelections ?? 1);
 
   const updateVotesMutation = useMutation({
     mutationFn: (votes: { optionId: number; response: string }[]) =>
@@ -119,6 +124,14 @@ export default function VoteEditPage() {
     }
   }, [voterData]);
 
+  const computeHasChanges = (newVotes: Record<number, string>) => {
+    if (!voterData) return false;
+    const originalIds = new Set(voterData.votes.map(v => v.optionId));
+    const newIds = new Set(Object.keys(newVotes).map(Number));
+    if (originalIds.size !== newIds.size) return true;
+    return voterData.votes.some(vote => newVotes[vote.optionId] !== vote.response);
+  };
+
   const handleVoteChange = (optionId: number, response: string) => {
     if (isPollClosed) return;
     const newVotes = { ...currentVotes };
@@ -128,16 +141,47 @@ export default function VoteEditPage() {
       newVotes[optionId] = response;
     }
     setCurrentVotes(newVotes);
-    
-    // Check if there are changes from original votes
-    const hasAnyChanges = voterData?.votes.some(vote => 
-      newVotes[vote.optionId] !== vote.response
-    ) || false;
-    setHasChanges(hasAnyChanges);
+    setHasChanges(computeHasChanges(newVotes));
+  };
+
+  const handleSimpleToggle = (optionId: number) => {
+    if (isPollClosed) return;
+    const newVotes = { ...currentVotes };
+    if (newVotes[optionId]) {
+      delete newVotes[optionId];
+    } else {
+      if (maxSelections <= 1) {
+        Object.keys(newVotes).forEach(id => delete newVotes[Number(id)]);
+      } else if (Object.keys(newVotes).length >= maxSelections) {
+        toast({
+          title: t('common.error'),
+          description: t('simpleChoice.maxSelectionsReached', { count: maxSelections }),
+          variant: "destructive",
+        });
+        return;
+      }
+      newVotes[optionId] = 'yes';
+    }
+    setCurrentVotes(newVotes);
+    setHasChanges(computeHasChanges(newVotes));
   };
 
   const handleSaveChanges = () => {
     if (!voterData || !hasChanges || isPollClosed) return;
+
+    if (isSimpleMode) {
+      const selected = Object.keys(currentVotes).map(Number);
+      if (selected.length === 0) {
+        toast({
+          title: t('common.error'),
+          description: t('simpleChoice.selectAtLeastOne'),
+          variant: "destructive",
+        });
+        return;
+      }
+      updateVotesMutation.mutate(selected.map(optionId => ({ optionId, response: 'yes' })));
+      return;
+    }
 
     const updatedVotes = voterData.votes
       .filter(vote => currentVotes[vote.optionId] !== undefined)
@@ -237,6 +281,18 @@ export default function VoteEditPage() {
                         </p>
                       )}
                       
+                      {isSimpleMode ? (
+                        <Button
+                          variant={currentResponse ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleSimpleToggle(option.id)}
+                          disabled={isPollClosed}
+                          className={currentResponse ? 'bg-green-600 text-white hover:bg-green-700' : ''}
+                          data-testid={`button-simple-toggle-${option.id}`}
+                        >
+                          {currentResponse ? t('simpleChoice.selected') : t('simpleChoice.select')}
+                        </Button>
+                      ) : (
                       <div className="flex gap-2">
                         {(['yes', 'maybe', 'no'] as const).map((response) => (
                           <Button
@@ -258,6 +314,7 @@ export default function VoteEditPage() {
                           </Button>
                         ))}
                       </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

@@ -79,6 +79,8 @@ export interface PollSuggestionSettings {
   allowVoteWithdrawal?: boolean;
   allowMaybe?: boolean;
   allowMultipleSlots?: boolean;
+  responseMode?: "classic" | "simple";
+  maxSelections?: number;
 }
 
 export interface SurveyOption {
@@ -117,7 +119,9 @@ The JSON must have this exact structure:
     "allowVoteEdit": true or false,
     "allowVoteWithdrawal": true or false,
     "allowMaybe": true or false,
-    "allowMultipleSlots": true or false
+    "allowMultipleSlots": true or false,
+    "responseMode": "classic" or "simple",
+    "maxSelections": number (only when responseMode is "simple")
   }
 }
 
@@ -177,6 +181,13 @@ For SURVEY polls — decide based on sensitivity:
   - allowVoteWithdrawal: false
   - allowMaybe: true
 
+Response mode (surveys and schedule polls only, NOT organization):
+- "classic" (default): participants answer yes/maybe/no for EVERY option.
+- "simple": participants SELECT options like a ballot — single choice (radio) or limited multiple choice (checkboxes).
+  Use "simple" when the user asks for a vote/election/pick-one style question ("Abstimmung", "Wahl", "wählt eine Option", "pick one", "choose up to N", "Single Choice", "Multiple Choice").
+  With "simple", also set "maxSelections": 1 for single choice, or the requested limit (e.g. 3) for multiple choice.
+  "simple" cannot be combined with isFreeText options.
+
 General rules:
 - title: short and clear, max 80 characters
 - description: explain the purpose well so participants understand what they are voting on, max 200 characters
@@ -211,9 +222,13 @@ The JSON must follow this exact structure:
     "allowVoteEdit": true or false,
     "allowVoteWithdrawal": true or false,
     "allowMaybe": true or false,
-    "allowMultipleSlots": true or false
+    "allowMultipleSlots": true or false,
+    "responseMode": "classic" or "simple",
+    "maxSelections": number (only when responseMode is "simple"; 1 = single choice)
   }
 }
+
+Response mode: for surveys and schedule polls, "simple" means participants select options like a ballot (radio/checkbox) instead of answering yes/maybe/no per option. Switch to "simple" (with maxSelections) or back to "classic" if the user asks for it. "simple" is not allowed for organization lists or together with isFreeText options.
 
 For schedule options, use EXACTLY this format: "DD.MM.YYYY HH:MM - HH:MM"
 For organization options with a fixed event date, use: "DD.MM.YYYY Description HH:MM - HH:MM (max. N)"
@@ -303,6 +318,8 @@ ${langHint}`;
         if (typeof rawSettings.allowVoteWithdrawal === "boolean") resolvedSettings.allowVoteWithdrawal = rawSettings.allowVoteWithdrawal;
         if (typeof rawSettings.allowMaybe === "boolean") resolvedSettings.allowMaybe = rawSettings.allowMaybe;
         if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
+        if (rawSettings.responseMode === "classic" || rawSettings.responseMode === "simple") resolvedSettings.responseMode = rawSettings.responseMode;
+        if (typeof rawSettings.maxSelections === "number" && Number.isInteger(rawSettings.maxSelections) && rawSettings.maxSelections >= 1) resolvedSettings.maxSelections = rawSettings.maxSelections;
       }
 
       const normalizeOptions = (opts: any[]): string[] | SurveyOption[] =>
@@ -414,6 +431,8 @@ export async function createPollFromDescription(
         if (typeof rawSettings.allowVoteWithdrawal === "boolean") resolvedSettings.allowVoteWithdrawal = rawSettings.allowVoteWithdrawal;
         if (typeof rawSettings.allowMaybe === "boolean") resolvedSettings.allowMaybe = rawSettings.allowMaybe;
         if (typeof rawSettings.allowMultipleSlots === "boolean") resolvedSettings.allowMultipleSlots = rawSettings.allowMultipleSlots;
+        if (rawSettings.responseMode === "classic" || rawSettings.responseMode === "simple") resolvedSettings.responseMode = rawSettings.responseMode;
+        if (typeof rawSettings.maxSelections === "number" && Number.isInteger(rawSettings.maxSelections) && rawSettings.maxSelections >= 1) resolvedSettings.maxSelections = rawSettings.maxSelections;
       }
 
       const normalizeOpts = (opts: any[]): string[] | SurveyOption[] =>

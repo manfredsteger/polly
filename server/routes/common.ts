@@ -79,6 +79,8 @@ export const createPollSchemaBase = z.object({
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
   allowMaybe: z.boolean().optional().default(true),
+  responseMode: z.enum(['classic', 'simple']).optional().default('classic'),
+  maxSelections: z.number().int().min(1).optional().nullable(),
   notifyCreatorOnVote: z.boolean().optional().default(true),
   videoConferenceUrl: z.string().max(2000).refine(
     (url) => isValidHttpHttpsUrl(url),
@@ -124,6 +126,30 @@ export const createPollSchema = createPollSchemaBase.superRefine((data, ctx) => 
       message: 'Poll requires at least two options.',
       path: ['options'],
     });
+  }
+
+  if (data.responseMode === 'simple') {
+    if (data.type === 'organization') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Simple choice mode is only available for surveys and schedule polls.',
+        path: ['responseMode'],
+      });
+    }
+    if (data.options.some((option) => option.isFreeText)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Free-text questions cannot be combined with simple choice mode.',
+        path: ['options'],
+      });
+    }
+    if (data.maxSelections != null && data.maxSelections > data.options.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'maxSelections cannot exceed the number of options.',
+        path: ['maxSelections'],
+      });
+    }
   }
 
   if (data.type !== 'schedule' && data.type !== 'organization') return;

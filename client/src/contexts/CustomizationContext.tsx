@@ -103,8 +103,8 @@ function applyThemeColors(settings: CustomizationSettings) {
       : (settings.theme.primaryColorLight || settings.theme.primaryColor);
     const primaryHSL = colorConverter(effectiveColor);
     root.style.setProperty('--polly-orange', `hsl(${primaryHSL})`);
-    root.style.setProperty('--primary', primaryHSL);
-    root.style.setProperty('--primary-foreground', '0 0% 100%');
+    root.style.setProperty('--primary', `hsl(${primaryHSL})`);
+    root.style.setProperty('--primary-foreground', 'hsl(0, 0%, 100%)');
     cachedColors.primary = `hsl(${primaryHSL})`;
     cachedColors.primaryHSL = primaryHSL;
   }

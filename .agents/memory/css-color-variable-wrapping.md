@@ -1,0 +1,10 @@
+---
+name: CSS color variable wrapping convention
+description: This project's CSS custom properties for theme colors must be full CSS color functions (hsl(...)/rgb(...)), never bare component triplets — relevant whenever touching client/src/index.css or code that calls root.style.setProperty on a themed color variable.
+---
+
+All theme color custom properties in `client/src/index.css` (both `:root` and `.dark`) are defined as full CSS color function values, e.g. `--border: hsl(220, 13%, 91%);`, and `tailwind.config.ts` consumes them directly as `var(--border)` (no extra `hsl()` wrap in the Tailwind config).
+
+**Why:** `--primary` and `--primary-foreground` were once defined as bare "H S% L%" triplets (e.g. `--primary: 220 70% 45%;`), a leftover from a different shadcn convention (Tailwind wrapping `hsl(var(--x))`). Since this project's Tailwind config does NOT wrap in `hsl(...)`, a bare triplet is invalid as `background-color` and the browser silently drops it — the element renders with no background at all (looks "transparent"/unstyled) with no console error. The same bug was independently reintroduced by runtime branding code in `client/src/contexts/CustomizationContext.tsx`, which calls `root.style.setProperty('--primary', ...)` when a custom brand color is configured; that inline style has higher specificity than the stylesheet, so even a corrected CSS file gets silently overridden back to a bare triplet.
+
+**How to apply:** Any new or edited CSS custom property intended for use as a Tailwind `bg-*`/`text-*`/`border-*` color must have its full value wrapped in `hsl(...)` (or another real CSS color function) at the point of definition. This applies both in `index.css` and in any JS that calls `.style.setProperty` on such a variable (e.g. branding/customization code) — grep `setProperty\(.*--` for all such call sites when auditing this class of bug. A regression test exists at `server/tests/unit/theme-css-variables.test.ts` that statically checks both the CSS file and `CustomizationContext.tsx` for this pattern; extend it if new theme variables are added.

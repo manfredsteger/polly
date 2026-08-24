@@ -15,7 +15,7 @@ services:
       retries: 5
 
   app:
-    image: manfredsteger/polly:0.1.0-beta.6
+    image: manfredsteger/polly:0.1.0-beta.7
     restart: unless-stopped
     depends_on:
       postgres:

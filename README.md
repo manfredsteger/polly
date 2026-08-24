@@ -1,7 +1,7 @@
 # Polly 🗳️
 
 [![Build Status](https://github.com/manfredsteger/polly/actions/workflows/ci.yml/badge.svg)](https://github.com/manfredsteger/polly/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.0--beta.6-blueviolet.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.0--beta.7-blueviolet.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/)
@@ -18,7 +18,7 @@ A modern, self-hosted polling and scheduling platform for teams. Create surveys,
 
 ```bash
 # Clone & Start - No configuration needed!
-git clone --branch v0.1.0-beta.6 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 docker compose up -d
 
@@ -174,7 +174,7 @@ make complete
 
 ```bash
 # Clone the repository
-git clone --branch v0.1.0-beta.6 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 
 # Copy and customize environment
@@ -193,7 +193,7 @@ docker compose up -d
 # Prerequisites: Node.js 22 LTS, PostgreSQL 15+
 
 # Clone and install
-git clone --branch v0.1.0-beta.6 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 npm install
 
@@ -475,7 +475,7 @@ The official image is published as `manfredsteger/polly` on Docker Hub:
 docker pull manfredsteger/polly:beta
 
 # Specific version (recommended for production)
-docker pull manfredsteger/polly:0.1.0-beta.6
+docker pull manfredsteger/polly:0.1.0-beta.7
 
 # Start the pinned image with PostgreSQL (Portainer/Synology compatible)
 docker compose -f docker-compose.image.yml up -d

@@ -1,7 +1,7 @@
 # Polly - Open-Source Polling & Scheduling Platform
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/manfredsteger/polly)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.4/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.5/LICENSE)
 
 **Self-hosted Doodle/Calendly alternative** for teams who need GDPR-compliant, cloud-independent coordination tools.
 
@@ -11,7 +11,7 @@
 docker pull manfredsteger/polly:beta
 
 # Option 1: Docker Compose (recommended)
-git clone --branch v0.1.0-beta.4 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.5 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD to strong values
@@ -19,7 +19,7 @@ docker compose -f docker-compose.image.yml up -d
 # Open http://localhost:3080
 
 # Option 2: Docker Compose with an external database
-git clone --branch v0.1.0-beta.4 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.5 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set DATABASE_URL, SESSION_SECRET and ADMIN_PASSWORD in .env
@@ -33,7 +33,7 @@ docker run -d \
   -e SESSION_SECRET=$(openssl rand -base64 32) \
   -e APP_URL=http://localhost:3080 \
   -v polly-uploads:/app/uploads \
-  manfredsteger/polly:0.1.0-beta.4
+  manfredsteger/polly:0.1.0-beta.5
 ```
 
 **Default Admin Login:** `admin` / `Admin123!`
@@ -60,7 +60,7 @@ docker run -d \
 | `manfredsteger/polly:latest` | Latest stable release |
 | `manfredsteger/polly:beta` | Latest beta release |
 | `manfredsteger/polly:rc` | Latest release candidate |
-| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.4`) |
+| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.5`) |
 
 ## Environment Variables
 
@@ -154,7 +154,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   app:
-    image: manfredsteger/polly:0.1.0-beta.4
+    image: manfredsteger/polly:0.1.0-beta.5
     ports:
       - "3080:5000"
     volumes:
@@ -191,11 +191,11 @@ curl http://localhost:3080/api/v1/health
 
 ## Documentation
 
-- [Self-Hosting Guide](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.4/docs/SELF-HOSTING.md) — Full deployment instructions, reverse proxy, backups
+- [Self-Hosting Guide](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.5/docs/SELF-HOSTING.md) — Full deployment instructions, reverse proxy, backups
 - [Release Notes](https://github.com/manfredsteger/polly/releases) — Changelog and download links
-- [Flutter Integration](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.4/docs/FLUTTER_INTEGRATION.md) — Mobile app API documentation
-- [OpenAPI Spec](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.4/docs/openapi.yaml) — Complete API reference
+- [Flutter Integration](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.5/docs/FLUTTER_INTEGRATION.md) — Mobile app API documentation
+- [OpenAPI Spec](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.5/docs/openapi.yaml) — Complete API reference
 
 ## License
 
-Polly is open-source software licensed under the [MIT License](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.4/LICENSE).
+Polly is open-source software licensed under the [MIT License](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.5/LICENSE).

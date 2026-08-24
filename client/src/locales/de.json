@@ -3508,5 +3508,21 @@
     "logout": "Abmelden",
     "changing": "Wird geändert...",
     "submit": "Passwort ändern"
+  },
+  "simpleChoice": {
+    "modeLabel": "Einfache Auswahl",
+    "modeDescription": "Teilnehmende wählen Optionen wie auf einem Stimmzettel aus (statt Ja/Vielleicht/Nein pro Option).",
+    "modeDescriptionSchedule": "Teilnehmende wählen Termine wie auf einem Stimmzettel aus (statt Ja/Vielleicht/Nein pro Termin).",
+    "maxSelectionsLabel": "Max. Auswahl",
+    "singleChoiceHint": "Single Choice: genau eine Option wählbar",
+    "multipleChoiceHint": "Multiple Choice: bis zu {{count}} Optionen wählbar",
+    "selectOneHint": "Bitte wähle eine Option aus.",
+    "selectUpToHint": "Bitte wähle bis zu {{count}} Optionen aus.",
+    "selectedCount": "{{selected}} von {{max}} ausgewählt",
+    "maxSelectionsReached": "Du kannst höchstens {{count}} Optionen auswählen.",
+    "selectAtLeastOne": "Bitte wähle mindestens eine Option aus.",
+    "noFreeTextInSimpleMode": "Freitextfragen sind im Modus „Einfache Auswahl“ nicht möglich.",
+    "select": "Auswählen",
+    "selected": "Ausgewählt"
   }
 }

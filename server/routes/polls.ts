@@ -106,6 +106,10 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       allowVoteWithdrawal: data.allowVoteWithdrawal,
       resultsPublic: data.resultsPublic,
       allowMaybe: data.allowMaybe,
+      responseMode: (data.type === 'survey' || data.type === 'schedule') ? data.responseMode : 'classic',
+      maxSelections: (data.type === 'survey' || data.type === 'schedule') && data.responseMode === 'simple'
+        ? (data.maxSelections ?? 1)
+        : null,
       notifyCreatorOnVote: data.notifyCreatorOnVote,
       videoConferenceUrl: data.type === 'schedule' ? (data.videoConferenceUrl || null) : null,
       isTestData: req.isTestMode === true,

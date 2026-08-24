@@ -168,6 +168,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
 
   const isOrganization = poll.type === 'organization';
   const isSchedule = poll.type === 'schedule';
+  const isSimpleMode = (poll.type === 'survey' || poll.type === 'schedule') && (poll as any).responseMode === 'simple';
   const isFinalized = poll.finalOptionId != null && poll.finalOptionId > 0;
   const isOrgFinalized = isOrganization && poll.finalOptionId === -1;
   const [isFinalizingOption, setIsFinalizingOption] = useState<number | null>(null);
@@ -1272,20 +1273,26 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                     <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
                       {t('voting.yes')}
                     </th>
-                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
-                      {t('voting.maybe')}
-                    </th>
-                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
-                      {t('voting.no')}
-                    </th>
-                    <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-32">
-                      <div className="flex flex-col items-center leading-tight">
-                        <span>{t('results.pointsHeader')}</span>
-                        <span className="text-[10px] normal-case font-normal text-muted-foreground">
-                          ({t('voting.yes')}=2, {t('voting.maybe')}=1, {t('voting.no')}=0)
-                        </span>
-                      </div>
-                    </th>
+                    {!isSimpleMode && (
+                      <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
+                        {t('voting.maybe')}
+                      </th>
+                    )}
+                    {!isSimpleMode && (
+                      <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-24">
+                        {t('voting.no')}
+                      </th>
+                    )}
+                    {!isSimpleMode && (
+                      <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-32">
+                        <div className="flex flex-col items-center leading-tight">
+                          <span>{t('results.pointsHeader')}</span>
+                          <span className="text-[10px] normal-case font-normal text-muted-foreground">
+                            ({t('voting.yes')}=2, {t('voting.maybe')}=1, {t('voting.no')}=0)
+                          </span>
+                        </div>
+                      </th>
+                    )}
                     <th className="text-center py-3 px-4 text-xs tracking-wide uppercase font-semibold text-muted-foreground w-36">
                       {t('results.status')}
                     </th>
@@ -1341,19 +1348,25 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                             {stat.yesCount}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          <Badge variant="outline" className="border-yellow-300 bg-yellow-50 text-yellow-700 min-w-10 justify-center">
-                            {stat.maybeCount}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <Badge variant="outline" className="border-red-300 bg-red-50 text-red-700 min-w-10 justify-center">
-                            {stat.noCount}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-lg font-semibold text-foreground">{stat.score}</span>
-                        </td>
+                        {!isSimpleMode && (
+                          <td className="py-4 px-4 text-center">
+                            <Badge variant="outline" className="border-yellow-300 bg-yellow-50 text-yellow-700 min-w-10 justify-center">
+                              {stat.maybeCount}
+                            </Badge>
+                          </td>
+                        )}
+                        {!isSimpleMode && (
+                          <td className="py-4 px-4 text-center">
+                            <Badge variant="outline" className="border-red-300 bg-red-50 text-red-700 min-w-10 justify-center">
+                              {stat.noCount}
+                            </Badge>
+                          </td>
+                        )}
+                        {!isSimpleMode && (
+                          <td className="py-4 px-4 text-center">
+                            <span className="text-lg font-semibold text-foreground">{stat.score}</span>
+                          </td>
+                        )}
                         <td className="py-4 px-4 text-center">
                           {isWinnerRow ? (
                             <Badge className="bg-emerald-600 text-white">
@@ -1493,6 +1506,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                     </div>
                     
                     {/* Vielleicht Button Style */}
+                    {!isSimpleMode && (
                     <div style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -1508,8 +1522,10 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.maybeCount}</span>
                       <span style={{ fontSize: '14px', fontWeight: '500', color: '#f59e0b' }}>{t('voting.maybe')}</span>
                     </div>
+                    )}
                     
                     {/* Nein Button Style */}
+                    {!isSimpleMode && (
                     <div style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -1525,6 +1541,7 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                       <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{currentStat.noCount}</span>
                       <span style={{ fontSize: '14px', fontWeight: '500', color: '#ef4444' }}>{t('voting.no')}</span>
                     </div>
+                    )}
                   </div>
                   
                   {/* Score display */}

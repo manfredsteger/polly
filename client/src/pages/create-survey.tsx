@@ -52,6 +52,8 @@ interface SurveyFormData {
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   allowMaybe: boolean;
+  simpleMode?: boolean;
+  maxSelections?: number;
   expiresAt: string | null;
 }
 
@@ -135,6 +137,8 @@ export default function CreateSurvey() {
   const [resultsPublic, setResultsPublic] = useState(true);
   const [notifyCreatorOnVote, setNotifyCreatorOnVote] = useState(true);
   const [allowMaybe, setAllowMaybe] = useState(false);
+  const [simpleMode, setSimpleMode] = useState(false);
+  const [maxSelections, setMaxSelections] = useState(1);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const nextIdRef = useRef(2);
   const [options, setOptions] = useState<SurveyOption[]>([
@@ -176,6 +180,8 @@ export default function CreateSurvey() {
       setResultsPublic(stored.data.resultsPublic ?? true);
       setNotifyCreatorOnVote(stored.data.notifyCreatorOnVote ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
+      setSimpleMode(stored.data.simpleMode ?? false);
+      setMaxSelections(stored.data.maxSelections ?? 1);
       if (stored.data.options && stored.data.options.length >= 2) {
         const restored = stored.data.options.map((o: SurveyOption, i: number) => ({ ...o, id: o.id ?? String(i) }));
         nextIdRef.current = restored.length;
@@ -219,6 +225,13 @@ export default function CreateSurvey() {
         if (typeof s.notifyCreatorOnVote === "boolean") setNotifyCreatorOnVote(s.notifyCreatorOnVote);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
         if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
+        if (s.responseMode === "simple") {
+          setSimpleMode(true);
+          const max = typeof s.maxSelections === "number" && Number.isInteger(s.maxSelections) && s.maxSelections >= 1 ? s.maxSelections : 1;
+          setMaxSelections(max);
+        } else if (s.responseMode === "classic") {
+          setSimpleMode(false);
+        }
       }
     } catch (_) {}
   }, []);
@@ -301,7 +314,7 @@ export default function CreateSurvey() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, notifyCreatorOnVote, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, notifyCreatorOnVote, allowMaybe, simpleMode, maxSelections, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-survey'
         );
         
@@ -388,6 +401,24 @@ export default function CreateSurvey() {
       return null;
     }
 
+    if (simpleMode && validFreeTextOptions.length > 0) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('simpleChoice.noFreeTextInSimpleMode'),
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    if (simpleMode && validNormalOptions.length < 2) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('createSurvey.minOptionsError'),
+        variant: "destructive",
+      });
+      return null;
+    }
+
     return {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -400,7 +431,9 @@ export default function CreateSurvey() {
       allowVoteWithdrawal,
       resultsPublic,
       notifyCreatorOnVote,
-      allowMaybe,
+      allowMaybe: simpleMode ? false : allowMaybe,
+      responseMode: simpleMode ? ("simple" as const) : ("classic" as const),
+      maxSelections: simpleMode ? Math.min(Math.max(1, maxSelections), validOptions.length) : undefined,
       options: validOptions.map((option, index) => {
         const opt: any = {
           text: option.text.trim(),
@@ -626,6 +659,7 @@ export default function CreateSurvey() {
                     <Switch
                       checked={allowMaybe}
                       onCheckedChange={setAllowMaybe}
+                      disabled={simpleMode}
                       data-testid="switch-allow-maybe"
                       aria-label={t('createSurvey.allowMaybe')}
                     />
@@ -656,6 +690,43 @@ export default function CreateSurvey() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-6 space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('simpleChoice.modeLabel')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('simpleChoice.modeDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={simpleMode}
+                  onCheckedChange={(checked) => {
+                    setSimpleMode(checked);
+                    if (checked) setAllowMaybe(false);
+                  }}
+                  data-testid="switch-simple-mode"
+                  aria-label={t('simpleChoice.modeLabel')}
+                />
+              </div>
+              {simpleMode && (
+                <div className="flex items-center gap-3 pt-2 border-t">
+                  <Label htmlFor="maxSelections" className="shrink-0">{t('simpleChoice.maxSelectionsLabel')}</Label>
+                  <Input
+                    id="maxSelections"
+                    type="number"
+                    min={1}
+                    max={Math.max(1, options.filter(o => o.text.trim()).length || options.length)}
+                    value={maxSelections}
+                    onChange={(e) => setMaxSelections(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20"
+                    data-testid="input-max-selections"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {maxSelections <= 1 ? t('simpleChoice.singleChoiceHint') : t('simpleChoice.multipleChoiceHint', { count: maxSelections })}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {t('createSurvey.optionsHint')}

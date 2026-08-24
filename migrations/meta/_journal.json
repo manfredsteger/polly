@@ -15,6 +15,13 @@
       "when": 1774512310093,
       "tag": "0001_video_conference_url",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774600000000,
+      "tag": "0002_simple_choice_mode",
+      "breakpoints": true
     }
   ]
 }

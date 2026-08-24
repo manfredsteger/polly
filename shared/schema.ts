@@ -57,6 +57,8 @@ export const polls = pgTable("polls", {
   allowVoteWithdrawal: boolean("allow_vote_withdrawal").default(false).notNull(), // allow voters to completely withdraw/delete their votes
   resultsPublic: boolean("results_public").default(true).notNull(), // whether results are visible to everyone or only to the creator
   allowMaybe: boolean("allow_maybe").default(true).notNull(), // whether "maybe" option is available for voting
+  responseMode: text("response_mode").default('classic').notNull(), // "classic" (yes/maybe/no per option) or "simple" (single/multiple choice selection)
+  maxSelections: integer("max_selections"), // for simple response mode: max number of options a voter may select (1 = single choice)
   notifyCreatorOnVote: boolean("notify_creator_on_vote").default(true).notNull(), // notify the poll creator by email when a new vote is cast
   isTestData: boolean("is_test_data").default(false).notNull(), // Test polls excluded from stats
   expiresAt: timestamp("expires_at", { withTimezone: true }),

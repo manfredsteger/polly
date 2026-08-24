@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.5] - 2026-08-24
+
+### Added
+- **Simple choice voting mode**: Schedule and survey polls can now use a "Simple" response mode alongside the classic Yes/Maybe/No voting — participants pick a single option (radio) or up to a configurable number of options (checkboxes) with a clear, high-contrast selected state instead of per-option Yes/Maybe/No. Fully supported by the AI poll assistant, translations, poll editing, and results display; existing "classic" polls are unaffected.
+
+### Fixed
+- **Theming**: Selected options (and other elements using the primary brand color) could render with no visible background instead of the configured brand color, because the `--primary` / `--primary-foreground` CSS variables were defined as raw color components instead of a valid CSS color value — an invalid value that browsers silently ignore. Both the base stylesheet and the runtime branding code that applies a custom primary color from the admin panel are corrected, and a regression test guards the format going forward.
+
 ## [0.1.0-beta.4] - 2026-08-23
 
 ### Fixed
@@ -215,13 +223,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 0.1.0-beta.5 | 2026-08-24 | Simple choice voting mode + brand color theming fix |
 | 0.1.0-beta.3 | 2026-08-22 | Public beta release with corrected image-upload error classification |
 | 0.1.0-beta.2 | 2026-08-22 | Guest access controls, administrator MFA policy, AI integration, branding, Docker reliability, and notification improvements |
 | 0.1.0-beta.1 | 2025-02-24 | Initial beta release |
 
 ---
 
-[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.3...HEAD
+[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.5...HEAD
+[0.1.0-beta.5]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.4...v0.1.0-beta.5
+[0.1.0-beta.4]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.3...v0.1.0-beta.4
 [0.1.0-beta.3]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.2...v0.1.0-beta.3
 [0.1.0-beta.2]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/manfredsteger/polly/releases/tag/v0.1.0-beta.1

@@ -47,6 +47,10 @@ externalPort = 3000
 localPort = 23636
 externalPort = 3001
 
+[[ports]]
+localPort = 24678
+externalPort = 3003
+
 [agent]
 integrations = ["javascript_sendgrid:1.0.0"]
 

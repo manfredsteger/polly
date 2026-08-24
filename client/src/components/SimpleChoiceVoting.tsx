@@ -75,23 +75,29 @@ export function SimpleChoiceVoting({
             aria-checked={isSelected}
             aria-disabled={isBlocked}
             onClick={() => !isExpired && !(!isSelected && limitReached) && toggleOption(option.id)}
-            disabled={disabled}
-            className={`w-full flex items-center gap-3 rounded-lg border p-4 text-left transition-colors
-              ${isSelected ? 'border-primary bg-primary/10' : 'border-border bg-background hover:bg-muted'}
+            disabled={isBlocked}
+            className={`group w-full flex min-h-[68px] items-center gap-3 rounded-xl border-2 p-4 text-left shadow-sm transition-all
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
+              ${isSelected
+                ? 'border-primary bg-primary text-primary-foreground shadow-md'
+                : 'border-border bg-background hover:border-primary/60 hover:bg-primary/5 hover:shadow-md'}
               ${isExpired ? 'opacity-50 cursor-not-allowed' : ''}
-              ${!isSelected && limitReached && !disabled ? 'opacity-60 cursor-not-allowed' : ''}
-              ${adminPreview || disabled ? 'cursor-default' : ''}`}
+              ${!isSelected && limitReached && !disabled ? 'opacity-50 cursor-not-allowed' : ''}
+              ${adminPreview || disabled ? 'cursor-default' : 'cursor-pointer'}`}
             data-testid={`simple-choice-option-${option.id}`}
+            data-state={isSelected ? 'checked' : 'unchecked'}
           >
             <span
-              className={`flex h-5 w-5 shrink-0 items-center justify-center border
+              className={`flex h-7 w-7 shrink-0 items-center justify-center border-2
                 ${isSingleChoice ? 'rounded-full' : 'rounded-sm'}
-                ${isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40 bg-background'}`}
+                ${isSelected
+                  ? 'border-primary-foreground bg-primary-foreground text-primary'
+                  : 'border-muted-foreground/60 bg-background group-hover:border-primary'}`}
               aria-hidden="true"
             >
               {isSelected && (isSingleChoice
-                ? <span className="h-2 w-2 rounded-full bg-primary-foreground" />
-                : <Check className="h-3.5 w-3.5" />)}
+                ? <span className="h-3.5 w-3.5 rounded-full bg-primary" />
+                : <Check className="h-4 w-4 stroke-[3]" />)}
             </span>
             {option.imageUrl && (
               <img
@@ -104,17 +110,24 @@ export function SimpleChoiceVoting({
                 }}
               />
             )}
-            <span className="flex-1 text-sm font-medium">
+            <span className={`flex-1 text-sm font-semibold ${isSelected ? 'text-primary-foreground' : 'text-foreground'}`}>
               <OptionLabel text={option.text} startTime={option.startTime} locale={i18n.language === 'de' ? 'de' : 'en'} />
               {isExpired && (
-                <span className="ml-2 text-xs text-muted-foreground">({t('votingInterface.expired')})</span>
+                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                  ({t('votingInterface.expired')})
+                </span>
               )}
             </span>
+            {isSelected && (
+              <span className="shrink-0 rounded-full bg-primary-foreground/15 px-2.5 py-1 text-xs font-bold">
+                {t('simpleChoice.selected')}
+              </span>
+            )}
           </button>
         );
       })}
       {!isSingleChoice && (
-        <p className="text-xs text-muted-foreground" data-testid="text-selection-count">
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm font-medium text-foreground" data-testid="text-selection-count">
           {t('simpleChoice.selectedCount', { selected: selectedOptionIds.length, max: maxSelections })}
         </p>
       )}

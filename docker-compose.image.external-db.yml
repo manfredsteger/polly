@@ -1,6 +1,6 @@
 services:
   app:
-    image: manfredsteger/polly:0.1.0-beta.4
+    image: manfredsteger/polly:0.1.0-beta.6
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}

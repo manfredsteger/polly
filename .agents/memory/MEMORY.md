@@ -7,3 +7,4 @@
 - [Test vs dev database drift](test-db-drift.md) — vitest uses DATABASE_URL, dev server may use another DB; new columns must be applied to both, and drizzle push is interactive (prompts on ambiguous renames).
 - [ClamAV configuration precedence](clamav-configuration-precedence.md) — explicit runtime scanner settings override Admin values; unknown scanner state blocks uploads rather than failing open.
 - [Mockup sandbox dependency setup](mockup-sandbox-install.md) — a fresh sandbox can need a local dependency install before Vite resolves its declared Tailwind packages.
+- [Vite middleware React stability](vite-middleware-react-stability.md) — keep Cartographer’s dev instrumentation out of this middleware-served app; it can split React’s runtime graph during startup.

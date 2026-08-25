@@ -20,7 +20,7 @@ This guide covers deploying Polly on your own infrastructure, including universi
 
 ```bash
 # Download the pinned release configuration and create your local settings
-git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD in .env
@@ -62,7 +62,7 @@ Best for: Small to medium deployments, quick evaluation
 
 ```bash
 # Source checkout: production with custom settings
-git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 nano .env  # Configure your settings
@@ -74,7 +74,7 @@ For the published Docker image (without a local source checkout), use
 `docker-compose.image.yml` from this repository:
 
 ```bash
-git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD to strong values
@@ -87,7 +87,7 @@ Best for: Organizations with existing PostgreSQL infrastructure
 
 ```bash
 # Preferred: use the pinned image Compose file without a bundled PostgreSQL container
-git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set DATABASE_URL, SESSION_SECRET and ADMIN_PASSWORD in .env
@@ -100,13 +100,13 @@ docker run -d \
   -e DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly \
   -e SESSION_SECRET=your-secure-secret \
   -v polly-uploads:/app/uploads \
-  manfredsteger/polly:0.1.0-beta.8
+  manfredsteger/polly:0.1.0-beta.9
 ```
 
 ### Option 3: Portainer
 
 On an x86_64 or ARM64 host, create a **Stack** in Portainer and point it to the
-`v0.1.0-beta.8` release's `docker-compose.image.yml`, or paste its contents into the web
+`v0.1.0-beta.9` release's `docker-compose.image.yml`, or paste its contents into the web
 editor. Add the following environment values in Portainer's stack settings
 before deploying:
 
@@ -123,7 +123,7 @@ Portainer stores named volumes declared by the stack. Do not remove
 ### Option 4: Synology Container Manager
 
 1. In **Container Manager → Project**, create a project and import
-   `docker-compose.image.yml` from the `v0.1.0-beta.8` release.
+   `docker-compose.image.yml` from the `v0.1.0-beta.9` release.
 2. Create a `.env` file next to it containing the four variables shown in the
    Portainer example.
 3. Deploy the project, then open `http://<nas-hostname>:3080`.

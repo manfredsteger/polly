@@ -304,21 +304,23 @@ access so the policy configured in the Admin Panel takes effect again.
 
 > **Note:** On plain-HTTP deployments (e.g. `http://localhost:3080`) do **not** set `FORCE_HTTPS=true` — browsers will silently discard the session cookie and users cannot log in.
 
-### Keycloak OIDC (Optional)
+### SSO via OIDC — Keycloak, Authentik & other providers (Optional)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `KEYCLOAK_REALM` | Keycloak realm name | `university` |
+| `KEYCLOAK_REALM` | Keycloak realm name (not needed when `KEYCLOAK_ISSUER_URL` is set) | `university` |
 | `KEYCLOAK_CLIENT_ID` | Client ID | `polly` |
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
-| `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
-| `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived from realm + server URL if not set) | `https://keycloak.example.com/realms/myrealm` |
+| `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL (not needed when `KEYCLOAK_ISSUER_URL` is set) | `https://keycloak.example.com` |
+| `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL. Takes precedence over the Keycloak-style `{server}/realms/{realm}` construction and enables generic OIDC providers such as Authentik | `https://auth.example.com/application/o/polly/` |
 | `KEYCLOAK_ADMIN_CLIENT_ID` | Client ID for Keycloak Admin API calls (e.g. email-exists checks via client_credentials). Defaults to `KEYCLOAK_CLIENT_ID` if not set | — |
 | `KEYCLOAK_ADMIN_CLIENT_SECRET` | Client secret for Keycloak Admin API calls. Defaults to `KEYCLOAK_CLIENT_SECRET` if not set | — |
 | `SSO_BUTTON_LABEL` | Custom login button text (default: "Login with Keycloak"). Also configurable in Admin → Authentication | `Kita Hub Login` |
 | `HIDE_LOGIN_FORM` | Hide the local username+password login form. Set to `true` when SSO is the primary login method | `false` |
 
 > **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
+
+> **Authentik example:** set `KEYCLOAK_ISSUER_URL=https://auth.example.com/application/o/polly/` plus `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET` — `KEYCLOAK_REALM` and `KEYCLOAK_AUTH_SERVER_URL` are not required. Existing Keycloak setups keep working unchanged; role mapping supports `realm_access.roles`, `resource_access[client].roles`, and custom `role`/`roles` claims (configurable in Authentik via property mappers).
 
 ### ClamAV Virus Scanning (Optional)
 

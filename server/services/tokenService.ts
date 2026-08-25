@@ -100,12 +100,14 @@ function getKeycloakConfig() {
   const clientId = process.env.KEYCLOAK_CLIENT_ID;
   const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
   const serverUrl = process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL;
+  // Generic OIDC providers (e.g. Authentik) can set the issuer URL directly.
+  const issuerUrl = process.env.KEYCLOAK_ISSUER_URL;
 
-  if (!realm || !clientId || !serverUrl) {
+  if (!clientId || (!issuerUrl && (!realm || !serverUrl))) {
     return null;
   }
 
-  return { realm, clientId, clientSecret, serverUrl };
+  return { realm, clientId, clientSecret, serverUrl, issuerUrl };
 }
 
 export const tokenService = {
@@ -122,7 +124,7 @@ export const tokenService = {
     }
 
     try {
-      const issuerUrl = new URL(`${config.serverUrl}/realms/${config.realm}`);
+      const issuerUrl = new URL(config.issuerUrl || `${config.serverUrl}/realms/${config.realm}`);
       oidcConfig = await client.discovery(issuerUrl, config.clientId, config.clientSecret);
       console.log('OIDC token validation initialized for Bearer auth');
       return true;
@@ -278,6 +280,13 @@ export const tokenService = {
   async checkEmailExistsInKeycloak(email: string): Promise<boolean> {
     const config = getKeycloakConfig();
     if (!config) return false;
+
+    // The Keycloak Admin API requires serverUrl + realm. Generic OIDC providers
+    // configured via KEYCLOAK_ISSUER_URL only (e.g. Authentik) don't expose this
+    // API, so skip the lookup instead of constructing invalid Keycloak URLs.
+    if (!config.serverUrl || !config.realm) {
+      return false;
+    }
 
     const clientId = process.env.KEYCLOAK_ADMIN_CLIENT_ID || config.clientId;
     const clientSecret = process.env.KEYCLOAK_ADMIN_CLIENT_SECRET || config.clientSecret || '';

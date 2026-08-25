@@ -137,10 +137,13 @@ router.get('/methods', async (req, res) => {
     const registrationSetting = await storage.getSetting('registration_enabled');
     const registrationEnabled = registrationSetting?.value !== false;
     
-    // Build Keycloak account URL if configured
+    // Build Keycloak account URL if configured.
+    // The /account console is a Keycloak convention, not a generic OIDC endpoint —
+    // only expose it when the Keycloak-style config (realm + server URL) is present.
     let keycloakAccountUrl: string | undefined;
-    if (authService.isKeycloakEnabled() && process.env.KEYCLOAK_ISSUER_URL) {
-      keycloakAccountUrl = `${process.env.KEYCLOAK_ISSUER_URL}/account`;
+    const isKeycloakStyleConfig = !!(process.env.KEYCLOAK_REALM && (process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL));
+    if (authService.isKeycloakEnabled() && process.env.KEYCLOAK_ISSUER_URL && isKeycloakStyleConfig) {
+      keycloakAccountUrl = `${process.env.KEYCLOAK_ISSUER_URL.replace(/\/+$/, '')}/account`;
     }
     
     // Custom SSO button label: DB setting > ENV > undefined (frontend uses default i18n)

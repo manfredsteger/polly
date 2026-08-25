@@ -30,7 +30,7 @@ function normalizeRoleName(roleName: string): PollyRole | null {
 
 // Extract role from Keycloak token claims
 // Supports: realm_access.roles, resource_access[client].roles, and custom 'role'/'roles' claim
-function extractRoleFromClaims(claims: Record<string, unknown>): PollyRole | null {
+export function extractRoleFromClaims(claims: Record<string, unknown>): PollyRole | null {
   const validRoles: PollyRole[] = ['admin', 'manager', 'user'];
   
   // Priority 1: Check for direct 'role' claim (custom mapper)
@@ -78,8 +78,9 @@ function extractRoleFromClaims(claims: Record<string, unknown>): PollyRole | nul
 }
 
 interface KeycloakConfig {
-  realm: string;
-  serverUrl: string;
+  realm?: string;
+  serverUrl?: string;
+  issuerUrl?: string;
   clientId: string;
   clientSecret?: string;
   redirectUri: string;
@@ -88,20 +89,33 @@ interface KeycloakConfig {
 const getKeycloakConfig = (): KeycloakConfig | null => {
   const realm = process.env.KEYCLOAK_REALM;
   const serverUrl = process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL;
+  // Generic OIDC providers (e.g. Authentik) can set the issuer URL directly.
+  // When set, realm/serverUrl are optional; when unset, behavior is unchanged.
+  const issuerUrl = process.env.KEYCLOAK_ISSUER_URL;
   const clientId = process.env.KEYCLOAK_CLIENT_ID;
   const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
 
-  if (!realm || !serverUrl || !clientId) {
+  if (!clientId || (!issuerUrl && (!realm || !serverUrl))) {
     return null;
   }
 
   return {
     realm,
     serverUrl,
+    issuerUrl,
     clientId,
     clientSecret,
     redirectUri: `${getBaseUrl()}/api/v1/auth/keycloak/callback`
   };
+};
+
+// Resolve the effective OIDC issuer URL: explicit KEYCLOAK_ISSUER_URL wins,
+// otherwise fall back to the Keycloak-specific {serverUrl}/realms/{realm} construction.
+export const resolveIssuerUrl = (config: Pick<KeycloakConfig, 'realm' | 'serverUrl' | 'issuerUrl'> | null): string => {
+  if (!config) return '';
+  if (config.issuerUrl) return config.issuerUrl;
+  if (config.serverUrl && config.realm) return `${config.serverUrl}/realms/${config.realm}`;
+  return '';
 };
 
 export const authService = {
@@ -113,7 +127,7 @@ export const authService = {
     }
 
     try {
-      const issuerUrl = new URL(`${config.serverUrl}/realms/${config.realm}`);
+      const issuerUrl = new URL(resolveIssuerUrl(config));
       oidcConfig = await client.discovery(issuerUrl, config.clientId, config.clientSecret);
       console.log('Keycloak OIDC client initialized successfully');
       return true;
@@ -136,7 +150,7 @@ export const authService = {
     callbackUrl: string;
   } {
     const config = getKeycloakConfig();
-    const issuerUrl = config ? `${config.serverUrl}/realms/${config.realm}` : '';
+    const issuerUrl = resolveIssuerUrl(config);
 
     return {
       configured: config !== null,
@@ -154,7 +168,7 @@ export const authService = {
       return { success: false, error: 'Keycloak not configured' };
     }
     try {
-      const wellKnownUrl = `${config.serverUrl}/realms/${config.realm}/.well-known/openid-configuration`;
+      const wellKnownUrl = `${resolveIssuerUrl(config).replace(/\/+$/, '')}/.well-known/openid-configuration`;
       const discoveryResponse = await fetch(wellKnownUrl, { signal: AbortSignal.timeout(10000) });
       if (!discoveryResponse.ok) {
         return { success: false, error: `Discovery endpoint: HTTP ${discoveryResponse.status} ${discoveryResponse.statusText}` };

@@ -1,7 +1,7 @@
 # Polly - Open-Source Polling & Scheduling Platform
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/manfredsteger/polly)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.7/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.8/LICENSE)
 
 **Self-hosted Doodle/Calendly alternative** for teams who need GDPR-compliant, cloud-independent coordination tools.
 
@@ -11,7 +11,7 @@
 docker pull manfredsteger/polly:beta
 
 # Option 1: Docker Compose (recommended)
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD to strong values
@@ -19,7 +19,7 @@ docker compose -f docker-compose.image.yml up -d
 # Open http://localhost:3080
 
 # Option 2: Docker Compose with an external database
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set DATABASE_URL, SESSION_SECRET and ADMIN_PASSWORD in .env
@@ -33,7 +33,7 @@ docker run -d \
   -e SESSION_SECRET=$(openssl rand -base64 32) \
   -e APP_URL=http://localhost:3080 \
   -v polly-uploads:/app/uploads \
-  manfredsteger/polly:0.1.0-beta.7
+  manfredsteger/polly:0.1.0-beta.8
 ```
 
 **Default Admin Login:** `admin` / `Admin123!`
@@ -60,7 +60,7 @@ docker run -d \
 | `manfredsteger/polly:latest` | Latest stable release |
 | `manfredsteger/polly:beta` | Latest beta release |
 | `manfredsteger/polly:rc` | Latest release candidate |
-| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.7`) |
+| `manfredsteger/polly:<version>` | Specific version (e.g., `0.1.0-beta.8`) |
 
 ## Environment Variables
 
@@ -154,7 +154,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   app:
-    image: manfredsteger/polly:0.1.0-beta.7
+    image: manfredsteger/polly:0.1.0-beta.8
     ports:
       - "3080:5000"
     volumes:
@@ -182,6 +182,14 @@ for compatible x86_64 and ARM64 Portainer or Synology Container Manager hosts.
 | `postgres_data` | Database (survives rebuilds) |
 | `uploads_data` | Uploaded files (logos, etc.) |
 
+The container runs as UID:GID **1001:1001** (`nodejs`). The uploads volume must
+be owned by this user, otherwise image uploads fail with `EACCES` (the
+container logs a `[Uploads] WARNING` at startup). Fix from the Docker host:
+
+```bash
+docker run --rm -v uploads_data:/data alpine chown -R 1001:1001 /data
+```
+
 ## Health Check
 
 ```bash
@@ -191,11 +199,11 @@ curl http://localhost:3080/api/v1/health
 
 ## Documentation
 
-- [Self-Hosting Guide](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.7/docs/SELF-HOSTING.md) — Full deployment instructions, reverse proxy, backups
+- [Self-Hosting Guide](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.8/docs/SELF-HOSTING.md) — Full deployment instructions, reverse proxy, backups
 - [Release Notes](https://github.com/manfredsteger/polly/releases) — Changelog and download links
-- [Flutter Integration](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.7/docs/FLUTTER_INTEGRATION.md) — Mobile app API documentation
-- [OpenAPI Spec](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.7/docs/openapi.yaml) — Complete API reference
+- [Flutter Integration](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.8/docs/FLUTTER_INTEGRATION.md) — Mobile app API documentation
+- [OpenAPI Spec](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.8/docs/openapi.yaml) — Complete API reference
 
 ## License
 
-Polly is open-source software licensed under the [MIT License](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.7/LICENSE).
+Polly is open-source software licensed under the [MIT License](https://github.com/manfredsteger/polly/blob/v0.1.0-beta.8/LICENSE).

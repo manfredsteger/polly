@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.8] - 2026-08-25
+
+### Fixed
+- **Self-hosted upgrades (database schema)**: Upgrading an existing self-hosted installation to beta.5+ broke poll and survey creation with `column "response_mode" does not exist`, because container startup only applied the initial migration plus an incomplete hand-maintained column list. Startup now applies every migration file from the migration journal in order (idempotently), the fallback column list includes `polls.response_mode` / `polls.max_selections`, and the previously migration-less `ai_usage_logs` table is created as well. A regression test fails whenever a schema column is missing from the startup schema mechanism.
+- **Image uploads (volume permissions)**: When the volume mounted at `/app/uploads` is not writable by the container user (UID:GID 1001:1001) — common after upgrades or on Synology/Portainer setups — uploads failed with a generic 500. The container now logs an actionable warning at startup, upload failures caused by missing filesystem permissions return a distinct `storagePermission` error (HTTP 507) naming the required ownership, and the self-hosting docs describe the `chown -R 1001:1001` fix.
+
 ## [0.1.0-beta.7] - 2026-08-24
 
 ### Fixed
@@ -233,6 +239,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 0.1.0-beta.8 | 2026-08-25 | Self-hosted upgrade fixes: startup migrations + uploads volume permissions |
 | 0.1.0-beta.7 | 2026-08-24 | Changelog history correction (supersedes beta.6) |
 | 0.1.0-beta.6 | 2026-08-24 | Release documentation/lockfile correction (supersedes beta.5) |
 | 0.1.0-beta.5 | 2026-08-24 | Simple choice voting mode + brand color theming fix |
@@ -242,7 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.7...HEAD
+[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.8...HEAD
+[0.1.0-beta.8]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.7...v0.1.0-beta.8
 [0.1.0-beta.7]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.6...v0.1.0-beta.7
 [0.1.0-beta.6]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.5...v0.1.0-beta.6
 [0.1.0-beta.5]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.4...v0.1.0-beta.5

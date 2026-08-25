@@ -292,6 +292,78 @@ describe('ImageService', () => {
     });
   });
 
+  describe('processUpload — storagePermission flag (regression guard: uploads volume EACCES)', () => {
+    // Self-hosted bug: uploads volume owned by wrong UID → fs.writeFile throws EACCES,
+    // previously surfaced as a generic 500. Must return a distinct storagePermission error.
+    function makeMockFile(buf: Buffer, mimetype = 'image/png', name = 'upload.png') {
+      return {
+        originalname: name,
+        buffer: buf,
+        size: buf.length,
+        mimetype,
+        fieldname: 'image',
+        encoding: '7bit',
+        stream: null as any,
+        destination: '',
+        filename: '',
+        path: '',
+      };
+    }
+
+    let clamavSpy: ReturnType<typeof vi.spyOn>;
+    let writeSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      clamavSpy = vi.spyOn(clamavService, 'isEnabled').mockResolvedValue(false);
+      const eacces = Object.assign(new Error("EACCES: permission denied, open '/app/uploads/x.png'"), {
+        code: 'EACCES',
+      });
+      writeSpy = vi.spyOn(fs, 'writeFile').mockRejectedValue(eacces);
+    });
+
+    afterEach(() => {
+      clamavSpy.mockRestore();
+      writeSpy.mockRestore();
+    });
+
+    it('returns storagePermission=true with an actionable message when writeFile throws EACCES', async () => {
+      const validPng = await sharp({
+        create: { width: 4, height: 4, channels: 3, background: { r: 10, g: 20, b: 30 } },
+      }).png().toBuffer();
+
+      const result = await imageService.processUpload(makeMockFile(validPng) as any);
+
+      expect(result.success).toBe(false);
+      expect(result.storagePermission).toBe(true);
+      expect(result.error).toMatch(/1001/);
+      expect(result.invalidFileType).toBeFalsy();
+      expect(result.scannerUnavailable).toBeFalsy();
+    });
+
+    it('EPERM is also treated as a storage permission error', async () => {
+      writeSpy.mockRejectedValue(Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }));
+      const validPng = await sharp({
+        create: { width: 4, height: 4, channels: 3, background: { r: 1, g: 2, b: 3 } },
+      }).png().toBuffer();
+
+      const result = await imageService.processUpload(makeMockFile(validPng) as any);
+      expect(result.success).toBe(false);
+      expect(result.storagePermission).toBe(true);
+    });
+
+    it('non-permission write errors still return the generic error without storagePermission', async () => {
+      writeSpy.mockRejectedValue(Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' }));
+      const validPng = await sharp({
+        create: { width: 4, height: 4, channels: 3, background: { r: 1, g: 2, b: 3 } },
+      }).png().toBuffer();
+
+      const result = await imageService.processUpload(makeMockFile(validPng) as any);
+      expect(result.success).toBe(false);
+      expect(result.storagePermission).toBeFalsy();
+      expect(result.error).toBe('Datei konnte nicht gespeichert werden');
+    });
+  });
+
   describe('sanitizeSvg — XSS vector stripping', () => {
     const CLEAN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="blue"/></svg>';
 

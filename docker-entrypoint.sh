@@ -14,6 +14,24 @@ if [ -n "$BASE_URL" ]; then
 fi
 
 # =========================================
+# Step 0: Verify uploads directory is writable
+# =========================================
+UPLOADS_DIR="/app/uploads"
+if [ -d "$UPLOADS_DIR" ]; then
+  if touch "$UPLOADS_DIR/.write-test" 2>/dev/null; then
+    rm -f "$UPLOADS_DIR/.write-test"
+    echo "[Uploads] $UPLOADS_DIR is writable"
+  else
+    echo "[Uploads] WARNING: $UPLOADS_DIR is NOT writable by the container user (UID $(id -u))."
+    echo "[Uploads]          Image uploads will fail until this is fixed."
+    echo "[Uploads]          The mounted volume must be owned by UID:GID 1001:1001 ('nodejs' user)."
+    echo "[Uploads]          Fix from the Docker host, e.g.:"
+    echo "[Uploads]            docker run --rm -v <uploads_volume>:/data alpine chown -R 1001:1001 /data"
+    echo "[Uploads]          (Polly keeps starting so you can use everything except uploads.)"
+  fi
+fi
+
+# =========================================
 # Step 1: Wait for PostgreSQL
 # =========================================
 

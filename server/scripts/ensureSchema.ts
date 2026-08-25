@@ -13,7 +13,7 @@ const REQUIRED_TABLES = ['users', 'polls', 'poll_options', 'votes', 'system_sett
   'test_runs', 'test_results', 'test_configurations', 'clamav_scan_logs', 'email_templates',
   'email_verification_tokens'];
 
-const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = [
+export const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = [
   { table: 'users', column: 'calendar_token', definition: 'TEXT UNIQUE' },
   { table: 'users', column: 'username', definition: 'TEXT NOT NULL DEFAULT \'\'' },
   { table: 'users', column: 'is_test_data', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
@@ -31,6 +31,8 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'polls', column: 'expiry_reminder_hours', definition: 'INTEGER DEFAULT 24' },
   { table: 'polls', column: 'expiry_reminder_sent', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'polls', column: 'final_option_id', definition: 'INTEGER' },
+  { table: 'polls', column: 'response_mode', definition: 'TEXT NOT NULL DEFAULT \'classic\'' },
+  { table: 'polls', column: 'max_selections', definition: 'INTEGER' },
   { table: 'votes', column: 'is_test_data', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'votes', column: 'voter_edit_token', definition: 'TEXT' },
   { table: 'votes', column: 'voter_key', definition: 'TEXT' },
@@ -46,6 +48,33 @@ const COLUMN_UPDATES: { table: string; column: string; definition: string }[] = 
   { table: 'users', column: 'mfa_required', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'users', column: 'last_used_totp_token', definition: 'TEXT' },
 ];
+
+/**
+ * Reads the Drizzle migration journal and returns the migration tags in
+ * application order. Returns [] when the journal is missing or unreadable.
+ */
+export function loadMigrationJournal(): string[] {
+  const journalPath = path.resolve(process.cwd(), 'migrations', 'meta', '_journal.json');
+  try {
+    const journal = JSON.parse(fs.readFileSync(journalPath, 'utf-8'));
+    if (!Array.isArray(journal?.entries)) return [];
+    return [...journal.entries]
+      .sort((a: any, b: any) => (a.idx ?? 0) - (b.idx ?? 0))
+      .map((e: any) => String(e.tag));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Errors that only mean "this migration statement was already applied".
+ * 42701 duplicate_column, 42P07 duplicate_table, 42710 duplicate_object,
+ * 42P06 duplicate_schema, 23505 unique_violation (re-inserted seed rows).
+ */
+function isIdempotencyError(err: any): boolean {
+  const idempotentCodes = ['42701', '42P07', '42710', '42P06', '23505'];
+  return idempotentCodes.includes(err?.code) || Boolean(err?.message?.includes('already exists'));
+}
 
 async function ensureSchema(): Promise<void> {
   if (!process.env.DATABASE_URL) {
@@ -71,45 +100,48 @@ async function ensureSchema(): Promise<void> {
       `);
       let existingTables = tablesResult.rows.map(r => r.table_name);
 
-      // If core tables don't exist, run initial migration
-      if (!existingTables.includes('users') || !existingTables.includes('polls')) {
-        console.log('📦 Running initial database migration...');
-        const migrationPath = path.resolve(process.cwd(), 'migrations', '0000_old_vance_astro.sql');
-        
-        if (fs.existsSync(migrationPath)) {
+      // Apply all migration files from the Drizzle journal in order.
+      // Every statement is executed idempotently: "already exists" /
+      // "duplicate column" errors are ignored, so this is safe to run on
+      // both fresh databases and existing installations being upgraded.
+      const journalEntries = loadMigrationJournal();
+      if (journalEntries.length > 0) {
+        console.log(`📦 Applying ${journalEntries.length} migration file(s) from journal...`);
+        for (const tag of journalEntries) {
+          const migrationPath = path.resolve(process.cwd(), 'migrations', `${tag}.sql`);
+          if (!fs.existsSync(migrationPath)) {
+            console.warn(`  ⚠️ Migration file missing: ${tag}.sql — skipping`);
+            continue;
+          }
           const migrationSQL = fs.readFileSync(migrationPath, 'utf-8');
-          // Split by statement breakpoint and execute each statement
           const statements = migrationSQL.split('--> statement-breakpoint');
-          
           for (const statement of statements) {
             const trimmed = statement.trim();
             if (trimmed && !trimmed.startsWith('--')) {
               try {
                 await client.query(trimmed);
               } catch (err: any) {
-                // Ignore "already exists" errors
-                if (!err.message?.includes('already exists')) {
-                  console.warn(`  ⚠️ Statement warning: ${err.message?.substring(0, 100)}`);
+                // Ignore idempotency errors (already exists / duplicate column)
+                if (!isIdempotencyError(err)) {
+                  console.warn(`  ⚠️ [${tag}] Statement warning: ${err.message?.substring(0, 120)}`);
                 }
               }
             }
           }
-          console.log('✅ Initial migration complete');
-        } else {
-          console.log('⚠️ Migration file not found, creating tables manually...');
-          await createCoreTables(client);
+          console.log(`  ✅ Applied ${tag}`);
         }
-        
-        // Refresh table list after creating tables
-        tablesResult = await client.query(`
-          SELECT table_name 
-          FROM information_schema.tables 
-          WHERE table_schema = 'public'
-        `);
-        existingTables = tablesResult.rows.map(r => r.table_name);
-      } else {
-        console.log('✓ Core tables already exist');
+      } else if (!existingTables.includes('users') || !existingTables.includes('polls')) {
+        console.log('⚠️ Migration journal not found, creating tables manually...');
+        await createCoreTables(client);
       }
+
+      // Refresh table list after applying migrations
+      tablesResult = await client.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `);
+      existingTables = tablesResult.rows.map(r => r.table_name);
 
       // Ensure all columns exist
       console.log('🔧 Checking for missing columns...');
@@ -172,6 +204,23 @@ async function ensureSchema(): Promise<void> {
       } else {
         console.log('✓ All timestamp columns already TIMESTAMPTZ');
       }
+
+      // ai_usage_logs was added via drizzle push in development and never got
+      // a migration file — create it explicitly for self-hosted upgrades.
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "ai_usage_logs" (
+          "id" SERIAL PRIMARY KEY,
+          "user_id" INTEGER,
+          "session_id" TEXT,
+          "endpoint" TEXT NOT NULL,
+          "model" TEXT NOT NULL,
+          "prompt_tokens" INTEGER,
+          "completion_tokens" INTEGER,
+          "success" BOOLEAN NOT NULL DEFAULT TRUE,
+          "error_message" TEXT,
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS "session" (
@@ -270,6 +319,8 @@ async function createCoreTables(client: any): Promise<void> {
       enable_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
       expiry_reminder_hours INTEGER DEFAULT 24,
       expiry_reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,
+      response_mode TEXT NOT NULL DEFAULT 'classic',
+      max_selections INTEGER,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -374,7 +425,12 @@ async function createCoreTables(client: any): Promise<void> {
   console.log('✅ Core tables created');
 }
 
-ensureSchema().catch(err => {
-  console.error('❌ Unexpected error:', err);
-  process.exit(1);
-});
+// Only run when executed directly (npx tsx server/scripts/ensureSchema.ts),
+// not when imported (e.g. by regression tests).
+const isDirectRun = process.argv[1]?.includes('ensureSchema');
+if (isDirectRun) {
+  ensureSchema().catch(err => {
+    console.error('❌ Unexpected error:', err);
+    process.exit(1);
+  });
+}

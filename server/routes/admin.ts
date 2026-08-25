@@ -2247,10 +2247,12 @@ router.post('/customization/logo', requireAdmin, (req, res, next) => {
       if (result.invalidFileType) statusCode = 400;
       else if (result.virusName) statusCode = 422;
       else if (result.scannerUnavailable) statusCode = 503;
+      else if (result.storagePermission) statusCode = 507;
       return res.status(statusCode).json({
         error: result.error,
         virusName: result.virusName,
         scannerUnavailable: result.scannerUnavailable,
+        storagePermission: result.storagePermission,
       });
     }
 
@@ -2314,10 +2316,12 @@ router.post('/customization/favicon', requireAdmin, (req, res, next) => {
       if (result.invalidFileType) statusCode = 400;
       else if (result.virusName) statusCode = 422;
       else if (result.scannerUnavailable) statusCode = 503;
+      else if (result.storagePermission) statusCode = 507;
       return res.status(statusCode).json({
         error: result.error,
         virusName: result.virusName,
         scannerUnavailable: result.scannerUnavailable,
+        storagePermission: result.storagePermission,
       });
     }
 

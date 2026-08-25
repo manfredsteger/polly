@@ -20,7 +20,7 @@ This guide covers deploying Polly on your own infrastructure, including universi
 
 ```bash
 # Download the pinned release configuration and create your local settings
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD in .env
@@ -62,7 +62,7 @@ Best for: Small to medium deployments, quick evaluation
 
 ```bash
 # Source checkout: production with custom settings
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 nano .env  # Configure your settings
@@ -74,7 +74,7 @@ For the published Docker image (without a local source checkout), use
 `docker-compose.image.yml` from this repository:
 
 ```bash
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD to strong values
@@ -87,7 +87,7 @@ Best for: Organizations with existing PostgreSQL infrastructure
 
 ```bash
 # Preferred: use the pinned image Compose file without a bundled PostgreSQL container
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 cp .env.example .env
 # Set DATABASE_URL, SESSION_SECRET and ADMIN_PASSWORD in .env
@@ -100,13 +100,13 @@ docker run -d \
   -e DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly \
   -e SESSION_SECRET=your-secure-secret \
   -v polly-uploads:/app/uploads \
-  manfredsteger/polly:0.1.0-beta.7
+  manfredsteger/polly:0.1.0-beta.8
 ```
 
 ### Option 3: Portainer
 
 On an x86_64 or ARM64 host, create a **Stack** in Portainer and point it to the
-`v0.1.0-beta.7` release's `docker-compose.image.yml`, or paste its contents into the web
+`v0.1.0-beta.8` release's `docker-compose.image.yml`, or paste its contents into the web
 editor. Add the following environment values in Portainer's stack settings
 before deploying:
 
@@ -123,7 +123,7 @@ Portainer stores named volumes declared by the stack. Do not remove
 ### Option 4: Synology Container Manager
 
 1. In **Container Manager → Project**, create a project and import
-   `docker-compose.image.yml` from the `v0.1.0-beta.7` release.
+   `docker-compose.image.yml` from the `v0.1.0-beta.8` release.
 2. Create a `.env` file next to it containing the four variables shown in the
    Portainer example.
 3. Deploy the project, then open `http://<nas-hostname>:3080`.
@@ -705,6 +705,35 @@ docker compose exec app sh -c "pg_isready -h your-db-host -p 5432"
 # Check environment variable
 docker compose exec app sh -c "echo \$DATABASE_URL"
 ```
+
+### Image Uploads Fail (EACCES / permission denied)
+
+The container runs as a non-root user (UID:GID **1001:1001**, `nodejs`). If the
+volume mounted at `/app/uploads` was created by another image or is owned by a
+different user (common after upgrades or on Synology/Portainer setups), uploads
+fail with `EACCES: permission denied` and the API returns a storage-permission
+error.
+
+The container logs a warning at startup when `/app/uploads` is not writable:
+
+```
+[Uploads] WARNING: /app/uploads is NOT writable by the container user (UID 1001).
+```
+
+**Fix:** change ownership of the uploads volume to `1001:1001` from the Docker host:
+
+```bash
+# Named volume (e.g. uploads_data from docker-compose):
+docker run --rm -v uploads_data:/data alpine chown -R 1001:1001 /data
+
+# Portainer: the volume name is usually prefixed with the stack name,
+# e.g. polly_uploads_data — check Portainer → Volumes for the exact name.
+
+# Bind mount (host directory):
+sudo chown -R 1001:1001 /path/to/uploads
+```
+
+Then restart the container. No data is lost by this operation.
 
 ### Email Not Sending
 

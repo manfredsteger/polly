@@ -82,7 +82,20 @@ export interface UploadResult {
   virusName?: string;
   scannerUnavailable?: boolean;
   invalidFileType?: boolean;
+  storagePermission?: boolean;
 }
+
+/** True when an fs error indicates missing filesystem permissions. */
+function isPermissionError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code;
+  return code === 'EACCES' || code === 'EPERM' || code === 'EROFS';
+}
+
+const UPLOADS_PERMISSION_HINT =
+  'Uploads directory is not writable. In Docker, the volume mounted at /app/uploads must be ' +
+  'owned by UID:GID 1001:1001 (the container\'s "nodejs" user). ' +
+  'Fix: run "chown -R 1001:1001" on the volume/host directory, e.g. ' +
+  'docker run --rm -v <uploads_volume>:/data alpine chown -R 1001:1001 /data';
 
 export interface ScanContext {
   userId?: number;
@@ -168,7 +181,14 @@ export class ImageService {
     try {
       await fs.access(this.uploadDir);
     } catch {
-      await fs.mkdir(this.uploadDir, { recursive: true });
+      try {
+        await fs.mkdir(this.uploadDir, { recursive: true });
+      } catch (error) {
+        if (isPermissionError(error)) {
+          console.error(`[ImageService] ${UPLOADS_PERMISSION_HINT}`);
+        }
+        throw error;
+      }
     }
   }
 
@@ -340,6 +360,14 @@ export class ImageService {
         imageUrl: this.getImageUrl(filename),
       };
     } catch (error) {
+      if (isPermissionError(error)) {
+        console.error(`[ImageService] EACCES beim Schreiben in ${this.uploadDir}: ${UPLOADS_PERMISSION_HINT}`);
+        return {
+          success: false,
+          storagePermission: true,
+          error: 'Upload-Verzeichnis ist nicht beschreibbar (Berechtigungsfehler). Docker: Das Volume unter /app/uploads muss UID:GID 1001:1001 gehören.',
+        };
+      }
       console.error('Fehler beim Speichern der Datei:', error);
       return {
         success: false,

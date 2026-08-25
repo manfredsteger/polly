@@ -18,7 +18,7 @@ A modern, self-hosted polling and scheduling platform for teams. Create surveys,
 
 ```bash
 # Clone & Start - No configuration needed!
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 docker compose up -d
 
@@ -174,7 +174,7 @@ make complete
 
 ```bash
 # Clone the repository
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 
 # Copy and customize environment
@@ -193,7 +193,7 @@ docker compose up -d
 # Prerequisites: Node.js 22 LTS, PostgreSQL 15+
 
 # Clone and install
-git clone --branch v0.1.0-beta.7 --depth 1 https://github.com/manfredsteger/polly.git
+git clone --branch v0.1.0-beta.8 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
 npm install
 
@@ -475,7 +475,7 @@ The official image is published as `manfredsteger/polly` on Docker Hub:
 docker pull manfredsteger/polly:beta
 
 # Specific version (recommended for production)
-docker pull manfredsteger/polly:0.1.0-beta.7
+docker pull manfredsteger/polly:0.1.0-beta.8
 
 # Start the pinned image with PostgreSQL (Portainer/Synology compatible)
 docker compose -f docker-compose.image.yml up -d

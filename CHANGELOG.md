@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.9] - 2026-08-25
+
+### Added
+- **Generic OIDC / Authentik support**: In addition to the existing Keycloak realm configuration, Polly can now use any standards-compliant OIDC provider via `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_CLIENT_ID`, and `KEYCLOAK_CLIENT_SECRET`. This supports Authentik without breaking existing Keycloak installations. OIDC discovery, browser login, bearer-token validation, connection testing, and role mapping use the configured issuer URL. The self-hosting guide and environment template include an Authentik configuration example.
+
 ## [0.1.0-beta.8] - 2026-08-25
 
 ### Fixed
@@ -239,6 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 0.1.0-beta.9 | 2026-08-25 | Generic OIDC / Authentik support via configurable issuer URL |
 | 0.1.0-beta.8 | 2026-08-25 | Self-hosted upgrade fixes: startup migrations + uploads volume permissions |
 | 0.1.0-beta.7 | 2026-08-24 | Changelog history correction (supersedes beta.6) |
 | 0.1.0-beta.6 | 2026-08-24 | Release documentation/lockfile correction (supersedes beta.5) |
@@ -249,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.8...HEAD
+[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.9...HEAD
+[0.1.0-beta.9]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.8...v0.1.0-beta.9
 [0.1.0-beta.8]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.7...v0.1.0-beta.8
 [0.1.0-beta.7]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.6...v0.1.0-beta.7
 [0.1.0-beta.6]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.5...v0.1.0-beta.6

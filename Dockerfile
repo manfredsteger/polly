@@ -32,7 +32,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies
-RUN npm ci && npm cache clean --force
+#RUN npm ci && npm cache clean --force
+RUN npm ci --foreground-scripts && npm cache clean --force
 
 # ============================================
 # Stage 2: Builder (compile TypeScript + Vite)

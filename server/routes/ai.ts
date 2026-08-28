@@ -34,6 +34,12 @@ type AiProviderModel = {
   owned_by?: string;
 };
 
+type AiModelsFetchResult = {
+  models: AiProviderModel[];
+  fetchedAt: string;
+  cached: boolean;
+};
+
 let aiModelsCache:
   | {
       baseUrl: string;
@@ -150,18 +156,7 @@ function mapAiRouteError(err: unknown): { status: number; message: string; code:
   };
 }
 
-async function fetchProviderModels(): Promise<{ models: AiProviderModel[]; fetchedAt: string; cached: boolean }> {
-  const settings = await getAiSettings();
-  const apiKey = getEffectiveApiKey(settings);
-  if (!apiKey) {
-    throw new Error("AI_NOT_CONFIGURED");
-  }
-
-  const baseUrl = getEffectiveApiUrl(settings).replace(/\/+$/, "");
-  if (aiModelsCache && aiModelsCache.baseUrl === baseUrl && Date.now() < aiModelsCache.expiresAt) {
-    return { models: aiModelsCache.models, fetchedAt: aiModelsCache.fetchedAt, cached: true };
-  }
-
+async function requestProviderModels(baseUrl: string, apiKey: string): Promise<AiProviderModel[]> {
   const response = await fetch(`${baseUrl}/models`, {
     method: "GET",
     headers: {
@@ -193,15 +188,29 @@ async function fetchProviderModels(): Promise<{ models: AiProviderModel[]; fetch
     ? (parsedBody as any).data
     : [];
 
-  const models = data
+  return data
     .filter((entry: unknown): entry is AiProviderModel => !!entry && typeof entry === "object" && typeof (entry as any).id === "string")
-    .map((entry) => ({
+    .map((entry: AiProviderModel) => ({
       id: entry.id,
       object: typeof entry.object === "string" ? entry.object : undefined,
       owned_by: typeof entry.owned_by === "string" ? entry.owned_by : undefined,
     }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a: AiProviderModel, b: AiProviderModel) => a.id.localeCompare(b.id));
+}
 
+async function fetchProviderModels(): Promise<AiModelsFetchResult> {
+  const settings = await getAiSettings();
+  const apiKey = getEffectiveApiKey(settings);
+  if (!apiKey) {
+    throw new Error("AI_NOT_CONFIGURED");
+  }
+
+  const baseUrl = getEffectiveApiUrl(settings).replace(/\/+$/, "");
+  if (aiModelsCache && aiModelsCache.baseUrl === baseUrl && Date.now() < aiModelsCache.expiresAt) {
+    return { models: aiModelsCache.models, fetchedAt: aiModelsCache.fetchedAt, cached: true };
+  }
+
+  const models = await requestProviderModels(baseUrl, apiKey);
   const fetchedAt = new Date().toISOString();
   aiModelsCache = {
     baseUrl,
@@ -211,6 +220,48 @@ async function fetchProviderModels(): Promise<{ models: AiProviderModel[]; fetch
   };
 
   return { models, fetchedAt, cached: false };
+}
+
+async function checkKeyAgainstProvider(baseUrl: string, apiKey: string | null): Promise<{
+  configured: boolean;
+  ok: boolean;
+  status: number | null;
+  message: string;
+  modelCount: number;
+}> {
+  if (!apiKey) {
+    return {
+      configured: false,
+      ok: false,
+      status: null,
+      message: "No key configured",
+      modelCount: 0,
+    };
+  }
+
+  try {
+    const models = await requestProviderModels(baseUrl, apiKey);
+    return {
+      configured: true,
+      ok: true,
+      status: 200,
+      message: "Connection successful",
+      modelCount: models.length,
+    };
+  } catch (err) {
+    const mapped = mapAiRouteError(err);
+    const upstreamStatus =
+      err && typeof err === "object" && typeof (err as any).status === "number"
+        ? (err as any).status
+        : null;
+    return {
+      configured: true,
+      ok: false,
+      status: upstreamStatus ?? mapped.status,
+      message: mapped.message,
+      modelCount: 0,
+    };
+  }
 }
 
 // POST /api/v1/ai/transcribe — Audio → Text via GWDG Whisper
@@ -551,6 +602,52 @@ router.get("/models", requireAuth, async (req, res) => {
     const mapped = mapAiRouteError(err);
     console.error("[AI] Models GET error:", mapped.code, err);
     res.status(mapped.status).json({ error: mapped.message, code: mapped.code, models: [] });
+  }
+});
+
+// POST /api/v1/ai/admin/check — admin only, manual provider/key status check
+router.post("/admin/check", requireAuth, async (req, res) => {
+  try {
+    const user = await import("../storage").then((m) =>
+      m.storage.getUser((req.session as any).userId)
+    );
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Nur für Administratoren" });
+    }
+
+    const settings = await getAiSettings();
+    const baseUrl = getEffectiveApiUrl(settings).replace(/\/+$/, "");
+    const primaryKey = getEffectiveApiKey(settings);
+    const fallbackKey = getEffectiveApiKey(settings, true) || null;
+    const activeModel = process.env.AI_MODEL || settings.model || null;
+    const checkedAt = new Date().toISOString();
+
+    const [primary, fallback] = await Promise.all([
+      checkKeyAgainstProvider(baseUrl, primaryKey || null),
+      checkKeyAgainstProvider(baseUrl, fallbackKey),
+    ]);
+
+    const modelsResult = primary.ok ? await fetchProviderModels() : null;
+    const liveModelIds = modelsResult?.models.map((model) => model.id) || [];
+    const allowedModels = settings.allowedModels || [];
+
+    res.json({
+      checkedAt,
+      baseUrl,
+      activeModel,
+      allowedModels,
+      primary,
+      fallback,
+      liveModelsAvailable: primary.ok,
+      liveModelCount: liveModelIds.length,
+      activeModelAdvertised: !!activeModel && liveModelIds.includes(activeModel),
+      allowedModelsAdvertised: allowedModels.filter((modelId) => liveModelIds.includes(modelId)),
+      missingAllowedModels: allowedModels.filter((modelId) => !liveModelIds.includes(modelId)),
+    });
+  } catch (err) {
+    const mapped = mapAiRouteError(err);
+    console.error("[AI] Admin check error:", mapped.code, err);
+    res.status(mapped.status).json({ error: mapped.message, code: mapped.code });
   }
 });
 

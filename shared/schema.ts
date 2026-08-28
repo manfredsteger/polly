@@ -795,6 +795,7 @@ export const aiSettingsSchema = z.object({
   apiUrl: z.string().default("https://saia.gwdg.de/v1"),
   apiKey: z.string().default(""),
   apiKeyFallback: z.string().default(""),
+  allowedModels: z.array(z.string().min(1)).default([]),
   guestLimits: aiRoleLimitSchema.default({ enabled: false, requestsPerHour: 0 }),
   userLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: 5 }),
   adminLimits: aiRoleLimitSchema.default({ enabled: true, requestsPerHour: null }),

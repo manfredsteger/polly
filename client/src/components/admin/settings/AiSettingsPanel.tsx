@@ -26,6 +26,15 @@ const FALLBACK_MODELS = [
   "mistral-medium-3.5-128b",
 ];
 
+const PREFERRED_MODELS = [
+  "meta-llama-3.1-8b-instruct",
+  "qwen3.5-122b-a10b",
+  "qwen3.6-35b-a3b",
+  "mistral-medium-3.5-128b",
+  "openai-gpt-oss-120b",
+  "gemma-4-31b-it",
+];
+
 interface Props {
   onBack: () => void;
 }
@@ -55,6 +64,34 @@ interface AiModelsData {
   cached: boolean;
   activeModel: string | null;
   activeBaseUrl: string;
+}
+
+interface AiCheckStatus {
+  configured: boolean;
+  ok: boolean;
+  status: number | null;
+  message: string;
+  modelCount: number;
+}
+
+interface AiCheckResult {
+  checkedAt: string;
+  baseUrl: string;
+  activeModel: string | null;
+  primary: AiCheckStatus;
+  fallback: AiCheckStatus;
+  liveModelsAvailable: boolean;
+  liveModelCount: number;
+  activeModelAdvertised: boolean;
+}
+
+function getVisibleModelOptions(allModels: string[], currentModel: string, envModel: string | null): string[] {
+  const curated = allModels.filter((modelId) => PREFERRED_MODELS.includes(modelId));
+  const ordered = [
+    ...PREFERRED_MODELS.filter((modelId) => curated.includes(modelId)),
+  ];
+
+  return Array.from(new Set([...ordered, currentModel, envModel || ""].filter(Boolean)));
 }
 
 function RoleLimitControl({
@@ -140,16 +177,13 @@ export function AiSettingsPanel({ onBack }: Props) {
   const { data, isLoading } = useQuery<AdminAiData>({
     queryKey: ["/api/v1/ai/admin/settings"],
   });
-  const { data: modelsData } = useQuery<AiModelsData>({
-    queryKey: ["/api/v1/ai/models"],
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  });
 
   const [localSettings, setLocalSettings] = useState<AiSettings | null>(null);
   const [newApiKey, setNewApiKey] = useState("");
   const [newApiKeyFallback, setNewApiKeyFallback] = useState("");
   const [newApiUrl, setNewApiUrl] = useState("");
+  const [checkResult, setCheckResult] = useState<AiCheckResult | null>(null);
+  const [modelsData, setModelsData] = useState<AiModelsData | null>(null);
   const settings: AiSettings | null = localSettings ?? data?.settings ?? null;
 
   const saveMutation = useMutation({
@@ -158,7 +192,6 @@ export function AiSettingsPanel({ onBack }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/admin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/models"] });
       setNewApiKey("");
       setNewApiKeyFallback("");
       setNewApiUrl("");
@@ -166,6 +199,44 @@ export function AiSettingsPanel({ onBack }: Props) {
     },
     onError: () => {
       toast({ title: t('admin.aiSettings.saveError'), variant: "destructive" });
+    },
+  });
+
+  const modelsMutation = useMutation({
+    mutationFn: () => apiRequest("GET", "/api/v1/ai/models"),
+    onSuccess: async (res) => {
+      const result = await res.json();
+      setModelsData(result as AiModelsData);
+      toast({ title: t('admin.aiSettings.modelsLoaded') });
+    },
+    onError: async (err: any) => {
+      let title = t('admin.aiSettings.modelsLoadError');
+      try {
+        const data = await err.json?.();
+        if (data && typeof data === "object" && typeof (data as any).error === "string") {
+          title = (data as any).error;
+        }
+      } catch {}
+      toast({ title, variant: "destructive" });
+    },
+  });
+
+  const checkMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/v1/ai/admin/check", {}),
+    onSuccess: async (res) => {
+      const result = await res.json();
+      setCheckResult(result as AiCheckResult);
+      toast({ title: t('admin.aiSettings.checkSuccess') });
+    },
+    onError: async (err: any) => {
+      let title = t('admin.aiSettings.checkError');
+      try {
+        const data = await err.json?.();
+        if (data && typeof data === "object" && typeof (data as any).error === "string") {
+          title = (data as any).error;
+        }
+      } catch {}
+      toast({ title, variant: "destructive" });
     },
   });
 
@@ -201,16 +272,17 @@ export function AiSettingsPanel({ onBack }: Props) {
 
   const apiOk = data?.apiConfigured;
   const liveModels = modelsData?.models?.map((model) => model.id) ?? [];
-  const modelOptions = Array.from(
+  const candidateModels = Array.from(
     new Set(
       [
-        ...(liveModels.length > 0 ? liveModels : FALLBACK_MODELS),
+        ...(liveModels.length > 0 ? liveModels : PREFERRED_MODELS),
         settings.model,
         data?.envModel || "",
       ].filter(Boolean)
     )
   );
-  const usingFallbackModels = liveModels.length === 0;
+  const modelOptions = getVisibleModelOptions(candidateModels, settings.model, data?.envModel || null);
+  const usingFallbackModels = !modelsData;
   const configuredModelMissing = !!settings.model && liveModels.length > 0 && !liveModels.includes(settings.model);
 
   return (
@@ -430,7 +502,22 @@ export function AiSettingsPanel({ onBack }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label>{t('admin.aiSettings.model')}</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label>{t('admin.aiSettings.model')}</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => modelsMutation.mutate()}
+                  disabled={modelsMutation.isPending}
+                >
+                  {modelsMutation.isPending
+                    ? t('admin.aiSettings.loadingModels')
+                    : modelsData
+                    ? t('admin.aiSettings.refreshModels')
+                    : t('admin.aiSettings.loadModels')}
+                </Button>
+              </div>
               <Select
                 value={settings.model}
                 onValueChange={(v) => update({ model: v })}
@@ -451,18 +538,88 @@ export function AiSettingsPanel({ onBack }: Props) {
                   {t('admin.aiSettings.envOverride')} <code className="font-mono">{data.envModel}</code>
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                Live provider models are loaded from <code className="font-mono">{modelsData?.activeBaseUrl || data?.envApiUrl || settings.apiUrl}</code>.
-              </p>
               {usingFallbackModels && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Live model discovery is currently unavailable. Showing fallback model IDs.
+                  {t('admin.aiSettings.modelsManualHint')}
+                </p>
+              )}
+              {modelsData && (
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.aiSettings.liveModelsSource')} <code className="font-mono">{modelsData.activeBaseUrl}</code>.
                 </p>
               )}
               {configuredModelMissing && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  The currently configured model is not in the provider&apos;s latest advertised list.
+                  {t('admin.aiSettings.modelMissing')}
                 </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t('admin.aiSettings.modelFilterHint', { count: modelOptions.length })}
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label>{t('admin.aiSettings.checkTitle')}</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('admin.aiSettings.checkDescription')}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => checkMutation.mutate()}
+                  disabled={checkMutation.isPending}
+                >
+                  {checkMutation.isPending ? t('admin.aiSettings.checking') : t('admin.aiSettings.checkNow')}
+                </Button>
+              </div>
+
+              {checkResult && (
+                <div className="space-y-2 text-sm">
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.aiSettings.checkedAt')} {new Date(checkResult.checkedAt).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.aiSettings.checkBaseUrl')} <code className="font-mono">{checkResult.baseUrl}</code>
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-md border border-border p-3">
+                      <div className="flex items-center gap-2 font-medium">
+                        {checkResult.primary.ok ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                        {t('admin.aiSettings.primaryKeyStatus')}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{checkResult.primary.message}</p>
+                      {checkResult.primary.status !== null && (
+                        <p className="text-xs text-muted-foreground">{t('admin.aiSettings.statusCode')} {checkResult.primary.status}</p>
+                      )}
+                    </div>
+                    <div className="rounded-md border border-border p-3">
+                      <div className="flex items-center gap-2 font-medium">
+                        {checkResult.fallback.ok ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                        {t('admin.aiSettings.fallbackKeyStatus')}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{checkResult.fallback.message}</p>
+                      {checkResult.fallback.status !== null && (
+                        <p className="text-xs text-muted-foreground">{t('admin.aiSettings.statusCode')} {checkResult.fallback.status}</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.aiSettings.liveModelsCount', { count: checkResult.liveModelCount })}
+                  </p>
+                  {checkResult.activeModel && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('admin.aiSettings.activeModelStatus')}{" "}
+                      <code className="font-mono">{checkResult.activeModel}</code>:{" "}
+                      {checkResult.activeModelAdvertised
+                        ? t('admin.aiSettings.activeModelListed')
+                        : t('admin.aiSettings.activeModelNotListed')}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

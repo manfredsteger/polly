@@ -40,6 +40,14 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function summarizeTestError(error: string | null): string {
+  if (!error) return '';
+  return error
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean) || '';
+}
+
 interface EmailConfig {
   host: string;
   port: number;
@@ -535,9 +543,28 @@ export class EmailService {
       startedAt: Date;
       completedAt: Date | null;
     },
-    pdfBuffer?: Buffer
+    pdfBufferOrResults?: Buffer | Array<{
+      testFile: string;
+      testName: string;
+      category: string;
+      status: 'passed' | 'failed' | 'skipped';
+      duration: number | null;
+      error: string | null;
+      errorStack: string | null;
+    }>,
+    maybeResults?: Array<{
+      testFile: string;
+      testName: string;
+      category: string;
+      status: 'passed' | 'failed' | 'skipped';
+      duration: number | null;
+      error: string | null;
+      errorStack: string | null;
+    }>
   ): Promise<void> {
     try {
+      const results = Array.isArray(pdfBufferOrResults) ? pdfBufferOrResults : (maybeResults || []);
+      const pdfBuffer = Array.isArray(pdfBufferOrResults) ? undefined : pdfBufferOrResults;
       const isSuccess = testRun.status === 'completed' && testRun.failed === 0;
       const statusEmoji = isSuccess ? '✅' : '❌';
       const statusText = isSuccess ? 'Alle Tests bestanden' : `${testRun.failed} Test(s) fehlgeschlagen`;
@@ -554,6 +581,33 @@ export class EmailService {
         minute: '2-digit',
       });
 
+      const failedResults = results.filter((result) => result.status === 'failed').slice(0, 10);
+      const failedSummaryHtml = failedResults.length > 0
+        ? `
+          <div style="margin: 6px 0 0;">
+            <p style="margin: 0 0 10px; color: #991b1b; font-size: 14px; font-weight: 700;">Fehlgeschlagene Tests (${testRun.failed})</p>
+            <ul style="margin: 0; padding-left: 18px; color: #7f1d1d;">
+              ${failedResults.map((result) => {
+                const firstErrorLine = summarizeTestError(result.error);
+                return `<li style="margin: 6px 0;"><strong>${escapeHtml(result.testName)}</strong>${result.testFile ? ` <span style="color:#7f1d1d;">(${escapeHtml(result.testFile)})</span>` : ''}${firstErrorLine ? `<br/><span style="color:#991b1b;">${escapeHtml(firstErrorLine)}</span>` : ''}</li>`;
+              }).join('')}
+            </ul>
+            <p style="margin: 10px 0 0; color: #6b7280;">Vollständige Details finden Sie im angehängten PDF-Bericht.</p>
+          </div>
+        `
+        : '';
+      const failedSummaryText = failedResults.length > 0
+        ? [
+            `Fehlgeschlagene Tests (${testRun.failed}):`,
+            ...failedResults.map((result) => {
+              const firstErrorLine = summarizeTestError(result.error);
+              return `- ${result.testName}${result.testFile ? ` (${result.testFile})` : ''}${firstErrorLine ? `: ${firstErrorLine}` : ''}`;
+            }),
+            'Vollständige Details finden Sie im angehängten PDF-Bericht.',
+            '',
+          ].join('\n')
+        : '';
+
       const rendered = await this.renderTemplate('test_report', {
         testRunId: String(testRun.id),
         status: `${statusEmoji} ${statusText}`,
@@ -563,6 +617,8 @@ export class EmailService {
         skipped: String(testRun.skipped),
         duration: durationText,
         startedAt: startedAtText,
+        failedSummaryHtml,
+        failedSummaryText,
       });
 
       const attachments: nodemailer.SendMailOptions['attachments'] = pdfBuffer
@@ -573,7 +629,7 @@ export class EmailService {
         to: recipientEmail,
         subject: rendered.subject,
         html: rendered.html,
-        text: rendered.text,
+        text: failedSummaryText ? `${failedSummaryText}${rendered.text}` : rendered.text,
         priority: isSuccess ? 'normal' : 'high',
         attachments,
       });

@@ -588,7 +588,7 @@ async function sendTestReportNotification(
     };
 
     for (const recipientEmail of config.notifyEmails) {
-      await emailService.sendTestReportEmail(recipientEmail, reportPayload, pdfBuffer);
+      await emailService.sendTestReportEmail(recipientEmail, reportPayload, pdfBuffer, results);
     }
 
     console.log(`[TestRunner] Email notification sent to ${config.notifyEmails.join(', ')} for run #${runId}`);

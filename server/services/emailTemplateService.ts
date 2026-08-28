@@ -748,6 +748,7 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
     '{{status}} — Automatischer Testbericht',
     [
       'Der automatische Testlauf <strong>#{{testRunId}}</strong> wurde abgeschlossen.',
+      '{{failedSummaryHtml}}',
       'Gesamte Tests: {{totalTests}}',
       'Bestanden: {{passed}}',
       'Fehlgeschlagen: {{failed}}',
@@ -1154,6 +1155,8 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       skipped: '1',
       duration: '12.5 Sekunden',
       startedAt: new Date().toLocaleString('de-DE'),
+      failedSummaryHtml: '<p><strong>Fehlgeschlagene Tests (1)</strong></p><ul><li>API should reject invalid token (server/tests/api/security.test.ts)</li></ul>',
+      failedSummaryText: 'Fehlgeschlagene Tests (1): API should reject invalid token (server/tests/api/security.test.ts)',
       siteName,
     },
     welcome: {
@@ -1778,12 +1781,14 @@ function buildV3TestReportBody(vars: Record<string, string | undefined>, ctx: V3
   const skipped = htmlEscape(vars.skipped || '0');
   const duration = htmlEscape(vars.duration || '');
   const startedAt = htmlEscape(vars.startedAt || '');
+  const failedSummaryHtml = vars.failedSummaryHtml || '';
 
   return `${v3BodyStart()}
       ${v3Tag('Testbericht', ctx.primaryColor)}
       ${v3SimpleHeadline(`${status} \u2014 Testlauf #${testRunId}`, ctx.fontFamily)}
       ${v3Subline('Der automatische Testlauf wurde abgeschlossen.')}
     ${v3BodyEnd()}
+    ${failedSummaryHtml ? v3TextBlock(failedSummaryHtml) : ''}
     ${v3TextBlock(`Gesamte Tests: <strong>${totalTests}</strong><br>Bestanden: <strong>${passed}</strong><br>Fehlgeschlagen: <strong>${failed}</strong><br>\u00DCbersprungen: <strong>${skipped}</strong><br>Dauer: <strong>${duration}</strong><br>Gestartet: <strong>${startedAt}</strong>`)}`;
 }
 

@@ -80,6 +80,8 @@ interface TestRun {
   } | null;
 }
 
+type ResultFilter = 'all' | 'failed' | 'passed' | 'skipped';
+
 interface ScheduleConfig {
   enabled: boolean;
   intervalDays: number;
@@ -113,6 +115,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isRunning, setIsRunning] = useState(false);
+  const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
 
   const { data: testRuns, isLoading, refetch } = useQuery<TestRun[]>({
     queryKey: ['/api/v1/admin/test-runs'],
@@ -140,6 +143,11 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       });
     }
   }, [currentRunError, isRunning]);
+
+  useEffect(() => {
+    if (!testRuns || testRuns.length === 0) return;
+    setResultFilter(testRuns[0].summary.failed > 0 ? 'failed' : 'all');
+  }, [testRuns]);
 
   const { data: pentestStatus } = useQuery<PentestStatus>({
     queryKey: ['/api/v1/admin/pentest-tools/status'],
@@ -372,6 +380,24 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     const total = run.summary.total;
     if (total === 0) return processed > 0 ? 99 : 0;
     return Math.min((processed / total) * 100, 100);
+  };
+
+  const getFilteredResults = (results: TestResult[]) => {
+    if (resultFilter === 'all') return results;
+    return results.filter((result) => result.status === resultFilter);
+  };
+
+  const getEmptyFilterLabel = () => {
+    switch (resultFilter) {
+      case 'failed':
+        return t('admin.tests.noFailedResults');
+      case 'passed':
+        return t('admin.tests.noPassedResults');
+      case 'skipped':
+        return t('admin.tests.noSkippedResults');
+      default:
+        return t('admin.tests.noResultsForRun');
+    }
   };
 
   return (
@@ -621,10 +647,26 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="space-y-2 pl-4">
-                      {run.results.map((result) => (
-                        <div key={result.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                          <div className="flex items-center gap-2">
+                    <div className="space-y-3 pl-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant={resultFilter === 'all' ? 'default' : 'outline'} onClick={() => setResultFilter('all')}>
+                          {t('admin.tests.filterAll')}
+                        </Button>
+                        <Button size="sm" variant={resultFilter === 'failed' ? 'default' : 'outline'} onClick={() => setResultFilter('failed')}>
+                          {t('admin.tests.filterFailed')}
+                        </Button>
+                        <Button size="sm" variant={resultFilter === 'passed' ? 'default' : 'outline'} onClick={() => setResultFilter('passed')}>
+                          {t('admin.tests.filterPassed')}
+                        </Button>
+                        <Button size="sm" variant={resultFilter === 'skipped' ? 'default' : 'outline'} onClick={() => setResultFilter('skipped')}>
+                          {t('admin.tests.filterSkipped')}
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                      {getFilteredResults(run.results).map((result) => (
+                        <div key={result.id} className="p-2 bg-muted/50 rounded">
+                          <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
                             {getStatusIcon(result.status)}
                             <span className="text-sm">{result.name}</span>
                           </div>
@@ -633,8 +675,20 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                               {result.duration}ms
                             </span>
                           )}
+                          </div>
+                          {result.status === 'failed' && result.error && (
+                            <div className="mt-2 ml-6 rounded bg-red-50 dark:bg-red-950/20 px-3 py-2 text-xs text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap">
+                              {result.error}
+                            </div>
+                          )}
                         </div>
                       ))}
+                      {getFilteredResults(run.results).length === 0 && (
+                        <div className="p-2 bg-muted/30 rounded text-sm text-muted-foreground">
+                          {getEmptyFilterLabel()}
+                        </div>
+                      )}
+                      </div>
                     </div>
                   </AccordionContent>
                 </AccordionItem>

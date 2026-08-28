@@ -753,6 +753,7 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
   const passedCount = results.filter(r => r.status === 'passed').length;
   const failedCount = results.filter(r => r.status === 'failed').length;
   const skippedCount = results.filter(r => r.status === 'skipped').length;
+  const failedResults = results.filter(r => r.status === 'failed').slice(0, 10);
   
   const successRate = results.length > 0 
     ? Math.round((passedCount / results.length) * 100) 
@@ -793,6 +794,22 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
       </div>
     `;
   }).join('');
+
+  const failedSummaryHtml = failedResults.length > 0 ? `
+    <div class="failed-summary">
+      <h2>Fehlgeschlagene Tests (${failedCount})</h2>
+      <ul>
+        ${failedResults.map((result) => `
+          <li>
+            <strong>${result.testName}</strong>
+            <span class="failed-file">${result.testFile}</span>
+            ${result.error ? `<div class="failed-error">${result.error}</div>` : ''}
+          </li>
+        `).join('')}
+      </ul>
+      ${failedCount > failedResults.length ? `<p class="failed-more">... und ${failedCount - failedResults.length} weitere Fehler im vollständigen Bericht.</p>` : ''}
+    </div>
+  ` : '';
 
   return `
 <!DOCTYPE html>
@@ -845,6 +862,44 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
     .failed .summary-value { color: #991b1b; }
     .skipped .summary-value { color: #92400e; }
     .category-section { margin: 25px 0; }
+    .failed-summary {
+      margin: 24px 0;
+      padding: 18px;
+      border-radius: 10px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+    .failed-summary h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #991b1b;
+    }
+    .failed-summary ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .failed-summary li {
+      margin: 8px 0;
+      color: #7f1d1d;
+    }
+    .failed-file {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 12px;
+      color: #7f1d1d;
+    }
+    .failed-error {
+      margin-top: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #991b1b;
+      white-space: pre-wrap;
+    }
+    .failed-more {
+      margin-top: 10px;
+      color: #7f1d1d;
+      font-size: 13px;
+    }
     .category-title { 
       font-size: 16px; 
       font-weight: bold; 
@@ -926,6 +981,8 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
     <div><strong>Erfolgsrate:</strong> ${successRate}%</div>
     <div><strong>Kategorien:</strong> ${categories.length}</div>
   </div>
+
+  ${failedSummaryHtml}
 
   <h2 style="font-size: 18px; margin: 30px 0 15px; color: #1a1a1a;">Test-Ergebnisse nach Kategorie</h2>
   

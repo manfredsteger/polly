@@ -499,6 +499,8 @@ export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; 
     { key: 'skipped', description: 'Anzahl übersprungener Tests' },
     { key: 'duration', description: 'Testdauer' },
     { key: 'startedAt', description: 'Startzeit' },
+    { key: 'failedSummaryHtml', description: 'Kurze HTML-Zusammenfassung der fehlgeschlagenen Tests' },
+    { key: 'failedSummaryText', description: 'Kurze Text-Zusammenfassung der fehlgeschlagenen Tests' },
     { key: 'siteName', description: 'Name der Plattform' },
   ],
   welcome: [

@@ -1819,12 +1819,7 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     const scheduleClosingHtml = vars.closingMessageHtml || '';
     const scheduleClosingBlock = scheduleClosingHtml
       ? `${v3Divider()}
-    <tr><td style="padding: 0 40px 20px;">
-        <div style="background-color: #f8f5f0; border-left: 4px solid ${ctx.primaryColor}; border-radius: 4px; padding: 14px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #374151; line-height: 1.6;">
-          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Nachricht des Organisators</p>
-          <div style="margin: 0;">${scheduleClosingHtml}</div>
-        </div>
-      </td></tr>`
+    ${buildPollFinalizedClosingBlock(scheduleClosingHtml, ctx.primaryColor)}`
       : '';
     return `${v3BodyStart()}
       ${v3Tag('Termin bestätigt', ctx.primaryColor)}
@@ -1860,14 +1855,7 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
   }
 
   const closingMessageHtml = vars.closingMessageHtml || '';
-  const closingBlock = closingMessageHtml
-    ? `<tr><td style="padding: 0 40px 20px;">
-        <div style="background-color: #f8f5f0; border-left: 4px solid ${ctx.primaryColor}; border-radius: 4px; padding: 14px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #374151; line-height: 1.6;">
-          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Nachricht des Organisators</p>
-          <div style="margin: 0;">${closingMessageHtml}</div>
-        </div>
-      </td></tr>`
-    : '';
+  const closingBlock = buildPollFinalizedClosingBlock(closingMessageHtml, ctx.primaryColor);
 
   return `${v3BodyStart()}
       ${v3Tag('Umfrage beendet', ctx.primaryColor)}
@@ -1878,6 +1866,17 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     ${closingBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+}
+
+function buildPollFinalizedClosingBlock(closingMessageHtml: string, primaryColor: string): string {
+  if (!closingMessageHtml) return '';
+
+  return `<tr><td style="padding: 0 40px 20px;">
+        <div style="background-color: #f8f5f0; border-left: 4px solid ${primaryColor}; border-radius: 4px; padding: 14px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #374151; line-height: 1.6;">
+          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Nachricht des Organisators</p>
+          <div style="margin: 0;">${closingMessageHtml}</div>
+        </div>
+      </td></tr>`;
 }
 
 function buildV3GenericBody(bodyHtml: string, fontFamily: string): string {
@@ -2525,6 +2524,13 @@ export class EmailTemplateService {
         }
         const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
         bodyHtml = buildV3CustomContentBody(renderedText, ctx);
+        if (type === 'poll_finalized') {
+          const closingBlock = buildPollFinalizedClosingBlock(allVariables.closingMessageHtml || '', ctx.primaryColor);
+          if (closingBlock) {
+            bodyHtml += `${v3Divider()}
+    ${closingBlock}`;
+          }
+        }
       } else {
         bodyHtml = v3Builder(mergedVariables, ctx);
       }

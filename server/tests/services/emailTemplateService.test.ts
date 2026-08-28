@@ -36,7 +36,7 @@ describe('EmailTemplateService', () => {
   let origEmailFooter: any;
   const modifiedTemplateTypes = [
     'poll_created', 'invitation', 'vote_confirmation', 'vote_updated',
-    'reminder', 'password_reset',
+    'reminder', 'password_reset', 'poll_finalized',
   ] as const;
   const origTemplates: Record<string, any> = {};
 

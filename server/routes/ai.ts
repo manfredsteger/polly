@@ -28,6 +28,191 @@ const audioUpload = multer({
   limits: { fileSize: 100 * 1024 * 1024 },
 });
 
+type AiProviderModel = {
+  id: string;
+  object?: string;
+  owned_by?: string;
+};
+
+let aiModelsCache:
+  | {
+      baseUrl: string;
+      expiresAt: number;
+      models: AiProviderModel[];
+      fetchedAt: string;
+    }
+  | null = null;
+const AI_MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function getUpstreamAiMessage(err: unknown): string | null {
+  if (!err || typeof err !== "object") return null;
+  const candidate = err as {
+    message?: unknown;
+    error?: { message?: unknown } | unknown;
+    response?: { data?: { error?: { message?: unknown } | unknown } | unknown } | unknown;
+  };
+
+  if (candidate.error && typeof candidate.error === "object" && typeof (candidate.error as any).message === "string") {
+    return (candidate.error as any).message;
+  }
+
+  if (
+    candidate.response &&
+    typeof candidate.response === "object" &&
+    (candidate.response as any).data &&
+    typeof (candidate.response as any).data === "object" &&
+    (candidate.response as any).data.error &&
+    typeof (candidate.response as any).data.error === "object" &&
+    typeof ((candidate.response as any).data.error as any).message === "string"
+  ) {
+    return ((candidate.response as any).data.error as any).message;
+  }
+
+  if (typeof candidate.message === "string" && !candidate.message.startsWith("AI_")) {
+    return candidate.message;
+  }
+
+  return null;
+}
+
+function mapAiRouteError(err: unknown): { status: number; message: string; code: string } {
+  const errorCode =
+    err && typeof err === "object" && typeof (err as any).code === "string"
+      ? (err as any).code
+      : err && typeof err === "object" && typeof (err as any).message === "string"
+      ? (err as any).message
+      : "AI_REQUEST_FAILED";
+
+  const messages: Record<string, { status: number; message: string }> = {
+    AI_DISABLED: { status: 503, message: "KI-Funktion ist deaktiviert" },
+    AI_NOT_CONFIGURED: { status: 503, message: "KI-API nicht konfiguriert" },
+    AI_MODEL_LOADING: { status: 503, message: "Das KI-Modell wird gerade gestartet. Bitte in einer Minute erneut versuchen." },
+    AI_EMPTY_RESPONSE: { status: 502, message: "Keine Antwort von der KI erhalten" },
+    AI_INVALID_JSON: { status: 502, message: "Ungültige Antwort der KI" },
+    AI_INVALID_STRUCTURE: { status: 502, message: "KI-Antwort hat unerwartetes Format" },
+    AI_REQUEST_FAILED: { status: 502, message: "KI-Anfrage fehlgeschlagen" },
+  };
+
+  if (messages[errorCode]) {
+    return { ...messages[errorCode], code: errorCode };
+  }
+
+  const upstreamStatus =
+    err && typeof err === "object" && typeof (err as any).status === "number"
+      ? (err as any).status
+      : null;
+  const upstreamMessage = getUpstreamAiMessage(err);
+
+  if (upstreamStatus === 401 || upstreamStatus === 403) {
+    return {
+      status: 502,
+      message: upstreamMessage || "KI-Anbieter hat die Anfrage abgelehnt",
+      code: "AI_UPSTREAM_AUTH_FAILED",
+    };
+  }
+
+  if (upstreamStatus === 404) {
+    return {
+      status: 502,
+      message: upstreamMessage || "KI-Modell oder API-Endpunkt wurde nicht gefunden",
+      code: "AI_UPSTREAM_NOT_FOUND",
+    };
+  }
+
+  if (upstreamStatus === 400 || upstreamStatus === 422) {
+    return {
+      status: 502,
+      message: upstreamMessage || "KI-Anfrage wurde vom Anbieter als ungültig zurückgewiesen",
+      code: "AI_UPSTREAM_BAD_REQUEST",
+    };
+  }
+
+  if (upstreamStatus === 429) {
+    return {
+      status: 503,
+      message: upstreamMessage || "KI-Anbieter ist aktuell ausgelastet. Bitte später erneut versuchen.",
+      code: "AI_UPSTREAM_RATE_LIMITED",
+    };
+  }
+
+  if (upstreamStatus !== null) {
+    return {
+      status: 502,
+      message: upstreamMessage || "KI-Anbieterfehler",
+      code: `AI_UPSTREAM_${upstreamStatus}`,
+    };
+  }
+
+  return {
+    status: 500,
+    message: upstreamMessage || "Interner Fehler",
+    code: errorCode,
+  };
+}
+
+async function fetchProviderModels(): Promise<{ models: AiProviderModel[]; fetchedAt: string; cached: boolean }> {
+  const settings = await getAiSettings();
+  const apiKey = getEffectiveApiKey(settings);
+  if (!apiKey) {
+    throw new Error("AI_NOT_CONFIGURED");
+  }
+
+  const baseUrl = getEffectiveApiUrl(settings).replace(/\/+$/, "");
+  if (aiModelsCache && aiModelsCache.baseUrl === baseUrl && Date.now() < aiModelsCache.expiresAt) {
+    return { models: aiModelsCache.models, fetchedAt: aiModelsCache.fetchedAt, cached: true };
+  }
+
+  const response = await fetch(`${baseUrl}/models`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  const rawText = await response.text();
+  let parsedBody: unknown = null;
+
+  try {
+    parsedBody = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    parsedBody = rawText;
+  }
+
+  if (!response.ok) {
+    const error = new Error(`Model list request failed with ${response.status}`) as Error & {
+      status?: number;
+      response?: { data?: unknown };
+    };
+    error.status = response.status;
+    error.response = { data: parsedBody };
+    throw error;
+  }
+
+  const data = parsedBody && typeof parsedBody === "object" && Array.isArray((parsedBody as any).data)
+    ? (parsedBody as any).data
+    : [];
+
+  const models = data
+    .filter((entry: unknown): entry is AiProviderModel => !!entry && typeof entry === "object" && typeof (entry as any).id === "string")
+    .map((entry) => ({
+      id: entry.id,
+      object: typeof entry.object === "string" ? entry.object : undefined,
+      owned_by: typeof entry.owned_by === "string" ? entry.owned_by : undefined,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const fetchedAt = new Date().toISOString();
+  aiModelsCache = {
+    baseUrl,
+    expiresAt: Date.now() + AI_MODELS_CACHE_TTL_MS,
+    models,
+    fetchedAt,
+  };
+
+  return { models, fetchedAt, cached: false };
+}
+
 // POST /api/v1/ai/transcribe — Audio → Text via GWDG Whisper
 router.post("/transcribe", audioUpload.single("audio"), async (req, res) => {
   try {
@@ -141,30 +326,21 @@ router.post("/create-poll", aiRateLimitMiddleware, async (req, res) => {
 
     res.json({ suggestion });
   } catch (err: any) {
-    const errorCode = err?.message || "AI_REQUEST_FAILED";
-
     await logAiUsage({
       userId,
       sessionId,
       endpoint: isRefinement ? "refine-poll" : "create-poll",
       model,
       success: false,
-      errorMessage: errorCode,
+      errorMessage:
+        err && typeof err === "object" && typeof err.message === "string"
+          ? err.message
+          : "AI_REQUEST_FAILED",
     });
 
-    const messages: Record<string, { status: number; message: string }> = {
-      AI_DISABLED: { status: 503, message: "KI-Funktion ist deaktiviert" },
-      AI_NOT_CONFIGURED: { status: 503, message: "KI-API nicht konfiguriert" },
-      AI_MODEL_LOADING: { status: 503, message: "Das KI-Modell wird gerade gestartet. Bitte in einer Minute erneut versuchen." },
-      AI_EMPTY_RESPONSE: { status: 502, message: "Keine Antwort von der KI erhalten" },
-      AI_INVALID_JSON: { status: 502, message: "Ungültige Antwort der KI" },
-      AI_INVALID_STRUCTURE: { status: 502, message: "KI-Antwort hat unerwartetes Format" },
-      AI_REQUEST_FAILED: { status: 502, message: "KI-Anfrage fehlgeschlagen" },
-    };
-
-    const mapped = messages[errorCode] || { status: 500, message: "Interner Fehler" };
-    console.error("[AI] create-poll error:", errorCode, err);
-    res.status(mapped.status).json({ error: mapped.message, code: errorCode });
+    const mapped = mapAiRouteError(err);
+    console.error("[AI] create-poll error:", mapped.code, err);
+    res.status(mapped.status).json({ error: mapped.message, code: mapped.code });
   }
 });
 
@@ -346,6 +522,35 @@ router.get("/admin/settings", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("[AI] Admin settings GET error:", err);
     res.status(500).json({ error: "Interner Fehler" });
+  }
+});
+
+// GET /api/v1/ai/models — admin only, live provider model list
+router.get("/models", requireAuth, async (req, res) => {
+  try {
+    const user = await import("../storage").then((m) =>
+      m.storage.getUser((req.session as any).userId)
+    );
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Nur für Administratoren" });
+    }
+
+    const settings = await getAiSettings();
+    const activeModel = process.env.AI_MODEL || settings.model || null;
+    const activeBaseUrl = getEffectiveApiUrl(settings);
+    const result = await fetchProviderModels();
+
+    res.json({
+      models: result.models,
+      fetchedAt: result.fetchedAt,
+      cached: result.cached,
+      activeModel,
+      activeBaseUrl,
+    });
+  } catch (err) {
+    const mapped = mapAiRouteError(err);
+    console.error("[AI] Models GET error:", mapped.code, err);
+    res.status(mapped.status).json({ error: mapped.message, code: mapped.code, models: [] });
   }
 });
 

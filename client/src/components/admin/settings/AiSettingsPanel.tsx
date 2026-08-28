@@ -18,13 +18,12 @@ import { getServicePartner } from "@shared/servicePartners";
 
 const KISSKI_PARTNER = getServicePartner("kisski")!;
 
-const GWDG_MODELS = [
-  { id: "llama-3.3-70b-instruct", name: "LLaMA 3.3 70B", noteKey: "modelRecommended" },
-  { id: "gemma-3-27b-it", name: "Gemma 3 27B", noteKey: "modelFast" },
-  { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B", noteKey: "modelReasoning" },
-  { id: "qwen3-235b-a22b", name: "Qwen3 235B", noteKey: "modelVeryStrong" },
-  { id: "mistral-large-3-675b-instruct-2512", name: "Mistral Large 675B", noteKey: "modelLargest" },
-  { id: "meta-llama-3.1-8b-instruct", name: "LLaMA 3.1 8B", noteKey: "modelVeryFast" },
+const FALLBACK_MODELS = [
+  "gemma-4-31b-it",
+  "meta-llama-3.1-8b-instruct",
+  "deepseek-v4-flash-0731",
+  "qwen3.6-35b-a3b",
+  "mistral-medium-3.5-128b",
 ];
 
 interface Props {
@@ -42,6 +41,20 @@ interface AdminAiData {
   apiUrlViaEnv: boolean;
   envModel: string | null;
   envApiUrl: string | null;
+}
+
+interface LiveAiModel {
+  id: string;
+  object?: string;
+  owned_by?: string;
+}
+
+interface AiModelsData {
+  models: LiveAiModel[];
+  fetchedAt: string;
+  cached: boolean;
+  activeModel: string | null;
+  activeBaseUrl: string;
 }
 
 function RoleLimitControl({
@@ -127,6 +140,11 @@ export function AiSettingsPanel({ onBack }: Props) {
   const { data, isLoading } = useQuery<AdminAiData>({
     queryKey: ["/api/v1/ai/admin/settings"],
   });
+  const { data: modelsData } = useQuery<AiModelsData>({
+    queryKey: ["/api/v1/ai/models"],
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [localSettings, setLocalSettings] = useState<AiSettings | null>(null);
   const [newApiKey, setNewApiKey] = useState("");
@@ -140,6 +158,7 @@ export function AiSettingsPanel({ onBack }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/admin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/ai/models"] });
       setNewApiKey("");
       setNewApiKeyFallback("");
       setNewApiUrl("");
@@ -181,6 +200,18 @@ export function AiSettingsPanel({ onBack }: Props) {
   }
 
   const apiOk = data?.apiConfigured;
+  const liveModels = modelsData?.models?.map((model) => model.id) ?? [];
+  const modelOptions = Array.from(
+    new Set(
+      [
+        ...(liveModels.length > 0 ? liveModels : FALLBACK_MODELS),
+        settings.model,
+        data?.envModel || "",
+      ].filter(Boolean)
+    )
+  );
+  const usingFallbackModels = liveModels.length === 0;
+  const configuredModelMissing = !!settings.model && liveModels.length > 0 && !liveModels.includes(settings.model);
 
   return (
     <div className="space-y-6">
@@ -408,10 +439,9 @@ export function AiSettingsPanel({ onBack }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GWDG_MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <span>{m.name}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">({t(`admin.aiSettings.${m.noteKey}`)})</span>
+                  {modelOptions.map((modelId) => (
+                    <SelectItem key={modelId} value={modelId}>
+                      {modelId}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -419,6 +449,19 @@ export function AiSettingsPanel({ onBack }: Props) {
               {data?.envModel && (
                 <p className="text-xs text-muted-foreground">
                   {t('admin.aiSettings.envOverride')} <code className="font-mono">{data.envModel}</code>
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Live provider models are loaded from <code className="font-mono">{modelsData?.activeBaseUrl || data?.envApiUrl || settings.apiUrl}</code>.
+              </p>
+              {usingFallbackModels && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Live model discovery is currently unavailable. Showing fallback model IDs.
+                </p>
+              )}
+              {configuredModelMissing && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  The currently configured model is not in the provider&apos;s latest advertised list.
                 </p>
               )}
             </div>

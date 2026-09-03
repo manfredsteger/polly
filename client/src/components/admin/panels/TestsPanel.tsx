@@ -614,7 +614,14 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 const progressPercent = run.summary.total > 0 ? (completedCount / run.summary.total) * 100 : 0;
                 const liveTestName = run.liveProgress?.currentTest || '';
                 const liveFileName = run.liveProgress?.currentFile?.replace('server/tests/', '') || '';
-                
+
+                const resultCounts = {
+                  all: run.results.length,
+                  passed: run.results.filter((r) => r.status === 'passed').length,
+                  failed: run.results.filter((r) => r.status === 'failed').length,
+                  skipped: run.results.filter((r) => r.status === 'skipped').length,
+                };
+
                 return (
                 <AccordionItem key={run.id} value={run.id}>
                   <AccordionTrigger className="hover:no-underline">
@@ -650,16 +657,16 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                     <div className="space-y-3 pl-4">
                       <div className="flex flex-wrap gap-2">
                         <Button size="sm" variant={resultFilter === 'all' ? 'default' : 'outline'} onClick={() => setResultFilter('all')}>
-                          {t('admin.tests.filterAll')}
+                          {t('admin.tests.filterAll')} ({resultCounts.all})
                         </Button>
                         <Button size="sm" variant={resultFilter === 'failed' ? 'default' : 'outline'} onClick={() => setResultFilter('failed')}>
-                          {t('admin.tests.filterFailed')}
+                          {t('admin.tests.filterFailed')} ({resultCounts.failed})
                         </Button>
                         <Button size="sm" variant={resultFilter === 'passed' ? 'default' : 'outline'} onClick={() => setResultFilter('passed')}>
-                          {t('admin.tests.filterPassed')}
+                          {t('admin.tests.filterPassed')} ({resultCounts.passed})
                         </Button>
                         <Button size="sm" variant={resultFilter === 'skipped' ? 'default' : 'outline'} onClick={() => setResultFilter('skipped')}>
-                          {t('admin.tests.filterSkipped')}
+                          {t('admin.tests.filterSkipped')} ({resultCounts.skipped})
                         </Button>
                       </div>
                       <div className="space-y-2">

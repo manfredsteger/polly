@@ -45,7 +45,13 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const handleLogout = async () => {
-    await logout();
+    const result = await logout();
+    // Keycloak single-logout: hand the browser to the IdP end-session endpoint,
+    // which terminates the SSO session and redirects back to /anmelden.
+    if (result && 'keycloakLogoutUrl' in result && result.keycloakLogoutUrl) {
+      window.location.href = result.keycloakLogoutUrl;
+      return;
+    }
     navigate('/');
   };
 

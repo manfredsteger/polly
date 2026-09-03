@@ -118,6 +118,25 @@ export default function Login() {
     window.scrollTo(0, 0);
   }, []);
 
+  // Optional: skip this page and go straight to the SSO provider (SSO_AUTO_REDIRECT=true).
+  // Guarded so it never loops: not while authenticated, not during an MFA step
+  // (Keycloak's MFA callback lands back here as /anmelden?mfa=verify), and not
+  // when the provider bounced back with an ?error=.
+  const ssoAutoRedirect =
+    !!authMethods.autoRedirectSso &&
+    !!authMethods.keycloak &&
+    !isAuthenticated &&
+    mfaStep === 'none' &&
+    !new URLSearchParams(window.location.search).get('error');
+
+  useEffect(() => {
+    if (!ssoAutoRedirect) return;
+    window.location.href =
+      redirectUrl === '/'
+        ? '/api/v1/auth/keycloak'
+        : `/api/v1/auth/keycloak?redirect=${encodeURIComponent(redirectUrl)}`;
+  }, [ssoAutoRedirect, redirectUrl]);
+
   useEffect(() => {
     if (isAuthenticated && user) {
       const hasExplicitRedirect = redirectUrl !== '/';
@@ -366,6 +385,14 @@ export default function Login() {
             </form>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (ssoAutoRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="h-6 w-6 animate-spin text-polly-orange" />
       </div>
     );
   }

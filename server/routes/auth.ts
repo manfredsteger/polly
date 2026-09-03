@@ -159,7 +159,14 @@ router.get('/methods', async (req, res) => {
     const hideLoginFormEnv = process.env.HIDE_LOGIN_FORM;
     const hideLoginForm = hideLoginFormEnv !== undefined && hideLoginFormEnv.toLowerCase() === 'true';
     const showLoginForm = !authService.isKeycloakEnabled() ? true : !hideLoginForm;
-    
+
+    // Skip the login page entirely and send the user straight to the SSO provider.
+    // ENV SSO_AUTO_REDIRECT=true (default: false). Only honoured when Keycloak is
+    // configured, so a misconfigured deployment can never lock itself out.
+    const autoRedirectSso =
+      authService.isKeycloakEnabled() &&
+      process.env.SSO_AUTO_REDIRECT?.toLowerCase() === 'true';
+
     res.json({
       local: true,
       keycloak: authService.isKeycloakEnabled(),
@@ -168,6 +175,7 @@ router.get('/methods', async (req, res) => {
       keycloakAccountUrl,
       ssoButtonLabel,
       showLoginForm,
+      autoRedirectSso,
     });
   } catch (error) {
     console.error('Error getting auth methods:', error);
@@ -486,14 +494,59 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
   }
 });
 
+// Build the Keycloak RP-initiated logout (end-session) URL so the browser can
+// terminate the IdP SSO session, not just the local app session.
+// Gated behind SSO_SINGLE_LOGOUT=true (default: off) because the
+// post_logout_redirect_uri must be registered in the Keycloak client; an
+// unregistered URI makes Keycloak show an error page instead of returning.
+async function buildKeycloakLogoutUrl(): Promise<string | null> {
+  if (process.env.SSO_SINGLE_LOGOUT?.toLowerCase() !== 'true') {
+    console.log('[SLO] skipped: SSO_SINGLE_LOGOUT is not "true"');
+    return null;
+  }
+  if (!authService.isKeycloakEnabled()) {
+    console.log('[SLO] skipped: Keycloak is not enabled');
+    return null;
+  }
+
+  const cfg = authService.getDisplayConfig();
+  if (!cfg.issuerUrl || !cfg.clientId) {
+    console.log('[SLO] skipped: missing issuerUrl or clientId', { issuerUrl: cfg.issuerUrl, clientId: cfg.clientId });
+    return null;
+  }
+
+  const { getBaseUrl } = await import('../utils/baseUrl');
+  // Land on the public homepage after SSO logout, not the login page.
+  const postLogoutRedirectUri = getBaseUrl();
+  const endSession = `${cfg.issuerUrl.replace(/\/+$/, '')}/protocol/openid-connect/logout`;
+  return `${endSession}?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}&client_id=${encodeURIComponent(cfg.clientId)}`;
+}
+
 // Logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  // Only Keycloak-provisioned sessions get single-logout; local accounts are unaffected.
+  let keycloakLogoutUrl: string | null = null;
+  try {
+    const userId = req.session?.userId;
+    if (userId) {
+      const user = await storage.getUser(userId);
+      if (user?.provider === 'keycloak') {
+        keycloakLogoutUrl = await buildKeycloakLogoutUrl();
+        console.log('[SLO] keycloak session logout, url =', keycloakLogoutUrl);
+      } else {
+        console.log('[SLO] not a keycloak session, provider =', user?.provider);
+      }
+    }
+  } catch (err) {
+    console.error('Logout: failed to build Keycloak logout URL:', err);
+  }
+
   req.session.destroy((err: Error | null) => {
     if (err) {
       console.error('Logout error:', err);
       return res.status(500).json({ error: 'Fehler beim Abmelden' });
     }
-    res.json({ success: true });
+    res.json({ success: true, keycloakLogoutUrl: keycloakLogoutUrl ?? undefined });
   });
 });
 

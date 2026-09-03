@@ -82,6 +82,11 @@ export async function createTestApp(): Promise<Express> {
 
   testServer = await registerRoutes(app);
 
+  // Tests exercise the registration endpoint regardless of the deployment's
+  // registration_enabled policy (prod ships with it disabled).
+  const { storage } = await import('../storage');
+  await storage.setSetting({ key: 'registration_enabled', value: true });
+
   // Disable rate limiting for tests
   apiRateLimiter.updateConfig({
     registration: { windowSeconds: 3600, maxRequests: 10000, enabled: false },

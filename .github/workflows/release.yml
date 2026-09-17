@@ -61,6 +61,9 @@ jobs:
       - name: Validate Translations
         run: node scripts/validate-translations.cjs
 
+      - name: Public response privacy tests (no database)
+        run: npx vitest run --config vitest.privacy.config.ts
+
       - name: Wait for PostgreSQL
         run: |
           until pg_isready -h localhost -p 5432 -U test; do

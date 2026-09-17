@@ -811,6 +811,8 @@ export type AiRoleLimit = z.infer<typeof aiRoleLimitSchema>;
 export type PollWithOptions = Poll & {
   options: PollOption[];
   votes: Vote[];
+  // Public organization responses retain availability without exposing private votes.
+  slotCounts?: Record<number, number>;
   user?: User;
 };
 

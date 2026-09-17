@@ -198,7 +198,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         };
       } else {
         signups[option.id] = {
-          count: 0,
+          count: poll.slotCounts?.[option.id] ?? 0,
           maxCapacity: option.maxCapacity ?? null,
           names: []
         };
@@ -208,8 +208,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     // Always populate names from poll.votes (even if using live counts)
     poll.votes?.forEach(vote => {
       if (vote.response === 'yes' && signups[vote.optionId]) {
-        // Only increment count if we're not using live data
-        if (!liveSlotUpdates[vote.optionId]) {
+        // Only derive counts from votes when no live or server-provided counts exist
+        if (!liveSlotUpdates[vote.optionId] && poll.slotCounts?.[vote.optionId] === undefined) {
           signups[vote.optionId].count++;
         }
         if (vote.voterName) {
@@ -219,7 +219,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     });
     
     return signups;
-  }, [poll.type, poll.options, poll.votes, liveSlotUpdates]);
+  }, [poll.type, poll.options, poll.votes, poll.slotCounts, liveSlotUpdates]);
 
   useEffect(() => {
     if (voterName && isConnected) {

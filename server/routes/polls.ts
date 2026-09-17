@@ -10,6 +10,8 @@ import {
 import { pollCreationRateLimiter, apiGeneralRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
 
+import { publicPollResponse, safePollCreator } from "../lib/publicPollResponse";
+
 const router = Router();
 
 function getReminderSelectionsForEmail(
@@ -197,10 +199,10 @@ router.get('/public/:token', apiGeneralRateLimiter, async (req, res) => {
     
     const isOwner = poll.userId != null && req.session?.userId === poll.userId;
     if (isOwner) {
-      res.json(poll);
+      // Preserve the owner's organizer controls without returning account secrets.
+      res.json({ ...poll, user: safePollCreator(poll) });
     } else {
-      const { adminToken, ...pollData } = poll;
-      res.json(pollData);
+      res.json(publicPollResponse(poll));
     }
   } catch (error) {
     console.error('Error fetching poll:', error);
@@ -1100,10 +1102,9 @@ router.get('/:token/results', apiGeneralRateLimiter, async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
 
+    const userId = await extractUserId(req);
+    const isCreator = userId != null && poll.userId === userId;
     if (!poll.resultsPublic && !isAdmin) {
-      const userId = await extractUserId(req);
-      const isCreator = userId && poll.userId === userId;
-      
       if (!isCreator) {
         return res.status(403).json({ 
           error: 'Ergebnisse sind nur für den Ersteller sichtbar',
@@ -1113,7 +1114,19 @@ router.get('/:token/results', apiGeneralRateLimiter, async (req, res) => {
     }
 
     const results = await storage.getPollResults(poll.id);
-    res.json(results);
+    if (isAdmin || isCreator) {
+      res.json({ ...results, poll: { ...results.poll, user: safePollCreator(poll) } });
+    } else {
+      const publicPoll = publicPollResponse({ ...poll, options: results.options, votes: results.votes });
+      res.json({
+        poll: publicPoll,
+        options: publicPoll.options,
+        votes: publicPoll.votes,
+        stats: results.stats,
+        participantCount: results.participantCount,
+        responseRate: results.responseRate,
+      });
+    }
   } catch (error) {
     console.error('Error fetching results:', error);
     res.status(500).json({ error: 'Internal server error' });

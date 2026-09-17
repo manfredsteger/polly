@@ -33,6 +33,9 @@ jobs:
       - name: Validate Translations
         run: node scripts/validate-translations.cjs
 
+      - name: Public response privacy tests (no database)
+        run: npx vitest run --config vitest.privacy.config.ts
+
   test:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest

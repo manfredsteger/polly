@@ -2903,8 +2903,8 @@
     "resultsPublic": "Results public",
     "resultsPrivate": "Results private",
     "resultsPublicDescription": "Can participants view the results?",
-    "notifyCreatorOnVote": "Notify me on new vote",
-    "notifyCreatorOnVoteDescription": "Get an email whenever someone votes.",
+    "notifyCreatorOnVote": "Notify me about votes and withdrawals",
+    "notifyCreatorOnVoteDescription": "Get an email when someone submits or withdraws a vote.",
     "creationOptions": "Creation Options",
     "settings": "Settings",
     "loggedInAs": "Logged in as {{name}}",
@@ -3322,6 +3322,8 @@
     }
   },
   "voteSuccess": {
+    "withdrawnTitle": "Your vote has been withdrawn.",
+    "withdrawnDescription": "Your answers for “{{title}}” have been removed and are no longer counted.",
     "guestManagementEmailSent": "We emailed you a link to edit your vote. Please also check your spam folder.",
     "guestManagementEmailCooldown": "Your vote has been saved. No new email was sent because a confirmation was recently requested. Check your email for the private management link.",
     "guestManagementEmailFailed": "Your vote has been saved, but we could not send the private management link. Contact the organizer for help.",

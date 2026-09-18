@@ -2481,6 +2481,24 @@ export class EmailTemplateService {
     };
   }
 
+  // Uses the existing branding without adding persisted template types.
+  async renderVoteWithdrawalEmail(voterName: string, pollTitle: string, link: string, organizer = false) {
+    const subject = organizer ? `Stimme zurückgezogen: ${pollTitle}` : `Ihre Stimme wurde zurückgezogen: ${pollTitle}`;
+    const heading = organizer ? 'Eine Stimme wurde zurückgezogen.' : 'Ihre Stimme wurde zurückgezogen.';
+    const message = organizer
+      ? `${voterName || 'Eine teilnehmende Person'} hat die Teilnahme an „${pollTitle}“ zurückgezogen. Die Antworten werden nicht mehr gezählt.`
+      : `${voterName ? `Hallo ${voterName} — ` : ''}Ihre Antworten für „${pollTitle}“ wurden entfernt und werden nicht mehr gezählt.`;
+    const label = organizer ? 'Umfrage verwalten' : 'Zur Umfrage';
+    const customization = await storage.getCustomizationSettings();
+    const data = await this.buildV3TemplateData(customization, await this.getEmailTheme(), subject);
+    const body = `${v3BodyStart()}${v3Tag('Zurückgezogen', data.primaryColor)}${v3SimpleHeadline(heading, data.fontFamily)}${v3Subline(htmlEscape(message))}${v3BodyEnd()}${v3Divider()}${v3SingleButtonSection('', `${label} →`, link, 'primary', data.primaryColor, data.secondaryColor)}`;
+    return {
+      subject,
+      html: v3Shell(data, body),
+      text: `${heading}\n\n${message}\n\n${label}: ${link}\n\n${data.footerText}`,
+    };
+  }
+
   // Render a template with variables — V3 template system
   async renderEmail(
     type: EmailTemplateType,

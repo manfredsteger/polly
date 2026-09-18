@@ -46,3 +46,20 @@ it('omits the management section when no private link is provided', async () => 
     expect(content).not.toContain('Stimme zurückziehen');
   }
 });
+
+it.each([false, true])('renders a safe withdrawal email for organizer=%s without obsolete edit controls', async organizer => {
+  const link = organizer ? 'https://example.test/admin/owner-token' : 'https://example.test/poll/public';
+  const result = await service.renderVoteWithdrawalEmail('<b>Voter</b>', '<script>Poll</script>', link, organizer);
+  expect(result.html).toContain('zurückgezogen');
+  expect(result.html).not.toContain('<script>Poll</script>');
+  expect(result.html).not.toContain('<b>Voter</b>');
+  expect(result.html).toContain(link);
+  expect(result.text).toContain(link);
+  expect(result.text).toContain('nicht mehr gezählt');
+  for (const content of [result.html, result.text]) {
+    expect(content).not.toContain('/edit/');
+    expect(content).not.toContain('Stimme bearbeiten');
+    expect(content).not.toContain('Ergebnisse anzeigen');
+    if (!organizer) expect(content).not.toContain('/admin/');
+  }
+});

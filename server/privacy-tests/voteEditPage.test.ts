@@ -8,12 +8,14 @@ const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
   setQueryData: vi.fn(),
   invalidateQueries: vi.fn(),
+  removeQueries: vi.fn(),
+  navigate: vi.fn(),
 }));
-vi.mock('wouter', () => ({ useParams: () => ({ editToken: 'private-token' }), useLocation: () => ['/', vi.fn()] }));
+vi.mock('wouter', () => ({ useParams: () => ({ editToken: 'private-token' }), useLocation: () => ['/', mocks.navigate] }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }));
 vi.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: mocks.data, isLoading: false }),
-  useQueryClient: () => ({ setQueryData: mocks.setQueryData, invalidateQueries: mocks.invalidateQueries }),
+  useQueryClient: () => ({ setQueryData: mocks.setQueryData, invalidateQueries: mocks.invalidateQueries, removeQueries: mocks.removeQueries }),
   useMutation: (options: unknown) => { mocks.mutations.push(options); return { isPending: false, mutate: vi.fn() }; },
 }));
 vi.mock('../../client/src/hooks/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
@@ -25,7 +27,7 @@ beforeEach(() => {
   mocks.mutations = [];
   mocks.data = {
     poll: {
-      id: 'poll-1', title: 'Test', type: 'survey', isActive: true,
+      id: 'poll-1', publicToken: 'public-token', title: 'Test', type: 'survey', isActive: true,
       allowVoteEdit: true, expiresAt: null, options: [{ id: 10, text: 'One' }],
     },
     votes: [{ optionId: 10, response: 'yes' }], voterName: 'Voter',
@@ -38,6 +40,24 @@ function answerButtons(html: string) {
 }
 
 describe('Private edit page permissions', () => {
+  it('navigates to withdrawal confirmation only after success and drops the cached private vote', () => {
+    const setItem = vi.fn();
+    vi.stubGlobal('sessionStorage', { setItem });
+    try {
+      render();
+      mocks.mutations[1].onError();
+      expect(mocks.navigate).not.toHaveBeenCalled();
+      expect(setItem).not.toHaveBeenCalled();
+      mocks.mutations[1].onSuccess();
+      expect(JSON.parse(setItem.mock.calls[0][1])).toEqual({
+        action: 'withdrawn', poll: { title: 'Test' }, publicToken: 'public-token',
+      });
+      expect(mocks.removeQueries).toHaveBeenCalledWith({ queryKey: ['/api/v1/votes/edit/private-token'] });
+      expect(mocks.navigate).toHaveBeenCalledWith('/vote-success', { replace: true });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it('shows read-only controls and a notice instead of Save when editing is disabled', () => {
     mocks.data.poll.allowVoteEdit = false;
     const html = render();

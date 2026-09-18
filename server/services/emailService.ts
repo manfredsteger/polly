@@ -388,6 +388,16 @@ export class EmailService {
     }
   }
 
+  async sendVoteWithdrawalEmail(
+    recipientEmail: string, voterName: string, pollTitle: string, link: string, organizer = false
+  ): Promise<void> {
+    if (!recipientEmail) return;
+    const rendered = await emailTemplateService.renderVoteWithdrawalEmail(
+      voterName, pollTitle, validateEmailUrl(link), organizer
+    );
+    await this.sendMail({ to: recipientEmail, ...rendered });
+  }
+
   async sendNewVoteNotificationEmail(
     creatorEmail: string,
     voterName: string,

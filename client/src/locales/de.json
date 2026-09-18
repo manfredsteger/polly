@@ -2903,8 +2903,8 @@
     "resultsPublic": "Ergebnisse öffentlich",
     "resultsPrivate": "Ergebnisse privat",
     "resultsPublicDescription": "Dürfen Teilnehmende die Ergebnisse einsehen?",
-    "notifyCreatorOnVote": "Benachrichtigung bei neuer Abstimmung",
-    "notifyCreatorOnVoteDescription": "Per E-Mail informiert werden, sobald jemand abstimmt.",
+    "notifyCreatorOnVote": "Benachrichtigung bei Abstimmungen und Rücknahmen",
+    "notifyCreatorOnVoteDescription": "Per E-Mail informiert werden, wenn jemand abstimmt oder eine Stimme zurückzieht.",
     "creationOptions": "Erstellungsoptionen",
     "settings": "Einstellungen",
     "loggedInAs": "Angemeldet als {{name}}",
@@ -3322,6 +3322,8 @@
     }
   },
   "voteSuccess": {
+    "withdrawnTitle": "Ihre Stimme wurde zurückgezogen.",
+    "withdrawnDescription": "Ihre Antworten für „{{title}}“ wurden entfernt und werden nicht mehr gezählt.",
     "guestManagementEmailSent": "Den Link zum Bearbeiten Ihrer Stimme haben wir Ihnen per E-Mail gesendet. Prüfen Sie auch den Spam-Ordner.",
     "guestManagementEmailCooldown": "Ihre Stimme wurde gespeichert. Es wurde keine neue E-Mail gesendet, da kürzlich eine Bestätigung angefordert wurde. Prüfen Sie Ihr Postfach auf den privaten Verwaltungslink.",
     "guestManagementEmailFailed": "Ihre Stimme wurde gespeichert, aber der private Verwaltungslink konnte nicht gesendet werden. Wenden Sie sich bitte an den Organisator.",

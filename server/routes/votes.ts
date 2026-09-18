@@ -14,8 +14,37 @@ import { voteRateLimiter, emailRateLimiter, apiGeneralRateLimiter } from "../ser
 
 import { publicVote } from '../lib/publicPollResponse';
 import { assertVoteOwnership, VOTE_AUTHORIZATION_REQUIRED } from '../lib/voteOwnership';
+import type { Poll, Vote } from '@shared/schema';
 
 const router = Router();
+
+async function notifyWithdrawal(poll: Poll, votes: Vote[], isTestMode: boolean) {
+  if (isTestMode || !emailService.smtpConfigured) return;
+  // Email failures must never turn a completed withdrawal into an API failure.
+  try {
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const participants = new Map<string, Vote>();
+    for (const vote of votes) {
+      if (vote.voterEmail) participants.set(vote.voterEmail.trim().toLowerCase(), vote);
+    }
+    const deliveries: Promise<void>[] = [];
+    for (const [email, vote] of participants) {
+      deliveries.push(emailService.sendVoteWithdrawalEmail(email, vote.voterName, poll.title, `${baseUrl}/poll/${poll.publicToken}`));
+      if (poll.notifyCreatorOnVote && poll.creatorEmail && poll.creatorEmail.trim().toLowerCase() !== email) {
+        deliveries.push(emailService.sendVoteWithdrawalEmail(
+          poll.creatorEmail, poll.isAnonymous ? '' : vote.voterName, poll.title, `${baseUrl}/admin/${poll.adminToken}`, true
+        ));
+      }
+    }
+    const results = await Promise.allSettled(deliveries);
+    for (const result of results) {
+      if (result.status === 'rejected') console.error('Withdrawal email delivery failed:', result.reason);
+    }
+  } catch (error) {
+    console.error('Withdrawal email delivery failed:', error);
+  }
+}
 
 const voteAuthorizationError = {
   error: 'Bitte melden Sie sich als Eigentümer dieser Stimmen an oder verwenden Sie Ihren privaten Bearbeitungslink.',
@@ -911,6 +940,7 @@ router.delete('/polls/:token/vote', async (req, res) => {
     }
     
     console.log(`[Vote] Withdrew ${votesToDelete.length} votes from poll ${poll.id}`);
+    await notifyWithdrawal(poll, votesToDelete, req.isTestMode === true);
     
     // For organization polls: Broadcast slot update via WebSocket after withdrawal
     if (poll.type === 'organization') {
@@ -960,6 +990,7 @@ router.get('/votes/edit/:editToken', async (req, res) => {
     // SECURITY: Only return poll metadata and options, NOT other voters' data
     const securePoll = {
       id: fullPoll.id,
+      publicToken: fullPoll.publicToken,
       title: fullPoll.title,
       description: fullPoll.description,
       type: fullPoll.type,
@@ -1175,6 +1206,7 @@ router.delete('/votes/edit/:editToken', async (req, res) => {
     }
 
     console.log(`[Vote] Withdrew ${votes.length} votes via edit token from poll ${poll.id}`);
+    await notifyWithdrawal(poll, votes, req.isTestMode === true);
 
     if (poll.type === 'organization') {
       const freshPoll = await storage.getPollByPublicToken(poll.publicToken);

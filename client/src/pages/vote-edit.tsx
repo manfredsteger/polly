@@ -22,6 +22,7 @@ interface SecurePollOption {
 
 interface SecurePoll {
   id: string;
+  publicToken: string;
   title: string;
   description: string | null;
   type: string;
@@ -130,11 +131,16 @@ export default function VoteEditPage() {
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: t('voting.voteWithdrawn'),
-        description: t('voteEdit.voteRemoved'),
-      });
-      setLocation('/');
+      sessionStorage.setItem('vote-success-data', JSON.stringify({
+        action: 'withdrawn',
+        poll: { title: voterData?.poll.title },
+        publicToken: voterData?.poll.publicToken,
+      }));
+      queryClient.removeQueries({ queryKey: [`/api/v1/votes/edit/${editToken}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/polls'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/public/${voterData?.poll.publicToken}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${voterData?.poll.publicToken}/results`] });
+      setLocation('/vote-success', { replace: true });
     },
     onError: () => {
       toast({

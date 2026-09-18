@@ -26,6 +26,19 @@ afterEach(() => vi.unstubAllGlobals());
 const render = () => renderToStaticMarkup(React.createElement(VoteSuccess));
 
 describe('Guest success page', () => {
+  it.each([false, true])('shows persistent withdrawal confirmation for authenticated=%s', authenticated => {
+    mocks.authenticated = authenticated;
+    mocks.data.action = 'withdrawn';
+    const html = render();
+    expect(html).toContain('voteSuccess.withdrawnTitle');
+    expect(html).toContain('voteSuccess.withdrawnDescription');
+    expect(html).toContain('voteSuccess.goToPoll');
+    expect(html).toContain('voteSuccess.backToHome');
+    expect(html).not.toContain('voteSuccess.thankYouTitle');
+    expect(html).not.toContain('voteSuccess.editVote');
+    expect(html).not.toContain('voteSuccess.guestManagementEmailSent');
+    expect(html).not.toContain('legacy-private-secret');
+  });
   it('shows email guidance, never guest edit controls or the private link', () => {
     const html = render();
     expect(html.split('voteSuccess.guestManagementEmailSent')).toHaveLength(2);

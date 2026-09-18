@@ -8,7 +8,7 @@ const { storage, tokenService, emailService, deviceTokenService } = vi.hoisted((
     'createVote', 'replaceSimpleModeVotes', 'getPoll', 'getVotesByVoterKey',
   ].map(name => [name, vi.fn()])),
   tokenService: { extractBearerToken: vi.fn(), validateToken: vi.fn() },
-  emailService: { smtpConfigured: true, sendVotingConfirmationEmail: vi.fn() },
+  emailService: { smtpConfigured: true, sendVotingConfirmationEmail: vi.fn(), sendVoteWithdrawalEmail: vi.fn() },
   deviceTokenService: { getVoterKey: vi.fn() },
 }));
 vi.mock('../storage', () => ({ storage }));
@@ -38,6 +38,8 @@ function makePoll() {
     id: 'poll-1', publicToken: 'public-token', type: 'survey', responseMode: 'classic',
     isActive: true, expiresAt: null as Date | null, allowVoteEdit: true,
     allowVoteWithdrawal: true, allowMaybe: true, maxSelections: 1,
+    title: 'Test poll', creatorEmail: 'organizer@example.test', adminToken: 'admin-token',
+    notifyCreatorOnVote: false, isAnonymous: false,
     options: [{ id: 10, text: 'One' }, { id: 11, text: 'Two' }], votes: [vote],
   };
 }
@@ -68,6 +70,7 @@ beforeEach(() => {
   recentEmailSends.clear();
   emailService.smtpConfigured = true;
   emailService.sendVotingConfirmationEmail.mockResolvedValue(undefined);
+  emailService.sendVoteWithdrawalEmail.mockResolvedValue(undefined);
   deviceTokenService.getVoterKey.mockReturnValue({ voterKey: 'device:test', voterSource: 'device' });
   storage.getVotesByVoterKey.mockResolvedValue([vote]);
   poll = makePoll();
@@ -281,7 +284,7 @@ describe.each(['/polls/:token/vote', '/polls/:token/vote-bulk'])('Email-only gue
     expect(res.body).not.toHaveProperty('voterEditToken');
     expect(res.body.votes[0]).not.toHaveProperty('voterEditToken');
     expect(emailService.sendVotingConfirmationEmail).toHaveBeenCalledWith(
-      vote.voterEmail, vote.voterName, undefined, 'survey',
+      vote.voterEmail, vote.voterName, poll.title, 'survey',
       expect.any(String), expect.any(String), expect.any(Array), expect.stringContaining(`/edit/${token}`),
       false,
     );
@@ -336,5 +339,51 @@ describe('My votes management credentials', () => {
     const res = await call('get', undefined, 7, '/polls/:token/my-votes');
     expect(res.body.votes[0]).not.toHaveProperty('voterEditToken');
     expect(res.body.votes[1].voterEditToken).toBe(token);
+  });
+});
+
+describe.each(['/polls/:token/vote', '/votes/edit/:editToken'])('Withdrawal emails at %s', path => {
+  beforeEach(() => {
+    storage.getPoll.mockImplementation(async () => poll);
+    storage.getVotesByEditToken.mockResolvedValue([vote, { ...vote, id: 2, optionId: 11 }]);
+  });
+  it.each([false, true])('sends one participant email and respects organizer preference %s', async notify => {
+    poll.notifyCreatorOnVote = notify;
+    const res = await call('delete', { voterEditToken: token }, undefined, path, {}, false);
+    expect(res.statusCode).toBe(200);
+    expect(storage.deleteVote).toHaveBeenCalledTimes(2);
+    expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledTimes(notify ? 2 : 1);
+    expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledWith(
+      vote.voterEmail, vote.voterName, poll.title, expect.stringContaining('/poll/public-token'),
+    );
+    if (notify) expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledWith(
+      poll.creatorEmail, vote.voterName, poll.title, expect.stringContaining('/admin/admin-token'), true,
+    );
+    expect(storage.deleteVote.mock.invocationCallOrder[1]).toBeLessThan(emailService.sendVoteWithdrawalEmail.mock.invocationCallOrder[0]);
+  });
+  it('still notifies the organizer when participant delivery fails', async () => {
+    poll.notifyCreatorOnVote = true;
+    emailService.sendVoteWithdrawalEmail.mockRejectedValueOnce(new Error('SMTP failed'));
+    expect((await call('delete', { voterEditToken: token }, undefined, path, {}, false)).statusCode).toBe(200);
+    expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledTimes(2);
+  });
+  it('does not reveal participant names to the organizer for anonymous polls', async () => {
+    poll.notifyCreatorOnVote = true;
+    poll.isAnonymous = true;
+    await call('delete', { voterEditToken: token }, undefined, path, {}, false);
+    expect(emailService.sendVoteWithdrawalEmail.mock.calls[1][1]).toBe('');
+  });
+  it('avoids a duplicate organizer message for their own withdrawal', async () => {
+    poll.notifyCreatorOnVote = true;
+    poll.creatorEmail = vote.voterEmail;
+    await call('delete', { voterEditToken: token }, undefined, path, {}, false);
+    expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledTimes(1);
+  });
+  it.each(['denied', 'delete-failed', 'test-mode', 'no-smtp'])('sends no mail when %s', async scenario => {
+    if (scenario === 'denied') poll.allowVoteWithdrawal = false;
+    if (scenario === 'delete-failed') storage.deleteVote.mockRejectedValue(new Error('DB unavailable'));
+    if (scenario === 'no-smtp') emailService.smtpConfigured = false;
+    await call('delete', { voterEditToken: token }, undefined, path, {}, scenario === 'test-mode');
+    expect(emailService.sendVoteWithdrawalEmail).not.toHaveBeenCalled();
   });
 });

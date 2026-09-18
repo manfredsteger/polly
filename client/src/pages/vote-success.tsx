@@ -50,6 +50,27 @@ export default function VoteSuccess() {
   }
 
   const { poll, publicToken, voterName, voterEditToken } = voteData;
+  if (voteData.action === 'withdrawn') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 dark:from-gray-900 dark:to-gray-800 p-4">
+        <div className="max-w-2xl mx-auto py-12 text-center">
+          <CheckCircle2 className="mx-auto mb-5 h-12 w-12 text-green-600 dark:text-green-400" aria-hidden="true" />
+          <div role="status">
+            <h1 className="text-3xl font-bold mb-3">{t('voteSuccess.withdrawnTitle')}</h1>
+            <p className="text-lg text-muted-foreground">{t('voteSuccess.withdrawnDescription', { title: poll.title })}</p>
+          </div>
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            {publicToken && <Button className="polly-button-primary" onClick={() => navigate(`/poll/${publicToken}`)}>
+              {t('voteSuccess.goToPoll')}
+            </Button>}
+            <Button variant="outline" onClick={() => navigate('/')}>
+              {t('voteSuccess.backToHome')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const publicLink = `${window.location.origin}/poll/${publicToken}`;
   const resultsLink = `${window.location.origin}/poll/${publicToken}#results`;
   const editLink = isAuthenticated && !voteData.managementLinkByEmail && voterEditToken ? `${window.location.origin}/edit/${voterEditToken}` : null;

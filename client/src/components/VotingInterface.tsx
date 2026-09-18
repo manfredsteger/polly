@@ -509,11 +509,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: t('votingInterface.voteWithdrawn'),
-        description: t('votingInterface.voteWithdrawnSuccess'),
-        variant: "default",
-      });
+      sessionStorage.setItem('vote-success-data', JSON.stringify({
+        action: 'withdrawn', poll: { title: poll.title }, publicToken: poll.publicToken,
+      }));
       try { localStorage.removeItem(`polly-edit-token-${poll.id}`); } catch (_) {}
       // Reset form state
       setVotes({});
@@ -527,6 +525,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
       queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${poll.publicToken}/results`] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
+      setLocation('/vote-success', { replace: true });
     },
     onError: (error) => {
       const errorData = parseApiError(error);
@@ -743,7 +742,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           voterEmail: voterEmail.trim(),
           voterEditToken: isAuthenticated ? result.voterEditToken : undefined,
           managementLinkByEmail: result.managementLinkByEmail,
-          allowVoteEdit: poll.allowVoteEdit || poll.type === 'organization',
+          allowVoteEdit: poll.allowVoteEdit,
           confirmationEmailStatus: result.confirmationEmailStatus,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };

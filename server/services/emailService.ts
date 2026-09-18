@@ -298,7 +298,7 @@ export class EmailService {
     pollTitle: string,
     pollType: 'schedule' | 'survey' | 'organization',
     publicLink: string,
-    resultsLink: string,
+    resultsLink: string | undefined,
     selectedOptions?: string[],
     editLink?: string,
     withdrawalOnly = false
@@ -323,7 +323,8 @@ export class EmailService {
         pollTitle,
         pollType: pollTypeText,
         publicLink: validateEmailUrl(publicLink),
-        resultsLink: validateEmailUrl(resultsLink),
+        resultsLink: resultsLink ? validateEmailUrl(resultsLink) : undefined,
+        resultsPublic: resultsLink ? 'true' : 'false',
         editLink: editLink ? validateEmailUrl(editLink) : undefined,
         voteManagementAction: withdrawalOnly ? 'withdraw' : 'edit',
         selectedOptionsHtml,
@@ -347,7 +348,7 @@ export class EmailService {
     pollTitle: string,
     pollType: 'schedule' | 'survey' | 'organization',
     publicLink: string,
-    resultsLink: string,
+    resultsLink: string | undefined,
     selectedOptions?: string[],
     editLink?: string
   ): Promise<void> {
@@ -371,7 +372,8 @@ export class EmailService {
         pollTitle,
         pollType: pollTypeText,
         publicLink: validateEmailUrl(publicLink),
-        resultsLink: validateEmailUrl(resultsLink),
+        resultsLink: resultsLink ? validateEmailUrl(resultsLink) : undefined,
+        resultsPublic: resultsLink ? 'true' : 'false',
         editLink: editLink ? validateEmailUrl(editLink) : undefined,
         selectedOptionsHtml,
       });

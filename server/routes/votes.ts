@@ -452,7 +452,7 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         const { getBaseUrl } = await import('../utils/baseUrl');
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
-        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+        const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
         const editLink =
           (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && voterEditToken
             ? `${baseUrl}/edit/${voterEditToken}`
@@ -774,7 +774,7 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         const { getBaseUrl } = await import('../utils/baseUrl');
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
-        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+        const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
 
         // Summarize saved answers, including explicit Maybe and No responses.
         const selectedOptions = getVoteEmailSummary(poll, createdVotes);
@@ -1129,7 +1129,7 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       const { getBaseUrl } = await import('../utils/baseUrl');
       const baseUrl = getBaseUrl();
       const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
-      const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+      const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
       const editLink = `${baseUrl}/edit/${editToken}`;
       // Classic edits can update only a subset; include unchanged saved answers too.
       const savedAnswers = isSimpleMode ? updatedResults : existingVotes.map(vote =>
@@ -1267,7 +1267,7 @@ router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => 
     const { getBaseUrl } = await import('../utils/baseUrl');
     const baseUrl = getBaseUrl();
     const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
-    const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+    const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
     const editLink =
       (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && existingVotes[0].voterEditToken
         ? `${baseUrl}/edit/${existingVotes[0].voterEditToken}`

@@ -39,7 +39,7 @@ function makePoll() {
     isActive: true, expiresAt: null as Date | null, allowVoteEdit: true,
     allowVoteWithdrawal: true, allowMaybe: true, maxSelections: 1,
     title: 'Test poll', creatorEmail: 'organizer@example.test', adminToken: 'admin-token',
-    notifyCreatorOnVote: false, isAnonymous: false,
+    notifyCreatorOnVote: false, isAnonymous: false, resultsPublic: true,
     options: [{ id: 10, text: 'One' }, { id: 11, text: 'Two' }], votes: [vote],
   };
 }
@@ -423,3 +423,23 @@ describe('Saved answer email summaries', () => {
     expect(emailService.sendVotingConfirmationEmail.mock.calls[0][6]).toEqual(['One — Nein']);
   });
 });
+
+it.each(['/polls/:token/vote', '/polls/:token/vote-bulk', '/polls/:token/resend-email', '/votes/edit/:editToken'])(
+  'omits participant results links for private polls at %s', async path => {
+    poll.resultsPublic = false;
+    storage.getPoll.mockResolvedValue(poll);
+    storage.getVotesByEditToken.mockResolvedValue([vote]);
+    if (path.endsWith('resend-email')) {
+      await call('post', { email: vote.voterEmail }, undefined, path, {}, false);
+    } else if (path === '/votes/edit/:editToken') {
+      await call('put', { votes: [{ optionId: 10, response: 'no' }] }, undefined, path, {}, false);
+    } else {
+      storage.getVotesByEmail.mockResolvedValue([]);
+      await call('post', submission(), undefined, path, {}, false);
+    }
+    const sender = path === '/votes/edit/:editToken' ? emailService.sendVoteUpdatedEmail : emailService.sendVotingConfirmationEmail;
+    expect(sender).toHaveBeenCalledTimes(1);
+    expect(sender.mock.calls[0][5]).toBeUndefined();
+    expect(sender.mock.calls[0][7]).toContain(`/edit/${token}`);
+  }
+);

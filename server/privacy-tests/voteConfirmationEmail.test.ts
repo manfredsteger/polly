@@ -78,3 +78,29 @@ it.each(['vote_confirmation', 'vote_updated'] as const)('includes all response l
     expect(result.text).toContain(answer);
   }
 });
+
+it.each(['vote_confirmation', 'vote_updated'] as const)('hides private results in HTML and text while preserving answers and management in %s', async type => {
+  vi.mocked(service.getTemplate).mockResolvedValue({
+    ...EmailTemplateService.getDefaultTemplate(type), isDefault: true,
+  } as EmailTemplate);
+  for (const resultsPublic of ['false', 'true']) {
+    const result = await service.renderEmail(type, {
+      voterName: 'Test', pollTitle: 'Test poll', resultsPublic,
+      resultsLink: resultsPublic === 'true' ? 'https://example.test/poll/public#results' : undefined,
+      editLink, selectedOptionsHtml: '<ul><li>Morning — Ja</li><li>Afternoon — Nein</li></ul>',
+    });
+    for (const content of [result.html, result.text]) {
+      expect(content).toContain('Morning — Ja');
+      expect(content).toContain('Afternoon — Nein');
+      expect(content).toContain(editLink);
+      if (resultsPublic === 'false') {
+        expect(content).not.toContain('Ergebnisse anzeigen');
+        expect(content).not.toContain('Ergebnisse einsehen');
+        expect(content).not.toContain('#results');
+      } else {
+        expect(content).toContain('Ergebnisse anzeigen');
+        expect(content).toContain('#results');
+      }
+    }
+  }
+});

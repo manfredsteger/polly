@@ -1699,8 +1699,8 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
       ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Teilnahme an der ${htmlEscape(pollType)} \u201E${pollTitle}\u201C. Ihre Auswahl wurde erfolgreich gespeichert.`)}
     ${v3BodyEnd()}
     ${optionsBlock}
-    ${v3Divider()}
-    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}${editSection}`;
+    ${vars.resultsPublic === 'false' ? '' : `${v3Divider()}
+    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
 }
 
 function buildV3VoteUpdatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
@@ -1730,8 +1730,8 @@ function buildV3VoteUpdatedBody(vars: Record<string, string | undefined>, ctx: V
       ${v3Subline(`${greeting} — Ihre Auswahl für die ${htmlEscape(pollType)} „${pollTitle}“ wurde erfolgreich aktualisiert.`)}
     ${v3BodyEnd()}
     ${optionsBlock}
-    ${v3Divider()}
-    ${v3SingleButtonSection('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen →', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}${editSection}`;
+    ${vars.resultsPublic === 'false' ? '' : `${v3Divider()}
+    ${v3SingleButtonSection('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen →', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
 }
 
 function buildV3PasswordResetBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
@@ -2019,6 +2019,14 @@ export class EmailTemplateService {
     text: string,
     variables: Record<string, string | undefined>
   ): string {
+    // Remove the results link and standard explanatory copy in plain-text and
+    // customized text templates as well as in the default HTML body.
+    if (variables.resultsPublic === 'false') {
+      text = text.split('\n').filter(line =>
+        !line.includes('{{resultsLink}}') &&
+        !line.includes('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.')
+      ).join('\n');
+    }
     let enhanced = this.appendVoteSelectedOptions(text, variables);
     enhanced = this.appendVoteEditLink(enhanced, variables);
     return enhanced;

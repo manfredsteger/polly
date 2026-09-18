@@ -185,6 +185,7 @@ export const inviteSchema = z.object({
 });
 
 export const bulkVoteSchema = z.object({
+  voterEditToken: z.string().min(1).max(256).optional(),
   voterName: z.string().min(1).max(100),
   voterEmail: z.string().email().max(254),
   votes: z.array(z.object({

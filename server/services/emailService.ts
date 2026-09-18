@@ -300,7 +300,8 @@ export class EmailService {
     publicLink: string,
     resultsLink: string,
     selectedOptions?: string[],
-    editLink?: string
+    editLink?: string,
+    withdrawalOnly = false
   ): Promise<void> {
     if (!voterEmail) return;
 
@@ -324,6 +325,7 @@ export class EmailService {
         publicLink: validateEmailUrl(publicLink),
         resultsLink: validateEmailUrl(resultsLink),
         editLink: editLink ? validateEmailUrl(editLink) : undefined,
+        voteManagementAction: withdrawalOnly ? 'withdraw' : 'edit',
         selectedOptionsHtml,
       });
 

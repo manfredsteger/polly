@@ -1,3 +1,4 @@
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
@@ -187,7 +188,7 @@ describe('Poll CRUD Routes', () => {
         });
 
       expect(voteRes.status).toBe(200);
-      const editToken = voteRes.body.voterEditToken;
+      const editToken = await getSubmittedVoteToken(voteRes);
       expect(editToken).toBeTruthy();
 
       const getRes = await request(app).get(`/api/v1/votes/edit/${editToken}`);
@@ -216,7 +217,7 @@ describe('Poll CRUD Routes', () => {
         });
 
       expect(voteRes.status).toBe(200);
-      const editToken = voteRes.body.voterEditToken;
+      const editToken = await getSubmittedVoteToken(voteRes);
       expect(editToken).toBeTruthy();
 
       const emailSpy = vi.spyOn(emailService, 'sendVoteUpdatedEmail').mockResolvedValue(undefined);

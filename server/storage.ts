@@ -26,6 +26,7 @@ import { eq, desc, and, sql, count, isNull, asc } from "drizzle-orm";
 // Export db for direct database access in routes
 export { db };
 import { randomBytes } from "crypto";
+import { assertVoteOwnership } from "./lib/voteOwnership";
 
 const participationIdentitySql = sql<string>`
   coalesce(
@@ -559,9 +560,10 @@ export class DatabaseStorage implements IStorage {
             sql`SELECT * FROM votes WHERE option_id = ${insertVote.optionId} 
                 AND voter_email = ${insertVote.voterEmail} FOR UPDATE`
           );
-          const existingVote = existingVoteResult.rows[0] as { id: number } | undefined;
+          const existingVote = existingVoteResult.rows[0] as { id: number; user_id: number | null; voter_edit_token: string | null } | undefined;
           
           if (existingVote) {
+            assertVoteOwnership([{ userId: existingVote.user_id, voterEditToken: existingVote.voter_edit_token }], insertVote.userId ?? null, insertVote.voterEditToken);
             // Update existing vote (e.g., adding/changing comment or cancelling)
             const [updatedVote] = await tx.update(votes)
               .set({ 
@@ -607,6 +609,7 @@ export class DatabaseStorage implements IStorage {
       const existingVoteOnSameOption = existingEmailVotesOnSurvey.find(vote => vote.optionId === insertVote.optionId);
       
       if (existingVoteOnSameOption) {
+        assertVoteOwnership([existingVoteOnSameOption], insertVote.userId ?? null, insertVote.voterEditToken);
         // Update existing vote on same option
         return this.updateVote(existingVoteOnSameOption.id, insertVote.response);
       }
@@ -639,6 +642,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (existingVote) {
+        assertVoteOwnership([existingVote], insertVote.userId ?? null, insertVote.voterEditToken);
         // Update existing vote
         return this.updateVote(existingVote.id, insertVote.response);
       }
@@ -757,6 +761,9 @@ export class DatabaseStorage implements IStorage {
         existingVotes = [];
       }
 
+      // Recheck ownership after the lock: another request may have voted since
+      // the route's initial lookup. Never adopt its private token based on email.
+      assertVoteOwnership(existingVotes, newVoteTemplate.userId ?? null, params.editToken);
       const editToken = params.editToken || existingVotes[0]?.voterEditToken || randomBytes(32).toString('hex');
       const newOptionIds = new Set(voteItems.map((v) => v.optionId));
 

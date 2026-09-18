@@ -1,3 +1,4 @@
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
@@ -304,7 +305,7 @@ describe('Polls - Voting', () => {
         });
       
       expect(voteResponse.status).toBe(200);
-      const voterEditToken = voteResponse.body.voterEditToken;
+      const voterEditToken = await getSubmittedVoteToken(voteResponse);
       
       // Verify vote exists in results
       let resultsResponse = await request(app)
@@ -360,7 +361,7 @@ describe('Polls - Voting', () => {
         });
       
       expect(voteResponse.status).toBe(200);
-      const voterEditToken = voteResponse.body.voterEditToken;
+      const voterEditToken = await getSubmittedVoteToken(voteResponse);
       
       // Withdraw the vote (send token in body)
       const withdrawResponse = await request(app)
@@ -423,7 +424,7 @@ describe('Polls - Voting', () => {
         });
       
       expect(voteResponse.status).toBe(200);
-      const voterEditToken = voteResponse.body.voterEditToken;
+      const voterEditToken = await getSubmittedVoteToken(voteResponse);
       
       // Attempt to withdraw - should fail
       const withdrawResponse = await request(app)
@@ -468,7 +469,7 @@ describe('Polls - Voting', () => {
             voterEmail: `${voters[i]}-${timestamp}@example.com`,
             votes: [{ optionId: testOptionIds[0], response: 'yes' }],
           });
-        editTokens.push(voteResponse.body.voterEditToken);
+        editTokens.push(await getSubmittedVoteToken(voteResponse));
       }
       
       // Verify 2 slots taken

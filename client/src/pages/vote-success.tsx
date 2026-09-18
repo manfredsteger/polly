@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, Edit, ArrowLeft, Copy, Link2, ExternalLink, CheckCircle2, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function VoteSuccess() {
   const { t } = useTranslation();
+  const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [voteData, setVoteData] = useState<any>(null);
@@ -50,7 +52,11 @@ export default function VoteSuccess() {
   const { poll, publicToken, voterName, voterEditToken } = voteData;
   const publicLink = `${window.location.origin}/poll/${publicToken}`;
   const resultsLink = `${window.location.origin}/poll/${publicToken}#results`;
-  const editLink = voterEditToken ? `${window.location.origin}/edit/${voterEditToken}` : null;
+  const editLink = isAuthenticated && !voteData.managementLinkByEmail && voterEditToken ? `${window.location.origin}/edit/${voterEditToken}` : null;
+
+  const showGuestEditEmailHint = !isAuthenticated
+    && voteData.managementLinkByEmail
+    && voteData.allowVoteEdit === true;
 
   const copyToClipboard = async (text: string, successMessage: string) => {
     try {
@@ -79,13 +85,23 @@ export default function VoteSuccess() {
           <p className="text-lg text-gray-600 dark:text-gray-300">
             {t('voteSuccess.thankYouDesc', { title: poll.title })}
           </p>
-          {voteData.voterEmail && (
-            <div className="mt-4 inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <p>{t('voteSuccess.checkSpamHint')}</p>
+          {voteData.voterEmail && voteData.confirmationEmailStatus === 'sent' && (
+            <div className="mt-4 inline-flex max-w-full items-start gap-2 text-left text-sm leading-5 text-muted-foreground">
+              <Mail className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              <p>{t(showGuestEditEmailHint ? 'voteSuccess.guestManagementEmailSent' : 'voteSuccess.checkSpamHint')}</p>
             </div>
           )}
         </div>
+
+        {voteData.managementLinkByEmail && voteData.confirmationEmailStatus !== 'sent' && (
+          <Card className="mb-6">
+            <CardContent className="py-4" role="status">
+              {t(voteData.confirmationEmailStatus === 'cooldown'
+                ? 'voteSuccess.guestManagementEmailCooldown'
+                : 'voteSuccess.guestManagementEmailFailed')}
+            </CardContent>
+          </Card>
+        )}
 
         {voterName && (
           <Card className="mb-8 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20 shadow-sm">

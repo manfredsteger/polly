@@ -1,3 +1,4 @@
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 /**
  * Regression tests for two bugs reported in the vote email flow:
  *
@@ -77,15 +78,11 @@ describe('Vote E-Mail Regression', () => {
     vi.restoreAllMocks();
   });
 
-  // ─── Bug 1a: API response proxy for the edit-link guard ──────────────────
-  //
-  // createTestApp sets req.isTestMode=true, so the email-sending branch in
-  // votes.ts is never reached via HTTP.  We test the response field
-  // voterEditToken instead — the same guard that (after the fix) must also
-  // control the email editLink.
+  // Guest responses omit management credentials; fixture lookups verify that
+  // tokens remain persisted for private links delivered by email.
 
-  describe('Bug 1 – voterEditToken in API response (proxy for email edit link)', () => {
-    it('voterEditToken is null in response when allowVoteEdit=false', async () => {
+  describe('Guest response keeps private tokens email-only', () => {
+    it('omits voterEditToken in response when allowVoteEdit=false', async () => {
       const { publicToken, adminToken } = await createSurveyPoll(agent, false);
 
       const pollRes = await request(app).get(`/api/v1/polls/public/${publicToken}`);
@@ -102,12 +99,12 @@ describe('Vote E-Mail Regression', () => {
         });
 
       expect(voteRes.status).toBe(200);
-      expect(voteRes.body.voterEditToken).toBeNull();
+      expect(voteRes.body.voterEditToken).toBeUndefined();
 
       await agent.delete(`/api/v1/polls/admin/${adminToken}`);
     });
 
-    it('voterEditToken is truthy in response when allowVoteEdit=true', async () => {
+    it('persists but does not expose voterEditToken when allowVoteEdit=true', async () => {
       const { publicToken, adminToken } = await createSurveyPoll(agent, true);
 
       const pollRes = await request(app).get(`/api/v1/polls/public/${publicToken}`);
@@ -124,8 +121,9 @@ describe('Vote E-Mail Regression', () => {
         });
 
       expect(voteRes.status).toBe(200);
-      expect(voteRes.body.voterEditToken).toBeTruthy();
-      expect(typeof voteRes.body.voterEditToken).toBe('string');
+      expect(voteRes.body.voterEditToken).toBeUndefined();
+      expect(voteRes.body.managementLinkByEmail).toBe(true);
+      expect(await getSubmittedVoteToken(voteRes)).toBeTruthy();
 
       await agent.delete(`/api/v1/polls/admin/${adminToken}`);
     });
@@ -207,6 +205,7 @@ describe('Vote E-Mail Regression', () => {
         .set('x-test-mode', 'polly-e2e-test-mode')
         .send({
           votes: [{ optionId, response: 'no' }],
+          voterEditToken: await getSubmittedVoteToken(firstVote),
           voterName: 'First Voter',
           voterEmail: 'duplicate@regression.test',
         });
@@ -217,7 +216,7 @@ describe('Vote E-Mail Regression', () => {
       await agent.delete(`/api/v1/polls/admin/${adminToken}`);
     });
 
-    it('permits re-voting with the same email when allowVoteEdit=true (updates, does not block)', async () => {
+    it('permits re-voting with the private token when allowVoteEdit=true (updates, does not block)', async () => {
       const { publicToken, adminToken } = await createSurveyPoll(agent, true);
 
       const pollRes = await request(app).get(`/api/v1/polls/public/${publicToken}`);
@@ -239,6 +238,7 @@ describe('Vote E-Mail Regression', () => {
         .set('x-test-mode', 'polly-e2e-test-mode')
         .send({
           votes: [{ optionId, response: 'no' }],
+          voterEditToken: await getSubmittedVoteToken(firstVote),
           voterName: 'Editable Voter',
           voterEmail: 'editable-dup@regression.test',
         });

@@ -1,3 +1,4 @@
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
@@ -194,7 +195,7 @@ describe('Guest access control', () => {
         .post(`/api/v1/polls/${publicToken}/vote`)
         .send(votePayload('edit_token_guest@test.example'));
       expect(voteRes.status).toBe(200);
-      const editToken = voteRes.body.editToken || voteRes.body.voterEditToken;
+      const editToken = await getSubmittedVoteToken(voteRes);
 
       // Now disable guest voting: existing edit tokens must no longer mutate votes
       await setGuestAccess({ allowGuestPollCreation: true, allowGuestVoting: false });

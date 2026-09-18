@@ -1,3 +1,4 @@
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
@@ -201,7 +202,7 @@ describe('Polls - Simple choice mode', () => {
           votes: [{ optionId: ids[0], response: 'yes' }],
         });
       expect(voteRes.status).toBe(200);
-      const editToken = voteRes.body.voterEditToken;
+      const editToken = await getSubmittedVoteToken(voteRes);
       expect(editToken).toBeTruthy();
 
       // GET edit view exposes simple-mode metadata
@@ -234,7 +235,7 @@ describe('Polls - Simple choice mode', () => {
           voterEmail: 'limit-editor@example.com',
           votes: [{ optionId: ids[0], response: 'yes' }],
         });
-      const editToken = voteRes.body.voterEditToken;
+      const editToken = await getSubmittedVoteToken(voteRes);
 
       const putRes = await request(app)
         .put(`/api/v1/votes/edit/${editToken}`)
@@ -268,7 +269,7 @@ describe('Polls - Simple choice concurrency', () => {
         voterEmail: 'race@example.com',
         votes: [{ optionId: ids[0], response: 'yes' }],
       });
-    const editToken = voteRes.body.voterEditToken;
+    const editToken = await getSubmittedVoteToken(voteRes);
 
     // Fire two concurrent replacements selecting different options
     await Promise.all([
@@ -299,7 +300,7 @@ describe('Polls - Simple choice concurrency', () => {
       }),
     ]);
 
-    const editToken = r1.body.voterEditToken || r2.body.voterEditToken;
+    const editToken = await getSubmittedVoteToken(r1.status === 200 ? r1 : r2);
     const after = await request(app).get(`/api/v1/votes/edit/${editToken}`);
     const yesVotes = after.body.votes.filter((v: any) => v.response === 'yes');
     expect(yesVotes.length).toBeLessThanOrEqual(1);

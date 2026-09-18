@@ -1,3 +1,4 @@
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
@@ -116,9 +117,9 @@ describe('Data - Storage Operations', () => {
       expect(voteResponse.status).toBe(200);
       expect(voteResponse.body.success).toBe(true);
       expect(voteResponse.body.votes).toBeDefined();
-      expect(voteResponse.body.voterEditToken).toBeDefined();
-      expect(typeof voteResponse.body.voterEditToken).toBe('string');
-      expect(voteResponse.body.voterEditToken.length).toBeGreaterThan(10);
+      expect(voteResponse.body.voterEditToken).toBeUndefined();
+      expect(voteResponse.body.votes[0]).not.toHaveProperty('voterEditToken');
+      expect((await getSubmittedVoteToken(voteResponse)).length).toBeGreaterThan(10);
     });
 
     it('should not return edit token when allowVoteEdit is disabled', async () => {
@@ -144,7 +145,7 @@ describe('Data - Storage Operations', () => {
 
       expect(voteResponse.status).toBe(200);
       expect(voteResponse.body.success).toBe(true);
-      expect(voteResponse.body.voterEditToken).toBeNull();
+      expect(voteResponse.body.voterEditToken).toBeUndefined();
     });
 
     it('should allow first vote from unique voter', async () => {

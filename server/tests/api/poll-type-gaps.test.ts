@@ -408,7 +408,7 @@ describe('Fix 6: voterEditToken returned for org polls', () => {
     orgOptionId = pollRes.body.options[0].id;
   });
 
-  it('returns voterEditToken for org poll even when allowVoteEdit=false', async () => {
+  it('keeps org management tokens email-only even when allowVoteEdit=false', async () => {
     const res = await request(app)
       .post(`/api/v1/polls/${orgPublicToken}/vote-bulk`)
       .send({
@@ -417,10 +417,11 @@ describe('Fix 6: voterEditToken returned for org polls', () => {
         votes: [{ optionId: orgOptionId, response: 'yes' }],
       });
     expect(res.status).toBe(200);
-    expect(res.body.voterEditToken).toBeTruthy();
+    expect(res.body.voterEditToken).toBeUndefined();
+    expect(res.body.managementLinkByEmail).toBe(true);
   });
 
-  it('/vote endpoint also returns voterEditToken for org poll', async () => {
+  it('/vote endpoint also keeps guest org management tokens email-only', async () => {
     const res = await request(app)
       .post(`/api/v1/polls/${orgPublicToken}/vote`)
       .send({
@@ -429,7 +430,8 @@ describe('Fix 6: voterEditToken returned for org polls', () => {
         votes: [{ optionId: orgOptionId, response: 'yes' }],
       });
     expect(res.status).toBe(200);
-    expect(res.body.voterEditToken).toBeTruthy();
+    expect(res.body.voterEditToken).toBeUndefined();
+    expect(res.body.managementLinkByEmail).toBe(true);
   });
 });
 

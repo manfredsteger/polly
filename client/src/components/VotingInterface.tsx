@@ -112,9 +112,6 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   // Live slot updates from WebSocket for organization polls
   const [liveSlotUpdates, setLiveSlotUpdates] = useState<Record<number, { currentCount: number; maxCapacity: number | null }>>({});
 
-  // Persisted edit token from localStorage (fallback when device cookie is cleared)
-  const [localStorageEditToken, setLocalStorageEditToken] = useState<string | null>(null);
-
   const { sendVoteInProgress, sendVoteSubmitted, updateVoterName, isConnected } = useLiveVoting({
     pollToken: poll.publicToken,
     voterName: voterName || undefined,
@@ -123,14 +120,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     } : undefined,
   });
 
-  // On mount for org polls: check localStorage for a persisted edit token
+  // Remove legacy browser-stored management links. Guest access is email-only.
   useEffect(() => {
-    if (poll.type !== 'organization') return;
-    try {
-      const stored = localStorage.getItem(`polly-edit-token-${poll.id}`);
-      if (stored) setLocalStorageEditToken(stored);
-    } catch (_) {}
-  }, [poll.id, poll.type]);
+    try { localStorage.removeItem(`polly-edit-token-${poll.id}`); } catch (_) {}
+  }, [poll.id]);
 
   useEffect(() => {
     if (allowMaybeForPoll) return;
@@ -146,38 +139,6 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       return changed ? nextVotes : currentVotes;
     });
   }, [allowMaybeForPoll]);
-
-  // When device cookie is cleared, use the localStorage token to fetch existing bookings
-  const { data: localStorageVoteData } = useQuery({
-    queryKey: ['/api/v1/votes/edit', localStorageEditToken],
-    queryFn: async () => {
-      if (!localStorageEditToken) return null;
-      const response = await fetch(`/api/v1/votes/edit/${localStorageEditToken}`, { credentials: 'include' });
-      if (!response.ok) return null;
-      return response.json();
-    },
-    enabled: !!localStorageEditToken && !hasAlreadyVoted,
-    staleTime: 30000,
-  });
-
-  // Restore org bookings from localStorage edit token when device cookie was cleared
-  useEffect(() => {
-    if (!localStorageVoteData || hasAlreadyVoted) return;
-    const { votes: tokenVotes, poll: tokenPoll } = localStorageVoteData;
-    if (!tokenVotes || tokenPoll?.id !== poll.id) {
-      try { localStorage.removeItem(`polly-edit-token-${poll.id}`); } catch (_) {}
-      return;
-    }
-    const restored = tokenVotes
-      .filter((v: any) => v.response === 'yes')
-      .map((v: any) => ({ optionId: v.optionId, comment: v.comment || undefined }));
-    if (restored.length > 0) {
-      setOrgaBookings(restored);
-      setInitialOrgaBookingsSnapshot(restored);
-      if (tokenVotes[0]?.voterName && !voterName) setVoterName(tokenVotes[0].voterName);
-      if (tokenVotes[0]?.voterEmail && !voterEmail) setVoterEmail(tokenVotes[0].voterEmail);
-    }
-  }, [localStorageVoteData, hasAlreadyVoted, poll.id]);
 
   // Calculate current signups from poll.votes for organization polls
   // Uses live WebSocket updates when available for real-time accuracy
@@ -424,6 +385,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         return poll.type === 'organization' ? t('votingInterface.orgaExpiredMessage') : t('votingInterface.pollExpiredMessage');
       case 'POLL_INACTIVE':
         return poll.type === 'organization' ? t('votingInterface.orgaInactiveMessage') : t('votingInterface.pollInactiveMessage');
+      case 'VOTE_AUTHORIZATION_REQUIRED':
+        return t('votingInterface.voteAuthorizationRequired');
       case 'EMAIL_BELONGS_TO_ANOTHER_USER':
         return t('votingInterface.loginToVoteWithEmail');
       case 'WITHDRAWAL_NOT_ALLOWED':
@@ -534,9 +497,15 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     },
   });
 
+  const getPrivateVoteToken = () => isAuthenticated
+    ? myVotesData?.votes.find(v => v.voterEmail.toLowerCase() === voterEmail.trim().toLowerCase())?.voterEditToken
+    : undefined;
+
   const withdrawVoteMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/v1/polls/${poll.publicToken}/vote`);
+      const response = await apiRequest("DELETE", `/api/v1/polls/${poll.publicToken}/vote`, {
+        voterEditToken: isAuthenticated ? undefined : getPrivateVoteToken(),
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -545,6 +514,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         description: t('votingInterface.voteWithdrawnSuccess'),
         variant: "default",
       });
+      try { localStorage.removeItem(`polly-edit-token-${poll.id}`); } catch (_) {}
       // Reset form state
       setVotes({});
       setSurveyComment("");
@@ -694,6 +664,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: getPrivateVoteToken(),
           votes: orgaBookings.map(booking => ({
             optionId: booking.optionId,
             response: 'yes' as const,
@@ -707,13 +678,6 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         // Reset unsaved changes state
         setHasOrgaChanges(false);
 
-        // Persist edit token to localStorage so the voter can return after closing the tab
-        if (result.voterEditToken) {
-          try {
-            localStorage.setItem(`polly-edit-token-${poll.id}`, result.voterEditToken);
-          } catch (_) {}
-        }
-        
         const successData = {
           poll: {
             title: poll.title,
@@ -723,7 +687,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: result.voterEditToken,
+          voterEditToken: isAuthenticated ? result.voterEditToken : undefined,
+          managementLinkByEmail: result.managementLinkByEmail,
+          allowVoteEdit: poll.allowVoteEdit || poll.type === 'organization',
+          confirmationEmailStatus: result.confirmationEmailStatus,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
@@ -757,6 +724,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: getPrivateVoteToken(),
           votes: allVotes,
         };
         
@@ -773,7 +741,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: result.voterEditToken, // Include the edit token from bulk vote response
+          voterEditToken: isAuthenticated ? result.voterEditToken : undefined,
+          managementLinkByEmail: result.managementLinkByEmail,
+          allowVoteEdit: poll.allowVoteEdit || poll.type === 'organization',
+          confirmationEmailStatus: result.confirmationEmailStatus,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
@@ -784,6 +755,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: getPrivateVoteToken(),
           votes: votesToSubmit.map(([optionId, response]) => ({
             optionId: parseInt(optionId),
             response,
@@ -804,7 +776,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: result.voterEditToken,
+          voterEditToken: isAuthenticated ? result.voterEditToken : undefined,
+          managementLinkByEmail: result.managementLinkByEmail,
+          allowVoteEdit: poll.allowVoteEdit || poll.type === 'organization',
+          confirmationEmailStatus: result.confirmationEmailStatus,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
@@ -943,7 +918,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   }
 
   if (showAlreadyVotedMessage) {
-    const canWithdraw = poll.allowVoteWithdrawal && myVotesData?.allowVoteWithdrawal;
+    const canWithdraw = isAuthenticated && poll.allowVoteWithdrawal && myVotesData?.allowVoteWithdrawal;
     return (
       <div ref={containerRef} className="space-y-6">
         <Alert className="border-green-200 bg-green-50" data-testid="alert-already-voted">

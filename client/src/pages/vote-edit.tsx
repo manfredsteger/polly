@@ -28,6 +28,7 @@ interface SecurePoll {
   responseMode?: string;
   maxSelections?: number | null;
   allowMaybe?: boolean;
+  allowVoteEdit: boolean;
   isActive: boolean;
   expiresAt: string | null;
   createdAt: string;
@@ -48,6 +49,8 @@ export default function VoteEditPage() {
   const [, setLocation] = useLocation();
   const [currentVotes, setCurrentVotes] = useState<Record<number, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [saveRejected, setSaveRejected] = useState(false);
+  const [now, setNow] = useState(Date.now);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -55,8 +58,23 @@ export default function VoteEditPage() {
     queryKey: [`/api/v1/votes/edit/${editToken}`],
     enabled: !!editToken,
   });
-  const isPollExpired = voterData?.poll?.expiresAt ? new Date(voterData.poll.expiresAt) < new Date() : false;
+  // Disable actions when the deadline passes, including while the page stays open.
+  useEffect(() => {
+    if (!voterData?.poll.expiresAt) return;
+    const deadline = new Date(voterData.poll.expiresAt).getTime();
+    if (!Number.isFinite(deadline)) return;
+    const delay = deadline - Date.now();
+    if (delay <= 0) {
+      if (now < deadline) setNow(Date.now());
+      return;
+    }
+    const timer = window.setTimeout(() => setNow(Date.now()), Math.min(delay, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [voterData?.poll.expiresAt, now]);
+
+  const isPollExpired = voterData?.poll?.expiresAt ? new Date(voterData.poll.expiresAt).getTime() <= now : false;
   const isPollClosed = voterData ? (!voterData.poll.isActive || isPollExpired) : false;
+  const canEdit = !!voterData?.poll.allowVoteEdit && !isPollClosed;
   const isSimpleMode = !!voterData && (voterData.poll.type === 'survey' || voterData.poll.type === 'schedule') && voterData.poll.responseMode === 'simple';
   const maxSelections = Math.max(1, voterData?.poll.maxSelections ?? 1);
 
@@ -70,26 +88,39 @@ export default function VoteEditPage() {
         description: t('voteEdit.responsesChanged'),
       });
       setHasChanges(false);
+      setSaveRejected(false);
     },
-    onError: (error: any) => {
+    onError: async (error: any) => {
       let description = t('voteEdit.updateError');
+      let restriction: string | undefined;
       if (error?.message) {
         try {
           const errorData = JSON.parse(error.message.split(': ').slice(1).join(': '));
           if (errorData.errorCode === 'POLL_INACTIVE' || errorData.errorCode === 'POLL_EXPIRED') {
-            description = t('voteEdit.pollClosedEditNotAllowed');
+            description = t('voteEdit.changesNotSavedClosed');
+            restriction = errorData.errorCode;
           } else if (errorData.errorCode === 'VOTE_EDIT_NOT_ALLOWED') {
-            description = t('voteEdit.voteEditNotAllowed');
+            description = t('voteEdit.changesNotSavedDisabled');
+            restriction = errorData.errorCode;
           } else if (errorData.errorCode === 'PAST_OPTION_DATE') {
             description = t('voteEdit.optionNoLongerAvailable');
           }
         } catch {}
       }
-      toast({
-        title: t('common.error'),
-        description,
-        variant: "destructive",
-      });
+      if (restriction) {
+        setSaveRejected(true);
+        setHasChanges(false);
+        // Immediately lock the controls even if refreshing subsequently fails.
+        queryClient.setQueryData<VoterEditData>([`/api/v1/votes/edit/${editToken}`], data => data && ({
+          ...data,
+          poll: {
+            ...data.poll,
+            ...(restriction === 'VOTE_EDIT_NOT_ALLOWED' ? { allowVoteEdit: false } : { isActive: false }),
+          },
+        }));
+        await queryClient.invalidateQueries({ queryKey: [`/api/v1/votes/edit/${editToken}`] });
+      }
+      toast({ title: t('common.error'), description, variant: "destructive" });
     },
   });
 
@@ -121,6 +152,7 @@ export default function VoteEditPage() {
         votesMap[vote.optionId] = vote.response;
       });
       setCurrentVotes(votesMap);
+      setHasChanges(false);
     }
   }, [voterData]);
 
@@ -133,7 +165,7 @@ export default function VoteEditPage() {
   };
 
   const handleVoteChange = (optionId: number, response: string) => {
-    if (isPollClosed) return;
+    if (!canEdit) return;
     const newVotes = { ...currentVotes };
     if (newVotes[optionId] === response) {
       delete newVotes[optionId];
@@ -145,7 +177,7 @@ export default function VoteEditPage() {
   };
 
   const handleSimpleToggle = (optionId: number) => {
-    if (isPollClosed) return;
+    if (!canEdit) return;
     const newVotes = { ...currentVotes };
     if (newVotes[optionId]) {
       delete newVotes[optionId];
@@ -167,7 +199,7 @@ export default function VoteEditPage() {
   };
 
   const handleSaveChanges = () => {
-    if (!voterData || !hasChanges || isPollClosed) return;
+    if (!voterData || !hasChanges || !canEdit) return;
 
     if (isSimpleMode) {
       const selected = Object.keys(currentVotes).map(Number);
@@ -258,10 +290,12 @@ export default function VoteEditPage() {
         </Card>
 
         {/* Voting Options */}
-        {isPollClosed && (
+        {!canEdit && (
           <Card className="mb-4 border-orange-200 bg-orange-50">
-            <CardContent className="py-4 text-sm text-orange-900">
-              {t('voteEdit.pollClosedEditNotAllowed')}
+            <CardContent className="py-4 text-sm text-orange-900" role="status">
+              {isPollClosed
+                ? t(saveRejected ? 'voteEdit.changesNotSavedClosed' : 'voteEdit.pollClosedEditNotAllowed')
+                : t(saveRejected ? 'voteEdit.changesNotSavedDisabled' : 'voteEdit.editingCurrentlyDisabled')}
             </CardContent>
           </Card>
         )}
@@ -286,7 +320,7 @@ export default function VoteEditPage() {
                           variant={currentResponse ? "default" : "outline"}
                           size="sm"
                           onClick={() => handleSimpleToggle(option.id)}
-                          disabled={isPollClosed}
+                          disabled={!canEdit}
                           className={currentResponse ? 'bg-green-600 text-white hover:bg-green-700' : ''}
                           data-testid={`button-simple-toggle-${option.id}`}
                         >
@@ -300,7 +334,7 @@ export default function VoteEditPage() {
                             variant={currentResponse === response ? "default" : "outline"}
                             size="sm"
                             onClick={() => handleVoteChange(option.id, response)}
-                            disabled={isPollClosed}
+                            disabled={!canEdit}
                             className={`
                               ${response === 'yes' ? 'hover:bg-green-600 hover:text-white' : ''}
                               ${response === 'maybe' ? 'hover:bg-yellow-600 hover:text-white' : ''}
@@ -325,9 +359,9 @@ export default function VoteEditPage() {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
-          <Button
+          {canEdit && <Button
             onClick={handleSaveChanges}
-            disabled={!hasChanges || updateVotesMutation.isPending || isPollClosed}
+            disabled={!hasChanges || updateVotesMutation.isPending}
             className="whitespace-nowrap polly-button-primary"
           >
             {updateVotesMutation.isPending ? (
@@ -341,7 +375,7 @@ export default function VoteEditPage() {
                 {t('voteEdit.saveChanges')}
               </>
             )}
-          </Button>
+          </Button>}
           
           <Button
             variant="outline"
@@ -374,7 +408,7 @@ export default function VoteEditPage() {
           )}
         </div>
 
-        {hasChanges && (
+        {hasChanges && canEdit && (
           <p className="text-center text-sm text-orange-600 mt-4">
             {t('voteEdit.unsavedChanges')}
           </p>

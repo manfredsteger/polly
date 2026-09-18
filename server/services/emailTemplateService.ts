@@ -1685,7 +1685,12 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
 
   const editSection = editLink
     ? `${v3Divider()}
-    ${v3SingleButtonSection('Wenn Sie Ihre Auswahl später ändern möchten, können Sie dafür diesen Link verwenden.', 'Stimme bearbeiten →', editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
+    ${v3SingleButtonSection(
+      vars.voteManagementAction === 'withdraw'
+        ? 'Über diesen Link können Sie Ihre Stimme zurückziehen.'
+        : 'Wenn Sie Ihre Auswahl später ändern möchten, können Sie dafür diesen Link verwenden.',
+      vars.voteManagementAction === 'withdraw' ? 'Stimme zurückziehen →' : 'Stimme bearbeiten →',
+      editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
     : '';
 
   return `${v3BodyStart()}
@@ -1964,7 +1969,8 @@ export class EmailTemplateService {
     const hasRenderedEditLink = !!variables.editLink && text.includes(variables.editLink);
     if (hasEditPlaceholder || hasRenderedEditLink) return text;
 
-    return text.trimEnd() + `\n\nStimme bearbeiten: {{editLink}}`;
+    const label = variables.voteManagementAction === 'withdraw' ? 'Stimme zurückziehen' : 'Stimme bearbeiten';
+    return text.trimEnd() + `\n\n${label}: {{editLink}}`;
   }
 
   private extractSelectedOptionsText(selectedOptionsHtml: string | undefined): string[] {

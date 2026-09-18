@@ -12,7 +12,15 @@ import {
 } from "./common";
 import { voteRateLimiter, emailRateLimiter, apiGeneralRateLimiter } from "../services/apiRateLimiterService";
 
+import { publicVote } from '../lib/publicPollResponse';
+import { assertVoteOwnership, VOTE_AUTHORIZATION_REQUIRED } from '../lib/voteOwnership';
+
 const router = Router();
+
+const voteAuthorizationError = {
+  error: 'Bitte melden Sie sich als Eigentümer dieser Stimmen an oder verwenden Sie Ihren privaten Bearbeitungslink.',
+  errorCode: VOTE_AUTHORIZATION_REQUIRED,
+};
 
 // Returns a 403 response body when the requester is a guest and guest voting
 // is disabled by the admin; returns null when the request may proceed.
@@ -257,9 +265,16 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
     }
 
     const currentUserId = await extractUserId(req);
+    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
+    // Check every affected vote before deleting, replacing or returning its token.
+    assertVoteOwnership(existingVotes, currentUserId, data.voterEditToken);
     let userId: number | null = null;
-    
-    if (currentUserId) {
+
+    if (existingVotes.length > 0) {
+      // A valid private token can also authorize a guest editing an account vote.
+      // Preserve the original identity when adding replacement options.
+      userId = existingVotes[0].userId;
+    } else if (currentUserId) {
       const currentUser = await storage.getUser(currentUserId);
       if (currentUser) {
         if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
@@ -286,7 +301,6 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
 
     const isTestMode = req.isTestMode === true;
 
-    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
     if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
@@ -392,8 +406,12 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
       }
     }
 
-    // Send confirmation email (with anti-spam check)
-    if (!isTestMode && data.voterEmail && createdVotes.length > 0) {
+    let confirmationEmailStatus: 'sent' | 'failed' | 'unavailable' | 'skipped' | 'cooldown' =
+      isTestMode ? 'skipped' : 'unavailable';
+    // Wait for SMTP acceptance; a saved vote must not be reported as an email success
+    // when SMTP is missing, fails, or the cooldown suppresses this message.
+    if (!isTestMode && emailService.smtpConfigured && data.voterEmail && createdVotes.length > 0) {
+      confirmationEmailStatus = 'cooldown';
       const now = Date.now();
       const emailKey = `${poll.id}:${data.voterEmail.toLowerCase()}`;
       const lastSent = recentEmailSends.get(emailKey);
@@ -404,14 +422,15 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
         const editLink =
-          (poll.allowVoteEdit || poll.type === 'organization') && voterEditToken
+          (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && voterEditToken
             ? `${baseUrl}/edit/${voterEditToken}`
             : undefined;
 
         // Collect selected option texts for confirmed selections in the email summary.
         const selectedOptions = getSelectedOptionTexts(poll, createdVotes);
         
-        emailService.sendVotingConfirmationEmail(
+        recentEmailSends.set(emailKey, now);
+        await emailService.sendVotingConfirmationEmail(
           data.voterEmail,
           data.voterName,
           poll.title,
@@ -419,13 +438,16 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
           publicLink,
           resultsLink,
           selectedOptions,
-          editLink
-        ).catch(err => {
+          editLink,
+          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
+        ).then(() => {
+          confirmationEmailStatus = 'sent';
+        }).catch(err => {
+          confirmationEmailStatus = 'failed';
+          recentEmailSends.delete(emailKey);
           console.error('Error sending voting confirmation email:', err);
         });
-        
-        recentEmailSends.set(emailKey, now);
-        
+
         // Clean up old entries
         const entriesToDelete: string[] = [];
         recentEmailSends.forEach((timestamp, key) => {
@@ -475,10 +497,15 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
       }
     }
     
-    res.json({ 
-      success: true, 
-      votes: createdVotes,
-      voterEditToken: (poll.allowVoteEdit || poll.type === 'organization') ? voterEditToken : null
+    const isAuthenticatedVoter = currentUserId != null && userId === currentUserId;
+    const canManageVote = poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization';
+    res.json({
+      success: true,
+      // Guest management credentials are delivered only to the submitted email.
+      votes: isAuthenticatedVoter ? createdVotes : createdVotes.map(publicVote),
+      ...(isAuthenticatedVoter ? { voterEditToken: canManageVote ? voterEditToken : null } : {}),
+      managementLinkByEmail: !isAuthenticatedVoter && canManageVote,
+      confirmationEmailStatus,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -488,6 +515,9 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
         error: 'Invalid vote data',
         details: error.errors,
       });
+    }
+    if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
+      return res.status(403).json(voteAuthorizationError);
     }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
@@ -557,9 +587,16 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
     }
 
     const currentUserId = await extractUserId(req);
+    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
+    // Check every affected vote before deleting, replacing or returning its token.
+    assertVoteOwnership(existingVotes, currentUserId, data.voterEditToken);
     let userId: number | null = null;
-    
-    if (currentUserId) {
+
+    if (existingVotes.length > 0) {
+      // A valid private token can also authorize a guest editing an account vote.
+      // Preserve the original identity when adding replacement options.
+      userId = existingVotes[0].userId;
+    } else if (currentUserId) {
       const currentUser = await storage.getUser(currentUserId);
       if (currentUser) {
         if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
@@ -586,7 +623,6 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
 
     const isTestMode = req.isTestMode === true;
 
-    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
     if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
@@ -692,8 +728,12 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
       }
     }
 
-    // Send confirmation email (with anti-spam check)
-    if (!isTestMode && data.voterEmail && createdVotes.length > 0) {
+    let confirmationEmailStatus: 'sent' | 'failed' | 'unavailable' | 'skipped' | 'cooldown' =
+      isTestMode ? 'skipped' : 'unavailable';
+    // Wait for SMTP acceptance; a saved vote must not be reported as an email success
+    // when SMTP is missing, fails, or the cooldown suppresses this message.
+    if (!isTestMode && emailService.smtpConfigured && data.voterEmail && createdVotes.length > 0) {
+      confirmationEmailStatus = 'cooldown';
       const now = Date.now();
       const emailKey = `${poll.id}:${data.voterEmail.toLowerCase()}`;
       const lastSent = recentEmailSends.get(emailKey);
@@ -707,20 +747,27 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         // Collect selected option texts for confirmed selections in the email summary.
         const selectedOptions = getSelectedOptionTexts(poll, createdVotes);
         
-        emailService.sendVotingConfirmationEmail(
+        recentEmailSends.set(emailKey, now);
+        await emailService.sendVotingConfirmationEmail(
           data.voterEmail,
           data.voterName,
           poll.title,
           poll.type as 'schedule' | 'survey' | 'organization',
           publicLink,
           resultsLink,
-          selectedOptions
-        ).catch(err => {
+          selectedOptions,
+          (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && voterEditToken
+            ? `${baseUrl}/edit/${voterEditToken}`
+            : undefined,
+          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
+        ).then(() => {
+          confirmationEmailStatus = 'sent';
+        }).catch(err => {
+          confirmationEmailStatus = 'failed';
+          recentEmailSends.delete(emailKey);
           console.error('Error sending voting confirmation email:', err);
         });
-        
-        recentEmailSends.set(emailKey, now);
-        
+
         // Clean up old entries
         const entriesToDelete: string[] = [];
         recentEmailSends.forEach((timestamp, key) => {
@@ -770,10 +817,15 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
       }
     }
     
-    res.json({ 
-      success: true, 
-      votes: createdVotes,
-      voterEditToken: (poll.allowVoteEdit || poll.type === 'organization') ? voterEditToken : null
+    const isAuthenticatedVoter = currentUserId != null && userId === currentUserId;
+    const canManageVote = poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization';
+    res.json({
+      success: true,
+      // Guest management credentials are delivered only to the submitted email.
+      votes: isAuthenticatedVoter ? createdVotes : createdVotes.map(publicVote),
+      ...(isAuthenticatedVoter ? { voterEditToken: canManageVote ? voterEditToken : null } : {}),
+      managementLinkByEmail: !isAuthenticatedVoter && canManageVote,
+      confirmationEmailStatus,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -783,6 +835,9 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         error: 'Invalid vote data',
         details: error.errors,
       });
+    }
+    if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
+      return res.status(403).json(voteAuthorizationError);
     }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
@@ -817,37 +872,33 @@ router.delete('/polls/:token/vote', async (req, res) => {
       });
     }
 
+    if (poll.expiresAt && new Date(poll.expiresAt) <= new Date()) {
+      return res.status(400).json({
+        error: 'Diese Umfrage ist abgelaufen.',
+        errorCode: 'POLL_EXPIRED',
+      });
+    }
+
     const guestBlock = await checkGuestVotingAllowed(req);
     if (guestBlock) {
       return res.status(403).json(guestBlock);
     }
 
-    const { voterEmail, voterEditToken } = req.body;
+    const { voterEditToken } = req.body ?? {};
     const currentUserId = await extractUserId(req);
-    
-    let votesToDelete: any[] = [];
-    
-    if (currentUserId) {
-      const user = await storage.getUser(currentUserId);
-      if (user) {
-        const votesByEmail = await storage.getVotesByEmail(poll.id, user.email);
-        votesToDelete = votesByEmail;
-        console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes for user ${user.email} in poll ${poll.id}`);
-      }
+    if (voterEditToken !== undefined && (typeof voterEditToken !== 'string' || !voterEditToken || voterEditToken.length > 256)) {
+      return res.status(400).json({ error: 'Invalid vote edit token' });
     }
-    
-    if (votesToDelete.length === 0 && voterEditToken) {
-      const votesByToken = await storage.getVotesByEditToken(voterEditToken);
-      votesToDelete = votesByToken.filter(v => v.pollId === poll.id);
-      console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes by edit token in poll ${poll.id}`);
+    if (!currentUserId && !voterEditToken) {
+      return res.status(403).json(voteAuthorizationError);
     }
-    
-    if (votesToDelete.length === 0 && voterEmail && !currentUserId) {
-      const votesByEmail = await storage.getVotesByEmail(poll.id, voterEmail);
-      votesToDelete = votesByEmail;
-      console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes by email ${voterEmail} in poll ${poll.id}`);
-    }
-    
+
+    // Explicit token targets that voter; otherwise use the authenticated user ID.
+    // This works equally for local and IDM sessions, even after an email change.
+    const votesToDelete = voterEditToken
+      ? (await storage.getVotesByEditToken(voterEditToken)).filter(v => v.pollId === poll.id)
+      : await storage.getVotesByUserId(poll.id, currentUserId!);
+
     if (votesToDelete.length === 0) {
       return res.status(404).json({ 
         error: 'Keine Stimmen gefunden, die zurückgezogen werden können.',
@@ -915,6 +966,8 @@ router.get('/votes/edit/:editToken', async (req, res) => {
       responseMode: fullPoll.responseMode,
       maxSelections: fullPoll.maxSelections,
       allowMaybe: fullPoll.allowMaybe,
+      // Organization booking changes remain editable under the existing policy.
+      allowVoteEdit: fullPoll.allowVoteEdit || fullPoll.type === 'organization',
       isActive: fullPoll.isActive,
       expiresAt: fullPoll.expiresAt,
       createdAt: fullPoll.createdAt,
@@ -1110,6 +1163,13 @@ router.delete('/votes/edit/:editToken', async (req, res) => {
       });
     }
 
+    if (poll.expiresAt && new Date(poll.expiresAt) <= new Date()) {
+      return res.status(400).json({
+        error: 'Diese Umfrage ist abgelaufen.',
+        errorCode: 'POLL_EXPIRED',
+      });
+    }
+
     for (const vote of votes) {
       await storage.deleteVote(vote.id);
     }
@@ -1170,10 +1230,13 @@ router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => 
     const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
     const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
     const editLink =
-      (poll.allowVoteEdit || poll.type === 'organization') && existingVotes[0].voterEditToken
+      (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && existingVotes[0].voterEditToken
         ? `${baseUrl}/edit/${existingVotes[0].voterEditToken}`
         : undefined;
 
+    if (!emailService.smtpConfigured) {
+      return res.status(503).json({ success: false, error: 'Email delivery is unavailable' });
+    }
     try {
       await emailService.sendVotingConfirmationEmail(
         email,
@@ -1183,7 +1246,8 @@ router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => 
         publicLink,
         resultsLink,
         undefined,
-        editLink
+        editLink,
+        !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
       );
       res.json({ success: true, message: 'Email sent successfully' });
     } catch (emailError: any) {
@@ -1248,7 +1312,7 @@ router.get('/polls/:token/my-votes', apiGeneralRateLimiter, async (req, res) => 
     // Calculate voterKey from session or device token
     const deviceToken = req.cookies?.deviceToken;
     const userAgent = req.headers['user-agent'] || 'unknown';
-    const sessionUserId = req.session?.userId || null;
+    const sessionUserId = await extractUserId(req);
     const { voterKey, voterSource, newDeviceToken } = deviceTokenService.getVoterKey(
       sessionUserId,
       deviceToken,
@@ -1285,7 +1349,7 @@ router.get('/polls/:token/my-votes', apiGeneralRateLimiter, async (req, res) => 
         voterName: v.voterName,
         voterEmail: v.voterEmail,
         comment: v.comment,
-        voterEditToken: v.voterEditToken
+        ...(sessionUserId != null && v.userId === sessionUserId ? { voterEditToken: v.voterEditToken } : {}),
       })),
       allowVoteEdit: poll.allowVoteEdit,
       allowVoteWithdrawal: poll.allowVoteWithdrawal,

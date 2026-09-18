@@ -2652,6 +2652,7 @@
   },
   "votingInterface": {
     "voteCouldNotBeSaved": "Your vote could not be saved.",
+    "voteAuthorizationRequired": "To change these votes, sign in as their owner or use your private link from the confirmation email.",
     "alreadyVoted": "Already voted",
     "emailSent": "Email sent",
     "emailSentDescription": "A new email with a link to change your vote has been sent.",
@@ -3321,6 +3322,9 @@
     }
   },
   "voteSuccess": {
+    "guestManagementEmailSent": "We emailed you a link to edit your vote. Please also check your spam folder.",
+    "guestManagementEmailCooldown": "Your vote has been saved. No new email was sent because a confirmation was recently requested. Check your email for the private management link.",
+    "guestManagementEmailFailed": "Your vote has been saved, but we could not send the private management link. Contact the organizer for help.",
     "checkSpamHint": "If you don't receive a confirmation email, please also check your spam folder.",
     "noDataTitle": "No Data Found",
     "noDataDesc": "No voting data was found.",
@@ -3482,8 +3486,11 @@
     "voteNotFound": "Vote not found",
     "invalidLink": "This link is invalid or has expired.",
     "withdrawing": "Withdrawing...",
-    "pollClosedEditNotAllowed": "This poll is closed or expired. Votes can no longer be edited.",
+    "pollClosedEditNotAllowed": "This poll is closed or expired. Votes can no longer be edited or withdrawn.",
     "voteEditNotAllowed": "Vote editing is not allowed for this poll.",
+    "editingCurrentlyDisabled": "Vote editing is currently disabled for this poll. Your saved answers are shown below.",
+    "changesNotSavedDisabled": "Your changes were not saved because vote editing is now disabled. Your previous answers remain unchanged.",
+    "changesNotSavedClosed": "Your changes were not saved because this poll is closed or expired. Your previous answers remain unchanged.",
     "optionNoLongerAvailable": "One or more selected date options are in the past and cannot be changed."
   },
   "liveResults": {

@@ -2652,6 +2652,7 @@
   },
   "votingInterface": {
     "voteCouldNotBeSaved": "Ihre Stimme konnte nicht gespeichert werden.",
+    "voteAuthorizationRequired": "Um diese Stimmen zu ändern, melden Sie sich als deren Eigentümer an oder verwenden Sie Ihren privaten Link aus der Bestätigungs-E-Mail.",
     "alreadyVoted": "Bereits abgestimmt",
     "emailSent": "E-Mail versendet",
     "emailSentDescription": "Eine neue E-Mail mit dem Link zum Ändern Ihrer Stimme wurde versendet.",
@@ -3321,6 +3322,9 @@
     }
   },
   "voteSuccess": {
+    "guestManagementEmailSent": "Den Link zum Bearbeiten Ihrer Stimme haben wir Ihnen per E-Mail gesendet. Prüfen Sie auch den Spam-Ordner.",
+    "guestManagementEmailCooldown": "Ihre Stimme wurde gespeichert. Es wurde keine neue E-Mail gesendet, da kürzlich eine Bestätigung angefordert wurde. Prüfen Sie Ihr Postfach auf den privaten Verwaltungslink.",
+    "guestManagementEmailFailed": "Ihre Stimme wurde gespeichert, aber der private Verwaltungslink konnte nicht gesendet werden. Wenden Sie sich bitte an den Organisator.",
     "checkSpamHint": "Falls Sie keine Bestätigungs-E-Mail erhalten, prüfen Sie bitte auch Ihren Spam-Ordner.",
     "noDataTitle": "Keine Daten gefunden",
     "noDataDesc": "Es wurden keine Abstimmungsdaten gefunden.",
@@ -3482,8 +3486,11 @@
     "voteNotFound": "Abstimmung nicht gefunden",
     "invalidLink": "Dieser Link ist ungültig oder abgelaufen.",
     "withdrawing": "Wird zurückgezogen …",
-    "pollClosedEditNotAllowed": "Diese Umfrage ist beendet oder abgelaufen. Stimmen können nicht mehr bearbeitet werden.",
+    "pollClosedEditNotAllowed": "Diese Umfrage ist beendet oder abgelaufen. Stimmen können nicht mehr bearbeitet oder zurückgezogen werden.",
     "voteEditNotAllowed": "Die Bearbeitung von Stimmen ist bei dieser Umfrage nicht erlaubt.",
+    "editingCurrentlyDisabled": "Die Bearbeitung von Stimmen ist für diese Umfrage derzeit deaktiviert. Unten sehen Sie Ihre gespeicherten Antworten.",
+    "changesNotSavedDisabled": "Ihre Änderungen wurden nicht gespeichert, da die Bearbeitung jetzt deaktiviert ist. Ihre bisherigen Antworten bleiben unverändert.",
+    "changesNotSavedClosed": "Ihre Änderungen wurden nicht gespeichert, da diese Umfrage beendet oder abgelaufen ist. Ihre bisherigen Antworten bleiben unverändert.",
     "optionNoLongerAvailable": "Eine oder mehrere ausgewählte Terminoptionen liegen in der Vergangenheit und können nicht geändert werden."
   },
   "liveResults": {

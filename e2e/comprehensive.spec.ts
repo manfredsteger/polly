@@ -380,13 +380,17 @@ test.describe('Stimme bearbeiten', () => {
     const optionId = pollData.poll.options[0].id;
     const voteResponse = await voteViaAPI(page, pollData.publicToken, 'Edit Voter', optionId, 'yes');
     
-    // Get edit token from response (use .data for pre-parsed JSON)
+    // Guest responses must not expose the link. For this test only, use the
+    // organizer credential of the poll fixture to retrieve the persisted token.
     const voteData = voteResponse.data as any;
-    const editToken = voteData?.editToken || voteData?.voterEditToken;
-    
-    // Assert that edit token was returned (allowVoteEdit:true should always generate one)
-    expect(editToken, 'Vote response should include voterEditToken when allowVoteEdit is true').toBeTruthy();
-    
+    expect(voteData?.voterEditToken).toBeUndefined();
+    expect(voteData?.votes?.[0]?.voterEditToken).toBeUndefined();
+    const adminResponse = await page.request.get(`/api/v1/polls/admin/${pollData.adminToken}`);
+    expect(adminResponse.ok()).toBeTruthy();
+    const adminPoll = await adminResponse.json();
+    const editToken = adminPoll.votes.find((vote: any) => vote.id === voteData.votes[0].id)?.voterEditToken;
+    expect(editToken).toBeTruthy();
+
     // Route is /edit/:editToken (not /vote/edit)
     await page.goto(`/edit/${editToken}`);
     await page.waitForLoadState('networkidle');

@@ -8,7 +8,7 @@ const { storage, tokenService, emailService, deviceTokenService } = vi.hoisted((
     'createVote', 'replaceSimpleModeVotes', 'getPoll', 'getVotesByVoterKey',
   ].map(name => [name, vi.fn()])),
   tokenService: { extractBearerToken: vi.fn(), validateToken: vi.fn() },
-  emailService: { smtpConfigured: true, sendVotingConfirmationEmail: vi.fn(), sendVoteWithdrawalEmail: vi.fn() },
+  emailService: { smtpConfigured: true, sendVotingConfirmationEmail: vi.fn(), sendVoteWithdrawalEmail: vi.fn(), sendVoteUpdatedEmail: vi.fn() },
   deviceTokenService: { getVoterKey: vi.fn() },
 }));
 vi.mock('../storage', () => ({ storage }));
@@ -23,7 +23,7 @@ vi.mock('../services/apiRateLimiterService', () => ({
   apiGeneralRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 // Use the real validation schema and session/bearer identity extraction.
-import router from '../routes/votes';
+import router, { getVoteEmailSummary } from '../routes/votes';
 import { recentEmailSends } from '../routes/common';
 import { assertVoteOwnership } from '../lib/voteOwnership';
 
@@ -43,7 +43,7 @@ function makePoll() {
     options: [{ id: 10, text: 'One' }, { id: 11, text: 'Two' }], votes: [vote],
   };
 }
-async function call(method: 'get' | 'post' | 'delete', body: unknown, userId?: number, path = '/polls/:token/vote', headers = {}, isTestMode = true) {
+async function call(method: 'get' | 'post' | 'delete' | 'put', body: unknown, userId?: number, path = '/polls/:token/vote', headers = {}, isTestMode = true) {
   const handler = router.stack.find(l => l.route?.path === path && l.route.stack.some(layer => layer.method === method))?.route?.stack.at(-1)?.handle;
   if (!handler) throw new Error('Route not found');
   const res = {
@@ -71,6 +71,7 @@ beforeEach(() => {
   emailService.smtpConfigured = true;
   emailService.sendVotingConfirmationEmail.mockResolvedValue(undefined);
   emailService.sendVoteWithdrawalEmail.mockResolvedValue(undefined);
+  emailService.sendVoteUpdatedEmail.mockResolvedValue(undefined);
   deviceTokenService.getVoterKey.mockReturnValue({ voterKey: 'device:test', voterSource: 'device' });
   storage.getVotesByVoterKey.mockResolvedValue([vote]);
   poll = makePoll();
@@ -385,5 +386,40 @@ describe.each(['/polls/:token/vote', '/votes/edit/:editToken'])('Withdrawal emai
     if (scenario === 'no-smtp') emailService.smtpConfigured = false;
     await call('delete', { voterEditToken: token }, undefined, path, {}, scenario === 'test-mode');
     expect(emailService.sendVoteWithdrawalEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('Saved answer email summaries', () => {
+  const summaryPoll = { type: 'schedule', options: [
+    { id: 10, text: '01.10.2026 09:00–12:00' },
+    { id: 11, text: '01.10.2026 14:00–17:00' },
+  ] };
+  it('omits unanswered slots when only one Yes is saved', () => {
+    expect(getVoteEmailSummary(summaryPoll, [{ optionId: 10, response: 'yes' }])).toEqual(['01.10.2026 09:00–12:00 — Ja']);
+  });
+  it('includes an explicitly saved No alongside Yes', () => {
+    expect(getVoteEmailSummary(summaryPoll, [{ optionId: 10, response: 'yes' }, { optionId: 11, response: 'no' }])).toEqual([
+      '01.10.2026 09:00–12:00 — Ja', '01.10.2026 14:00–17:00 — Nein',
+    ]);
+  });
+  it.each(['simple', 'organization'])('preserves selection-only wording for %s', mode => {
+    const selectionPoll = mode === 'simple' ? { ...summaryPoll, responseMode: 'simple' } : { ...summaryPoll, type: 'organization' };
+    expect(getVoteEmailSummary(selectionPoll, [{ optionId: 10, response: 'yes' }, { optionId: 11, response: 'no' }])).toEqual(['01.10.2026 09:00–12:00']);
+  });
+  it.each([['yes', 'maybe', 'Vielleicht'], ['maybe', 'no', 'Nein']])('emails the new answer after %s to %s and retains unchanged answers', async (previous, next, label) => {
+    const saved = [{ ...vote, response: previous }, { ...vote, id: 2, optionId: 11, response: 'yes' }];
+    storage.getVotesByEditToken.mockResolvedValue(saved);
+    storage.getPoll.mockResolvedValue(poll);
+    storage.updateVote.mockResolvedValue({ ...vote, response: next });
+    const res = await call('put', { votes: [{ optionId: 10, response: next }] }, undefined, '/votes/edit/:editToken');
+    expect(res.statusCode).toBe(200);
+    expect(emailService.sendVoteUpdatedEmail.mock.calls[0][6]).toEqual([`One — ${label}`, 'Two — Ja']);
+  });
+  it.each(['/polls/:token/vote', '/polls/:token/vote-bulk'])('includes explicit No in submission mail at %s', async path => {
+    storage.getVotesByEmail.mockResolvedValue([]);
+    storage.createVote.mockResolvedValue({ vote: { ...vote, response: 'no' }, editToken: token });
+    const res = await call('post', submission(), undefined, path, {}, false);
+    expect(res.statusCode).toBe(200);
+    expect(emailService.sendVotingConfirmationEmail.mock.calls[0][6]).toEqual(['One — Nein']);
   });
 });

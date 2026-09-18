@@ -238,7 +238,7 @@ describe('Poll CRUD Routes', () => {
         'schedule',
         expect.stringContaining(`/poll/${publicToken}`),
         expect.stringContaining(`/poll/${publicToken}#results`),
-        undefined,
+        [expect.stringContaining(' — Nein')],
         expect.stringContaining(`/edit/${editToken}`)
       );
     });

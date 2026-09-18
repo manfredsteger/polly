@@ -63,3 +63,18 @@ it.each([false, true])('renders a safe withdrawal email for organizer=%s without
     if (!organizer) expect(content).not.toContain('/admin/');
   }
 });
+
+it.each(['vote_confirmation', 'vote_updated'] as const)('includes all response labels in HTML and plain text for %s', async type => {
+  vi.mocked(service.getTemplate).mockResolvedValue({
+    ...EmailTemplateService.getDefaultTemplate(type), isDefault: true,
+  } as EmailTemplate);
+  const answers = ['Morning — Ja', 'Afternoon — Vielleicht', 'Evening — Nein'];
+  const result = await service.renderEmail(type, {
+    voterName: 'Test', pollTitle: 'Test poll',
+    selectedOptionsHtml: `<ul>${answers.map(answer => `<li>${answer}</li>`).join('')}</ul>`,
+  });
+  for (const answer of answers) {
+    expect(result.html).toContain(answer);
+    expect(result.text).toContain(answer);
+  }
+});

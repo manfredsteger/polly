@@ -218,17 +218,20 @@ const validateVoteResponses = (
   return null;
 };
 
-const getSelectedOptionTexts = (
-  poll: { options: Array<{ id: number; text?: string | null }> },
+export const getVoteEmailSummary = (
+  poll: { type: string; responseMode?: string | null; options: Array<{ id: number; text?: string | null }> },
   votes: Array<{ optionId: number; response: string }>
 ) => {
-  const optionMap = new Map<number, string>(poll.options.map((opt) => [opt.id, opt.text || '']));
-  const opts = votes
-    .filter((vote) => vote.response === 'yes')
-    .map((vote) => optionMap.get(vote.optionId) || '')
-    .filter(Boolean);
-
-  return opts.length > 0 ? opts : undefined;
+  const optionMap = new Map(poll.options.map(opt => [opt.id, opt.text || '']));
+  const selectionOnly = poll.responseMode === 'simple' || poll.type === 'organization';
+  const labels: Record<string, string> = { yes: 'Ja', maybe: 'Vielleicht', no: 'Nein' };
+  const summary = votes.flatMap(vote => {
+    const text = optionMap.get(vote.optionId);
+    if (!text || !labels[vote.response]) return [];
+    if (selectionOnly) return vote.response === 'yes' ? [text] : [];
+    return [`${text} — ${labels[vote.response]}`];
+  });
+  return summary.length > 0 ? summary : undefined;
 };
 
 const editVotesUpdateSchema = z.object({
@@ -455,8 +458,8 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
             ? `${baseUrl}/edit/${voterEditToken}`
             : undefined;
 
-        // Collect selected option texts for confirmed selections in the email summary.
-        const selectedOptions = getSelectedOptionTexts(poll, createdVotes);
+        // Summarize saved answers, including explicit Maybe and No responses.
+        const selectedOptions = getVoteEmailSummary(poll, createdVotes);
         
         recentEmailSends.set(emailKey, now);
         await emailService.sendVotingConfirmationEmail(
@@ -773,8 +776,8 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
 
-        // Collect selected option texts for confirmed selections in the email summary.
-        const selectedOptions = getSelectedOptionTexts(poll, createdVotes);
+        // Summarize saved answers, including explicit Maybe and No responses.
+        const selectedOptions = getVoteEmailSummary(poll, createdVotes);
         
         recentEmailSends.set(emailKey, now);
         await emailService.sendVotingConfirmationEmail(
@@ -1128,7 +1131,11 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
       const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
       const editLink = `${baseUrl}/edit/${editToken}`;
-      const selectedOptions = getSelectedOptionTexts(poll, updatedResults);
+      // Classic edits can update only a subset; include unchanged saved answers too.
+      const savedAnswers = isSimpleMode ? updatedResults : existingVotes.map(vote =>
+        updatedResults.find(updated => updated.id === vote.id) ?? vote
+      );
+      const selectedOptions = getVoteEmailSummary(poll, savedAnswers);
 
       emailService.sendVoteUpdatedEmail(
         voterEmail,

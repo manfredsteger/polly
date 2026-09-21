@@ -1,5 +1,13 @@
 # Polly - Production Deployment Guide
 
+> Automatisierte Datenbanktests benötigen eine separate `TEST_DATABASE_URL`.
+> Die produktive `DATABASE_URL` bleibt unverändert. Einrichtung:
+> [Testing Guide](TESTING.md#automated-tests-and-database-isolation) und
+> [Kubernetes/Rancher](docs/SELF-HOSTING.md#test-database-in-kubernetes-or-rancher).
+> `ADMIN_*`-Variablen erstellen nur fehlende Konten und setzen bestehende
+> Passwörter oder MFA-Einstellungen beim Neustart nicht zurück.
+
+
 Dieses Dokument beschreibt die Installation und Konfiguration von Polly für den Produktionsbetrieb.
 
 ## Inhaltsverzeichnis

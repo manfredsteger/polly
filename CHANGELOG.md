@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Filter public poll/results responses to exclude account secrets, private voter credentials, other voters' emails, and votes when results are private.
+- Require authenticated ownership or a valid private token for vote changes and withdrawal; deliver guest management links by email rather than in guest responses.
+- Isolate database-backed tests using an explicit `TEST_DATABASE_URL`; reject unsafe configurations before test setup can modify application accounts.
+- Preserve existing accounts during startup admin seeding instead of resetting credentials or initial-login flags.
+
+### Fixed
+- Respect vote-edit permissions and withdrawal deadlines in the private edit page.
+- Show a withdrawal confirmation screen and send participant confirmation plus optional organizer notifications.
+- Include saved Yes/Maybe/No answers in confirmation/update emails, omit unanswered options, and hide results sections for private polls.
+- Use withdrawal wording for withdrawal-only management links and report guest confirmation-email failures accurately.
+- Save test reports in writable per-run temporary directories and include the changelog in test-capable images.
+
+### Deployment notes
+- No application database migration is required for these fixes. To run database-backed tests, provision a separate database with the current schema and configure `TEST_DATABASE_URL`; existing deployments without it can use normal app features but cannot start those tests.
+- `ADMIN_*` environment values are bootstrap credentials, not a mechanism to reset an existing account.
+- See [TESTING.md](TESTING.md) and [SELF-HOSTING.md](docs/SELF-HOSTING.md) for setup. Guest identity verification before the first vote and persistent organizer withdrawal history remain deferred.
+
 ## [0.1.0-beta.9] - 2026-08-25
 
 ### Added

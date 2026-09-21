@@ -199,6 +199,44 @@ npm start
 
 ---
 
+### Test database in Kubernetes or Rancher
+
+This is optional for normal application operation, but required to run
+database-backed tests from the admin panel. Use the [testing guide](../TESTING.md#automated-tests-and-database-isolation)
+to create a dedicated PostgreSQL login/database and initialize its schema.
+No production data copy is needed.
+
+The existing PostgreSQL instance can host both databases on its existing PVC,
+subject to available capacity. A PVC is storage, not a database. Do not replace
+or delete the application PVC. Tests on the same instance share its resources.
+
+1. Locate the PostgreSQL Service and have a database administrator create
+   `polly_test` and its dedicated login. Verify access restrictions.
+2. In the **application namespace**, create a Secret named `polly-test-database`
+   with a `TEST_DATABASE_URL` key containing the test connection string. Use the
+   PostgreSQL Service hostname, not a temporary pod IP. Do not commit credentials.
+3. Edit the Polly workload (or its Helm/GitOps source) and add this environment
+   entry to the application container, preserving its existing `DATABASE_URL`:
+
+   ```yaml
+   - name: TEST_DATABASE_URL
+     valueFrom:
+       secretKeyRef:
+         name: polly-test-database
+         key: TEST_DATABASE_URL
+   ```
+
+4. Configure `TEST_DATABASE_SSL` if required and roll out the updated workload.
+5. In Rancher, open **Execute Shell** on the **Polly application container**.
+   Verify the test database name and run the schema initialization command from
+   the testing guide. If the image lacks tooling, use a job/container built from
+   the same application version with the schema files and `drizzle-kit`.
+6. Open **Admin → Tests → Run Tests**. Without a safe test URL the run is blocked;
+   the rest of the application continues working.
+
+Rancher menu labels vary by version. PostgreSQL creation commands run in `psql`
+on the database server; Node/npm schema commands run in the application container.
+
 ## Configuration
 
 ### Required Environment Variables
@@ -268,7 +306,7 @@ Then start with `docker compose up -d app` (omit the `postgres` service).
 
 ### Initial Admin Account (Docker)
 
-When running via Docker, the admin account is automatically created or updated on each start.
+When running via Docker, a missing initial admin account is created on startup. Existing accounts are preserved.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -282,6 +320,12 @@ When running via Docker, the admin account is automatically created or updated o
 | `PRIMARY_COLOR` | Primary brand colour (hex) | `#F97316` |
 | `POLLY_COPYRIGHT_TEXT` | Footer copyright text (limited HTML: links, basic markup). When set, the admin form field is locked (read-only) | `© 2026 My Org` |
 | `MFA_ADMIN_REQUIRED` | Emergency override: set to `false` to disable the admin MFA requirement at the server level, overriding the database setting. Useful when all admin accounts have lost their authenticator app. Remove or leave unset to use the value configured in the admin panel. | *(unset)* |
+
+`ADMIN_*` values bootstrap a missing account only. Restarting or changing these
+variables does not reset an existing password, MFA, role, or first-login flag,
+including for Keycloak-linked accounts. Use normal account-management/recovery
+flows to change existing credentials. A username/email conflict preserves the
+existing account.
 
 > **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
 
@@ -523,7 +567,8 @@ If you ship custom icons, replace `client/public/android-chrome-*.png` (and the 
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
 | `TEST_MODE_SECRET` | Custom header value for E2E test mode (`X-Test-Mode` header) | `polly-e2e-test-mode` |
-| `RUN_VIA_INAPP` | Internal flag set by the in-app test runner so teardown keeps test data for manual cleanup | `1` |
+| `TEST_DATABASE_URL` | Separate initialized database for automated tests; never the application database | — |
+| `TEST_DATABASE_SSL` | Test connection SSL option, independent of application SSL | `false` |
 
 ---
 

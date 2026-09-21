@@ -22,7 +22,7 @@ git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/poll
 cd polly
 docker compose up -d
 
-# OR: All-in-one with Makefile (includes seed data)
+# OR: Destructive fresh local setup (deletes volumes; includes seed data)
 make complete
 ```
 
@@ -307,6 +307,10 @@ These values can also be edited from the Admin Panel after first start. When set
 | `POSTGRES_PASSWORD` | Bundled PostgreSQL password (docker-compose only) | `polly_secret` |
 | `POSTGRES_DB` | Bundled PostgreSQL database (docker-compose only) | `polly` |
 
+These values create a missing admin only; they never overwrite an existing
+account on restart. Database-backed tests require a separately initialized test
+database. Normal application operation does not require one. See [TESTING.md](TESTING.md).
+
 ### Advanced
 
 | Variable | Description | Default |
@@ -320,7 +324,8 @@ These values can also be edited from the Admin Panel after first start. When set
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export | auto-detected |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement | `false` |
 | `TEST_MODE_SECRET` | Custom header value for E2E test mode | `polly-e2e-test-mode` |
-| `RUN_VIA_INAPP` | Internal flag set by the in-app test runner so teardown keeps test data for manual cleanup | `1` |
+| `TEST_DATABASE_URL` | Separate database for automated tests; see [Testing Guide](TESTING.md#automated-tests-and-database-isolation) | — |
+| `TEST_DATABASE_SSL` | SSL option for the test database connection | `false` |
 
 ## 🏗️ Tech Stack
 
@@ -440,7 +445,7 @@ make db-push
 # Open database shell
 make shell-db
 
-# All-in-one: Build, start, migrate & seed (first time or after updates)
+# Destructive fresh local setup: deletes volumes, rebuilds and seeds
 make complete
 
 # Build and publish to Docker Hub

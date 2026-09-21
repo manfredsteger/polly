@@ -1574,6 +1574,7 @@
       "saveLanguage": "Save Language"
     },
     "tests": {
+      "unsafeDatabase": "Tests were not started. Configure a separate test database using TEST_DATABASE_URL. The application database must not be used.",
       "backToSettings": "Back to Settings",
       "title": "Automated Tests",
       "description": "Run and monitor backend integration tests",

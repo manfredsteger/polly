@@ -267,7 +267,7 @@ app.use((req, res, next) => {
     console.error('[Branding] Failed to bootstrap branding on startup:', error);
   }
 
-  // Seed/update admin account if ADMIN_PASSWORD is set (Docker or manual override via secrets)
+  // Bootstrap a missing admin account; existing accounts are never modified.
   if (process.env.DOCKER_ENV === 'true' || process.env.ADMIN_PASSWORD) {
     try {
       const { seedInitialAdmin } = await import('./seed-admin');

@@ -1,3 +1,4 @@
+import { TestDatabaseSafetyError } from '../lib/testDatabaseSafety';
 import { Router } from "express";
 import { storage } from "../storage";
 import bcrypt from "bcryptjs";
@@ -1033,6 +1034,9 @@ router.post('/tests/run', requireAdmin, async (req, res) => {
     res.json({ runId, message: 'Test-Lauf gestartet' });
   } catch (error) {
     console.error('Error starting test run:', error);
+    if (error instanceof TestDatabaseSafetyError) {
+      return res.status(503).json({ error: error.message, errorCode: 'TEST_DATABASE_UNSAFE' });
+    }
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });
@@ -2203,6 +2207,9 @@ router.post('/test-runs', requireAdmin, async (req, res) => {
     res.json({ runId, message: 'Test-Lauf gestartet' });
   } catch (error) {
     console.error('Error starting test run:', error);
+    if (error instanceof TestDatabaseSafetyError) {
+      return res.status(503).json({ error: error.message, errorCode: 'TEST_DATABASE_UNSAFE' });
+    }
     res.status(500).json({ error: 'Tests konnten nicht gestartet werden' });
   }
 });

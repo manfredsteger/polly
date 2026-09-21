@@ -55,7 +55,8 @@ describe('Polls - Voting', () => {
       });
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('voterEditToken');
+    expect(response.body).not.toHaveProperty('voterEditToken');
+    expect(response.body.votes.every((vote: any) => !('voterEditToken' in vote))).toBe(true);
   });
 
   it('should reject vote without voter name', async () => {

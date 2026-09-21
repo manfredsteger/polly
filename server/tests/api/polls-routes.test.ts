@@ -172,7 +172,8 @@ describe('Poll CRUD Routes', () => {
           voterEmail: 'test-voter-routes@example.com',
         });
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('voterEditToken');
+      expect(res.body).not.toHaveProperty('voterEditToken');
+      expect(res.body.votes.every((vote: any) => !('voterEditToken' in vote))).toBe(true);
     });
 
     it('should get votes by edit token', async () => {
@@ -205,6 +206,9 @@ describe('Poll CRUD Routes', () => {
     });
 
     it('should send a confirmation email after editing votes via edit token', async () => {
+      const settingsRes = await agent.patch(`/api/v1/polls/admin/${adminToken}`)
+        .send({ resultsPublic: false });
+      expect(settingsRes.status).toBe(200);
       const pollRes = await request(app).get(`/api/v1/polls/public/${publicToken}`);
       const optionId = pollRes.body.options[0].id;
 
@@ -237,7 +241,7 @@ describe('Poll CRUD Routes', () => {
         'Updated Schedule Poll',
         'schedule',
         expect.stringContaining(`/poll/${publicToken}`),
-        expect.stringContaining(`/poll/${publicToken}#results`),
+        undefined, // This fixture has private results.
         [expect.stringContaining(' — Nein')],
         expect.stringContaining(`/edit/${editToken}`)
       );

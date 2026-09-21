@@ -47,6 +47,7 @@ test-results
 # Documentation (not needed in container)
 *.md
 !README.md
+!CHANGELOG.md
 docs
 !docs/openapi.yaml
 !docs/SELF-HOSTING.md

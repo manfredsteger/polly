@@ -1,4 +1,7 @@
+import { assertIsolatedTestDatabase } from '../lib/testDatabaseSafety';
+
 export default async function globalSetup() {
+  assertIsolatedTestDatabase(process.env);
   // Safety guard: refuse to run outside the test environment.
   // This file is exclusively a Vitest globalSetup entry point and must never
   // execute in production or staging, where purgeTestData() would be destructive.
@@ -28,9 +31,10 @@ export default async function globalSetup() {
   //   the catch block — admin is never seeded, subsequent test files that rely
   //   on admin login start failing with cascading TypeErrors.
   //
-  //   A direct pg.Pool connection has zero alias dependencies and is always safe.
+  //   A direct pg.Pool connection has zero alias dependencies. The isolation
+  //   guard above must pass before this connection is opened.
   //
-  // SECURITY: the NODE_ENV guard above ensures this only runs in test, and the
+  // SECURITY: the database isolation guard restricts this to the test DB, and the
   //   UPSERT below only touches the single 'admin' (or ADMIN_USERNAME) user row.
   try {
     const { Pool } = await import('pg');
@@ -72,15 +76,13 @@ export default async function globalSetup() {
 
   // Return teardown function that runs ONCE after all tests complete
   return async () => {
-    // Skip auto-purge when invoked from the in-app test runner so admins can
-    // inspect and manually clean up test data afterwards via the UI button.
-    if (process.env.RUN_VIA_INAPP !== '1') {
-      try {
-        const { storage: storageTeardown } = await import('../storage');
-        await storageTeardown.purgeTestData();
-      } catch {
-        // Ignore errors
-      }
+    // Test data belongs to the isolated database; the application UI cannot
+    // clean it up. Always purge it here, including in-app runs.
+    try {
+      const { storage: storageTeardown } = await import('../storage');
+      await storageTeardown.purgeTestData();
+    } catch {
+      // Ignore cleanup errors; never fall back to the application database.
     }
 
     try {

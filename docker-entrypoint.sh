@@ -82,7 +82,7 @@ echo "[Schema] Database schema OK"
 # =========================================
 # Step 3: Start application
 # The following are handled inside the app process (server/index.ts):
-#   - seed-admin: Creates/updates initial admin user (configurable via ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD)
+#   - seed-admin: Creates missing initial admin user (configurable via ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD)
 #   - seed-demo: Creates demo polls (only on first run / empty database)
 #   - Branding/customization bootstrap
 #   - ClamAV initialization

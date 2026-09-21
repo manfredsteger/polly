@@ -338,8 +338,11 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       toast({ title: t('admin.tests.started'), description: t('admin.tests.startedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/test-runs'] });
     },
-    onError: () => {
-      toast({ title: t('errors.generic'), description: t('admin.tests.startError'), variant: "destructive" });
+    onError: (error: Error) => {
+      const messageKey = error.message.includes('TEST_DATABASE_UNSAFE')
+        ? 'admin.tests.unsafeDatabase'
+        : 'admin.tests.startError';
+      toast({ title: t('errors.generic'), description: t(messageKey), variant: "destructive" });
     },
   });
 

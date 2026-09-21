@@ -81,13 +81,13 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
         run: npx vitest run --reporter=verbose
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
         run: npx vitest run --coverage || true
 

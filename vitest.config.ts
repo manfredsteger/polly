@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { testDatabaseEnvironment } from './server/lib/testDatabaseSafety';
+
+// Runs before setup or test imports can create the application connection pool.
+Object.assign(process.env, testDatabaseEnvironment(process.env));
 
 export default defineConfig({
   test: {

@@ -1677,6 +1677,7 @@
       "gdprPoint3": "Die Löschung wird für Nachweiszwecke protokolliert."
     },
     "tests": {
+      "unsafeDatabase": "Tests wurden nicht gestartet. Konfigurieren Sie mit TEST_DATABASE_URL eine separate Testdatenbank. Die Anwendungsdatenbank darf nicht verwendet werden.",
       "backToSettings": "Zurück zu Einstellungen",
       "title": "Automatisierte Tests",
       "description": "Backend-Integrationstests ausführen und überwachen",

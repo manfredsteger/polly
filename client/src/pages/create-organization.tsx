@@ -1392,7 +1392,7 @@ export default function CreateOrganization() {
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                     <p className="font-medium text-green-800 dark:text-green-200">
                       {t('pollCreation.loggedInAs', { name: user?.name || user?.username })}
                     </p>
@@ -1546,7 +1546,7 @@ export default function CreateOrganization() {
               {t('createOrganization.slots')}
             </CardTitle>
             <CardDescription className="flex items-start gap-2 mt-2 rounded-lg border bg-muted/20 p-3">
-              <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-muted-foreground" />
               <span>
                 {t('createOrganization.slotsBuilderHint')}
               </span>
@@ -1555,11 +1555,11 @@ export default function CreateOrganization() {
           <CardContent className="space-y-5">
             {/* Slot list with column headers */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
                   {t('createOrganization.slotListHintCustom')}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                   <Button
                     type="button"
                     variant={resetConfirming ? "destructive" : "ghost"}
@@ -1600,12 +1600,12 @@ export default function CreateOrganization() {
                   return (
                     <div key={group.key} className="overflow-hidden rounded-xl border bg-muted/20 shadow-sm">
                       <div className="border-b bg-background/90 px-4 py-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary sm:flex">
                               <CalendarDays className="w-4 h-4" />
                             </div>
-                            <div className="space-y-1">
+                            <div className="min-w-0 flex-1 space-y-1 sm:flex-initial">
                               <p className="text-sm font-semibold text-foreground">{t('createOrganization.date')}</p>
                               <DatePicker
                                 date={dateValue}
@@ -1616,7 +1616,8 @@ export default function CreateOrganization() {
                                   updateSlots(groupIndexes, { date: dateStr });
                                 }}
                                 placeholder={t('createOrganization.selectDate')}
-                                buttonClassName="w-[220px] bg-background"
+                                className="min-w-0"
+                                buttonClassName="w-full min-w-0 sm:w-[220px] bg-background"
                                 data-testid={`input-group-date-${group.key}`}
                               />
                             </div>
@@ -1626,7 +1627,7 @@ export default function CreateOrganization() {
                             variant="outline"
                             size="sm"
                             onClick={() => setTemplateDialogGroupKey(group.key)}
-                            className="shrink-0"
+                            className="w-full shrink-0 sm:w-auto"
                             data-testid={`button-open-template-dialog-${group.key}`}
                           >
                             <Sparkles className="w-4 h-4 mr-2 text-amber-500" />

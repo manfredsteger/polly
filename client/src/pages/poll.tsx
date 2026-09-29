@@ -848,8 +848,8 @@ export default function Poll() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 w-full flex-1 [overflow-wrap:anywhere]">
             <div className="flex items-center space-x-3 mb-2">
               <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
               <Badge className={poll.isActive && !isPollExpired ? 'polly-badge-active' : 'polly-badge-inactive'}>
@@ -863,7 +863,7 @@ export default function Poll() {
           </div>
           
           {isEffectiveAdmin && (
-            <div className="flex space-x-2 ml-4">
+            <div className="flex w-full flex-wrap gap-2 lg:w-auto lg:max-w-[50%] lg:justify-end">
               <Button
                 variant="outline"
                 size="sm"
@@ -938,7 +938,7 @@ export default function Poll() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
           <TabsTrigger value="vote">{t('pollView.tabVote')}</TabsTrigger>
           <TabsTrigger value="results">{t('pollView.tabResults')}</TabsTrigger>
           <TabsTrigger value="live" className="flex items-center gap-1">
@@ -1013,17 +1013,20 @@ export default function Poll() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">{t('pollView.publicLink')}</label>
+                  <label htmlFor="tools-public-link" className="text-sm font-medium">{t('pollView.publicLink')}</label>
                   <div className="flex mt-1">
                     <Input
+                      id="tools-public-link"
                       value={`${window.location.origin}/poll/${poll.publicToken}`}
                       readOnly
-                      className="rounded-r-none"
+                      className="min-w-0 flex-1 rounded-r-none"
                     />
                     <Button 
                       variant="outline" 
-                      size="sm" 
-                      className="rounded-l-none"
+                      size="icon"
+                      className="shrink-0 rounded-l-none border-l-0"
+                      aria-label={t('pollView.copyPublicLink')}
+                      data-testid="button-copy-tools-public"
                       onClick={() => handleCopyLink(`${window.location.origin}/poll/${poll.publicToken}`, 'tools-public')}
                     >
                       {copiedLink === 'tools-public' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -1151,9 +1154,27 @@ export default function Poll() {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {t('pollView.adminLink')}: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/admin/{poll.adminToken}</code>
-                  </p>
+                  <div>
+                    <label htmlFor="tools-admin-link" className="text-sm font-medium">{t('pollView.adminLink')}</label>
+                    <div className="flex mt-1">
+                      <Input
+                        id="tools-admin-link"
+                        value={`${window.location.origin}/admin/${poll.adminToken}`}
+                        readOnly
+                        className="min-w-0 flex-1 rounded-r-none"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0 rounded-l-none border-l-0"
+                        aria-label={t('pollView.copyAdminLink')}
+                        data-testid="button-copy-tools-admin"
+                        onClick={() => handleCopyLink(`${window.location.origin}/admin/${poll.adminToken}`, 'tools-admin')}
+                      >
+                        {copiedLink === 'tools-admin' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}

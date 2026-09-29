@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation, Trans } from 'react-i18next';
 import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -515,9 +515,9 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
         <span>{t('calendarPicker.hints.clickToAdd')}</span>
       </div>
       
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Calendar */}
-        <div>
+        <div className="min-w-0">
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -540,6 +540,14 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
             }}
             locale={dateLocale}
             weekStartsOn={1}
+            classNames={{
+              month: "w-full space-y-4",
+              head_row: "grid grid-cols-7",
+              head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem]",
+              row: "grid grid-cols-7 w-full mt-2",
+              cell: "min-w-0 h-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+              day: `${buttonVariants({ variant: "ghost" })} h-9 w-full p-0 font-normal aria-selected:opacity-100`,
+            }}
             className="rounded-md border"
             data-testid="calendar-picker"
           />
@@ -563,15 +571,15 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
         </div>
 
         {/* Templates Section */}
-        <div>
+        <div className="min-w-0">
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-polly-orange" />
                 {t('calendarPicker.quickTemplates')}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 p-4 pt-0 sm:p-6 sm:pt-0">
               <p className="text-xs text-muted-foreground mb-3">
                 {t('calendarPicker.selectTemplateAndDate')}
               </p>
@@ -582,7 +590,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                     key={template.id}
                     type="button"
                     variant="outline"
-                    className={`w-full justify-start h-auto py-3 px-4 ${
+                    className={`w-full whitespace-normal justify-start h-auto py-3 px-4 ${
                       selectedTemplate?.id === template.id 
                         ? "border-polly-orange bg-orange-50 dark:bg-orange-950" 
                         : ""
@@ -591,7 +599,7 @@ export function CalendarPicker({ onAddTimeSlot, onAddTextOption, existingOptions
                     data-testid={`template-${template.id}`}
                   >
                     <Icon className="w-4 h-4 mr-3 text-polly-orange flex-shrink-0" />
-                    <div className="text-left">
+                    <div className="min-w-0 text-left break-words">
                       <div className="font-medium">{t(template.nameKey)}</div>
                       <div className="text-xs text-muted-foreground">{t(template.descriptionKey)}</div>
                     </div>

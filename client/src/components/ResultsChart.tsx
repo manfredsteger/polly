@@ -499,13 +499,13 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
   return (
     <div className="space-y-6">
       {/* Header with Export Options */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-foreground">
             {isOrganization ? t('results.entries') : t('results.resultsTitle')}
           </h2>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={handleExportCSV}>
             <FileText className="w-4 h-4 mr-2" />
             {t('results.csvExport')}
@@ -864,10 +864,10 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-border font-medium bg-muted/30">
-                    <td className="text-left py-3 px-4 text-sm text-muted-foreground border-r border-border">
-                      <div className="inline-flex items-center rounded-md border border-border/60 bg-background/60 px-2 py-1">
+                    <td className="align-middle text-left py-3 px-4 text-sm text-muted-foreground border-r border-border">
+                      <div className="inline-flex items-center whitespace-nowrap rounded-md border border-border/60 bg-background/60 px-2 py-1">
                         <span className="pr-2 font-medium text-foreground">{t('results.total')}</span>
-                        <span className="mx-2 h-4 border-l border-border/80" aria-hidden="true" />
+                        <span className="mx-2 h-4 shrink-0 border-l border-border/80" aria-hidden="true" />
                         <span className="pl-2 text-xs text-muted-foreground font-medium">
                           {participantCount} {participantCount === 1 ? t('results.participantSingular') : t('results.participantsPlural')}
                         </span>
@@ -877,9 +877,9 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                       const stat = stats.find(s => s.optionId === option.id);
                       const yesCount = stat?.yesCount || 0;
                       return (
-                        <td key={option.id} className="text-center py-3 px-3">
+                        <td key={option.id} className="align-middle text-center py-3 px-3">
                           <div className="flex items-center justify-center">
-                            <Badge className={yesCount === participantCount ? "bg-green-600 text-white" : "bg-slate-200 text-slate-700"}>
+                            <Badge className={`whitespace-nowrap ${yesCount === participantCount ? "bg-green-600 text-white" : "bg-slate-200 text-slate-700"}`}>
                               {yesCount}/{participantCount} {t('results.votedLabel')}
                             </Badge>
                           </div>
@@ -1331,14 +1331,28 @@ export function ResultsChart({ results, publicToken, adminToken, isAdminAccess =
                               />
                             )}
                             <div className="flex-1">
-                              <div className="font-medium text-foreground">
-                                <FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} />
-                              </div>
-                              {option.startTime && option.endTime && (
-                                <div className="text-sm text-muted-foreground mt-1">
-                                  {new Date(option.startTime).toLocaleDateString(localeCode)} • {" "}
-                                  {new Date(option.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} - {new Date(option.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}
-                                </div>
+                              {isSchedule && option.startTime && option.endTime ? (
+                                <>
+                                  <div className="font-semibold text-foreground">
+                                    <span className="block whitespace-nowrap">{new Date(option.startTime).toLocaleDateString(localeCode)}</span>
+                                    <span className="block">{new Date(option.startTime).toLocaleDateString(localeCode, { weekday: 'long' })}</span>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground mt-1 whitespace-nowrap">
+                                    {new Date(option.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} – {new Date(option.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="font-medium text-foreground">
+                                    <FormattedOptionText text={option.text} startTime={option.startTime} locale={i18n.language} />
+                                  </div>
+                                  {option.startTime && option.endTime && (
+                                    <div className="text-sm text-muted-foreground mt-1">
+                                      {new Date(option.startTime).toLocaleDateString(localeCode)} • {" "}
+                                      {new Date(option.startTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} - {new Date(option.endTime).toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>

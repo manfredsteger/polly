@@ -72,15 +72,15 @@ export function OverviewPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <h2 className="text-2xl font-semibold text-foreground">{t('admin.overview.title')}</h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={onRefreshStats}
             disabled={statsRefreshing}
-            className="h-8"
+            className="h-8 shrink-0"
           >
             {statsRefreshing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -94,8 +94,8 @@ export function OverviewPanel({
             </span>
           )}
         </div>
-        <Badge variant="outline" className="text-green-600 border-green-600">
-          <CheckCircle className="w-3 h-3 mr-1" />
+        <Badge variant="outline" className="shrink-0 whitespace-nowrap text-green-600 border-green-600">
+          <CheckCircle className="w-3 h-3 shrink-0 mr-1" />
           {t('admin.overview.systemActive')}
         </Badge>
       </div>

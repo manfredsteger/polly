@@ -239,7 +239,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
 
   return (
     <TooltipProvider>
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:gap-3">
         <AdminSidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}

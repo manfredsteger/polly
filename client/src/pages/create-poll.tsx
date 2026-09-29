@@ -794,7 +794,7 @@ export default function CreatePoll() {
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                     <p className="font-medium text-green-800 dark:text-green-200">
                       {t('pollCreation.loggedInAs', { name: user?.name || user?.username })}
                     </p>

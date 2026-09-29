@@ -212,9 +212,9 @@ export default function PollSuccess() {
         {/* Email Status */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Mail className="w-5 h-5 mr-2" />
-              {t('pollSuccess.emailNotification')}
+            <CardTitle className="flex items-start gap-2">
+              <Mail className="w-5 h-5 shrink-0 mt-0.5" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">{t('pollSuccess.emailNotification')}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -223,7 +223,7 @@ export default function PollSuccess() {
                 <Trans 
                   i18nKey="pollSuccess.emailNotificationHint" 
                   values={{ email: poll.creatorEmail }}
-                  components={{ strong: <strong /> }}
+                  components={{ strong: <strong className="[overflow-wrap:anywhere]" /> }}
                 />
               </p>
             </div>

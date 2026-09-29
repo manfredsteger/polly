@@ -188,10 +188,10 @@ export function UsersPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold text-foreground">{t('admin.users.title')}</h2>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-blue-600 border-blue-600">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="text-blue-600 border-blue-600 whitespace-nowrap">
             <Users className="w-3 h-3 mr-1" />
             {t('admin.users.totalCount', { count: users?.length || 0 })}
           </Badge>
@@ -204,14 +204,14 @@ export function UsersPanel({
 
       <Card className="polly-card">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle>{t('admin.users.allUsers')}</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <Select
                 value={roleFilter}
                 onValueChange={(value: 'all' | 'admin' | 'manager' | 'user') => setRoleFilter(value)}
               >
-                <SelectTrigger className="w-[170px]" data-testid="select-users-role-filter">
+                <SelectTrigger className="w-full sm:w-[170px]" data-testid="select-users-role-filter">
                   <div className="flex items-center gap-2">
                     <Filter className="w-4 h-4 text-muted-foreground" />
                     <SelectValue />
@@ -228,7 +228,7 @@ export function UsersPanel({
                 value={sortOption}
                 onValueChange={(value: 'default' | 'joinedDesc' | 'joinedAsc' | 'lastLoginDesc' | 'lastLoginAsc' | 'nameAsc' | 'nameDesc') => setSortOption(value)}
               >
-                <SelectTrigger className="w-[220px]" data-testid="select-users-sort">
+                <SelectTrigger className="w-full sm:w-[220px]" data-testid="select-users-sort">
                   <div className="flex items-center gap-2">
                     <Filter className="w-4 h-4 text-muted-foreground" />
                     <SelectValue />
@@ -244,7 +244,7 @@ export function UsersPanel({
                   <SelectItem value="nameDesc">{t('admin.users.sortNameDesc')}</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-64">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder={t('admin.users.search')}
@@ -283,7 +283,7 @@ export function UsersPanel({
                       data-testid={`user-row-${user.id}`}
                     >
                       <TableCell className="font-medium">{user.name || '-'}</TableCell>
-                      <TableCell>{user.username}</TableCell>
+                      <TableCell className="max-w-[180px] truncate" title={user.username}>{user.username}</TableCell>
                       <TableCell className="text-muted-foreground">{user.email || '-'}</TableCell>
                       <TableCell><RoleBadge role={user.role} /></TableCell>
                       <TableCell className="text-muted-foreground">

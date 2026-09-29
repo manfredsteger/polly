@@ -405,8 +405,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-back-tests">
             <ArrowLeft className="w-4 h-4" />
           </Button>
@@ -415,8 +415,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
             <p className="text-sm text-muted-foreground">{t('admin.tests.description')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-polly-orange border-polly-orange">
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className="text-polly-orange border-polly-orange whitespace-nowrap">
             <FlaskConical className="w-3 h-3 mr-1" />
             {t('admin.tests.automatedTests')}
           </Badge>
@@ -504,8 +504,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
           <CardDescription>{t('admin.tests.testDataDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground min-w-0">
               {testDataStats && testDataStats.total > 0 ? (
                 <span>
                   {testDataStats.polls} {t('common.polls')}, {testDataStats.users} {t('common.users')}, {testDataStats.votes} {t('common.votes')}
@@ -516,9 +516,10 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   size="sm"
+                  className="self-start sm:self-auto shrink-0"
                   disabled={!testDataStats || testDataStats.total === 0 || purgeTestDataMutation.isPending}
                 >
                   {purgeTestDataMutation.isPending ? (
@@ -562,8 +563,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       {/* Test History */}
       <Card className="polly-card">
         <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0">
               <CardTitle>{t('admin.tests.history')}</CardTitle>
               <CardDescription>{t('admin.tests.historyDescription')}</CardDescription>
             </div>
@@ -572,6 +573,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 <Button
                   variant="destructive"
                   size="sm"
+                  className="self-start shrink-0"
                   disabled={!testRuns || testRuns.length === 0 || isRunning || clearHistoryMutation.isPending}
                   data-testid="button-clear-test-history"
                 >
@@ -628,8 +630,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 return (
                 <AccordionItem key={run.id} value={run.id}>
                   <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center justify-between w-full pr-4 gap-4">
-                      <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex flex-col items-start gap-2 w-full min-w-0 pr-2 text-left sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pr-4">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
                         {getStatusBadge(run.status)}
                         <span className="text-sm text-muted-foreground">
                           {new Date(run.startedAt).toLocaleString()}
@@ -637,7 +639,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                       </div>
                       
                       {run.status === 'running' && (
-                        <div className="flex-1 mx-4 min-w-0">
+                        <div className="w-full min-w-0 sm:flex-1 sm:mx-4">
                           <div className="flex items-center gap-2 mb-1">
                             <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
                             <span className="text-xs text-muted-foreground truncate" title={liveTestName || liveFileName}>
@@ -650,7 +652,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                         </div>
                       )}
                       
-                      <div className="flex items-center gap-2 text-sm shrink-0">
+                      <div className="flex flex-wrap items-center gap-x-2 text-sm sm:shrink-0">
                         <span className="text-green-500">{run.summary.passed} passed</span>
                         <span className="text-red-500">{run.summary.failed} failed</span>
                       </div>
@@ -678,16 +680,16 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                           <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0">
                             {getStatusIcon(result.status)}
-                            <span className="text-sm">{result.name}</span>
+                            <span className="text-sm break-words min-w-0">{result.name}</span>
                           </div>
                           {result.duration && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground shrink-0">
                               {result.duration}ms
                             </span>
                           )}
                           </div>
                           {result.status === 'failed' && result.error && (
-                            <div className="mt-2 ml-6 rounded bg-red-50 dark:bg-red-950/20 px-3 py-2 text-xs text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap">
+                            <div className="mt-2 ml-6 rounded bg-red-50 dark:bg-red-950/20 px-3 py-2 text-xs text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap break-words">
                               {result.error}
                             </div>
                           )}

@@ -113,8 +113,8 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
       data-testid={`poll-card-${poll.id}`}
     >
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 basis-32">
             <CardTitle className="text-lg line-clamp-1">{poll.title}</CardTitle>
             {poll.description && (
               <CardDescription className="line-clamp-2 mt-1">
@@ -122,7 +122,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
               </CardDescription>
             )}
           </div>
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
             <Badge className={isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
               {isActive ? (
@@ -135,18 +135,18 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center">
-              <Users className="h-4 w-4 mr-1" />
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="flex items-center whitespace-nowrap">
+              <Users className="h-4 w-4 shrink-0 mr-1" />
               {participantCount} {participantCount !== 1 ? t('myPolls.participants') : t('myPolls.participant')}
             </span>
-            <span className="flex items-center">
-              <ListChecks className="h-4 w-4 mr-1" />
+            <span className="flex items-center whitespace-nowrap">
+              <ListChecks className="h-4 w-4 shrink-0 mr-1" />
               {optionCount} {optionCount !== 1 ? t('myPolls.options') : t('myPolls.option')}
             </span>
           </div>
-          <span>
+          <span className="whitespace-nowrap">
             {poll.createdAt && format(new Date(poll.createdAt), 'dd. MMM yyyy', { locale: getDateLocale() })}
           </span>
         </div>
@@ -575,23 +575,23 @@ export default function MyPolls() {
           const archivedPolls = createdPolls?.filter(p => !p.isActive || (p.expiresAt && new Date(p.expiresAt) <= now) || !hasFutureScheduleOption(p)) || [];
           return (
             <>
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="created" data-testid="tab-created">
-                  <ClipboardList className="h-4 w-4 mr-2" />
+              <TabsList className="flex h-auto w-full flex-wrap gap-1 mb-6">
+                <TabsTrigger value="created" className="min-w-fit flex-1" data-testid="tab-created">
+                  <ClipboardList className="h-4 w-4 shrink-0 mr-2" />
                   {t('myPolls.tabCreated')}
                   {activePolls.length > 0 && (
                     <Badge variant="secondary" className="ml-2">{activePolls.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="participated" data-testid="tab-participated">
-                  <Users className="h-4 w-4 mr-2" />
+                <TabsTrigger value="participated" className="min-w-fit flex-1" data-testid="tab-participated">
+                  <Users className="h-4 w-4 shrink-0 mr-2" />
                   {t('myPolls.tabParticipated')}
                   {participatedPolls && participatedPolls.length > 0 && (
                     <Badge variant="secondary" className="ml-2">{participatedPolls.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="archive" data-testid="tab-archive">
-                  <Archive className="h-4 w-4 mr-2" />
+                <TabsTrigger value="archive" className="min-w-fit flex-1" data-testid="tab-archive">
+                  <Archive className="h-4 w-4 shrink-0 mr-2" />
                   {t('myPolls.tabArchive')}
                   {archivedPolls.length > 0 && (
                     <Badge variant="secondary" className="ml-2">{archivedPolls.length}</Badge>

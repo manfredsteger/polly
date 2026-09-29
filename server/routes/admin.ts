@@ -14,7 +14,7 @@ import { adminCacheService } from "../services/adminCacheService";
 import { imageService } from "../services/imageService";
 import type { User } from "@shared/schema";
 import { apiRateLimitsSettingsSchema, EMAIL_TEMPLATE_TYPES } from "@shared/schema";
-import { db } from "../db";
+import { db, pool } from "../db";
 import { testRuns } from "@shared/schema";
 import { eq, or, and, desc } from "drizzle-orm";
 
@@ -60,6 +60,30 @@ router.get('/system-status', requireAdmin, async (req, res) => {
     console.error('Error fetching system status:', error);
     res.status(500).json({ error: 'Interner Fehler beim Abrufen des Systemstatus' });
   }
+});
+
+router.get('/database-status', requireAdmin, async (_req, res) => {
+  let host = 'unknown';
+  let sslmode: string | null = null;
+  try {
+    const url = new URL(process.env.DATABASE_URL || '');
+    host = url.port ? `${url.hostname}:${url.port}` : url.hostname;
+    sslmode = url.searchParams.get('sslmode');
+  } catch {}
+
+  const sslEnabled =
+    process.env.DATABASE_SSL === 'true' ||
+    (process.env.DATABASE_SSL !== 'false' && ['require', 'verify-ca', 'verify-full'].includes(sslmode ?? ''));
+
+  let connected = false;
+  try {
+    await pool.query('SELECT 1');
+    connected = true;
+  } catch (error) {
+    console.error('Database status check failed:', error);
+  }
+
+  res.json({ host, connected, sslEnabled });
 });
 
 router.get('/vulnerabilities', requireAdmin, async (req, res) => {

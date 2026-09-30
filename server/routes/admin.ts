@@ -69,7 +69,9 @@ router.get('/database-status', requireAdmin, async (_req, res) => {
     const url = new URL(process.env.DATABASE_URL || '');
     host = url.port ? `${url.hostname}:${url.port}` : url.hostname;
     sslmode = url.searchParams.get('sslmode');
-  } catch {}
+  } catch(error) {
+    console.warn('Could not parse DATABASE_URL for status display:',error);
+  }
 
   const sslEnabled =
     process.env.DATABASE_SSL === 'true' ||

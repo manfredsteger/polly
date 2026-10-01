@@ -15,6 +15,13 @@ import {
   EMAIL_CHECK_WINDOW,
 } from "./common";
 import { registrationRateLimiter, passwordResetRateLimiter } from "../services/apiRateLimiterService";
+import bcrypt from 'bcryptjs';
+import { validatePasswordAgainstPolicy } from "../lib/passwordPolicy";
+import { generateTotpSecret, generateTotpQrCode, verifyTotpToken } from "../lib/totpService";
+import {
+  getEffectiveAdminMfaRequired,
+  requiresTotpChallenge,
+} from "../lib/mfaPolicy";
 
 const router = Router();
 
@@ -130,10 +137,13 @@ router.get('/methods', async (req, res) => {
     const registrationSetting = await storage.getSetting('registration_enabled');
     const registrationEnabled = registrationSetting?.value !== false;
     
-    // Build Keycloak account URL if configured
+    // Build Keycloak account URL if configured.
+    // The /account console is a Keycloak convention, not a generic OIDC endpoint —
+    // only expose it when the Keycloak-style config (realm + server URL) is present.
     let keycloakAccountUrl: string | undefined;
-    if (authService.isKeycloakEnabled() && process.env.KEYCLOAK_ISSUER_URL) {
-      keycloakAccountUrl = `${process.env.KEYCLOAK_ISSUER_URL}/account`;
+    const isKeycloakStyleConfig = !!(process.env.KEYCLOAK_REALM && (process.env.KEYCLOAK_AUTH_SERVER_URL || process.env.KEYCLOAK_URL));
+    if (authService.isKeycloakEnabled() && process.env.KEYCLOAK_ISSUER_URL && isKeycloakStyleConfig) {
+      keycloakAccountUrl = `${process.env.KEYCLOAK_ISSUER_URL.replace(/\/+$/, '')}/account`;
     }
     
     // Custom SSO button label: DB setting > ENV > undefined (frontend uses default i18n)
@@ -149,7 +159,14 @@ router.get('/methods', async (req, res) => {
     const hideLoginFormEnv = process.env.HIDE_LOGIN_FORM;
     const hideLoginForm = hideLoginFormEnv !== undefined && hideLoginFormEnv.toLowerCase() === 'true';
     const showLoginForm = !authService.isKeycloakEnabled() ? true : !hideLoginForm;
-    
+
+    // Skip the login page entirely and send the user straight to the SSO provider.
+    // ENV SSO_AUTO_REDIRECT=true (default: false). Only honoured when Keycloak is
+    // configured, so a misconfigured deployment can never lock itself out.
+    const autoRedirectSso =
+      authService.isKeycloakEnabled() &&
+      process.env.SSO_AUTO_REDIRECT?.toLowerCase() === 'true';
+
     res.json({
       local: true,
       keycloak: authService.isKeycloakEnabled(),
@@ -158,6 +175,7 @@ router.get('/methods', async (req, res) => {
       keycloakAccountUrl,
       ssoButtonLabel,
       showLoginForm,
+      autoRedirectSso,
     });
   } catch (error) {
     console.error('Error getting auth methods:', error);
@@ -224,10 +242,18 @@ router.post('/check-email', async (req, res) => {
     // Add small constant delay to prevent timing attacks
     await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
 
-    // Check if email is registered (case-insensitive lookup in storage)
+    // Check if email is registered in Polly DB (Scenario 2)
     const existingUser = await storage.getUserByEmail(email.trim());
-    
-    // If user is currently logged in, check if it's their email
+
+    // If no Polly record, check Keycloak — user may exist there but never logged in (Scenario 3)
+    let isKitaHubUser = false;
+    console.log('[check-email] oidcEnabled:', tokenService.isOIDCEnabled(), 'existingUser:', !!existingUser);
+    if (!existingUser && tokenService.isOIDCEnabled()) {
+      isKitaHubUser = await tokenService.checkEmailExistsInKeycloak(email.trim());
+      console.log('[check-email] keycloak result:', isKitaHubUser);
+    }
+
+    // If user is currently logged in, check if it's their own email
     let isOwnEmail = false;
     if (req.session.userId) {
       const currentUser = await storage.getUser(req.session.userId);
@@ -237,9 +263,10 @@ router.post('/check-email', async (req, res) => {
     }
 
     res.json({
-      registered: !!existingUser,
-      requiresLogin: !!existingUser && !isOwnEmail,
-      isOwnEmail
+      registered: !!existingUser || isKitaHubUser,
+      requiresLogin: (!!existingUser || isKitaHubUser) && !isOwnEmail,
+      isOwnEmail,
+      isKitaHubUser,
     });
   } catch (error) {
     console.error('Error checking email:', error);
@@ -280,21 +307,54 @@ router.post('/login', async (req, res) => {
     }
 
     await loginRateLimiter.recordSuccessfulLogin(data.usernameOrEmail, clientIp);
-    
-    req.session.regenerate((regenerateErr) => {
-      if (regenerateErr) {
-        console.error('Session regenerate error:', regenerateErr);
-        return res.status(500).json({ error: 'Interner Fehler' });
-      }
-      req.session.userId = user.id;
-      req.session.save((err) => {
-        if (err) {
-          console.error('Session save error:', err);
+
+    const loginCustomization = await storage.getCustomizationSettings();
+    const adminMfaRequired = getEffectiveAdminMfaRequired(loginCustomization.mfa?.adminMfaRequired ?? false);
+
+    // An enrolled MFA factor must always be challenged. The organisation policy
+    // controls whether unenrolled admins are forced to set MFA up; it must not
+    // silently turn an enrolled admin's MFA into password-only login.
+    //
+    // MFA_ADMIN_REQUIRED=false is the sole break-glass exception for admins who
+    // have lost their authenticator app.
+    const mfaRequiredForThisUser = requiresTotpChallenge(user);
+
+    if (mfaRequiredForThisUser) {
+      // MFA configured → pending step
+      req.session.regenerate((err) => {
+        if (err) return res.status(500).json({ error: 'Interner Fehler' });
+        req.session.pendingMfaUserId = user.id;
+        req.session.save((saveErr) => {
+          if (saveErr) return res.status(500).json({ error: 'Interner Fehler' });
+          return res.json({ requiresMfa: true });
+        });
+      });
+    } else if (user.provider === 'local' && (user.mfaRequired || (user.role === 'admin' && adminMfaRequired))) {
+      // User without MFA but policy requires it (per-user flag or admin-wide policy) → force setup
+      req.session.regenerate((err) => {
+        if (err) return res.status(500).json({ error: 'Interner Fehler' });
+        req.session.pendingMfaUserId = user.id;
+        req.session.save((saveErr) => {
+          if (saveErr) return res.status(500).json({ error: 'Interner Fehler' });
+          return res.json({ requiresMfaSetup: true });
+        });
+      });
+    } else {
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error('Session regenerate error:', regenerateErr);
           return res.status(500).json({ error: 'Interner Fehler' });
         }
-        res.json({ user: authService.sanitizeUser(user) });
+        req.session.userId = user.id;
+        req.session.save((err) => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ error: 'Interner Fehler' });
+          }
+          res.json({ user: authService.sanitizeUser(user) });
+        });
       });
-    });
+    }
   } catch (error) {
     // Validation errors are expected for missing/invalid fields,
     // return 400 without treating them as server errors.
@@ -319,6 +379,13 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
     }
     
     const data = registerSchema.parse(req.body);
+
+    const customizationReg = await storage.getCustomizationSettings();
+    const regPolicyErrors = validatePasswordAgainstPolicy(data.password, customizationReg.passwordPolicy);
+    if (regPolicyErrors.length > 0) {
+      return res.status(400).json({ error: regPolicyErrors[0] });
+    }
+
     const user = await authService.localRegister(
       data.username,
       data.email,
@@ -427,15 +494,71 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
   }
 });
 
+// Build the Keycloak RP-initiated logout (end-session) URL so the browser can
+// terminate the IdP SSO session, not just the local app session.
+// Gated behind SSO_SINGLE_LOGOUT=true (default: off) because the
+// post_logout_redirect_uri must be registered in the Keycloak client; an
+// unregistered URI makes Keycloak show an error page instead of returning.
+async function buildKeycloakLogoutUrl(): Promise<string | null> {
+  if (process.env.SSO_SINGLE_LOGOUT?.toLowerCase() !== 'true') {
+    console.log('[SLO] skipped: SSO_SINGLE_LOGOUT is not "true"');
+    return null;
+  }
+  if (!authService.isKeycloakEnabled()) {
+    console.log('[SLO] skipped: Keycloak is not enabled');
+    return null;
+  }
+
+  const cfg = authService.getDisplayConfig();
+  if (!cfg.issuerUrl || !cfg.clientId) {
+    console.log('[SLO] skipped: missing issuerUrl or clientId', { issuerUrl: cfg.issuerUrl, clientId: cfg.clientId });
+    return null;
+  }
+
+  const { getBaseUrl } = await import('../utils/baseUrl');
+  // Land on the public homepage after SSO logout, not the login page.
+  const postLogoutRedirectUri = getBaseUrl();
+  const endSession = `${cfg.issuerUrl.replace(/\/+$/, '')}/protocol/openid-connect/logout`;
+  return `${endSession}?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}&client_id=${encodeURIComponent(cfg.clientId)}`;
+}
+
 // Logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  // Only Keycloak-provisioned sessions get single-logout; local accounts are unaffected.
+  let keycloakLogoutUrl: string | null = null;
+  try {
+    const userId = req.session?.userId;
+    if (userId) {
+      const user = await storage.getUser(userId);
+      if (user?.provider === 'keycloak') {
+        keycloakLogoutUrl = await buildKeycloakLogoutUrl();
+        console.log('[SLO] keycloak session logout, url =', keycloakLogoutUrl);
+      } else {
+        console.log('[SLO] not a keycloak session, provider =', user?.provider);
+      }
+    }
+  } catch (err) {
+    console.error('Logout: failed to build Keycloak logout URL:', err);
+  }
+
   req.session.destroy((err: Error | null) => {
     if (err) {
       console.error('Logout error:', err);
       return res.status(500).json({ error: 'Fehler beim Abmelden' });
     }
-    res.json({ success: true });
+    res.json({ success: true, keycloakLogoutUrl: keycloakLogoutUrl ?? undefined });
   });
+});
+
+// Public: current password policy (needed by frontend for real-time validation)
+router.get('/password-policy', async (_req, res) => {
+  try {
+    const customization = await storage.getCustomizationSettings();
+    res.json(customization.passwordPolicy);
+  } catch (error) {
+    console.error('Password policy fetch error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
 });
 
 // Request password reset (for local accounts, with rate limiting)
@@ -479,9 +602,10 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Token und neues Passwort erforderlich' });
     }
 
-    // Validate password strength
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen lang sein' });
+    const resetCustomization = await storage.getCustomizationSettings();
+    const resetPolicyErrors = validatePasswordAgainstPolicy(newPassword, resetCustomization.passwordPolicy);
+    if (resetPolicyErrors.length > 0) {
+      return res.status(400).json({ error: resetPolicyErrors[0] });
     }
 
     const resetToken = await storage.getPasswordResetToken(token);
@@ -505,6 +629,18 @@ router.post('/reset-password', async (req, res) => {
     // Send notification email
     emailService.sendPasswordChangedEmail(user.email, user.name)
       .catch((emailError) => console.error(`[Password Changed] Failed to send notification to ${user.email}:`, emailError));
+
+    res.clearCookie('polly.sid', { path: '/' });
+
+    if (req.session?.userId) {
+      req.session.destroy((sessionError) => {
+        if (sessionError) {
+          console.error('Password reset logout error:', sessionError);
+        }
+        res.json({ success: true, message: 'Passwort wurde erfolgreich zurückgesetzt' });
+      });
+      return;
+    }
 
     res.json({ success: true, message: 'Passwort wurde erfolgreich zurückgesetzt' });
   } catch (error) {
@@ -539,6 +675,12 @@ router.post('/change-password', requireAuth, async (req, res) => {
     const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValid) {
       return res.status(400).json({ error: 'Aktuelles Passwort ist falsch' });
+    }
+
+    const changeCustomization = await storage.getCustomizationSettings();
+    const changePolicyErrors = validatePasswordAgainstPolicy(newPassword, changeCustomization.passwordPolicy);
+    if (changePolicyErrors.length > 0) {
+      return res.status(400).json({ error: changePolicyErrors[0] });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -657,6 +799,12 @@ router.get('/keycloak', async (req, res) => {
       return res.status(404).json({ error: 'Keycloak nicht konfiguriert' });
     }
 
+    const redirect = typeof req.query.redirect === 'string' ? req.query.redirect : null;
+    req.session.keycloakReturnTo =
+      redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/anmelden')
+        ? redirect
+        : '/';
+
     const { authUrl, codeVerifier, state } = await authService.initiateKeycloakLogin(req);
     req.session.keycloakCodeVerifier = codeVerifier;
     req.session.keycloakState = state;
@@ -703,11 +851,39 @@ router.get('/keycloak/callback', async (req, res) => {
 
     // Clear Keycloak session data and regenerate session to prevent fixation
     const keycloakUserId = user.id;
+    const keycloakReturnTo =
+      typeof req.session.keycloakReturnTo === 'string' &&
+      req.session.keycloakReturnTo.startsWith('/') &&
+      !req.session.keycloakReturnTo.startsWith('//')
+        ? req.session.keycloakReturnTo
+        : '/';
+
+    // Keycloak proves the primary identity, but it must not bypass an app-level
+    // TOTP factor that the user already enrolled. Keep the documented
+    // MFA_ADMIN_REQUIRED=false break-glass exception limited to administrators.
+    const requiresMfaChallenge = requiresTotpChallenge(user);
+    const mfaLoginUrl =
+      keycloakReturnTo === '/'
+        ? '/anmelden?mfa=verify'
+        : `/anmelden?mfa=verify&redirect=${encodeURIComponent(keycloakReturnTo)}`;
+
     req.session.regenerate((err) => {
       if (err) {
         console.error('Session regeneration error:', err);
         return res.redirect('/?error=session_error');
       }
+
+      if (requiresMfaChallenge) {
+        req.session.pendingMfaUserId = keycloakUserId;
+        return req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('Session save error:', saveErr);
+            return res.redirect('/?error=session_error');
+          }
+          return res.redirect(mfaLoginUrl);
+        });
+      }
+
       req.session.userId = keycloakUserId;
       req.session.lastActivity = Date.now();
       req.session.save((saveErr) => {
@@ -715,12 +891,206 @@ router.get('/keycloak/callback', async (req, res) => {
           console.error('Session save error:', saveErr);
           return res.redirect('/?error=session_error');
         }
-        res.redirect('/');
+        res.redirect(keycloakReturnTo);
       });
     });
   } catch (error) {
     console.error('Keycloak callback error:', error);
     res.redirect('/?error=auth_error');
+  }
+});
+
+// ============================================================
+// MFA / TOTP Endpoints
+// ============================================================
+
+// GET /mfa/status — current user's MFA status (requires auth)
+router.get('/mfa/status', requireAuth, async (req, res) => {
+  try {
+    const userId = await extractUserId(req);
+    const user = await storage.getUser(userId!);
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    return res.json({ enabled: user.totpEnabled });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/setup-init — generate TOTP secret + QR code (requires auth or pending session)
+router.post('/mfa/setup-init', async (req, res) => {
+  try {
+    const userId = req.session?.userId ?? req.session?.pendingMfaUserId;
+    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    if (user.totpEnabled) return res.status(400).json({ error: 'MFA ist bereits aktiviert' });
+
+    const secret = generateTotpSecret();
+    const customization = await storage.getCustomizationSettings();
+    const siteName = customization.branding?.siteName || 'Polly';
+    const qrCode = await generateTotpQrCode(user.email, secret, siteName);
+
+    // Temporarily store secret in session until confirmed
+    (req.session as any).pendingTotpSecret = secret;
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
+
+    return res.json({ secret, qrCode });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/setup-confirm — verify TOTP code and enable MFA
+router.post('/mfa/setup-confirm', async (req, res) => {
+  try {
+    const userId = req.session?.userId ?? req.session?.pendingMfaUserId;
+    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+
+    const { token } = req.body;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'TOTP-Code fehlt' });
+    }
+
+    const secret = (req.session as any).pendingTotpSecret;
+    if (!secret) return res.status(400).json({ error: 'Kein laufendes MFA-Setup gefunden' });
+
+    if (!verifyTotpToken(token.replace(/\s/g, ''), secret)) {
+      return res.status(400).json({ error: 'Ungültiger TOTP-Code' });
+    }
+
+    await storage.updateUser(userId, { totpSecret: secret, totpEnabled: true, mfaRequired: false });
+    delete (req.session as any).pendingTotpSecret;
+
+    // If this was a forced-setup flow (admin must configure MFA), complete login now
+    if (!req.session.userId && req.session.pendingMfaUserId) {
+      const setupUserId = req.session.pendingMfaUserId;
+      await new Promise<void>((resolve, reject) =>
+        req.session.regenerate((err) => (err ? reject(err) : resolve()))
+      );
+      req.session.userId = setupUserId;
+      await new Promise<void>((resolve, reject) =>
+        req.session.save((err) => (err ? reject(err) : resolve()))
+      );
+      const updatedUser = await storage.getUser(setupUserId);
+      return res.json({ success: true, user: updatedUser ? authService.sanitizeUser(updatedUser) : null });
+    }
+
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/validate — second step: validate TOTP during login
+router.post('/mfa/validate', async (req, res) => {
+  try {
+    const pendingUserId = req.session?.pendingMfaUserId;
+    if (!pendingUserId) {
+      return res.status(400).json({ error: 'Kein ausstehender MFA-Login' });
+    }
+
+    // Rate limiting: failed MFA attempts share the same lockout as login failures
+    const clientIp = req.ip || 'unknown';
+    const mfaRateLimitKey = `mfa:${pendingUserId}`;
+    const rateLimitCheck = await loginRateLimiter.checkRateLimit(mfaRateLimitKey, clientIp);
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({
+        error: rateLimitCheck.message || 'Zu viele Anmeldeversuche',
+        retryAfter: rateLimitCheck.retryAfter,
+      });
+    }
+
+    const { token } = req.body;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'TOTP-Code fehlt' });
+    }
+
+    const user = await storage.getUser(pendingUserId);
+    if (!user || !user.totpSecret || !user.totpEnabled) {
+      return res.status(400).json({ error: 'MFA nicht konfiguriert' });
+    }
+
+    const cleanToken = token.replace(/\s/g, '');
+
+    // Anti-replay: reject a TOTP code that has already been used in this time window
+    if (user.lastUsedTotpToken && user.lastUsedTotpToken === cleanToken) {
+      await loginRateLimiter.recordFailedAttempt(mfaRateLimitKey, clientIp);
+      return res.status(401).json({ error: 'Dieser TOTP-Code wurde bereits verwendet' });
+    }
+
+    if (!verifyTotpToken(cleanToken, user.totpSecret)) {
+      await loginRateLimiter.recordFailedAttempt(mfaRateLimitKey, clientIp);
+      return res.status(401).json({ error: 'Ungültiger TOTP-Code' });
+    }
+
+    // Mark token as used before completing the session upgrade
+    await storage.updateUser(user.id, { lastUsedTotpToken: cleanToken });
+    await loginRateLimiter.recordSuccessfulLogin(mfaRateLimitKey, clientIp);
+
+    // Complete the login
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve()))
+    );
+    req.session.userId = user.id;
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
+
+    return res.json({ user: authService.sanitizeUser(user) });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /mfa/disable — disable MFA (requires TOTP code or current password as fallback)
+router.post('/mfa/disable', requireAuth, async (req, res) => {
+  try {
+    const userId = await extractUserId(req);
+    const user = await storage.getUser(userId!);
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    if (!user.totpEnabled) return res.status(400).json({ error: 'MFA ist nicht aktiviert' });
+
+    // Policy check: when adminMfaRequired is active, admins cannot self-service-disable MFA.
+    // Doing so would circumvent the organisational security policy. Another admin must use
+    // the admin panel to reset MFA (e.g. when the admin loses their authenticator device).
+    const disableCustomization = await storage.getCustomizationSettings();
+    const adminMfaPolicy = getEffectiveAdminMfaRequired(disableCustomization.mfa?.adminMfaRequired ?? false);
+    if (adminMfaPolicy && user.role === 'admin') {
+      return res.status(403).json({
+        error: 'MFA-Deaktivierung nicht erlaubt: Die Admin-MFA-Pflicht ist aktiv. Wenden Sie sich an einen anderen Administrator.',
+        code: 'ADMIN_MFA_POLICY_ACTIVE',
+      });
+    }
+
+    const { token, password } = req.body;
+
+    if (token) {
+      const cleanToken = String(token).replace(/\s/g, '');
+      // Anti-replay: reject a TOTP code that has already been used in this time window
+      if (user.lastUsedTotpToken && user.lastUsedTotpToken === cleanToken) {
+        return res.status(400).json({ error: 'Dieser TOTP-Code wurde bereits verwendet' });
+      }
+      if (!verifyTotpToken(cleanToken, user.totpSecret!)) {
+        return res.status(400).json({ error: 'Ungültiger TOTP-Code' });
+      }
+      await storage.updateUser(userId!, { lastUsedTotpToken: cleanToken });
+    } else if (password) {
+      const valid = await bcrypt.compare(String(password), user.passwordHash!);
+      if (!valid) return res.status(400).json({ error: 'Ungültiges Passwort' });
+    } else {
+      return res.status(400).json({ error: 'TOTP-Code oder Passwort erforderlich' });
+    }
+
+    await storage.updateUser(userId!, { totpSecret: null, totpEnabled: false, lastUsedTotpToken: null });
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Interner Fehler' });
   }
 });
 

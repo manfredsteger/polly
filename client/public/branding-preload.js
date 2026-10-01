@@ -25,4 +25,35 @@
       }
     }
   } catch (e) {}
+
+  // PWA meta preload — sync iOS/standalone tags from cached settings before React mounts.
+  try {
+    var pwa = localStorage.getItem('polly-pwa-meta');
+    if (pwa) {
+      var meta = JSON.parse(pwa);
+      function setMeta(name, content) {
+        if (!content) return;
+        var el = document.querySelector('meta[name="' + name + '"]');
+        if (!el) {
+          el = document.createElement('meta');
+          el.setAttribute('name', name);
+          document.head.appendChild(el);
+        }
+        el.setAttribute('content', content);
+      }
+      if (meta.siteName) {
+        setMeta('apple-mobile-web-app-title', meta.siteName);
+        setMeta('application-name', meta.siteName);
+      }
+      if (meta.themeColor) {
+        setMeta('theme-color', meta.themeColor);
+      }
+      if (meta.lang) {
+        document.documentElement.setAttribute('lang', meta.lang);
+      }
+      if (meta.dir) {
+        document.documentElement.setAttribute('dir', meta.dir);
+      }
+    }
+  } catch (e) {}
 })();

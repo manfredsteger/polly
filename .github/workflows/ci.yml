@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, release]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, release]
 
 env:
   NODE_VERSION: '22'
@@ -32,6 +32,9 @@ jobs:
 
       - name: Validate Translations
         run: node scripts/validate-translations.cjs
+
+      - name: Public response privacy tests (no database)
+        run: npx vitest run --config vitest.privacy.config.ts
 
   test:
     name: Unit & Integration Tests
@@ -78,13 +81,13 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
         run: npx vitest run --reporter=verbose
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
         run: npx vitest run --coverage || true
 

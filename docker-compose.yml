@@ -65,7 +65,7 @@ services:
       # Default: Built automatically from POSTGRES_* variables (for integrated docker-compose setup)
       # External DB: Set DATABASE_URL directly in .env (POSTGRES_* variables will be ignored)
       # Example: DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly
-      DATABASE_URL: postgresql://${POSTGRES_USER:-polly}:${POSTGRES_PASSWORD:-polly_secret}@postgres:5432/${POSTGRES_DB:-polly}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-polly}:${POSTGRES_PASSWORD:-polly_secret}@postgres:5432/${POSTGRES_DB:-polly}}
       SESSION_SECRET: ${SESSION_SECRET:-change-this-in-production-to-a-secure-random-string}
       BASE_URL: ${BASE_URL:-http://localhost:3080}
       APP_URL: ${APP_URL:-http://localhost:3080}
@@ -84,8 +84,12 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
       KEYCLOAK_AUTH_SERVER_URL: ${KEYCLOAK_AUTH_SERVER_URL:-}
       KEYCLOAK_ISSUER_URL: ${KEYCLOAK_ISSUER_URL:-}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-}
       SSO_BUTTON_LABEL: ${SSO_BUTTON_LABEL:-}
       HIDE_LOGIN_FORM: ${HIDE_LOGIN_FORM:-false}
+      SSO_AUTO_REDIRECT: ${SSO_AUTO_REDIRECT:-false}
+      SSO_SINGLE_LOGOUT: ${SSO_SINGLE_LOGOUT:-false}
       # Runtime
       NODE_ENV: ${NODE_ENV:-production}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -98,9 +102,11 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@polly.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
       # ClamAV Antivirus Configuration
-      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-false}
-      CLAMAV_HOST: ${CLAMAV_HOST:-localhost}
-      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      # Leave unset to manage scanner settings in Admin → Security.
+      # Explicit values override a persisted scanner configuration at runtime.
+      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-}
+      CLAMAV_HOST: ${CLAMAV_HOST:-}
+      CLAMAV_PORT: ${CLAMAV_PORT:-}
       # Security Scanning
       PENTEST_TOOLS_API_TOKEN: ${PENTEST_TOOLS_API_TOKEN:-}
       # AI Assistant (Optional) — see docs/SELF-HOSTING.md for details
@@ -112,6 +118,8 @@ services:
       TEST_MODE_SECRET: ${TEST_MODE_SECRET:-polly-e2e-test-mode}
       # WCAG Override
       POLLY_WCAG_OVERRIDE: ${POLLY_WCAG_OVERRIDE:-false}
+      # Admin MFA policy emergency override (leave unset to use the admin setting)
+      MFA_ADMIN_REQUIRED: ${MFA_ADMIN_REQUIRED:-}
       # Branding (applied on first start; can be changed via Admin Panel afterwards)
       # SITE_NAME: ${SITE_NAME:-}           # e.g. "MyPolly"
       # SITE_NAME_ACCENT: ${SITE_NAME_ACCENT:-}  # e.g. "y" (highlighted letter)

@@ -189,10 +189,8 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     const voterNameInput = popup.locator('[data-testid="input-voter-name"]');
     await expect(voterNameInput).toBeVisible({ timeout: 10000 });
     await voterNameInput.fill('Test Voter');
-    await popup.fill('[data-testid="input-voter-email"]', `voter-${nanoid(4)}@test.com`);
-    
-    // Wait for voting interface to fully render
-    await popup.waitForTimeout(1000);
+    const voterEmailInput = popup.locator('[data-testid="input-voter-email"]');
+    await voterEmailInput.fill(`voter-${nanoid(4)}@test.com`);
     
     // Click yes on first option
     const yesButton0 = popup.locator('[data-testid="vote-yes-0"]');
@@ -204,14 +202,18 @@ test.describe('Umfrage (Survey) - Vollständiger Workflow', () => {
     await expect(noButton1).toBeVisible({ timeout: 10000 });
     await noButton1.click();
     
-    // Wait for the votes to be registered
-    await popup.waitForTimeout(500);
-    
-    // Submit vote - button should now be enabled since all options answered
+    // Re-focus the email field immediately before submitting. The first
+    // submit click also causes blur, which starts email validation. It must
+    // still submit exactly one vote without requiring a second click.
+    await voterEmailInput.focus();
     const submitButton = popup.locator('[data-testid="button-submit-vote"]');
     await expect(submitButton).toBeVisible({ timeout: 10000 });
     await expect(submitButton).toBeEnabled({ timeout: 10000 });
+    const voteRequest = popup.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/vote-bulk')
+    );
     await submitButton.click();
+    await voteRequest;
     
     // Wait for success page
     await popup.waitForURL('**/vote-success**', { timeout: 30000 });
@@ -378,13 +380,17 @@ test.describe('Stimme bearbeiten', () => {
     const optionId = pollData.poll.options[0].id;
     const voteResponse = await voteViaAPI(page, pollData.publicToken, 'Edit Voter', optionId, 'yes');
     
-    // Get edit token from response (use .data for pre-parsed JSON)
+    // Guest responses must not expose the link. For this test only, use the
+    // organizer credential of the poll fixture to retrieve the persisted token.
     const voteData = voteResponse.data as any;
-    const editToken = voteData?.editToken || voteData?.voterEditToken;
-    
-    // Assert that edit token was returned (allowVoteEdit:true should always generate one)
-    expect(editToken, 'Vote response should include voterEditToken when allowVoteEdit is true').toBeTruthy();
-    
+    expect(voteData?.voterEditToken).toBeUndefined();
+    expect(voteData?.votes?.[0]?.voterEditToken).toBeUndefined();
+    const adminResponse = await page.request.get(`/api/v1/polls/admin/${pollData.adminToken}`);
+    expect(adminResponse.ok()).toBeTruthy();
+    const adminPoll = await adminResponse.json();
+    const editToken = adminPoll.votes.find((vote: any) => vote.id === voteData.votes[0].id)?.voterEditToken;
+    expect(editToken).toBeTruthy();
+
     // Route is /edit/:editToken (not /vote/edit)
     await page.goto(`/edit/${editToken}`);
     await page.waitForLoadState('networkidle');

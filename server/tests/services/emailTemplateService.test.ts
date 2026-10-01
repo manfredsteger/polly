@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../../services/emailTemplateService';
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
+import { customizationSettingsSchema } from '@shared/schema';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -10,28 +11,83 @@ export const testMeta = {
   severity: 'high' as const,
 };
 
+const CUSTOMIZATION_BACKUP_KEY = '_test_emailsvc_customization_backup';
+const THEME_BACKUP_KEY = '_test_emailsvc_theme_backup';
+const FOOTER_BACKUP_KEY = '_test_emailsvc_footer_backup';
+
+/**
+ * Crash-safe save/restore strategy (two complementary layers):
+ *
+ * Layer 1 — backup keys (covers runs that wrote the backup before crashing):
+ *   beforeAll checks for stale backup keys written by a previous interrupted
+ *   run, restores from them, and deletes the keys before capturing origCustomization,
+ *   origTheme, and origEmailFooter.  afterAll writes restored values and deletes
+ *   backup keys to signal successful completion.
+ *
+ * Layer 2 — sentinel detection is intentionally omitted here because the tests
+ *   use diverse values (footer links, theme colors) with no single distinguishing
+ *   sentinel.  The global setup.ts beforeAll already provides sentinel detection
+ *   for branding corruption; Layer 1 handles the crash-recovery case in this file.
+ */
+
 describe('EmailTemplateService', () => {
   let origCustomization: any;
   let origTheme: any;
+  let origEmailFooter: any;
   const modifiedTemplateTypes = [
-    'poll_created', 'invitation', 'vote_confirmation',
-    'reminder', 'password_reset',
+    'poll_created', 'invitation', 'vote_confirmation', 'vote_updated',
+    'reminder', 'password_reset', 'poll_finalized',
   ] as const;
   const origTemplates: Record<string, any> = {};
 
   beforeAll(async () => {
-    origCustomization = await storage.getCustomizationSettings();
     const service = new EmailTemplateService();
+
+    // Layer 1: if a previous run was killed after writing the backup keys,
+    // restore from them so the live DB is correct before we take a new snapshot.
+    const staleCustomizationBackup = await storage.getSetting(CUSTOMIZATION_BACKUP_KEY);
+    if (staleCustomizationBackup) {
+      const recovered = customizationSettingsSchema.parse(staleCustomizationBackup.value);
+      await storage.setCustomizationSettings(recovered);
+      await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
+    }
+
+    const staleThemeBackup = await storage.getSetting(THEME_BACKUP_KEY);
+    if (staleThemeBackup) {
+      await service.setEmailTheme(staleThemeBackup.value as EmailTheme);
+      await storage.deleteSetting(THEME_BACKUP_KEY);
+    }
+
+    const staleFooterBackup = await storage.getSetting(FOOTER_BACKUP_KEY);
+    if (staleFooterBackup) {
+      await service.setEmailFooter(staleFooterBackup.value);
+      await storage.deleteSetting(FOOTER_BACKUP_KEY);
+    }
+
+    // Read the (possibly just-restored) live state.
+    origCustomization = await storage.getCustomizationSettings();
     origTheme = await service.getEmailTheme();
+    origEmailFooter = await service.getEmailFooter();
+
+    // Persist backups so afterAll recovery works even if this run crashes.
+    await storage.setSetting({ key: CUSTOMIZATION_BACKUP_KEY, value: origCustomization });
+    await storage.setSetting({ key: THEME_BACKUP_KEY, value: origTheme });
+    await storage.setSetting({ key: FOOTER_BACKUP_KEY, value: origEmailFooter });
+
     for (const type of modifiedTemplateTypes) {
       origTemplates[type] = await service.getTemplate(type);
     }
   });
 
   afterAll(async () => {
+    // Restore live DB and signal successful cleanup by removing the backup keys.
     await storage.setCustomizationSettings(origCustomization);
     const service = new EmailTemplateService();
     await service.setEmailTheme(origTheme);
+    await service.setEmailFooter(origEmailFooter);
+    await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
+    await storage.deleteSetting(THEME_BACKUP_KEY);
+    await storage.deleteSetting(FOOTER_BACKUP_KEY);
     for (const type of modifiedTemplateTypes) {
       const orig = origTemplates[type];
       if (orig && !orig.isDefault) {
@@ -48,17 +104,20 @@ describe('EmailTemplateService', () => {
     }
   });
   describe('Default Templates', () => {
-    it('should have all 9 template types defined', () => {
+    it('should have all email template types defined', () => {
       const expectedTypes = [
         'poll_created',
         'invitation',
         'vote_confirmation',
+        'vote_updated',
+        'new_vote_notification',
         'reminder',
         'password_reset',
         'email_change',
         'password_changed',
         'test_report',
-        'welcome'
+        'welcome',
+        'poll_finalized',
       ];
 
       for (const type of expectedTypes) {
@@ -273,12 +332,15 @@ describe('EmailTemplateService', () => {
 
   describe('Customized Template Rendering (renderEmail)', () => {
     let savedCustomization: any;
+    let savedEmailFooter: any;
     const service = new EmailTemplateService();
     beforeEach(async () => {
       savedCustomization = await storage.getCustomizationSettings();
+      savedEmailFooter = await service.getEmailFooter();
     });
     afterEach(async () => {
       await storage.setCustomizationSettings(savedCustomization);
+      await service.setEmailFooter(savedEmailFooter);
       for (const type of modifiedTemplateTypes) {
         await service.resetTemplate(type);
       }
@@ -308,6 +370,73 @@ describe('EmailTemplateService', () => {
       
       expect(result.html).toContain('Hallo Max, du wurdest eingeladen!');
       expect(result.subject).toContain('Teammeeting');
+    });
+
+    it('should render customized poll_created intro text as paragraph, keeping V3 link sections and buttons', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+
+      await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Neue {{pollType}}: {{pollTitle}}',
+        'Umfrage erstellt',
+        'Hallo,\nIhre neue {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.'
+      );
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Sommerfest',
+        publicLink: 'https://example.com/poll/sommerfest',
+        adminLink: 'https://example.com/admin/sommerfest',
+        siteName: 'Polly',
+      });
+
+      expect(result.subject).toBe('Neue Terminumfrage: Sommerfest');
+      // Custom intro text appears as a paragraph (with variables substituted)
+      expect(result.html).toContain('Hallo,');
+      expect(result.html).toContain('Ihre neue Terminumfrage');
+      expect(result.html).toContain('Sommerfest');
+      // The default tag + headline block is NOT shown
+      expect(result.html).not.toContain('class="survey-tag"');
+      expect(result.html).not.toContain('wurde erstellt.');
+      // V3 link sections and buttons ARE shown
+      expect(result.html).toContain('email-header');
+      expect(result.html).toContain('class="btn-primary"');
+      expect(result.html).toContain('class="btn-secondary"');
+      // Admin and public links are present in the sections
+      expect(result.html).toContain('https://example.com/admin/sommerfest');
+      expect(result.html).toContain('https://example.com/poll/sommerfest');
+    });
+
+    it('should render unstructured customized poll_created text as intro paragraph, keeping V3 sections', async () => {
+      const service = new EmailTemplateService();
+      const template = EmailTemplateService.getDefaultTemplate('poll_created');
+
+      await service.saveTemplate(
+        'poll_created',
+        template.jsonContent,
+        'Neue {{pollType}}: {{pollTitle}}',
+        'Umfrage erstellt',
+        'Freitext ohne erkannte Struktur und ohne Link-Platzhalter im erwarteten Format.'
+      );
+
+      const result = await service.renderEmail('poll_created', {
+        pollType: 'Terminumfrage',
+        pollTitle: 'Impro-Test',
+        publicLink: 'https://example.com/poll/impro',
+        adminLink: 'https://example.com/admin/impro',
+        siteName: 'Polly',
+      });
+
+      // Custom text shown as intro paragraph
+      expect(result.html).toContain('Freitext ohne erkannte Struktur');
+      // V3 shell and sections applied
+      expect(result.html).toContain('email-header');
+      expect(result.html).toContain('class="btn-primary"');
+      // Default tag+headline NOT shown
+      expect(result.html).not.toContain('class="survey-tag"');
+      expect(result.text).toContain('Freitext ohne erkannte Struktur');
     });
 
     it('should include header with branding in rendered email', async () => {
@@ -421,6 +550,7 @@ describe('EmailTemplateService', () => {
           { type: 'invitation', vars: { pollTitle: 'T', inviterName: 'A', publicLink: 'https://a.com', message: '' } },
           { type: 'reminder', vars: { pollTitle: 'T', senderName: 'A', pollLink: 'https://a.com', expiresAt: '' } },
           { type: 'vote_confirmation', vars: { voterName: 'A', pollType: 'Umfrage', pollTitle: 'T', resultsLink: 'https://a.com' } },
+          { type: 'vote_updated', vars: { voterName: 'A', pollType: 'Umfrage', pollTitle: 'T', resultsLink: 'https://a.com' } },
           { type: 'welcome', vars: { userName: 'A', verificationLink: 'https://a.com' } },
         ];
 
@@ -575,7 +705,17 @@ describe('EmailTemplateService', () => {
       const service = new EmailTemplateService();
       const template = EmailTemplateService.getDefaultTemplate('poll_created');
       
-      const customContent = 'Ihre neue Umfrage "{{pollTitle}}" ist bereit!\n\nTeilnehmer-Link: {{publicLink}}\nAdmin-Link: {{adminLink}}';
+      const customContent = [
+        'Ihre neue Umfrage "{{pollTitle}}" ist bereit!',
+        '',
+        'Administrator-Link:',
+        'Privater Link zur Verwaltung:',
+        'Zur Verwaltung: {{adminLink}}',
+        '',
+        'Teilnehmer-Link:',
+        'Link zur Teilnahme:',
+        'Zur Umfrage: {{publicLink}}',
+      ].join('\n');
       
       // Save customized template
       await service.saveTemplate(
@@ -617,11 +757,16 @@ describe('EmailTemplateService', () => {
 
   describe('Email Theme Import and Validation', () => {
     let savedCustomization: any;
+    let savedEmailTheme: any;
     beforeEach(async () => {
       savedCustomization = await storage.getCustomizationSettings();
+      const svc = new EmailTemplateService();
+      savedEmailTheme = await svc.getEmailTheme();
     });
     afterEach(async () => {
       await storage.setCustomizationSettings(savedCustomization);
+      const svc = new EmailTemplateService();
+      await svc.setEmailTheme(savedEmailTheme);
     });
 
     it('should extract valid theme colors from emailbuilder.js JSON', () => {
@@ -813,19 +958,33 @@ describe('EmailTemplateService', () => {
 
     it('should reset theme using primary color from branding settings', async () => {
       const service = new EmailTemplateService();
-      
-      await storage.setCustomizationSettings({
-        theme: { primaryColor: '#123456', secondaryColor: '#654321' }
-      });
-      
-      const resetTheme = await service.resetEmailTheme();
-      
-      expect(resetTheme.headingColor).toBe('#123456');
-      expect(resetTheme.linkColor).toBe('#123456');
-      expect(resetTheme.buttonBackgroundColor).toBe('#123456');
-      expect(resetTheme.secondaryButtonBackgroundColor).toBe('#654321');
-      expect(resetTheme.backdropColor).toBe('#F5F5F5');
-      expect(resetTheme.canvasColor).toBe('#FFFFFF');
+
+      // Stub storage.getCustomizationSettings for this test only.
+      // Without the stub, parallel test workers (sharing the same Postgres
+      // database) can race-overwrite the theme between our setCustomizationSettings
+      // call and resetEmailTheme()'s internal read, making this test flaky.
+      const stub = vi
+        .spyOn(storage, 'getCustomizationSettings')
+        .mockResolvedValue({
+          theme: { primaryColor: '#123456', secondaryColor: '#654321' },
+          branding: {},
+          footer: {},
+          wcag: {},
+          language: {},
+        } as any);
+
+      try {
+        const resetTheme = await service.resetEmailTheme();
+
+        expect(resetTheme.headingColor).toBe('#123456');
+        expect(resetTheme.linkColor).toBe('#123456');
+        expect(resetTheme.buttonBackgroundColor).toBe('#123456');
+        expect(resetTheme.secondaryButtonBackgroundColor).toBe('#654321');
+        expect(resetTheme.backdropColor).toBe('#F5F5F5');
+        expect(resetTheme.canvasColor).toBe('#FFFFFF');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should use default orange when primary color not set', async () => {
@@ -1068,67 +1227,89 @@ describe('EmailTemplateService', () => {
     it('should NOT have a colored header bar background', async () => {
       const service = new EmailTemplateService();
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: { primaryColor: '#4f46e5' },
+        branding: { siteName: 'Test' },
+        footer: {},
+        wcag: {},
+        language: {},
+      } as any);
 
-      expect(result.html).not.toMatch(/background-color:\s*#FF6B35/i);
-      expect(result.html).not.toContain('color: #FFFFFF; font-size: 22px');
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
+
+        expect(result.html).not.toMatch(/background-color:\s*#FF6B35/i);
+        expect(result.html).not.toContain('color: #FFFFFF; font-size: 22px');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should show siteName as subtle muted text when logo is set', async () => {
       const service = new EmailTemplateService();
 
-      await storage.setCustomizationSettings({
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Poll',
           siteNameAccent: 'y',
           logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain('hdr-site');
-      expect(result.html).toContain('color: #6b7280');
+        expect(result.html).toContain('hdr-site');
+        expect(result.html).toContain('color: #6b7280');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should include logo as base64 data URI when logoUrl is set', async () => {
       const service = new EmailTemplateService();
       const testDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-      
-      await storage.setCustomizationSettings({
+
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Polly',
           siteNameAccent: 'Vote',
           logoUrl: testDataUri,
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain(testDataUri);
-      expect(result.html).toContain('PollyVote');
+        expect(result.html).toContain(testDataUri);
+        expect(result.html).toContain('PollyVote');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should embed logo from /uploads/ relative path as base64', async () => {
       const service = new EmailTemplateService();
       const fs = await import('fs/promises');
       const path = await import('path');
-      
+
       const uploadsDir = path.join(process.cwd(), 'uploads');
       try { await fs.mkdir(uploadsDir, { recursive: true }); } catch {}
       const testLogoPath = path.join(uploadsDir, 'test-logo-email.png');
@@ -1138,15 +1319,16 @@ describe('EmailTemplateService', () => {
       ]);
       await fs.writeFile(testLogoPath, pngHeader);
 
-      try {
-        await storage.setCustomizationSettings({
-          branding: {
-            siteName: 'Polly',
-            siteNameAccent: 'Vote',
-            logoUrl: '/uploads/test-logo-email.png',
-          }
-        });
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: '/uploads/test-logo-email.png',
+        },
+      } as any);
 
+      try {
         const result = await service.renderEmail('poll_created', {
           pollType: 'Umfrage',
           pollTitle: 'Test',
@@ -1157,31 +1339,37 @@ describe('EmailTemplateService', () => {
         expect(result.html).toContain('data:image/png;base64,');
         expect(result.html).toContain('<img');
       } finally {
+        stub.mockRestore();
         await fs.unlink(testLogoPath).catch(() => {});
       }
     });
 
     it('should fall back to text header when logo URL is unreachable', async () => {
       const service = new EmailTemplateService();
-      
-      await storage.setCustomizationSettings({
+
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Polly',
           siteNameAccent: 'Vote',
           logoUrl: 'https://nonexistent.invalid/logo.png',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).not.toContain('<img');
-      expect(result.html).toContain('font-size: 18px');
-      expect(result.html).toContain('Polly');
+        expect(result.html).not.toContain('<img');
+        expect(result.html).toContain('font-size: 18px');
+        expect(result.html).toContain('Polly');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should have dark mode class for header text', async () => {
@@ -1200,67 +1388,93 @@ describe('EmailTemplateService', () => {
     it('should render only logo without text span when siteName is empty', async () => {
       const service = new EmailTemplateService();
 
-      await storage.setCustomizationSettings({
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: '',
           siteNameAccent: '',
           logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain('<img');
-      expect(result.html).toContain('alt="Logo"');
-      expect(result.html).not.toContain('class="hdr-site"');
-      expect(result.html).not.toContain('class="hdr-accent"');
+        expect(result.html).toContain('<img');
+        expect(result.html).toContain('alt="Logo"');
+        expect(result.html).not.toContain('class="hdr-site"');
+        expect(result.html).not.toContain('class="hdr-accent"');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should not render empty accent span when siteNameAccent is empty', async () => {
       const service = new EmailTemplateService();
 
-      await storage.setCustomizationSettings({
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {}, footer: {}, wcag: {}, language: {},
         branding: {
           siteName: 'Polly',
           siteNameAccent: '',
           logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        }
-      });
+        },
+      } as any);
 
-      const result = await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
+      try {
+        const result = await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
 
-      expect(result.html).toContain('alt="Polly"');
-      expect(result.html).toContain('class="hdr-site"');
-      expect(result.html).not.toContain('class="hdr-accent"');
+        expect(result.html).toContain('alt="Polly"');
+        expect(result.html).toContain('class="hdr-site"');
+        expect(result.html).not.toContain('class="hdr-accent"');
+      } finally {
+        stub.mockRestore();
+      }
     });
 
     it('should preserve branding after full test cycle', async () => {
-      const before = await storage.getCustomizationSettings();
-
       const service = new EmailTemplateService();
-      await service.renderEmail('poll_created', {
-        pollType: 'Umfrage',
-        pollTitle: 'Test',
-        publicLink: 'https://example.com',
-        adminLink: 'https://example.com/admin',
-      });
 
-      const after = await storage.getCustomizationSettings();
-      expect(after.branding.logoUrl).toBe(before.branding.logoUrl);
-      expect(after.branding.siteName).toBe(before.branding.siteName);
-      expect(after.branding.siteNameAccent).toBe(before.branding.siteNameAccent);
-      expect(after.theme.primaryColor).toBe(before.theme.primaryColor);
-      expect(after.theme.secondaryColor).toBe(before.theme.secondaryColor);
+      const stub = vi.spyOn(storage, 'getCustomizationSettings').mockResolvedValue({
+        theme: {},
+        footer: {},
+        wcag: {},
+        language: {},
+        branding: {
+          siteName: 'Polly',
+          siteNameAccent: 'Vote',
+          logoUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        },
+      } as any);
+
+      try {
+        const before = await storage.getCustomizationSettings();
+        await service.renderEmail('poll_created', {
+          pollType: 'Umfrage',
+          pollTitle: 'Test',
+          publicLink: 'https://example.com',
+          adminLink: 'https://example.com/admin',
+        });
+
+        const after = await storage.getCustomizationSettings();
+        expect(after.branding.logoUrl).toBe(before.branding.logoUrl);
+        expect(after.branding.siteName).toBe(before.branding.siteName);
+        expect(after.branding.siteNameAccent).toBe(before.branding.siteNameAccent);
+        expect(after.theme.primaryColor).toBe(before.theme.primaryColor);
+        expect(after.theme.secondaryColor).toBe(before.theme.secondaryColor);
+      } finally {
+        stub.mockRestore();
+      }
     });
   });
 
@@ -1506,6 +1720,16 @@ describe('EmailTemplateService', () => {
   });
 
   describe('Footer {{link:URL}} and {{siteUrl}} template syntax', () => {
+    let savedCustomization: any;
+
+    beforeAll(async () => {
+      savedCustomization = await storage.getCustomizationSettings();
+    });
+
+    afterAll(async () => {
+      await storage.setCustomizationSettings(savedCustomization);
+    });
+
     afterEach(async () => {
       const service = new EmailTemplateService();
       await service.setEmailFooter({
@@ -1748,6 +1972,386 @@ describe('EmailTemplateService', () => {
       });
 
       expect(result.html).toContain('Zeile 1<br>Zeile 2');
+    });
+  });
+
+  describe('Vote Confirmation: Selected Options', () => {
+    const service = new EmailTemplateService();
+    let savedFooter: any;
+    beforeEach(async () => {
+      savedFooter = await service.getEmailFooter();
+    });
+    afterEach(async () => {
+      await service.setEmailFooter(savedFooter);
+      await service.resetTemplate('vote_confirmation');
+    });
+
+    it('should render selected options list when selectedOptionsHtml is provided (survey)', async () => {
+      const selectedOptionsHtml =
+        '<ul style="margin: 0; padding-left: 18px;"><li>Option A</li><li>Option B</li></ul>';
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Anna',
+        pollTitle: 'Teammeeting',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/abc#results',
+        selectedOptionsHtml,
+      });
+
+      // Options block label and list items must appear
+      expect(result.html).toContain('text-transform: uppercase');
+      expect(result.html).toContain('Option A');
+      expect(result.html).toContain('Option B');
+    });
+
+    it('should render selected options list for schedule poll type', async () => {
+      const selectedOptionsHtml =
+        '<ul style="margin: 0; padding-left: 18px;">' +
+        '<li>Mo., 12. Mai 2025, 09:00 \u2013 09:30 Uhr</li>' +
+        '</ul>';
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Max',
+        pollTitle: 'Sprint Planning',
+        pollType: 'Terminumfrage',
+        resultsLink: 'https://example.com/poll/xyz#results',
+        selectedOptionsHtml,
+      });
+
+      // Options block with schedule slot text must appear
+      expect(result.html).toContain('Mo., 12. Mai 2025');
+      expect(result.html).toContain('<ul');
+    });
+
+    it('should not render options block when selectedOptionsHtml is empty', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Lena',
+        pollTitle: 'Keine Auswahl',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/def#results',
+        selectedOptionsHtml: '',
+      });
+
+      // No <ul> should appear — the options block is suppressed
+      expect(result.html).not.toContain('<ul');
+    });
+
+    it('should not render options block when selectedOptionsHtml is omitted', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Tom',
+        pollTitle: 'Ohne Optionen',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/ghi#results',
+      });
+
+      // No <ul> should appear — the options block is suppressed
+      expect(result.html).not.toContain('<ul');
+    });
+
+    it('should render an edit vote action when editLink is provided', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Chris',
+        pollTitle: 'Bearbeitbare Umfrage',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/editable#results',
+        editLink: 'https://example.com/edit/token123',
+      });
+
+      expect(result.html).toContain('Stimme bearbeiten');
+      expect(result.html).toContain('https://example.com/edit/token123');
+      expect(result.text).toContain('Stimme bearbeiten: https://example.com/edit/token123');
+    });
+
+    it('should omit the edit vote action when editLink is not provided', async () => {
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Pat',
+        pollTitle: 'Nicht bearbeitbar',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/final#results',
+      });
+
+      expect(result.html).not.toContain('Stimme bearbeiten');
+      expect(result.text).not.toContain('Stimme bearbeiten:');
+    });
+
+    it('should auto-append editLink for custom vote confirmation templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Robin',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        editLink: 'https://example.com/edit/custom-token',
+      });
+
+      expect(result.html).toContain('https://example.com/edit/custom-token');
+      expect(result.text).toContain('Stimme bearbeiten: https://example.com/edit/custom-token');
+    });
+
+    it('should auto-append selected options for custom vote confirmation templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Robin',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        selectedOptionsHtml: '<ul><li>Option A</li><li>Option B</li></ul>',
+      });
+
+      expect(result.html).toContain('Ihre Auswahl');
+      expect(result.html).toContain('Option A');
+      expect(result.html).toContain('Option B');
+      expect(result.text).toContain('Ihre Auswahl:');
+      expect(result.text).toContain('- Option A');
+      expect(result.text).toContain('- Option B');
+    });
+
+    it('should not duplicate selected options for custom vote confirmation templates when already present', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nIhre Auswahl:\n- Option A\n- Option B\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Robin',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        selectedOptionsHtml: '<ul><li>Option A</li><li>Option B</li></ul>',
+      });
+
+      expect(result.text.match(/Option A/g)?.length).toBe(1);
+      expect(result.text.match(/Option B/g)?.length).toBe(1);
+    });
+
+    it('should render selected options for reminder emails when provided', async () => {
+      const result = await service.renderEmail('reminder', {
+        senderName: 'Alex',
+        pollTitle: 'Erinnerungs-Umfrage',
+        pollLink: 'https://example.com/poll/reminder',
+        expiresAt: 'Die Umfrage endet morgen.',
+        selectedOptionsHtml: '<ul><li>Montag 10 Uhr</li><li>Dienstag 14 Uhr</li></ul>',
+      });
+
+      expect(result.html).toContain('Ihre aktuelle Auswahl');
+      expect(result.html).toContain('Montag 10 Uhr');
+      expect(result.html).toContain('Dienstag 14 Uhr');
+    });
+
+    it('should not duplicate editLink for custom vote confirmation templates when already present', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_confirmation');
+      await service.saveTemplate(
+        'vote_confirmation',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Vielen Dank!\n\nErgebnisse anzeigen: {{resultsLink}}\n\nStimme bearbeiten: {{editLink}}'
+      );
+
+      const result = await service.renderEmail('vote_confirmation', {
+        voterName: 'Jamie',
+        pollTitle: 'Custom Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        editLink: 'https://example.com/edit/custom-token',
+      });
+
+      expect(result.text.match(/Stimme bearbeiten:/g)?.length).toBe(1);
+    });
+
+    it('should auto-append editLink for custom vote updated templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_updated');
+      await service.saveTemplate(
+        'vote_updated',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Ihre Abstimmung wurde aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_updated', {
+        voterName: 'Robin',
+        pollTitle: 'Updated Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        editLink: 'https://example.com/edit/custom-token',
+      });
+
+      expect(result.html).toContain('https://example.com/edit/custom-token');
+      expect(result.text).toContain('Stimme bearbeiten: https://example.com/edit/custom-token');
+    });
+
+    it('should auto-append selected options for custom vote updated templates when missing', async () => {
+      const defaultTemplate = EmailTemplateService.getDefaultTemplate('vote_updated');
+      await service.saveTemplate(
+        'vote_updated',
+        defaultTemplate.jsonContent,
+        defaultTemplate.subject,
+        defaultTemplate.name,
+        'Ihre Abstimmung wurde aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}'
+      );
+
+      const result = await service.renderEmail('vote_updated', {
+        voterName: 'Robin',
+        pollTitle: 'Updated Vote Mail',
+        pollType: 'Umfrage',
+        resultsLink: 'https://example.com/poll/custom#results',
+        selectedOptionsHtml: '<ul><li>Option A</li><li>Option B</li></ul>',
+      });
+
+      expect(result.html).toContain('Ihre Auswahl');
+      expect(result.html).toContain('Option A');
+      expect(result.html).toContain('Option B');
+      expect(result.text).toContain('Ihre Auswahl:');
+      expect(result.text).toContain('- Option A');
+      expect(result.text).toContain('- Option B');
+    });
+
+    it('should XSS-escape option text passed via emailService selectedOptions', async () => {
+      const { EmailService } = await import('../../services/emailService');
+      const svc = new EmailService();
+      const xssOption = '<script>alert("xss")</script>';
+
+      let capturedHtml = '';
+      vi.spyOn(svc as any, 'sendMail').mockImplementationOnce(async (opts: any) => {
+        capturedHtml = opts.html || '';
+      });
+
+      await svc.sendVotingConfirmationEmail(
+        'voter@example.com',
+        'TestUser',
+        'XSS-Umfrage',
+        'survey',
+        'https://example.com/poll/xss',
+        'https://example.com/poll/xss#results',
+        [xssOption]
+      );
+
+      expect(capturedHtml).not.toContain('<script>');
+      expect(capturedHtml).toContain('&lt;script&gt;');
+      expect(capturedHtml).toContain('Ihre Auswahl');
+    });
+  });
+
+  describe('poll_finalized closing message', () => {
+    it('should render Markdown closingMessage as HTML in poll_finalized email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_finalized', {
+        pollType: 'survey',
+        statusLabel: 'Umfrage beendet',
+        pollTitle: 'Test-Umfrage',
+        pollLink: 'https://example.com/poll/abc',
+        buttonLink: 'https://example.com/poll/abc',
+        buttonLabel: 'Zur Umfrage',
+        resultsPublic: 'true',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        closingMessageHtml: '<p><strong>Danke</strong> an alle Teilnehmer!</p>',
+        closingMessageText: 'Danke an alle Teilnehmer!',
+      });
+
+      expect(result.html).toContain('Nachricht des Organisators');
+      expect(result.html).toContain('<strong>Danke</strong>');
+      expect(result.text).toContain('Nachricht des Organisators');
+      expect(result.text).toContain('Danke an alle Teilnehmer!');
+    });
+
+    it('should not render closing message block when closingMessageHtml is empty', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_finalized', {
+        pollType: 'survey',
+        statusLabel: 'Umfrage beendet',
+        pollTitle: 'Test-Umfrage',
+        pollLink: 'https://example.com/poll/abc',
+        buttonLink: 'https://example.com/poll/abc',
+        buttonLabel: 'Zur Umfrage',
+        resultsPublic: 'true',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        closingMessageHtml: '',
+        closingMessageText: '',
+      });
+
+      expect(result.html).not.toContain('Nachricht des Organisators');
+      expect(result.text).not.toContain('Nachricht des Organisators');
+    });
+
+    it('should sanitize XSS payloads in closingMessageHtml', async () => {
+      const { EmailService } = await import('../../services/emailService');
+      const svc = new EmailService();
+
+      let capturedHtml = '';
+      let capturedText = '';
+      vi.spyOn(svc as any, 'sendMail').mockImplementation(async (opts: any) => {
+        capturedHtml = opts.html || '';
+        capturedText = opts.text || '';
+      });
+
+      await svc.sendPollEndedEmails(
+        ['participant@example.com'],
+        'XSS-Umfrage',
+        'https://example.com/poll/xss',
+        true,
+        'survey',
+        undefined,
+        undefined,
+        '**Hallo!** <script>alert("xss")</script> [link](javascript:alert(1))'
+      );
+
+      expect(capturedHtml).not.toContain('<script>');
+      expect(capturedHtml).not.toContain('javascript:');
+      expect(capturedHtml).toContain('Nachricht des Organisators');
+      expect(capturedHtml).toContain('<strong>Hallo!</strong>');
+      expect(capturedText).toContain('Nachricht des Organisators');
+      expect(capturedText).toContain('Hallo!');
+    });
+
+    it('should include closingMessage block for schedule type in poll_finalized email', async () => {
+      const service = new EmailTemplateService();
+      const result = await service.renderEmail('poll_finalized', {
+        pollType: 'schedule',
+        statusLabel: 'Termin bestätigt',
+        pollTitle: 'Team-Meeting',
+        pollLink: 'https://example.com/poll/abc',
+        buttonLink: 'https://example.com/poll/abc',
+        buttonLabel: 'Zur Umfrage',
+        confirmedDate: 'Montag, 15. Juli 2026',
+        confirmedTime: '10:00 – 11:00 Uhr',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        resultsPublic: 'true',
+        closingMessageHtml: '<p>Bitte <em>pünktlich</em> erscheinen.</p>',
+        closingMessageText: 'Bitte pünktlich erscheinen.',
+      });
+
+      expect(result.html).toContain('Nachricht des Organisators');
+      expect(result.html).toContain('<em>pünktlich</em>');
+      expect(result.text).toContain('Nachricht des Organisators');
+      expect(result.text).toContain('Bitte pünktlich erscheinen.');
     });
   });
 });

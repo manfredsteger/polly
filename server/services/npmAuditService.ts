@@ -92,7 +92,7 @@ const FRONTEND_PACKAGES = new Set([
 ]);
 
 const BACKEND_PACKAGES = new Set([
-  'express', 'express-session', 'passport', 'passport-local',
+  'express', 'express-session',
   '@neondatabase/serverless', 'drizzle-orm', 'connect-pg-simple',
   'nodemailer', '@sendgrid/mail', 'bcryptjs', 'multer', 'ws',
   'puppeteer', 'pdfkit', 'qrcode', 'canvas', 'openid-client',

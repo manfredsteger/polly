@@ -20,7 +20,7 @@ describe('Auth - Registration', () => {
 
 
 
-  it('should reject registration with short password (less than 8 chars)', async () => {
+  it('should reject registration with short password (below policy minimum)', async () => {
     const response = await request(app)
       .post('/api/v1/auth/register')
       .send({

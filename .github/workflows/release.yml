@@ -42,6 +42,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Verify tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "::error::Release tag $TAG_VERSION does not match package.json version $PACKAGE_VERSION"
+            exit 1
+          fi
+          echo "Release tag and package version match: $TAG_VERSION"
+
       - name: Install dependencies
         run: npm ci
 
@@ -50,6 +60,9 @@ jobs:
 
       - name: Validate Translations
         run: node scripts/validate-translations.cjs
+
+      - name: Public response privacy tests (no database)
+        run: npx vitest run --config vitest.privacy.config.ts
 
       - name: Wait for PostgreSQL
         run: |
@@ -65,7 +78,7 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
         run: npx vitest run --no-file-parallelism
 
@@ -96,6 +109,9 @@ jobs:
             echo "channel=latest" >> $GITHUB_OUTPUT
           fi
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -115,7 +131,7 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.channel }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
 
       - name: Verify image
         run: |
@@ -145,20 +161,15 @@ jobs:
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Generate changelog
+      - name: Generate release notes
         id: changelog
         run: |
-          # Get previous tag
-          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF#refs/tags/}" | head -1)
+          VERSION="${{ steps.version.outputs.version }}"
 
-          if [ -z "$PREV_TAG" ]; then
-            # First release - show all commits
-            CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges HEAD | head -50)
-          else
-            CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges ${PREV_TAG}..HEAD | head -50)
-          fi
+          # Previous tag (for the compare link); exclude the current tag itself.
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF#refs/tags/}$" | head -1)
 
-          # Write to file to handle multiline
+          # Header: Docker image + tag-exact Quick Start (matches README/DOCKERHUB wording)
           cat > /tmp/changelog.md << 'HEREDOC'
           ## Docker
 
@@ -169,17 +180,47 @@ jobs:
           ## Quick Start
 
           ```bash
-          # Clone and start
-          git clone https://github.com/manfredsteger/polly.git
+          # Clone this exact release and start
+          git clone --branch v${{ steps.version.outputs.version }} --depth 1 https://github.com/manfredsteger/polly.git
           cd polly
-          git checkout v${{ steps.version.outputs.version }}
           make setup
           ```
 
-          ## Changes
+          ## Changes in this release
           HEREDOC
 
-          echo "$CHANGES" >> /tmp/changelog.md
+          # Extract this version's section from CHANGELOG.md (between its heading and the next "## [")
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > /tmp/changelog-section.md
+
+          if [ -s /tmp/changelog-section.md ]; then
+            cat /tmp/changelog-section.md >> /tmp/changelog.md
+          else
+            # Fallback: commit list since the previous tag
+            echo "_No changelog section found for $VERSION — showing commits._" >> /tmp/changelog.md
+            echo "" >> /tmp/changelog.md
+            if [ -z "$PREV_TAG" ]; then
+              git log --pretty=format:"- %s (%h)" --no-merges HEAD | head -50 >> /tmp/changelog.md
+            else
+              git log --pretty=format:"- %s (%h)" --no-merges ${PREV_TAG}..HEAD | head -50 >> /tmp/changelog.md
+            fi
+            echo "" >> /tmp/changelog.md
+          fi
+
+          # Footer: canonical changelog + compare link
+          echo "" >> /tmp/changelog.md
+          echo "---" >> /tmp/changelog.md
+          echo "" >> /tmp/changelog.md
+          echo "**Full changelog:** [CHANGELOG.md](https://github.com/manfredsteger/polly/blob/v${VERSION}/CHANGELOG.md)" >> /tmp/changelog.md
+          if [ -n "$PREV_TAG" ]; then
+            echo "**Diff:** [${PREV_TAG}...v${VERSION}](https://github.com/manfredsteger/polly/compare/${PREV_TAG}...v${VERSION})" >> /tmp/changelog.md
+          fi
+
+          echo "Release notes preview:"
+          cat /tmp/changelog.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -188,7 +229,7 @@ jobs:
           name: Polly v${{ steps.version.outputs.version }}
           body_path: /tmp/changelog.md
           prerelease: ${{ steps.version.outputs.prerelease }}
-          generate_release_notes: true
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

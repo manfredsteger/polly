@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { testDatabaseEnvironment } from './server/lib/testDatabaseSafety';
+
+// Runs before setup or test imports can create the application connection pool.
+Object.assign(process.env, testDatabaseEnvironment(process.env));
 
 export default defineConfig({
   test: {
@@ -13,11 +17,10 @@ export default defineConfig({
     hookTimeout: 30000,
     teardownTimeout: 10000,
     pool: 'forks' as const,
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    // Vitest 4: poolOptions.forks.singleFork was removed; the equivalent is
+    // disabling file parallelism so all test files share one sequential fork.
+    fileParallelism: false,
+    maxWorkers: 1,
     isolate: false,
     sequence: {
       concurrent: false,

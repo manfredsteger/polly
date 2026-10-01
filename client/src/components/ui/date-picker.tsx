@@ -19,6 +19,7 @@ interface DatePickerProps {
   placeholder?: string
   minDate?: Date
   className?: string
+  buttonClassName?: string
   disabled?: boolean
   showClearButton?: boolean
   inline?: boolean
@@ -31,6 +32,7 @@ export function DatePicker({
   placeholder,
   minDate,
   className,
+  buttonClassName,
   disabled = false,
   showClearButton = true,
   inline = false,
@@ -41,6 +43,18 @@ export function DatePicker({
 
   const locale = i18n.language === 'de' ? de : enUS
   const displayPlaceholder = placeholder ?? t('ui.datePicker.placeholder')
+  const calendarClassNames = {
+    cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+    day_today: "border border-primary/40 bg-background text-foreground rounded-full",
+  }
+  const calendarModifiersStyles = {
+    selected: {
+      backgroundColor: 'hsl(var(--primary))',
+      color: 'white',
+      borderRadius: '50%',
+      fontWeight: 'bold',
+    },
+  }
 
   const handleSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
@@ -59,6 +73,13 @@ export function DatePicker({
     setOpen(false)
   }
 
+  const isBeforeMinDate = (d: Date) => {
+    if (!minDate) return false
+    const selectedDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+    const minDay = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()).getTime()
+    return selectedDay < minDay
+  }
+
   if (inline) {
     return (
       <div className={cn("flex flex-col gap-2", className)}>
@@ -68,7 +89,8 @@ export function DatePicker({
             variant="outline"
             className={cn(
               "w-[240px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              !date && "text-muted-foreground",
+              buttonClassName
             )}
             disabled={disabled}
             onClick={() => setOpen(!open)}
@@ -96,10 +118,12 @@ export function DatePicker({
               mode="single"
               selected={date || undefined}
               onSelect={handleSelect}
-              disabled={minDate ? (d) => d < minDate : undefined}
+              disabled={minDate ? isBeforeMinDate : undefined}
               initialFocus
               locale={locale}
               weekStartsOn={1}
+              classNames={calendarClassNames}
+              modifiersStyles={calendarModifiersStyles}
             />
           </div>
         )}
@@ -116,7 +140,8 @@ export function DatePicker({
             variant="outline"
             className={cn(
               "w-[240px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              !date && "text-muted-foreground",
+              buttonClassName
             )}
             disabled={disabled}
             data-testid={testId}
@@ -133,10 +158,12 @@ export function DatePicker({
             mode="single"
             selected={date || undefined}
             onSelect={handleSelect}
-            disabled={minDate ? (d) => d < minDate : undefined}
+            disabled={minDate ? isBeforeMinDate : undefined}
             initialFocus
             locale={locale}
             weekStartsOn={1}
+            classNames={calendarClassNames}
+            modifiersStyles={calendarModifiersStyles}
           />
         </PopoverContent>
       </Popover>

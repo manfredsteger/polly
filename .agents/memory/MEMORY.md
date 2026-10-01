@@ -1,0 +1,11 @@
+- [Mermaid diagram rendering](mermaid-rendering.md) — docs Mermaid diagrams committed as PNGs via `scripts/render-mermaid.mjs`; a stray ASCII `"` in an unquoted Mermaid label breaks Mermaid 11 parsing.
+- [Test app singleton + MFA test setup](test-app-singleton-mfa.md) — createTestApp() is a module-level singleton; all describe blocks share the same MemoryStore; login BEFORE enabling MFA to avoid TOTP challenge in session setup.
+- [SAST false positives](sast-false-positives.md) — image/whisper path-traversal, TOTP SHA-1, theme-cookie and CI postgres-string findings verified harmless; skip re-analysis unless code changed.
+- [Immutable release tags](release-pipeline.md) — a failed public tag stays permanent; fix the branch and use the next prerelease identifier, then monitor all gated artifact jobs.
+- [MFA enforcement boundary](mfa-enforcement-boundary.md) — enrolled app MFA is required after every browser primary login; setup policy and emergency recovery are separate decisions.
+- [Simple choice response mode](simple-choice-mode.md) — simple-mode vote writes must use the advisory-locked atomic replacement in storage; route-level validation alone is race-prone.
+- [Test vs dev database drift](test-db-drift.md) — vitest uses DATABASE_URL, dev server may use another DB; new columns must be applied to both, and drizzle push is interactive (prompts on ambiguous renames).
+- [ClamAV configuration precedence](clamav-configuration-precedence.md) — explicit runtime scanner settings override Admin values; unknown scanner state blocks uploads rather than failing open.
+- [Mockup sandbox dependency setup](mockup-sandbox-install.md) — a fresh sandbox can need a local dependency install before Vite resolves its declared Tailwind packages.
+- [Vite middleware React stability](vite-middleware-react-stability.md) — keep Cartographer’s dev instrumentation out of this middleware-served app; it can split React’s runtime graph during startup.
+- [CSS color variable wrapping](css-color-variable-wrapping.md) — --primary/--primary-foreground must be full hsl()/rgb() values, not bare "H S% L%" triplets; a bare triplet silently no-ops backgrounds.

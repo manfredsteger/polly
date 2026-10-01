@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import { createTestPoll, createTestVote } from '../fixtures/testData';
@@ -34,6 +35,10 @@ describe('Polls - Voting', () => {
     optionIds = pollResponse.body.options.map((o: any) => o.id);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('should submit a vote successfully', async () => {
     const voteData = createTestVote();
     
@@ -50,7 +55,8 @@ describe('Polls - Voting', () => {
       });
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('voterEditToken');
+    expect(response.body).not.toHaveProperty('voterEditToken');
+    expect(response.body.votes.every((vote: any) => !('voterEditToken' in vote))).toBe(true);
   });
 
   it('should reject vote without voter name', async () => {
@@ -234,6 +240,40 @@ describe('Polls - Voting', () => {
     expect(firstOption.maybeCount).toBe(1);
   });
 
+  it('should accept yes and no responses for organization poll slots', async () => {
+    const pollData = createTestPoll({ type: 'organization', resultsPublic: true });
+    const createResponse = await request(app)
+      .post('/api/v1/polls')
+      .send(pollData);
+
+    const testPublicToken = createResponse.body.publicToken;
+
+    const pollResponse = await request(app)
+      .get(`/api/v1/polls/public/${testPublicToken}`);
+    const [firstOption, secondOption] = pollResponse.body.options;
+
+    const response = await request(app)
+      .post(`/api/v1/polls/${testPublicToken}/vote-bulk`)
+      .send({
+        voterName: 'Org Mail Tester',
+        voterEmail: `org-mail-${Date.now()}@example.com`,
+        votes: [
+          { optionId: firstOption.id, response: 'yes' },
+          { optionId: secondOption.id, response: 'no' },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    // Both 'yes' and 'no' responses must be persisted
+    const votes = response.body.votes as Array<{ optionId: number; response: string }>;
+    const yesVote = votes.find(v => v.optionId === firstOption.id);
+    const noVote  = votes.find(v => v.optionId === secondOption.id);
+    expect(yesVote?.response).toBe('yes');
+    expect(noVote?.response).toBe('no');
+    // Email payload content (selectedOptions filtering) is covered in emailTemplateService tests.
+  });
+
   describe('Vote Withdrawal', () => {
     it('should withdraw a vote from organization poll', async () => {
       // Create organization poll with withdrawal enabled
@@ -266,7 +306,7 @@ describe('Polls - Voting', () => {
         });
       
       expect(voteResponse.status).toBe(200);
-      const voterEditToken = voteResponse.body.voterEditToken;
+      const voterEditToken = await getSubmittedVoteToken(voteResponse);
       
       // Verify vote exists in results
       let resultsResponse = await request(app)
@@ -322,7 +362,7 @@ describe('Polls - Voting', () => {
         });
       
       expect(voteResponse.status).toBe(200);
-      const voterEditToken = voteResponse.body.voterEditToken;
+      const voterEditToken = await getSubmittedVoteToken(voteResponse);
       
       // Withdraw the vote (send token in body)
       const withdrawResponse = await request(app)
@@ -385,7 +425,7 @@ describe('Polls - Voting', () => {
         });
       
       expect(voteResponse.status).toBe(200);
-      const voterEditToken = voteResponse.body.voterEditToken;
+      const voterEditToken = await getSubmittedVoteToken(voteResponse);
       
       // Attempt to withdraw - should fail
       const withdrawResponse = await request(app)
@@ -430,7 +470,7 @@ describe('Polls - Voting', () => {
             voterEmail: `${voters[i]}-${timestamp}@example.com`,
             votes: [{ optionId: testOptionIds[0], response: 'yes' }],
           });
-        editTokens.push(voteResponse.body.voterEditToken);
+        editTokens.push(await getSubmittedVoteToken(voteResponse));
       }
       
       // Verify 2 slots taken

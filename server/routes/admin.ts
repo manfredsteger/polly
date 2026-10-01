@@ -1,3 +1,4 @@
+import { TestDatabaseSafetyError } from '../lib/testDatabaseSafety';
 import { Router } from "express";
 import { storage } from "../storage";
 import bcrypt from "bcryptjs";
@@ -12,12 +13,13 @@ import { apiRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
 import { imageService } from "../services/imageService";
 import type { User } from "@shared/schema";
-import { apiRateLimitsSettingsSchema } from "@shared/schema";
-import { db } from "../db";
+import { apiRateLimitsSettingsSchema, EMAIL_TEMPLATE_TYPES } from "@shared/schema";
+import { db, pool } from "../db";
 import { testRuns } from "@shared/schema";
 import { eq, or, and, desc } from "drizzle-orm";
 
 const router = Router();
+const validEmailTemplateTypes = new Set<string>(EMAIL_TEMPLATE_TYPES);
 
 // ============== ADMIN STATS ==============
 
@@ -58,6 +60,32 @@ router.get('/system-status', requireAdmin, async (req, res) => {
     console.error('Error fetching system status:', error);
     res.status(500).json({ error: 'Interner Fehler beim Abrufen des Systemstatus' });
   }
+});
+
+router.get('/database-status', requireAdmin, async (_req, res) => {
+  let host = 'unknown';
+  let sslmode: string | null = null;
+  try {
+    const url = new URL(process.env.DATABASE_URL || '');
+    host = url.port ? `${url.hostname}:${url.port}` : url.hostname;
+    sslmode = url.searchParams.get('sslmode');
+  } catch(error) {
+    console.warn('Could not parse DATABASE_URL for status display:',error);
+  }
+
+  const sslEnabled =
+    process.env.DATABASE_SSL === 'true' ||
+    (process.env.DATABASE_SSL !== 'false' && ['require', 'verify-ca', 'verify-full'].includes(sslmode ?? ''));
+
+  let connected = false;
+  try {
+    await pool.query('SELECT 1');
+    connected = true;
+  } catch (error) {
+    console.error('Database status check failed:', error);
+  }
+
+  res.json({ host, connected, sslEnabled });
 });
 
 router.get('/vulnerabilities', requireAdmin, async (req, res) => {
@@ -164,16 +192,27 @@ router.post('/users', requireAdmin, async (req, res) => {
 router.patch('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, name, email, organization, emailVerified } = req.body;
+    const { role, name, email, username, organization, emailVerified } = req.body;
     
     const updates: Record<string, any> = {};
     if (role && ['user', 'admin', 'manager'].includes(role)) {
       updates.role = role;
     }
-    if (name) updates.name = name;
-    if (email) updates.email = email;
+    if (name !== undefined) updates.name = name;
+    if (email !== undefined) updates.email = email;
     if (organization !== undefined) updates.organization = organization;
     if (emailVerified === true) updates.emailVerified = true;
+    if (username !== undefined) {
+      const trimmed = username.toLowerCase().trim();
+      if (trimmed.length < 3 || !/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+        return res.status(400).json({ error: 'Benutzername muss mindestens 3 Zeichen lang sein und darf nur Buchstaben, Zahlen und Unterstriche enthalten.' });
+      }
+      const existing = await storage.getUserByUsername(trimmed);
+      if (existing && existing.id !== userId) {
+        return res.status(409).json({ error: 'Dieser Benutzername wird bereits verwendet.' });
+      }
+      updates.username = trimmed;
+    }
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
@@ -187,9 +226,134 @@ router.patch('/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: send password reset email to a local user
+router.post('/users/:id/send-password-reset', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    if (user.provider !== 'local') {
+      return res.status(400).json({ error: 'Passwort-Reset ist nur für lokale Konten möglich' });
+    }
+    if (!user.email) {
+      return res.status(400).json({ error: 'Benutzer hat keine E-Mail-Adresse hinterlegt' });
+    }
+
+    const resetToken = await storage.createPasswordResetToken(user.id);
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const resetLink = `${baseUrl}/passwort-zuruecksetzen/${resetToken.token}`;
+
+    try {
+      await emailService.sendPasswordResetEmail(user.email, resetLink, user.name || undefined);
+      console.log(`[Admin Password Reset] Email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error(`[Admin Password Reset] Failed to send email to ${user.email}:`, emailError);
+      return res.status(502).json({ error: 'Passwort-Reset-E-Mail konnte nicht gesendet werden' });
+    }
+
+    res.json({ success: true, message: 'Passwort-Reset-E-Mail wurde gesendet' });
+  } catch (error) {
+    console.error('Admin password reset send error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// Admin: directly set a local user's password
+router.post('/users/:id/set-password', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+
+    const { password } = req.body ?? {};
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Passwort erforderlich' });
+    }
+    const { validatePasswordAgainstPolicy: validateAdminPw } = await import('../lib/passwordPolicy');
+    const adminPwPolicy = (await storage.getCustomizationSettings()).passwordPolicy;
+    const adminPwErrors = validateAdminPw(password, adminPwPolicy);
+    if (adminPwErrors.length > 0) {
+      return res.status(400).json({ error: adminPwErrors[0] });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    if (user.provider !== 'local') {
+      return res.status(400).json({ error: 'Passwort kann nur für lokale Konten gesetzt werden' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await storage.updateUser(userId, { passwordHash });
+
+    res.json({ success: true, message: 'Passwort wurde aktualisiert' });
+  } catch (error) {
+    console.error('Admin set password error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.post('/users/:id/reset-mfa', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    await storage.updateUser(userId, { totpSecret: null, totpEnabled: false, mfaRequired: false });
+    res.json({ success: true, message: 'MFA wurde zurückgesetzt' });
+  } catch (error) {
+    console.error('Admin reset MFA error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// POST /users/:id/require-mfa — force or unforce MFA setup for a local user
+router.post('/users/:id/require-mfa', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    if (user.provider !== 'local') {
+      return res.status(400).json({ error: 'MFA-Pflicht gilt nur für lokale Konten' });
+    }
+    const required: boolean = req.body?.required !== false;
+    await storage.updateUser(userId, { mfaRequired: required });
+    res.json({ success: true, mfaRequired: required });
+  } catch (error) {
+    console.error('Admin require MFA error:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
 router.delete('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'Ungültige Benutzer-ID' });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
     
     const deprovisionSetting = await storage.getSetting('deprovision_config');
     const deprovisionConfig = deprovisionSetting?.value as { enabled?: boolean } | null;
@@ -204,11 +368,35 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
     if (req.session.userId === userId) {
       return res.status(400).json({ error: 'Sie können sich selbst nicht löschen' });
     }
+
+    if (user.provider !== 'local') {
+      return res.status(403).json({
+        error: 'SSO-Benutzer werden zentral über das IDM (Keycloak) verwaltet und können hier nicht gelöscht werden.',
+      });
+    }
     
     await storage.deleteUser(userId);
     res.json({ success: true, message: 'Benutzer gelöscht' });
   } catch (error) {
     console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// ============== MFA COVERAGE ==============
+
+router.get('/mfa-coverage', requireAdmin, async (req, res) => {
+  try {
+    const admins = await storage.getAdminUsers();
+    const withoutMfa = admins.filter(u => !u.totpEnabled);
+    res.json({
+      total: admins.length,
+      withMfa: admins.length - withoutMfa.length,
+      withoutMfa: withoutMfa.length,
+      adminsMissingMfa: withoutMfa.map(u => u.username),
+    });
+  } catch (error) {
+    console.error('Error fetching MFA coverage:', error);
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });
@@ -284,7 +472,8 @@ router.post('/deletion-requests/:id/reject', requireAdmin, async (req, res) => {
 router.get('/polls', requireAdmin, async (req, res) => {
   try {
     const polls = await storage.getAllPolls();
-    res.json(polls);
+    // Keep consistent with admin dashboard stats, which exclude test data.
+    res.json(polls.filter((poll) => !poll.isTestData));
   } catch (error) {
     console.error('Error fetching all polls:', error);
     res.status(500).json({ error: 'Interner Fehler' });
@@ -293,27 +482,28 @@ router.get('/polls', requireAdmin, async (req, res) => {
 
 router.patch('/polls/:id', requireAdmin, async (req, res) => {
   try {
-    const pollId = req.params.id;
-    
-    const existing = await storage.getPoll(pollId);
+    const publicToken = req.params.id;
+
+    const existing = await storage.getPollByPublicToken(publicToken);
     if (!existing) {
       return res.status(404).json({ error: 'Umfrage nicht gefunden' });
     }
-    
+
     const { isActive, title, description, expiresAt, resultsPublic } = req.body;
-    
+
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
     if (title) updates.title = title;
     if (description !== undefined) updates.description = description;
     if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
     if (resultsPublic !== undefined) updates.resultsPublic = resultsPublic;
-    
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
     }
-    
-    const poll = await storage.updatePoll(pollId, updates);
+
+    const poll = await storage.updatePoll(existing.id, updates);
+    adminCacheService.invalidateCache();
     res.json(poll);
   } catch (error) {
     console.error('Error updating poll:', error);
@@ -323,14 +513,15 @@ router.patch('/polls/:id', requireAdmin, async (req, res) => {
 
 router.delete('/polls/:id', requireAdmin, async (req, res) => {
   try {
-    const pollId = req.params.id;
-    
-    const existing = await storage.getPoll(pollId);
+    const publicToken = req.params.id;
+
+    const existing = await storage.getPollByPublicToken(publicToken);
     if (!existing) {
       return res.status(404).json({ error: 'Umfrage nicht gefunden' });
     }
-    
-    await storage.deletePoll(pollId);
+
+    await storage.deletePoll(existing.id);
+    adminCacheService.invalidateCache();
     res.json({ success: true, message: 'Umfrage gelöscht' });
   } catch (error) {
     console.error('Error deleting poll:', error);
@@ -869,6 +1060,9 @@ router.post('/tests/run', requireAdmin, async (req, res) => {
     res.json({ runId, message: 'Test-Lauf gestartet' });
   } catch (error) {
     console.error('Error starting test run:', error);
+    if (error instanceof TestDatabaseSafetyError) {
+      return res.status(503).json({ error: error.message, errorCode: 'TEST_DATABASE_UNSAFE' });
+    }
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });
@@ -1035,6 +1229,28 @@ router.delete('/tests/purge-data', requireAdmin, async (req, res) => {
   }
 });
 
+router.delete('/test-runs', requireAdmin, async (req, res) => {
+  try {
+    const { testResults } = await import('@shared/schema');
+    const { isNotNull } = await import('drizzle-orm');
+    const deletedResults = await db.delete(testResults).returning({ id: testResults.id });
+    const deletedRuns = await db
+      .delete(testRuns)
+      .where(isNotNull(testRuns.completedAt))
+      .returning({ id: testRuns.id });
+    console.log(`[TestHistory] Cleared ${deletedRuns.length} test run(s) and ${deletedResults.length} result(s)`);
+    res.json({
+      success: true,
+      message: 'Test-Historie erfolgreich gelöscht',
+      deletedRuns: deletedRuns.length,
+      deletedResults: deletedResults.length,
+    });
+  } catch (error) {
+    console.error('Error clearing test history:', error);
+    res.status(500).json({ error: 'Interner Fehler beim Löschen der Test-Historie' });
+  }
+});
+
 // ============== NOTIFICATIONS ==============
 
 router.get('/notifications', requireAdmin, async (req, res) => {
@@ -1186,6 +1402,11 @@ router.put('/deprovision-settings', requireAdmin, async (req, res) => {
 router.get('/customization', requireAdmin, async (req, res) => {
   try {
     const settings = await storage.getCustomizationSettings();
+    const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
+    if (envCopyright) {
+      settings.footer.copyrightText = envCopyright;
+      settings.footer.copyrightEnvLocked = true;
+    }
     res.json(settings);
   } catch (error) {
     console.error('Error fetching customization settings:', error);
@@ -1196,7 +1417,19 @@ router.get('/customization', requireAdmin, async (req, res) => {
 router.put('/customization', requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
-    
+
+    const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
+    if (envCopyright && updates.footer?.copyrightText !== undefined) {
+      return res.status(400).json({ error: 'Copyright-Text ist über Umgebungsvariable POLLY_COPYRIGHT_TEXT gesperrt und kann hier nicht geändert werden.' });
+    }
+    if (updates.footer) {
+      delete updates.footer.copyrightEnvLocked;
+      if (envCopyright && updates.footer.copyrightText === undefined) {
+        const current = await storage.getCustomizationSettings();
+        updates.footer.copyrightText = current.footer?.copyrightText || '';
+      }
+    }
+
     if (updates.theme && (
       updates.theme.primaryColor ||
       updates.theme.secondaryColor ||
@@ -1479,9 +1712,8 @@ router.get('/email-templates', requireAdmin, async (req, res) => {
 router.get('/email-templates/:type', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1497,9 +1729,8 @@ router.put('/email-templates/:type', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
     const { jsonContent, subject, name, textContent } = req.body;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1527,9 +1758,8 @@ router.put('/email-templates/:type', requireAdmin, async (req, res) => {
 router.post('/email-templates/:type/reset', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1544,9 +1774,8 @@ router.post('/email-templates/:type/reset', requireAdmin, async (req, res) => {
 router.post('/email-templates/:type/preview', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1571,6 +1800,15 @@ router.post('/email-templates/:type/preview', requireAdmin, async (req, res) => 
         pollType: 'Terminumfrage',
         publicLink: 'https://example.com/poll/abc123',
         resultsLink: 'https://example.com/poll/abc123/results',
+        editLink: 'https://example.com/edit/vote-token-abc123',
+      },
+      vote_updated: {
+        voterName: 'Anna Schmidt',
+        pollTitle: 'Sommerfeier Termin',
+        pollType: 'Terminumfrage',
+        publicLink: 'https://example.com/poll/abc123',
+        resultsLink: 'https://example.com/poll/abc123/results',
+        editLink: 'https://example.com/edit/vote-token-abc123',
       },
       reminder: {
         senderName: 'Max Mustermann',
@@ -1598,6 +1836,26 @@ router.post('/email-templates/:type/preview', requireAdmin, async (req, res) => 
         duration: '45 Sekunden',
         startedAt: '23.12.2025, 14:30 Uhr',
       },
+      welcome: {
+        userName: 'Anna Schmidt',
+        userEmail: 'anna.schmidt@example.com',
+        verificationLink: 'https://example.com/email-bestaetigen/abc123xyz',
+      },
+      poll_finalized: {
+        pollTitle: 'Teammeeting Q1 2025',
+        pollType: 'survey',
+        statusLabel: 'Umfrage abgeschlossen',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        pollLink: 'https://example.com/poll/abc123',
+        buttonLink: 'https://example.com/poll/abc123#results',
+        buttonLabel: 'Ergebnisse anzeigen →',
+        resultsPublic: 'true',
+        finalOptionText: 'Catering mit vegetarischen Optionen',
+        slotSummaryHtml: '',
+      },
     };
     
     const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
@@ -1612,9 +1870,8 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
     const { recipientEmail } = req.body;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1641,6 +1898,15 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
         pollType: 'Umfrage',
         publicLink: 'https://example.com/poll/test',
         resultsLink: 'https://example.com/poll/test/results',
+        editLink: 'https://example.com/edit/test-vote-token',
+      },
+      vote_updated: {
+        voterName: 'Test Nutzer',
+        pollTitle: 'Test-Umfrage',
+        pollType: 'Umfrage',
+        publicLink: 'https://example.com/poll/test',
+        resultsLink: 'https://example.com/poll/test/results',
+        editLink: 'https://example.com/edit/test-vote-token',
       },
       reminder: {
         senderName: 'Test Admin',
@@ -1667,6 +1933,26 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
         duration: '5 Sekunden',
         startedAt: new Date().toLocaleString('de-DE'),
       },
+      welcome: {
+        userName: 'Test Nutzer',
+        userEmail: recipientEmail,
+        verificationLink: 'https://example.com/email-bestaetigen/test',
+      },
+      poll_finalized: {
+        pollTitle: 'Test-Umfrage',
+        pollType: 'survey',
+        statusLabel: 'Umfrage abgeschlossen',
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        pollLink: 'https://example.com/poll/test',
+        buttonLink: 'https://example.com/poll/test#results',
+        buttonLabel: 'Ergebnisse anzeigen →',
+        resultsPublic: 'true',
+        finalOptionText: 'Beispiel-Antwort',
+        slotSummaryHtml: '',
+      },
     };
     
     const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
@@ -1682,9 +1968,8 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
 router.get('/email-templates/:type/variables', requireAdmin, async (req, res) => {
   try {
     const { type } = req.params;
-    const validTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
     
-    if (!validTypes.includes(type)) {
+    if (!validEmailTemplateTypes.has(type)) {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
@@ -1948,6 +2233,9 @@ router.post('/test-runs', requireAdmin, async (req, res) => {
     res.json({ runId, message: 'Test-Lauf gestartet' });
   } catch (error) {
     console.error('Error starting test run:', error);
+    if (error instanceof TestDatabaseSafetyError) {
+      return res.status(503).json({ error: error.message, errorCode: 'TEST_DATABASE_UNSAFE' });
+    }
     res.status(500).json({ error: 'Tests konnten nicht gestartet werden' });
   }
 });
@@ -1966,7 +2254,7 @@ router.post('/test-runs/stop', requireAdmin, async (req, res) => {
 // ============== LOGO UPLOAD (admin) ==============
 
 router.post('/customization/logo', requireAdmin, (req, res, next) => {
-  const upload = imageService.getUploadMiddleware().single('logo');
+  const upload = imageService.getUploadMiddleware({ allowSvg: true }).single('logo');
   upload(req, res, (err: any) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -1992,10 +2280,12 @@ router.post('/customization/logo', requireAdmin, (req, res, next) => {
       if (result.invalidFileType) statusCode = 400;
       else if (result.virusName) statusCode = 422;
       else if (result.scannerUnavailable) statusCode = 503;
+      else if (result.storagePermission) statusCode = 507;
       return res.status(statusCode).json({
         error: result.error,
         virusName: result.virusName,
         scannerUnavailable: result.scannerUnavailable,
+        storagePermission: result.storagePermission,
       });
     }
 
@@ -2033,7 +2323,7 @@ router.delete('/customization/logo', requireAdmin, async (req, res) => {
 // ============== FAVICON UPLOAD (admin) ==============
 
 router.post('/customization/favicon', requireAdmin, (req, res, next) => {
-  const upload = imageService.getUploadMiddleware().single('favicon');
+  const upload = imageService.getUploadMiddleware({ allowSvg: true }).single('favicon');
   upload(req, res, (err: any) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -2059,10 +2349,12 @@ router.post('/customization/favicon', requireAdmin, (req, res, next) => {
       if (result.invalidFileType) statusCode = 400;
       else if (result.virusName) statusCode = 422;
       else if (result.scannerUnavailable) statusCode = 503;
+      else if (result.storagePermission) statusCode = 507;
       return res.status(statusCode).json({
         error: result.error,
         virusName: result.virusName,
         scannerUnavailable: result.scannerUnavailable,
+        storagePermission: result.storagePermission,
       });
     }
 

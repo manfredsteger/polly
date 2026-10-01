@@ -3,6 +3,33 @@ import { qrService } from './qrService';
 import { emailTemplateService } from './emailTemplateService';
 import type { EmailTemplateType } from '@shared/schema';
 import { getBaseUrl, validateEmailUrl, warnIfLocalhostInProduction } from '../utils/baseUrl';
+import { marked } from 'marked';
+import { JSDOM } from 'jsdom';
+import createDOMPurify from 'dompurify';
+
+const { window: _domWindow } = new JSDOM('');
+const _DOMPurify = createDOMPurify(_domWindow as any);
+
+function renderMarkdownToSafeHtml(markdown: string): string {
+  if (!markdown || !markdown.trim()) return '';
+  const rawHtml = marked.parse(markdown, { breaks: true }) as string;
+  return _DOMPurify.sanitize(rawHtml, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'a', 'code', 'pre'],
+    ALLOWED_ATTR: ['href'],
+  });
+}
+
+function markdownToPlainText(markdown: string): string {
+  if (!markdown || !markdown.trim()) return '';
+  return markdown
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .trim();
+}
 
 function escapeHtml(str: string): string {
   return str
@@ -11,6 +38,14 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function summarizeTestError(error: string | null): string {
+  if (!error) return '';
+  return error
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean) || '';
 }
 
 interface EmailConfig {
@@ -261,21 +296,38 @@ export class EmailService {
     voterEmail: string,
     voterName: string,
     pollTitle: string,
-    pollType: 'schedule' | 'survey',
+    pollType: 'schedule' | 'survey' | 'organization',
     publicLink: string,
-    resultsLink: string
+    resultsLink: string | undefined,
+    selectedOptions?: string[],
+    editLink?: string,
+    withdrawalOnly = false
   ): Promise<void> {
     if (!voterEmail) return;
 
     try {
-      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : 'Umfrage';
+      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
+
+      const selectedOptionsHtml =
+        selectedOptions && selectedOptions.length > 0
+          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
+              .map(
+                opt =>
+                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
+              )
+              .join('')}</ul>`
+          : '';
 
       const rendered = await this.renderTemplate('vote_confirmation', {
         voterName,
         pollTitle,
         pollType: pollTypeText,
         publicLink: validateEmailUrl(publicLink),
-        resultsLink: validateEmailUrl(resultsLink),
+        resultsLink: resultsLink ? validateEmailUrl(resultsLink) : undefined,
+        resultsPublic: resultsLink ? 'true' : 'false',
+        editLink: editLink ? validateEmailUrl(editLink) : undefined,
+        voteManagementAction: withdrawalOnly ? 'withdraw' : 'edit',
+        selectedOptionsHtml,
       });
 
       await this.sendMail({
@@ -290,12 +342,103 @@ export class EmailService {
     }
   }
 
+  async sendVoteUpdatedEmail(
+    voterEmail: string,
+    voterName: string,
+    pollTitle: string,
+    pollType: 'schedule' | 'survey' | 'organization',
+    publicLink: string,
+    resultsLink: string | undefined,
+    selectedOptions?: string[],
+    editLink?: string
+  ): Promise<void> {
+    if (!voterEmail) return;
+
+    try {
+      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
+
+      const selectedOptionsHtml =
+        selectedOptions && selectedOptions.length > 0
+          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
+              .map(
+                opt =>
+                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
+              )
+              .join('')}</ul>`
+          : '';
+
+      const rendered = await this.renderTemplate('vote_updated', {
+        voterName,
+        pollTitle,
+        pollType: pollTypeText,
+        publicLink: validateEmailUrl(publicLink),
+        resultsLink: resultsLink ? validateEmailUrl(resultsLink) : undefined,
+        resultsPublic: resultsLink ? 'true' : 'false',
+        editLink: editLink ? validateEmailUrl(editLink) : undefined,
+        selectedOptionsHtml,
+      });
+
+      await this.sendMail({
+        to: voterEmail,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+      });
+    } catch (error) {
+      console.error('Failed to send vote updated email:', error);
+      throw error;
+    }
+  }
+
+  async sendVoteWithdrawalEmail(
+    recipientEmail: string, voterName: string, pollTitle: string, link: string, organizer = false
+  ): Promise<void> {
+    if (!recipientEmail) return;
+    const rendered = await emailTemplateService.renderVoteWithdrawalEmail(
+      voterName, pollTitle, validateEmailUrl(link), organizer
+    );
+    await this.sendMail({ to: recipientEmail, ...rendered });
+  }
+
+  async sendNewVoteNotificationEmail(
+    creatorEmail: string,
+    voterName: string,
+    pollTitle: string,
+    pollType: 'schedule' | 'survey' | 'organization',
+    adminLink: string,
+    resultsLink: string
+  ): Promise<void> {
+    if (!creatorEmail) return;
+
+    try {
+      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
+
+      const rendered = await this.renderTemplate('new_vote_notification', {
+        voterName,
+        pollTitle,
+        pollType: pollTypeText,
+        adminLink: validateEmailUrl(adminLink),
+        resultsLink: validateEmailUrl(resultsLink),
+      });
+
+      await this.sendMail({
+        to: creatorEmail,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+      });
+    } catch (error) {
+      console.error('Failed to send new vote notification email:', error);
+    }
+  }
+
   async sendReminderEmail(
     recipientEmail: string,
     senderName: string,
     pollTitle: string,
     pollLink: string,
-    expiresAt?: Date | null
+    expiresAt?: Date | null,
+    selectedOptions?: string[]
   ): Promise<void> {
     try {
       const validatedLink = validateEmailUrl(pollLink);
@@ -311,12 +454,23 @@ export class EmailService {
         ? `Die Umfrage endet am ${new Date(expiresAt).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr.`
         : '';
 
+      const selectedOptionsHtml =
+        selectedOptions && selectedOptions.length > 0
+          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
+              .map(
+                opt =>
+                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
+              )
+              .join('')}</ul>`
+          : '';
+
       const rendered = await this.renderTemplate('reminder', {
         senderName,
         pollTitle,
         pollLink: validatedLink,
         expiresAt: expiryText,
         qrCodeUrl: qrCodeDataUrl,
+        selectedOptionsHtml,
       });
 
       await this.sendMail({
@@ -403,9 +557,28 @@ export class EmailService {
       startedAt: Date;
       completedAt: Date | null;
     },
-    pdfBuffer?: Buffer
+    pdfBufferOrResults?: Buffer | Array<{
+      testFile: string;
+      testName: string;
+      category: string;
+      status: 'passed' | 'failed' | 'skipped';
+      duration: number | null;
+      error: string | null;
+      errorStack: string | null;
+    }>,
+    maybeResults?: Array<{
+      testFile: string;
+      testName: string;
+      category: string;
+      status: 'passed' | 'failed' | 'skipped';
+      duration: number | null;
+      error: string | null;
+      errorStack: string | null;
+    }>
   ): Promise<void> {
     try {
+      const results = Array.isArray(pdfBufferOrResults) ? pdfBufferOrResults : (maybeResults || []);
+      const pdfBuffer = Array.isArray(pdfBufferOrResults) ? undefined : pdfBufferOrResults;
       const isSuccess = testRun.status === 'completed' && testRun.failed === 0;
       const statusEmoji = isSuccess ? '✅' : '❌';
       const statusText = isSuccess ? 'Alle Tests bestanden' : `${testRun.failed} Test(s) fehlgeschlagen`;
@@ -422,6 +595,33 @@ export class EmailService {
         minute: '2-digit',
       });
 
+      const failedResults = results.filter((result) => result.status === 'failed').slice(0, 10);
+      const failedSummaryHtml = failedResults.length > 0
+        ? `
+          <div style="margin: 6px 0 0;">
+            <p style="margin: 0 0 10px; color: #991b1b; font-size: 14px; font-weight: 700;">Fehlgeschlagene Tests (${testRun.failed})</p>
+            <ul style="margin: 0; padding-left: 18px; color: #7f1d1d;">
+              ${failedResults.map((result) => {
+                const firstErrorLine = summarizeTestError(result.error);
+                return `<li style="margin: 6px 0;"><strong>${escapeHtml(result.testName)}</strong>${result.testFile ? ` <span style="color:#7f1d1d;">(${escapeHtml(result.testFile)})</span>` : ''}${firstErrorLine ? `<br/><span style="color:#991b1b;">${escapeHtml(firstErrorLine)}</span>` : ''}</li>`;
+              }).join('')}
+            </ul>
+            <p style="margin: 10px 0 0; color: #6b7280;">Vollständige Details finden Sie im angehängten PDF-Bericht.</p>
+          </div>
+        `
+        : '';
+      const failedSummaryText = failedResults.length > 0
+        ? [
+            `Fehlgeschlagene Tests (${testRun.failed}):`,
+            ...failedResults.map((result) => {
+              const firstErrorLine = summarizeTestError(result.error);
+              return `- ${result.testName}${result.testFile ? ` (${result.testFile})` : ''}${firstErrorLine ? `: ${firstErrorLine}` : ''}`;
+            }),
+            'Vollständige Details finden Sie im angehängten PDF-Bericht.',
+            '',
+          ].join('\n')
+        : '';
+
       const rendered = await this.renderTemplate('test_report', {
         testRunId: String(testRun.id),
         status: `${statusEmoji} ${statusText}`,
@@ -431,6 +631,8 @@ export class EmailService {
         skipped: String(testRun.skipped),
         duration: durationText,
         startedAt: startedAtText,
+        failedSummaryHtml,
+        failedSummaryText,
       });
 
       const attachments: nodemailer.SendMailOptions['attachments'] = pdfBuffer
@@ -441,7 +643,7 @@ export class EmailService {
         to: recipientEmail,
         subject: rendered.subject,
         html: rendered.html,
-        text: rendered.text,
+        text: failedSummaryText ? `${failedSummaryText}${rendered.text}` : rendered.text,
         priority: isSuccess ? 'normal' : 'high',
         attachments,
       });
@@ -479,7 +681,8 @@ export class EmailService {
     confirmedTime: string,
     pollLink: string,
     icsBuffer: Buffer,
-    videoConferenceUrl?: string | null
+    videoConferenceUrl?: string | null,
+    closingMessage?: string
   ): Promise<{ sent: number; failed: number }> {
     if (participantEmails.length === 0) {
       console.log('[Email] No participant emails for finalization notification');
@@ -491,18 +694,23 @@ export class EmailService {
       ? `<strong>Videokonferenz:</strong> <a href="${escapeHtml(videoConferenceUrl)}" style="color:#7A3800;text-decoration:underline;">${escapeHtml(videoConferenceUrl)}</a>`
       : '';
 
+    const closingMessageHtml = closingMessage ? renderMarkdownToSafeHtml(closingMessage) : '';
+    const closingMessageText = closingMessage ? markdownToPlainText(closingMessage) : '';
+
     const rendered = await this.renderTemplate('poll_finalized', {
       pollType: 'schedule',
       statusLabel: 'Termin bestätigt',
       pollTitle,
       confirmedDate,
-      confirmedTime: confirmedTime ? `<strong>Uhrzeit:</strong> ${confirmedTime}` : '',
+      confirmedTime,
       pollLink,
       buttonLink: pollLink,
       buttonLabel: 'Zur Umfrage \u2192',
       videoConferenceUrl: videoConferenceUrl || '',
       videoConferenceHtml: videoConfHtml,
       resultsPublic: 'true',
+      closingMessageHtml,
+      closingMessageText,
     });
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [
@@ -545,7 +753,8 @@ export class EmailService {
     resultsPublic: boolean,
     pollType: 'survey' | 'organization' = 'survey',
     finalOptionText?: string,
-    slotSummary?: Array<{ text: string; filled: number; total: number | null }>
+    slotSummary?: Array<{ text: string; filled: number; total: number | null }>,
+    closingMessage?: string
   ): Promise<{ sent: number; failed: number }> {
     if (recipientEmails.length === 0) {
       console.log('[Email] No recipient emails for poll-ended notification');
@@ -571,6 +780,9 @@ export class EmailService {
       slotSummaryHtml = `<ul style="margin:8px 0 0 0; padding-left:18px;">${rows.join('')}</ul>`;
     }
 
+    const closingMessageHtml = closingMessage ? renderMarkdownToSafeHtml(closingMessage) : '';
+    const closingMessageText = closingMessage ? markdownToPlainText(closingMessage) : '';
+
     const rendered = await this.renderTemplate('poll_finalized', {
       pollType,
       statusLabel: 'Umfrage beendet',
@@ -585,6 +797,8 @@ export class EmailService {
       videoConferenceHtml: '',
       finalOptionText: finalOptionText ? escapeHtml(finalOptionText) : '',
       slotSummaryHtml,
+      closingMessageHtml,
+      closingMessageText,
     });
 
     let sent = 0;
@@ -726,7 +940,7 @@ export class EmailService {
   async sendDeletionRequestNotification(adminEmails: string[], userName: string, userEmail: string, adminPanelUrl: string): Promise<void> {
     try {
       const requestDate = new Date().toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
-      const subject = '[Polly] Neuer Löschantrag eingegangen';
+      const subject = 'Neuer Löschantrag eingegangen';
       const validatedUrl = validateEmailUrl(adminPanelUrl);
       const bodyHtml = `
         <div style="padding: 16px 24px;">
@@ -794,6 +1008,99 @@ export class EmailService {
     return { sent, failed, smtpConfigured: true };
   }
 
+  async sendOrgConfirmationEmails(
+    pollTitle: string,
+    pollLink: string,
+    options: Array<{ id: number; text: string }>,
+    votes: Array<{ optionId: number; voterEmail: string; voterName: string; response: string }>,
+    organizerEmail: string | null
+  ): Promise<{ sent: number; failed: number }> {
+    const validatedLink = validateEmailUrl(pollLink);
+    const optionMap = new Map<number, string>(options.map(o => [o.id, o.text]));
+
+    // Group yes-votes by voter email → their booked slots (email-gated: for participant notifications only)
+    const voterSlots = new Map<string, { name: string; slots: string[] }>();
+    // Full slot→names map for organizer summary (includes all yes-votes, even without email)
+    const allSlotNamesMap = new Map<string, string[]>();
+    for (const vote of votes) {
+      if (vote.response !== 'yes') continue;
+      const slotName = optionMap.get(vote.optionId);
+      // Full summary for organizer (all yes-votes, regardless of email)
+      if (slotName) {
+        if (!allSlotNamesMap.has(slotName)) allSlotNamesMap.set(slotName, []);
+        allSlotNamesMap.get(slotName)!.push(vote.voterName);
+      }
+      // Participant notification (email-gated)
+      if (vote.voterEmail && vote.voterEmail.includes('@')) {
+        if (!voterSlots.has(vote.voterEmail)) {
+          voterSlots.set(vote.voterEmail, { name: vote.voterName, slots: [] });
+        }
+        if (slotName) voterSlots.get(vote.voterEmail)!.slots.push(slotName);
+      }
+    }
+
+    let sent = 0;
+    let failed = 0;
+
+    // Personalized email per participant listing only their own booked slots
+    for (const [email, { slots }] of voterSlots.entries()) {
+      if (slots.length === 0) continue;
+      try {
+        const slotSummaryHtml = `<ul style="margin:8px 0 0 0;padding-left:18px;">${
+          slots.map(s => `<li style="margin:2px 0;">${escapeHtml(s)}</li>`).join('')
+        }</ul>`;
+        const rendered = await this.renderTemplate('poll_finalized', {
+          pollType: 'organization',
+          statusLabel: 'Anmeldung bestätigt',
+          pollTitle,
+          pollLink: validatedLink,
+          buttonLink: validatedLink,
+          buttonLabel: 'Zur Anmeldeliste \u2192',
+          resultsPublic: 'true',
+          slotSummaryHtml,
+        });
+        await this.sendMail({ to: email, subject: rendered.subject, html: rendered.html, text: rendered.text, isBulk: true });
+        sent++;
+        console.log(`[Email] Org confirmation sent to ${email}`);
+      } catch (err) {
+        console.error(`[Email] Org confirmation to ${email} failed:`, err);
+        failed++;
+      }
+    }
+
+    // Organizer always gets the full participant-list summary (all yes-votes, including no-email participants)
+    if (organizerEmail && organizerEmail.includes('@')) {
+      try {
+        const slotSummaryHtml = allSlotNamesMap.size > 0
+          ? `<ul style="margin:8px 0 0 0;padding-left:18px;">${
+              [...allSlotNamesMap.entries()].map(([slot, names]) =>
+                `<li style="margin:2px 0;"><strong>${escapeHtml(slot)}:</strong> ${names.map(n => escapeHtml(n)).join(', ')}</li>`
+              ).join('')
+            }</ul>`
+          : '';
+        const rendered = await this.renderTemplate('poll_finalized', {
+          pollType: 'organization',
+          statusLabel: 'Anmeldeübersicht',
+          pollTitle,
+          pollLink: validatedLink,
+          buttonLink: validatedLink,
+          buttonLabel: 'Anmeldeliste öffnen \u2192',
+          resultsPublic: 'true',
+          slotSummaryHtml,
+        });
+        await this.sendMail({ to: organizerEmail, subject: rendered.subject, html: rendered.html, text: rendered.text, isBulk: true });
+        sent++;
+        console.log(`[Email] Org summary sent to organizer ${organizerEmail}`);
+      } catch (err) {
+        console.error(`[Email] Org summary to ${organizerEmail} failed:`, err);
+        failed++;
+      }
+    }
+
+    console.log(`[Email] Org confirmation complete: ${sent} sent, ${failed} failed`);
+    return { sent, failed };
+  }
+
   async sendBulkReminders(emails: string[], pollTitle: string, senderName: string, pollUrl: string, expiresAt?: string, customMessage?: string): Promise<{ sent: number; failed: string[] }> {
     const failed: string[] = [];
     let sent = 0;
@@ -805,6 +1112,36 @@ export class EmailService {
       } catch (error) {
         console.error(`Failed to send reminder to ${email}:`, error);
         failed.push(email);
+      }
+    }
+
+    return { sent, failed };
+  }
+
+  async sendPersonalizedReminders(
+    reminders: Array<{ email: string; selectedOptions?: string[] }>,
+    pollTitle: string,
+    senderName: string,
+    pollUrl: string,
+    expiresAt?: string
+  ): Promise<{ sent: number; failed: string[] }> {
+    const failed: string[] = [];
+    let sent = 0;
+
+    for (const reminder of reminders) {
+      try {
+        await this.sendReminderEmail(
+          reminder.email,
+          senderName,
+          pollTitle,
+          pollUrl,
+          expiresAt ? new Date(expiresAt) : null,
+          reminder.selectedOptions
+        );
+        sent++;
+      } catch (error) {
+        console.error(`Failed to send personalized reminder to ${reminder.email}:`, error);
+        failed.push(reminder.email);
       }
     }
 

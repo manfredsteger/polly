@@ -1,3 +1,4 @@
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
@@ -46,8 +47,8 @@ describe('E2E - Complete Poll Flow', () => {
       });
     expect(voteResponse.status).toBe(200);
     expect(voteResponse.body.success).toBe(true);
-    expect(voteResponse.body.voterEditToken).toBeDefined();
-    expect(typeof voteResponse.body.voterEditToken).toBe('string');
+    expect(voteResponse.body.voterEditToken).toBeUndefined();
+    expect(await getSubmittedVoteToken(voteResponse)).toBeTruthy();
 
     const resultsResponse = await request(app)
       .get(`/api/v1/polls/${publicToken}/results`);

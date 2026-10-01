@@ -19,17 +19,21 @@ This guide covers deploying Polly on your own infrastructure, including universi
 ## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/manfredsteger/polly.git
+# Download the pinned release configuration and create your local settings
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
 cd polly
+cp .env.example .env
+# Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD in .env
 
-# Start with zero configuration
-docker compose up -d
+# Start the public beta image
+docker compose -f docker-compose.image.yml up -d
 
 # Open http://localhost:3080
 ```
 
-That's it! The application auto-configures PostgreSQL and applies the database schema on first start.
+The application auto-configures PostgreSQL and applies the database schema on first start.
+Use the versioned image tag in `docker-compose.image.yml` for reproducible
+deployments. The moving `:beta` tag is suitable for evaluation only.
 
 ---
 
@@ -44,7 +48,7 @@ That's it! The application auto-configures PostgreSQL and applies the database s
 
 ### Manual Deployment
 
-- Node.js 20 LTS or higher
+- Node.js 22 LTS or higher
 - PostgreSQL 15 or higher
 - npm 10+
 
@@ -57,11 +61,24 @@ That's it! The application auto-configures PostgreSQL and applies the database s
 Best for: Small to medium deployments, quick evaluation
 
 ```bash
-# Production with custom settings
+# Source checkout: production with custom settings
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
+cd polly
 cp .env.example .env
 nano .env  # Configure your settings
 
 docker compose up -d
+```
+
+For the published Docker image (without a local source checkout), use
+`docker-compose.image.yml` from this repository:
+
+```bash
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
+cd polly
+cp .env.example .env
+# Set POSTGRES_PASSWORD, SESSION_SECRET and ADMIN_PASSWORD to strong values
+docker compose -f docker-compose.image.yml up -d
 ```
 
 ### Option 2: Docker with External Database
@@ -69,17 +86,55 @@ docker compose up -d
 Best for: Organizations with existing PostgreSQL infrastructure
 
 ```bash
-# Use external database
+# Preferred: use the pinned image Compose file without a bundled PostgreSQL container
+git clone --branch v0.1.0-beta.9 --depth 1 https://github.com/manfredsteger/polly.git
+cd polly
+cp .env.example .env
+# Set DATABASE_URL, SESSION_SECRET and ADMIN_PASSWORD in .env
+docker compose -f docker-compose.image.external-db.yml up -d
+
+# Alternatively, run the container directly
 docker run -d \
   --name polly \
   -p 3080:5000 \
   -e DATABASE_URL=postgresql://user:pass@your-db-host:5432/polly \
   -e SESSION_SECRET=your-secure-secret \
   -v polly-uploads:/app/uploads \
-  polly:latest
+  manfredsteger/polly:0.1.0-beta.9
 ```
 
-### Option 3: Kubernetes / Helm
+### Option 3: Portainer
+
+On an x86_64 or ARM64 host, create a **Stack** in Portainer and point it to the
+`v0.1.0-beta.9` release's `docker-compose.image.yml`, or paste its contents into the web
+editor. Add the following environment values in Portainer's stack settings
+before deploying:
+
+```dotenv
+POSTGRES_PASSWORD=use-a-long-random-password
+SESSION_SECRET=use-openssl-rand-base64-32
+ADMIN_PASSWORD=choose-a-unique-admin-password
+APP_URL=https://poll.example.com
+```
+
+Portainer stores named volumes declared by the stack. Do not remove
+`postgres_data` or `uploads_data` when updating the stack.
+
+### Option 4: Synology Container Manager
+
+1. In **Container Manager → Project**, create a project and import
+   `docker-compose.image.yml` from the `v0.1.0-beta.9` release.
+2. Create a `.env` file next to it containing the four variables shown in the
+   Portainer example.
+3. Deploy the project, then open `http://<nas-hostname>:3080`.
+4. For external access, place the project behind Synology's reverse proxy,
+   set `APP_URL` to the public HTTPS address, and set `FORCE_HTTPS=true`.
+
+The release image is built for both `linux/amd64` and `linux/arm64`. Check the
+CPU architecture of older Synology models before deploying; unsupported
+architectures cannot run the prebuilt image.
+
+### Option 5: Kubernetes / Helm
 
 Best for: Large-scale enterprise deployments
 
@@ -124,7 +179,7 @@ spec:
           claimName: polly-uploads
 ```
 
-### Option 4: Manual Deployment
+### Option 6: Manual Deployment
 
 Best for: Development, special requirements
 
@@ -143,6 +198,44 @@ npm start
 ```
 
 ---
+
+### Test database in Kubernetes or Rancher
+
+This is optional for normal application operation, but required to run
+database-backed tests from the admin panel. Use the [testing guide](../TESTING.md#automated-tests-and-database-isolation)
+to create a dedicated PostgreSQL login/database and initialize its schema.
+No production data copy is needed.
+
+The existing PostgreSQL instance can host both databases on its existing PVC,
+subject to available capacity. A PVC is storage, not a database. Do not replace
+or delete the application PVC. Tests on the same instance share its resources.
+
+1. Locate the PostgreSQL Service and have a database administrator create
+   `polly_test` and its dedicated login. Verify access restrictions.
+2. In the **application namespace**, create a Secret named `polly-test-database`
+   with a `TEST_DATABASE_URL` key containing the test connection string. Use the
+   PostgreSQL Service hostname, not a temporary pod IP. Do not commit credentials.
+3. Edit the Polly workload (or its Helm/GitOps source) and add this environment
+   entry to the application container, preserving its existing `DATABASE_URL`:
+
+   ```yaml
+   - name: TEST_DATABASE_URL
+     valueFrom:
+       secretKeyRef:
+         name: polly-test-database
+         key: TEST_DATABASE_URL
+   ```
+
+4. Configure `TEST_DATABASE_SSL` if required and roll out the updated workload.
+5. In Rancher, open **Execute Shell** on the **Polly application container**.
+   Verify the test database name and run the schema initialization command from
+   the testing guide. If the image lacks tooling, use a job/container built from
+   the same application version with the schema files and `drizzle-kit`.
+6. Open **Admin → Tests → Run Tests**. Without a safe test URL the run is blocked;
+   the rest of the application continues working.
+
+Rancher menu labels vary by version. PostgreSQL creation commands run in `psql`
+on the database server; Node/npm schema commands run in the application container.
 
 ## Configuration
 
@@ -213,7 +306,7 @@ Then start with `docker compose up -d app` (omit the `postgres` service).
 
 ### Initial Admin Account (Docker)
 
-When running via Docker, the admin account is automatically created or updated on each start.
+When running via Docker, a missing initial admin account is created on startup. Existing accounts are preserved.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -222,22 +315,56 @@ When running via Docker, the admin account is automatically created or updated o
 | `ADMIN_PASSWORD` | Admin password | `Admin123!` |
 | `SITE_NAME` | Website name (main part) | `Poll` |
 | `SITE_NAME_ACCENT` | Accented part of the site name | `y` |
+| `FAVICON_URL` | Public URL of a custom favicon (PNG/ICO/SVG). Also uploadable via Admin Panel | `https://example.com/favicon.png` |
+| `LOGO_URL` | Public URL of a custom logo | `https://example.com/logo.png` |
+| `PRIMARY_COLOR` | Primary brand colour (hex) | `#F97316` |
+| `POLLY_COPYRIGHT_TEXT` | Footer copyright text (limited HTML: links, basic markup). When set, the admin form field is locked (read-only) | `© 2026 My Org` |
+| `MFA_ADMIN_REQUIRED` | Emergency override: set to `false` to disable the admin MFA requirement at the server level, overriding the database setting. Useful when all admin accounts have lost their authenticator app. Remove or leave unset to use the value configured in the admin panel. | *(unset)* |
+
+`ADMIN_*` values bootstrap a missing account only. Restarting or changing these
+variables does not reset an existing password, MFA, role, or first-login flag,
+including for Keycloak-linked accounts. Use normal account-management/recovery
+flows to change existing credentials. A username/email conflict preserves the
+existing account.
 
 > **Security Warning:** Change the default admin credentials after first login, or set custom values via environment variables before starting.
 
-### Keycloak OIDC (Optional)
+### Guest Access & Administrator MFA
+
+The Admin Panel can independently allow or block guest poll creation and guest
+voting. Disabling guest voting prevents new guest votes and changes to existing
+guest votes, while public poll links remain viewable.
+
+When the administrator MFA policy is enabled, admins without MFA are prompted
+to enroll before they can continue. `MFA_ADMIN_REQUIRED=false` is deliberately
+an emergency-only deployment override: remove it after recovering administrator
+access so the policy configured in the Admin Panel takes effect again.
+
+### HTTPS / Secure Cookies
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FORCE_HTTPS` | Force secure cookies behind a TLS-terminating reverse proxy. Set to `true` if your proxy terminates TLS but Polly itself runs on HTTP | auto-detected from `APP_URL` |
+
+> **Note:** On plain-HTTP deployments (e.g. `http://localhost:3080`) do **not** set `FORCE_HTTPS=true` — browsers will silently discard the session cookie and users cannot log in.
+
+### SSO via OIDC — Keycloak, Authentik & other providers (Optional)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `KEYCLOAK_REALM` | Keycloak realm name | `university` |
+| `KEYCLOAK_REALM` | Keycloak realm name (not needed when `KEYCLOAK_ISSUER_URL` is set) | `university` |
 | `KEYCLOAK_CLIENT_ID` | Client ID | `polly` |
 | `KEYCLOAK_CLIENT_SECRET` | Client secret | `secret-uuid` |
-| `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL | `https://keycloak.example.com` |
-| `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL (auto-derived from realm + server URL if not set) | `https://keycloak.example.com/realms/myrealm` |
+| `KEYCLOAK_AUTH_SERVER_URL` | Keycloak base URL (not needed when `KEYCLOAK_ISSUER_URL` is set) | `https://keycloak.example.com` |
+| `KEYCLOAK_ISSUER_URL` | Full OIDC issuer URL. Takes precedence over the Keycloak-style `{server}/realms/{realm}` construction and enables generic OIDC providers such as Authentik | `https://auth.example.com/application/o/polly/` |
+| `KEYCLOAK_ADMIN_CLIENT_ID` | Client ID for Keycloak Admin API calls (e.g. email-exists checks via client_credentials). Defaults to `KEYCLOAK_CLIENT_ID` if not set | — |
+| `KEYCLOAK_ADMIN_CLIENT_SECRET` | Client secret for Keycloak Admin API calls. Defaults to `KEYCLOAK_CLIENT_SECRET` if not set | — |
 | `SSO_BUTTON_LABEL` | Custom login button text (default: "Login with Keycloak"). Also configurable in Admin → Authentication | `Kita Hub Login` |
 | `HIDE_LOGIN_FORM` | Hide the local username+password login form. Set to `true` when SSO is the primary login method | `false` |
 
 > **Legacy alias:** `KEYCLOAK_URL` (same as `KEYCLOAK_AUTH_SERVER_URL`)
+
+> **Authentik example:** set `KEYCLOAK_ISSUER_URL=https://auth.example.com/application/o/polly/` plus `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET` — `KEYCLOAK_REALM` and `KEYCLOAK_AUTH_SERVER_URL` are not required. Existing Keycloak setups keep working unchanged; role mapping supports `realm_access.roles`, `resource_access[client].roles`, and custom `role`/`roles` claims (configurable in Authentik via property mappers).
 
 ### ClamAV Virus Scanning (Optional)
 
@@ -262,6 +389,8 @@ make start-with-clamav
 | `CLAMAV_HOST` | ClamAV daemon host | `clamav` |
 | `CLAMAV_PORT` | ClamAV daemon port | `3310` |
 | `CLAMAV_ENABLED` | Enable scanning | `true` |
+
+> **Configuration priority:** Explicit non-empty `CLAMAV_ENABLED`, `CLAMAV_HOST`, and `CLAMAV_PORT` values override the persisted **Admin → Security** scanner setting at runtime. Leave all three unset to manage ClamAV in the Admin Panel. In particular, set `CLAMAV_ENABLED=false` to deliberately disable a stale enabled database setting.
 
 #### Features
 
@@ -408,6 +537,21 @@ npm run dev  # or docker compose restart
 
 Set `POLLY_WCAG_OVERRIDE=true` to disable default theme enforcement without creating a local config file.
 
+### Progressive Web App (PWA)
+
+Polly is installable as a PWA on Chrome, Edge, and Safari/iOS. The web manifest is served dynamically from `/site.webmanifest` and reflects your admin-configured branding:
+
+| Manifest field | Source |
+|----------------|--------|
+| `name` / `short_name` | `branding.siteName` + `branding.siteNameAccent` |
+| `theme_color` | `theme.primaryColor` |
+| `background_color` (splash) | `#FFFFFF` (or `#0f172a` when `defaultThemeMode=dark`) |
+| Icons (`any` and `maskable`) | bundled `android-chrome-*.png` files |
+
+A vanilla service worker (`/sw.js`) registers in production builds only, caches the app shell, and falls back to `/offline.html` for navigation requests when the network is unreachable. No build configuration required — both the manifest and service worker work out of the box for self-hosters.
+
+If you ship custom icons, replace `client/public/android-chrome-*.png` (and the `-maskable-*.png` variants — these need a safe-zone padding so Android's adaptive-icon mask doesn't crop your logo).
+
 ### Advanced Settings
 
 | Variable | Description | Default |
@@ -416,12 +560,15 @@ Set `POLLY_WCAG_OVERRIDE=true` to disable default theme enforcement without crea
 | `NODE_ENV` | Node environment (`production`, `development`) | `production` |
 | `DATABASE_SSL` | Enable SSL for database connections (e.g., managed PostgreSQL with TLS) | `false` |
 | `FORCE_HTTPS` | Force secure cookies even when `APP_URL` is not HTTPS (behind TLS-terminating proxy) | auto-detect from `APP_URL` |
+| `DOCKER` | Legacy runtime marker used by some deployments to indicate container execution | `true` |
 | `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
 | `SEED_DEMO_DATA` | Seed demo polls showing all three poll types on first start | `false` |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export (set automatically in Docker image) | auto-detected |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
 | `TEST_MODE_SECRET` | Custom header value for E2E test mode (`X-Test-Mode` header) | `polly-e2e-test-mode` |
+| `TEST_DATABASE_URL` | Separate initialized database for automated tests; never the application database | — |
+| `TEST_DATABASE_SSL` | Test connection SSL option, independent of application SSL | `false` |
 
 ---
 
@@ -605,6 +752,35 @@ docker compose exec app sh -c "pg_isready -h your-db-host -p 5432"
 # Check environment variable
 docker compose exec app sh -c "echo \$DATABASE_URL"
 ```
+
+### Image Uploads Fail (EACCES / permission denied)
+
+The container runs as a non-root user (UID:GID **1001:1001**, `nodejs`). If the
+volume mounted at `/app/uploads` was created by another image or is owned by a
+different user (common after upgrades or on Synology/Portainer setups), uploads
+fail with `EACCES: permission denied` and the API returns a storage-permission
+error.
+
+The container logs a warning at startup when `/app/uploads` is not writable:
+
+```
+[Uploads] WARNING: /app/uploads is NOT writable by the container user (UID 1001).
+```
+
+**Fix:** change ownership of the uploads volume to `1001:1001` from the Docker host:
+
+```bash
+# Named volume (e.g. uploads_data from docker-compose):
+docker run --rm -v uploads_data:/data alpine chown -R 1001:1001 /data
+
+# Portainer: the volume name is usually prefixed with the stack name,
+# e.g. polly_uploads_data — check Portainer → Volumes for the exact name.
+
+# Bind mount (host directory):
+sudo chown -R 1001:1001 /path/to/uploads
+```
+
+Then restart the container. No data is lost by this operation.
 
 ### Email Not Sending
 

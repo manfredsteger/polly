@@ -80,11 +80,14 @@ interface TestRun {
   } | null;
 }
 
+type ResultFilter = 'all' | 'failed' | 'passed' | 'skipped';
+
 interface ScheduleConfig {
   enabled: boolean;
   intervalDays: number;
   runTime: string;
   notifyEmail?: string;
+  notifyEmails?: string[];
 }
 
 interface SmtpStatus {
@@ -95,11 +98,24 @@ interface TestsPanelProps {
   onBack: () => void;
 }
 
+function normalizeNotificationEmails(config?: ScheduleConfig | null): string[] {
+  const values = [
+    ...(config?.notifyEmails ?? []),
+    ...(config?.notifyEmail ? [config.notifyEmail] : []),
+  ];
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export function TestsPanel({ onBack }: TestsPanelProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isRunning, setIsRunning] = useState(false);
+  const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
 
   const { data: testRuns, isLoading, refetch } = useQuery<TestRun[]>({
     queryKey: ['/api/v1/admin/test-runs'],
@@ -128,6 +144,11 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     }
   }, [currentRunError, isRunning]);
 
+  useEffect(() => {
+    if (!testRuns || testRuns.length === 0) return;
+    setResultFilter(testRuns[0].summary.failed > 0 ? 'failed' : 'all');
+  }, [testRuns]);
+
   const { data: pentestStatus } = useQuery<PentestStatus>({
     queryKey: ['/api/v1/admin/pentest-tools/status'],
   });
@@ -140,24 +161,28 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     queryKey: ['/api/v1/email-status'],
   });
 
-  const [notifyEmail, setNotifyEmail] = useState('');
+  const [notifyEmails, setNotifyEmails] = useState<string[]>(['']);
   const [emailDirty, setEmailDirty] = useState(false);
 
   useEffect(() => {
     if (scheduleConfig && !emailDirty) {
-      setNotifyEmail(scheduleConfig.notifyEmail || '');
+      const normalized = normalizeNotificationEmails(scheduleConfig);
+      setNotifyEmails(normalized.length > 0 ? normalized : ['']);
     }
   }, [scheduleConfig, emailDirty]);
 
   const saveEmailMutation = useMutation({
-    mutationFn: async (email: string) => {
-      await apiRequest('PUT', '/api/v1/admin/tests/schedule', { notifyEmail: email || '' });
+    mutationFn: async (emails: string[]) => {
+      await apiRequest('PUT', '/api/v1/admin/tests/schedule', {
+        notifyEmails: emails,
+        notifyEmail: emails[0] || '',
+      });
     },
-    onSuccess: (_data, email) => {
+    onSuccess: (_data, emails) => {
       setEmailDirty(false);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/tests/schedule'] });
       toast({
-        title: email
+        title: emails.length > 0
           ? t('admin.tests.notificationEmailSaved')
           : t('admin.tests.notificationEmailCleared'),
       });
@@ -169,6 +194,56 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       });
     },
   });
+
+  const configuredNotifyEmails = normalizeNotificationEmails(scheduleConfig);
+  const sanitizedNotifyEmails = Array.from(new Set(notifyEmails.map((email) => email.trim()).filter(Boolean)));
+  const invalidNotifyEmails = notifyEmails
+    .map((email, index) => ({ email: email.trim(), index }))
+    .filter(({ email }) => email.length > 0 && !isValidEmail(email));
+  const emailRows = notifyEmails.length > 0 ? notifyEmails : [''];
+  const hasEmailChanges =
+    sanitizedNotifyEmails.length !== configuredNotifyEmails.length ||
+    sanitizedNotifyEmails.some((email, index) => email !== configuredNotifyEmails[index]);
+
+  const handleNotifyEmailChange = (index: number, value: string) => {
+    setNotifyEmails((current) => current.map((email, currentIndex) => (
+      currentIndex === index ? value : email
+    )));
+    setEmailDirty(true);
+  };
+
+  const handleAddNotifyEmail = () => {
+    setNotifyEmails((current) => [...current, '']);
+    setEmailDirty(true);
+  };
+
+  const handleRemoveNotifyEmail = (index: number) => {
+    setNotifyEmails((current) => {
+      if (current.length === 1) {
+        return [''];
+      }
+      return current.filter((_, currentIndex) => currentIndex !== index);
+    });
+    setEmailDirty(true);
+  };
+
+  const handleSaveNotifyEmails = () => {
+    if (invalidNotifyEmails.length > 0) {
+      toast({
+        title: t('admin.tests.error'),
+        description: t('errors.invalidEmail'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    saveEmailMutation.mutate(sanitizedNotifyEmails);
+  };
+
+  const handleClearNotifyEmails = () => {
+    setNotifyEmails(['']);
+    setEmailDirty(false);
+    saveEmailMutation.mutate([]);
+  };
 
   const { data: testDataStats, refetch: refetchTestDataStats } = useQuery<{
     polls: number;
@@ -204,6 +279,27 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     },
   });
 
+  const clearHistoryMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', '/api/v1/admin/test-runs');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: t('admin.tests.historyCleared'),
+        description: t('admin.tests.historyClearedDescription', { count: data.deletedRuns ?? 0 }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/test-runs'] });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.tests.historyClearError'),
+        variant: "destructive",
+      });
+    },
+  });
+
   // Sync isRunning state with backend - check if any test is actually running
   useEffect(() => {
     if (testRuns && testRuns.length > 0) {
@@ -219,6 +315,13 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       // Delay to prevent race condition
       setTimeout(() => {
         refetch();
+        // Test runs create polls/users/votes flagged as test data — refresh
+        // the Testdaten-Verwaltung counters and any list views that may now
+        // include the newly-created (but filtered) test rows.
+        refetchTestDataStats();
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/users'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/polls'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/extended-stats'] });
       }, 500);
     } else if (currentRun && currentRun.status === 'running') {
       setIsRunning(true);
@@ -235,8 +338,11 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       toast({ title: t('admin.tests.started'), description: t('admin.tests.startedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/test-runs'] });
     },
-    onError: () => {
-      toast({ title: t('errors.generic'), description: t('admin.tests.startError'), variant: "destructive" });
+    onError: (error: Error) => {
+      const messageKey = error.message.includes('TEST_DATABASE_UNSAFE')
+        ? 'admin.tests.unsafeDatabase'
+        : 'admin.tests.startError';
+      toast({ title: t('errors.generic'), description: t(messageKey), variant: "destructive" });
     },
   });
 
@@ -279,10 +385,28 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
     return Math.min((processed / total) * 100, 100);
   };
 
+  const getFilteredResults = (results: TestResult[]) => {
+    if (resultFilter === 'all') return results;
+    return results.filter((result) => result.status === resultFilter);
+  };
+
+  const getEmptyFilterLabel = () => {
+    switch (resultFilter) {
+      case 'failed':
+        return t('admin.tests.noFailedResults');
+      case 'passed':
+        return t('admin.tests.noPassedResults');
+      case 'skipped':
+        return t('admin.tests.noSkippedResults');
+      default:
+        return t('admin.tests.noResultsForRun');
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-back-tests">
             <ArrowLeft className="w-4 h-4" />
           </Button>
@@ -291,8 +415,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
             <p className="text-sm text-muted-foreground">{t('admin.tests.description')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-polly-orange border-polly-orange">
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className="text-polly-orange border-polly-orange whitespace-nowrap">
             <FlaskConical className="w-3 h-3 mr-1" />
             {t('admin.tests.automatedTests')}
           </Badge>
@@ -380,8 +504,8 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
           <CardDescription>{t('admin.tests.testDataDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground min-w-0">
               {testDataStats && testDataStats.total > 0 ? (
                 <span>
                   {testDataStats.polls} {t('common.polls')}, {testDataStats.users} {t('common.users')}, {testDataStats.votes} {t('common.votes')}
@@ -392,9 +516,10 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   size="sm"
+                  className="self-start sm:self-auto shrink-0"
                   disabled={!testDataStats || testDataStats.total === 0 || purgeTestDataMutation.isPending}
                 >
                   {purgeTestDataMutation.isPending ? (
@@ -438,8 +563,44 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
       {/* Test History */}
       <Card className="polly-card">
         <CardHeader>
-          <CardTitle>{t('admin.tests.history')}</CardTitle>
-          <CardDescription>{t('admin.tests.historyDescription')}</CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <CardTitle>{t('admin.tests.history')}</CardTitle>
+              <CardDescription>{t('admin.tests.historyDescription')}</CardDescription>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="self-start shrink-0"
+                  disabled={!testRuns || testRuns.length === 0 || isRunning || clearHistoryMutation.isPending}
+                  data-testid="button-clear-test-history"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {t('admin.tests.clearHistory')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('admin.tests.clearHistoryConfirmTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('admin.tests.clearHistoryConfirmDescription')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => clearHistoryMutation.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    data-testid="button-confirm-clear-history"
+                  >
+                    {t('admin.tests.clearHistory')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -458,12 +619,19 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                 const progressPercent = run.summary.total > 0 ? (completedCount / run.summary.total) * 100 : 0;
                 const liveTestName = run.liveProgress?.currentTest || '';
                 const liveFileName = run.liveProgress?.currentFile?.replace('server/tests/', '') || '';
-                
+
+                const resultCounts = {
+                  all: run.results.length,
+                  passed: run.results.filter((r) => r.status === 'passed').length,
+                  failed: run.results.filter((r) => r.status === 'failed').length,
+                  skipped: run.results.filter((r) => r.status === 'skipped').length,
+                };
+
                 return (
                 <AccordionItem key={run.id} value={run.id}>
                   <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center justify-between w-full pr-4 gap-4">
-                      <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex flex-col items-start gap-2 w-full min-w-0 pr-2 text-left sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pr-4">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
                         {getStatusBadge(run.status)}
                         <span className="text-sm text-muted-foreground">
                           {new Date(run.startedAt).toLocaleString()}
@@ -471,7 +639,7 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                       </div>
                       
                       {run.status === 'running' && (
-                        <div className="flex-1 mx-4 min-w-0">
+                        <div className="w-full min-w-0 sm:flex-1 sm:mx-4">
                           <div className="flex items-center gap-2 mb-1">
                             <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
                             <span className="text-xs text-muted-foreground truncate" title={liveTestName || liveFileName}>
@@ -484,27 +652,55 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
                         </div>
                       )}
                       
-                      <div className="flex items-center gap-2 text-sm shrink-0">
+                      <div className="flex flex-wrap items-center gap-x-2 text-sm sm:shrink-0">
                         <span className="text-green-500">{run.summary.passed} passed</span>
                         <span className="text-red-500">{run.summary.failed} failed</span>
                       </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="space-y-2 pl-4">
-                      {run.results.map((result) => (
-                        <div key={result.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                          <div className="flex items-center gap-2">
+                    <div className="space-y-3 pl-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant={resultFilter === 'all' ? 'default' : 'outline'} onClick={() => setResultFilter('all')}>
+                          {t('admin.tests.filterAll')} ({resultCounts.all})
+                        </Button>
+                        <Button size="sm" variant={resultFilter === 'failed' ? 'default' : 'outline'} onClick={() => setResultFilter('failed')}>
+                          {t('admin.tests.filterFailed')} ({resultCounts.failed})
+                        </Button>
+                        <Button size="sm" variant={resultFilter === 'passed' ? 'default' : 'outline'} onClick={() => setResultFilter('passed')}>
+                          {t('admin.tests.filterPassed')} ({resultCounts.passed})
+                        </Button>
+                        <Button size="sm" variant={resultFilter === 'skipped' ? 'default' : 'outline'} onClick={() => setResultFilter('skipped')}>
+                          {t('admin.tests.filterSkipped')} ({resultCounts.skipped})
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                      {getFilteredResults(run.results).map((result) => (
+                        <div key={result.id} className="p-2 bg-muted/50 rounded">
+                          <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
                             {getStatusIcon(result.status)}
-                            <span className="text-sm">{result.name}</span>
+                            <span className="text-sm break-words min-w-0">{result.name}</span>
                           </div>
                           {result.duration && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground shrink-0">
                               {result.duration}ms
                             </span>
                           )}
+                          </div>
+                          {result.status === 'failed' && result.error && (
+                            <div className="mt-2 ml-6 rounded bg-red-50 dark:bg-red-950/20 px-3 py-2 text-xs text-red-700 dark:text-red-400 font-mono whitespace-pre-wrap break-words">
+                              {result.error}
+                            </div>
+                          )}
                         </div>
                       ))}
+                      {getFilteredResults(run.results).length === 0 && (
+                        <div className="p-2 bg-muted/30 rounded text-sm text-muted-foreground">
+                          {getEmptyFilterLabel()}
+                        </div>
+                      )}
+                      </div>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -531,22 +727,56 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
               <span>{t('admin.tests.smtpNotConfigured')}</span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <Label htmlFor="notify-email" className="sr-only">{t('admin.tests.notificationEmail')}</Label>
-              <Input
-                id="notify-email"
-                type="email"
-                placeholder={t('admin.tests.notificationEmailPlaceholder')}
-                value={notifyEmail}
-                onChange={(e) => { setNotifyEmail(e.target.value); setEmailDirty(true); }}
-                data-testid="input-notify-email"
-              />
-            </div>
+          <div className="space-y-3">
+            {emailRows.map((notifyEmail, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Label htmlFor={`notify-email-${index}`} className="sr-only">
+                    {t('admin.tests.notificationEmail')}
+                  </Label>
+                  <Input
+                    id={`notify-email-${index}`}
+                    type="email"
+                    placeholder={t('admin.tests.notificationEmailPlaceholder')}
+                    value={notifyEmail}
+                    onChange={(e) => handleNotifyEmailChange(index, e.target.value)}
+                    data-testid={index === 0 ? "input-notify-email" : `input-notify-email-${index}`}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleRemoveNotifyEmail(index)}
+                  disabled={saveEmailMutation.isPending}
+                  data-testid={index === 0 ? "button-clear-notify-email" : `button-remove-notify-email-${index}`}
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  {t('admin.tests.clearEmail')}
+                </Button>
+              </div>
+            ))}
+            {invalidNotifyEmails.length > 0 && (
+              <p className="text-xs text-destructive">
+                {t('errors.invalidEmail')}
+              </p>
+            )}
             <Button
               size="sm"
-              onClick={() => saveEmailMutation.mutate(notifyEmail)}
-              disabled={saveEmailMutation.isPending || notifyEmail === (scheduleConfig?.notifyEmail || '')}
+              variant="ghost"
+              onClick={handleAddNotifyEmail}
+              disabled={saveEmailMutation.isPending}
+              data-testid="button-add-notify-email"
+            >
+              <Mail className="w-4 h-4 mr-1" />
+              {t('admin.tests.addAnotherEmail')}
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1" />
+            <Button
+              size="sm"
+              onClick={handleSaveNotifyEmails}
+              disabled={saveEmailMutation.isPending || !hasEmailChanges}
               data-testid="button-save-notify-email"
             >
               {saveEmailMutation.isPending ? (
@@ -556,24 +786,20 @@ export function TestsPanel({ onBack }: TestsPanelProps) {
               )}
               {t('admin.tests.saveEmail')}
             </Button>
-            {scheduleConfig?.notifyEmail && (
+            {configuredNotifyEmails.length > 0 && (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  setNotifyEmail('');
-                  setEmailDirty(false);
-                  saveEmailMutation.mutate('');
-                }}
+                onClick={handleClearNotifyEmails}
                 disabled={saveEmailMutation.isPending}
-                data-testid="button-clear-notify-email"
+                data-testid="button-clear-all-notify-email"
               >
                 <X className="w-4 h-4 mr-1" />
-                {t('admin.tests.clearEmail')}
+                {t('admin.tests.clearAllEmails')}
               </Button>
             )}
           </div>
-          {!scheduleConfig?.notifyEmail && (
+          {configuredNotifyEmails.length === 0 && (
             <p className="text-xs text-muted-foreground">
               {t('admin.tests.noEmailConfigured')}
             </p>

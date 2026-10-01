@@ -1,4 +1,6 @@
 import { spawn } from 'child_process';
+import { tmpdir } from 'node:os';
+import { testDatabaseEnvironment } from '../lib/testDatabaseSafety';
 import { db } from '../db';
 import { testRuns, testResults, testConfigurations, systemSettings } from '@shared/schema';
 import { eq, desc, and } from 'drizzle-orm';
@@ -105,9 +107,53 @@ export interface TestScheduleConfig {
   lastRun?: string;
   nextRun?: string;
   notifyEmail?: string;
+  notifyEmails?: string[];
 }
 
 const TEST_SCHEDULE_KEY = 'test_schedule_config';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeNotificationRecipients(
+  notifyEmails?: string[],
+  notifyEmail?: string
+): string[] {
+  const rawValues = [
+    ...(Array.isArray(notifyEmails) ? notifyEmails : []),
+    ...(notifyEmail ? [notifyEmail] : []),
+  ];
+
+  const uniqueRecipients = new Set<string>();
+
+  for (const value of rawValues) {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
+      continue;
+    }
+    uniqueRecipients.add(trimmed);
+  }
+
+  return Array.from(uniqueRecipients);
+}
+
+function normalizeScheduleConfig(config?: Partial<TestScheduleConfig> | null): TestScheduleConfig {
+  const mergedConfig: TestScheduleConfig = {
+    enabled: false,
+    intervalDays: 7,
+    runTime: '03:00',
+    ...(config ?? {}),
+  };
+
+  const notifyEmails = normalizeNotificationRecipients(
+    mergedConfig.notifyEmails,
+    mergedConfig.notifyEmail
+  );
+
+  return {
+    ...mergedConfig,
+    notifyEmails,
+    notifyEmail: notifyEmails[0] ?? '',
+  };
+}
 
 function extractCategoryFromPath(filepath: string): string {
   const parts = filepath.split('/');
@@ -186,7 +232,7 @@ async function countAllTests(testFiles?: string[], testNamePattern?: string): Pr
     const count = await new Promise<number>((resolve) => {
       const proc = spawn(localVitest, args, {
         cwd: process.cwd(),
-        env: { ...process.env, NODE_ENV: 'test' },
+        env: testDatabaseEnvironment(process.env),
         stdio: ['pipe', 'pipe', 'pipe'],
       });
       
@@ -303,6 +349,8 @@ async function resolveTestConfig(): Promise<ResolvedTestConfig> {
 }
 
 export async function runAllTests(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<number> {
+  // Refuse before discovery can import tests, and before creating a run record.
+  testDatabaseEnvironment(process.env);
   const config = await resolveTestConfig();
   
   const [testRun] = await db.insert(testRuns).values({
@@ -415,11 +463,13 @@ async function runTestsInBackground(runId: number, config: ResolvedTestConfig): 
     }
     
     const totalSkipped = (parsed.numSkippedTests || 0) + e2eTestsToSkip.length;
+    const reconciledTotal = parsed.numPassedTests + parsed.numFailedTests + totalSkipped;
     
     const completedAt = new Date();
     await db.update(testRuns)
       .set({
         status: (parsed.numFailedTests === 0 && parsed.numTotalTests > 0) ? 'completed' : 'failed',
+        totalTests: reconciledTotal,
         passed: parsed.numPassedTests,
         failed: parsed.numFailedTests,
         skipped: totalSkipped,
@@ -495,7 +545,7 @@ async function sendTestReportNotification(
   try {
     const config = await getScheduleConfig();
     
-    if (!config.notifyEmail) {
+    if (!config.notifyEmails?.length) {
       console.log('[TestRunner] No notification email configured, skipping email');
       return;
     }
@@ -528,25 +578,24 @@ async function sendTestReportNotification(
       console.error('[TestRunner] Failed to generate PDF for email:', pdfError);
     }
     
-    // Send email
-    await emailService.sendTestReportEmail(
-      config.notifyEmail,
-      {
-        id: testRun.id,
-        status: testRun.status,
-        triggeredBy: testRun.triggeredBy,
-        totalTests: testRun.totalTests ?? 0,
-        passed: testRun.passed ?? 0,
-        failed: testRun.failed ?? 0,
-        skipped: testRun.skipped ?? 0,
-        duration: testRun.duration,
-        startedAt: testRun.startedAt,
-        completedAt: testRun.completedAt,
-      },
-      pdfBuffer
-    );
-    
-    console.log(`[TestRunner] Email notification sent to ${config.notifyEmail} for run #${runId}`);
+    const reportPayload = {
+      id: testRun.id,
+      status: testRun.status,
+      triggeredBy: testRun.triggeredBy,
+      totalTests: testRun.totalTests ?? 0,
+      passed: testRun.passed ?? 0,
+      failed: testRun.failed ?? 0,
+      skipped: testRun.skipped ?? 0,
+      duration: testRun.duration,
+      startedAt: testRun.startedAt,
+      completedAt: testRun.completedAt,
+    };
+
+    for (const recipientEmail of config.notifyEmails) {
+      await emailService.sendTestReportEmail(recipientEmail, reportPayload, pdfBuffer, results);
+    }
+
+    console.log(`[TestRunner] Email notification sent to ${config.notifyEmails.join(', ')} for run #${runId}`);
   } catch (error) {
     console.error('[TestRunner] Failed to send email notification:', error);
   }
@@ -569,8 +618,12 @@ export function getLiveProgress(): LiveProgress | null {
   return liveProgress;
 }
 
-function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<string> {
-  return new Promise((resolve, reject) => {
+export async function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<string> {
+  // The application directory may be read-only for the container user.
+  // Give each run its own writable report directory, avoiding stale reports.
+  const reportDirectory = fs.mkdtempSync(path.join(tmpdir(), 'polly-tests-'));
+  try {
+    return await new Promise<string>((resolve, reject) => {
     // Resolve vitest binary directly (not via npx) to avoid interactive download prompts in Docker
     const localVitest = path.join(process.cwd(), 'node_modules', '.bin', 'vitest');
     const vitestAvailable = fs.existsSync(localVitest);
@@ -582,7 +635,7 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     }
 
     // Use verbose reporter for live output, JSON output saved to file
-    const jsonOutputPath = path.join(process.cwd(), 'test-results.json');
+    const jsonOutputPath = path.join(reportDirectory, 'test-results.json');
     const args = ['run', '--reporter=verbose', '--reporter=json', '--outputFile=' + jsonOutputPath];
     
     // Add test name pattern filter if provided (for manual mode individual test filtering)
@@ -602,7 +655,7 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
     // Disable ANSI colors for reliable parsing
     const child = spawn(localVitest, args, {
       cwd: process.cwd(),
-      env: { ...process.env, CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0' },
+      env: { ...testDatabaseEnvironment(process.env), CI: 'true', NO_COLOR: '1', FORCE_COLOR: '0', RUN_VIA_INAPP: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
@@ -727,7 +780,10 @@ function executeVitest(testFiles?: string[], testNamePattern?: string): Promise<
       liveProgress = null;
       reject(err);
     });
-  });
+    });
+  } finally {
+    fs.rmSync(reportDirectory, { recursive: true, force: true });
+  }
 }
 
 function parseVitestOutput(output: string): VitestJsonOutput {
@@ -786,21 +842,30 @@ export async function getScheduleConfig(): Promise<TestScheduleConfig> {
     .where(eq(systemSettings.key, TEST_SCHEDULE_KEY));
   
   if (!setting) {
-    return {
-      enabled: false,
-      intervalDays: 7,
-      runTime: '03:00',
-    };
+    return normalizeScheduleConfig();
   }
   
-  return setting.value as TestScheduleConfig;
+  return normalizeScheduleConfig(setting.value as Partial<TestScheduleConfig>);
 }
 
 export async function updateScheduleConfig(config: Partial<TestScheduleConfig>): Promise<TestScheduleConfig> {
   const { systemSettings } = await import('@shared/schema');
   
   const currentConfig = await getScheduleConfig();
-  const newConfig = { ...currentConfig, ...config };
+  // notifyEmail (legacy, single) and notifyEmails (current, list) are two
+  // representations of ONE logical field: the recipient list. When the update
+  // provides either of them, the update's recipients must REPLACE the stored
+  // ones entirely. Merging both layers (spread below) would union the stale
+  // stored notifyEmail back into the new list, making it impossible to ever
+  // remove a previously configured recipient.
+  const hasRecipientUpdate = config.notifyEmails !== undefined || config.notifyEmail !== undefined;
+  const newConfig = normalizeScheduleConfig({
+    ...currentConfig,
+    ...config,
+    ...(hasRecipientUpdate
+      ? { notifyEmails: config.notifyEmails, notifyEmail: config.notifyEmail }
+      : {}),
+  });
   
   if (newConfig.enabled) {
     newConfig.nextRun = calculateNextRun(newConfig.intervalDays, newConfig.runTime);

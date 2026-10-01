@@ -50,7 +50,44 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+    {/* How It Works Section */}
+      <section
+        className="py-20 cta-gradient-section"
+        style={{ backgroundColor: 'hsl(20, 100%, 47%)', backgroundImage: 'linear-gradient(to right, hsl(17, 100%, 50%), hsl(25, 100%, 45%))' }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-white drop-shadow-sm mb-4">{t('home.howItWorksTitle')}</h2>
+            <p className="text-lg text-white/90 drop-shadow-sm">{t('home.howItWorksSubtitle')}</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-schedule rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
+                <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>1</span>
+              </div>
+              <h3 className="text-xl font-semibold text-white drop-shadow-sm mb-4">{t('home.step1Title')}</h3>
+              <p className="text-white/90">{t('home.step1Desc')}</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-survey rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
+                <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>2</span>
+              </div>
+              <h3 className="text-xl font-semibold text-white drop-shadow-sm mb-4">{t('home.step2Title')}</h3>
+              <p className="text-white/90">{t('home.step2Desc')}</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-organization rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
+                <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>3</span>
+              </div>
+              <h3 className="text-xl font-semibold text-white drop-shadow-sm mb-4">{t('home.step3Title')}</h3>
+              <p className="text-white/90">{t('home.step3Desc')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* Features Section */}
       <section className="bg-muted py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -124,71 +161,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-foreground mb-4">{t('home.howItWorksTitle')}</h2>
-            <p className="text-lg text-muted-foreground">{t('home.howItWorksSubtitle')}</p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-schedule rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
-                <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>1</span>
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step1Title')}</h3>
-              <p className="text-muted-foreground">{t('home.step1Desc')}</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-survey rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
-                <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>2</span>
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step2Title')}</h3>
-              <p className="text-muted-foreground">{t('home.step2Desc')}</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-organization rounded-full flex items-center justify-center mx-auto mb-6 shadow-md wcag-themed-bg">
-                <span className="text-2xl font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>3</span>
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">{t('home.step3Title')}</h3>
-              <p className="text-muted-foreground">{t('home.step3Desc')}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section - background-color fallback for axe accessibility testing */}
-      <section className="py-20 cta-gradient-section" style={{ backgroundColor: 'hsl(20, 100%, 47%)', backgroundImage: 'linear-gradient(to right, hsl(17, 100%, 50%), hsl(25, 100%, 45%))' }}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white drop-shadow-sm mb-6">{t('home.ctaTitle')}</h2>
-          <p className="text-xl text-white drop-shadow-sm mb-8 max-w-2xl mx-auto">
-            {t('home.ctaDescription')}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
-            <Button asChild className="bg-white text-gray-900 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
-              <Link href="/create-poll">
-                <Calendar className="w-5 h-5 mr-2" />
-                {t('home.startSchedulePoll')}
-              </Link>
-            </Button>
-            <Button asChild className="bg-white text-gray-900 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
-              <Link href="/create-survey">
-                <Vote className="w-5 h-5 mr-2" />
-                {t('home.createSurvey')}
-              </Link>
-            </Button>
-            <Button asChild className="bg-white text-gray-900 hover:bg-gray-100 border-2 border-white text-lg px-8 py-3 h-auto">
-              <Link href="/create-organization">
-                <ClipboardList className="w-5 h-5 mr-2" />
-                {t('home.createOrgList')}
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+  
     </div>
   );
 }

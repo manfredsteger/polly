@@ -11,7 +11,8 @@ interface ExtendedStats {
   activePolls: number;
   inactivePolls: number;
   totalPolls: number;
-  totalVotes: number;
+  totalParticipations: number;
+  totalVotes?: number;
   monthlyPolls: number;
   weeklyPolls: number;
   todayPolls: number;
@@ -40,7 +41,12 @@ class AdminCacheService {
   private warmupInterval: NodeJS.Timeout | null = null;
 
   async getExtendedStats(forceRefresh = false): Promise<CacheEntry<ExtendedStats>> {
-    if (!forceRefresh && this.statsCache && new Date() < this.statsCache.cacheExpiresAt) {
+    if (
+      !forceRefresh &&
+      this.statsCache &&
+      this.statsCache.data.totalParticipations !== undefined &&
+      new Date() < this.statsCache.cacheExpiresAt
+    ) {
       return this.statsCache;
     }
 

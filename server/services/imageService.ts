@@ -1,10 +1,79 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
+import sharp from 'sharp';
+import { JSDOM } from 'jsdom';
+import createDOMPurify from 'dompurify';
 import { clamavService } from './clamavService';
 import { emailService } from './emailService';
 import { storage } from '../storage';
 import type { InsertClamavScanLog } from '@shared/schema';
+
+/**
+ * Lazy-initialised DOMPurify instance backed by a JSDOM window.
+ * Created once and reused — JSDOM startup is expensive.
+ */
+let _domPurify: ReturnType<typeof createDOMPurify> | null = null;
+
+function getDOMPurify(): ReturnType<typeof createDOMPurify> {
+  if (!_domPurify) {
+    const { window } = new JSDOM('');
+    const purify = createDOMPurify(window as unknown as Parameters<typeof createDOMPurify>[0]);
+
+    purify.addHook('afterSanitizeAttributes', (node: Element) => {
+      for (const attr of ['href', 'xlink:href', 'src', 'action']) {
+        if (node.hasAttribute(attr)) {
+          const val = node.getAttribute(attr) ?? '';
+          if (!val.startsWith('#')) {
+            node.removeAttribute(attr);
+          }
+        }
+      }
+    });
+
+    _domPurify = purify;
+  }
+  return _domPurify;
+}
+
+/**
+ * Sanitizes SVG content using DOMPurify (SVG + svgFilters profile) backed
+ * by a JSDOM DOM parser.
+ *
+ * Because the DOM parser resolves XML entity encoding before DOMPurify
+ * inspects attribute values, obfuscated vectors such as `javas&#x63;ript:`
+ * or `javascript&#58;` are normalised at parse time and then blocked by
+ * DOMPurify — something a regex pass cannot guarantee.
+ *
+ * Sanitization rules:
+ *  - SVG element/attribute allowlist enforced (non-SVG content stripped)
+ *  - <script>, <foreignObject>, event-handler attributes (on*) removed
+ *  - javascript: URIs blocked by DOMPurify URI validation
+ *  - All href / xlink:href / src / action attributes restricted to
+ *    same-document fragment references (#...) by a post-sanitize hook;
+ *    external and data: URIs are removed
+ *  - <use> is explicitly re-allowed (common in logos) but its href is
+ *    subject to the fragment-only hook above
+ *
+ * Returns `null` when parsing or sanitization throws — callers must treat
+ * null as a hard rejection (fail closed, reject the upload).
+ */
+export function sanitizeSvg(svgContent: string): string | null {
+  try {
+    const purify = getDOMPurify();
+    const sanitized = purify.sanitize(svgContent, {
+      USE_PROFILES: { svg: true, svgFilters: true },
+      ADD_TAGS: ['use'],
+      ADD_ATTR: ['href', 'xlink:href'],
+      RETURN_DOM: false,
+      RETURN_DOM_FRAGMENT: false,
+    });
+    return sanitized;
+  } catch (err) {
+    console.error('[ImageService] SVG sanitization error:', err);
+    return null;
+  }
+}
 
 export interface UploadResult {
   success: boolean;
@@ -13,7 +82,20 @@ export interface UploadResult {
   virusName?: string;
   scannerUnavailable?: boolean;
   invalidFileType?: boolean;
+  storagePermission?: boolean;
 }
+
+/** True when an fs error indicates missing filesystem permissions. */
+function isPermissionError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code;
+  return code === 'EACCES' || code === 'EPERM' || code === 'EROFS';
+}
+
+const UPLOADS_PERMISSION_HINT =
+  'Uploads directory is not writable. In Docker, the volume mounted at /app/uploads must be ' +
+  'owned by UID:GID 1001:1001 (the container\'s "nodejs" user). ' +
+  'Fix: run "chown -R 1001:1001" on the volume/host directory, e.g. ' +
+  'docker run --rm -v <uploads_volume>:/data alpine chown -R 1001:1001 /data';
 
 export interface ScanContext {
   userId?: number;
@@ -23,7 +105,17 @@ export interface ScanContext {
 
 const ALLOWED_MIME_PREFIXES = ['image/'];
 
-function validateImageMagicBytes(buffer: Buffer): boolean {
+type ReencodingFormat = 'jpeg' | 'png' | 'gif' | 'webp' | 'avif';
+
+const REENCODE_FORMAT_MAP: Record<string, { format: ReencodingFormat; ext: string }> = {
+  jpeg: { format: 'jpeg', ext: '.jpg' },
+  png:  { format: 'png',  ext: '.png' },
+  gif:  { format: 'gif',  ext: '.gif' },
+  webp: { format: 'webp', ext: '.webp' },
+  avif: { format: 'avif', ext: '.avif' },
+};
+
+export function validateImageMagicBytes(buffer: Buffer): boolean {
   if (buffer.length < 12) return false;
 
   const b = buffer;
@@ -33,7 +125,10 @@ function validateImageMagicBytes(buffer: Buffer): boolean {
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 &&
       b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A) return true;
 
-  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return true;
+  // GIF87a: 47 49 46 38 37 61 — GIF89a: 47 49 46 38 39 61
+  // Full 6-byte check prevents "GIF8; <?php...>" polyglot bypass (LSI pentest finding 2.3)
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38 &&
+      (b[4] === 0x37 || b[4] === 0x39) && b[5] === 0x61) return true;
 
   if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
       b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return true;
@@ -53,6 +148,28 @@ function validateImageMagicBytes(buffer: Buffer): boolean {
   return false;
 }
 
+export async function reencodeImage(buffer: Buffer): Promise<{ buffer: Buffer; ext: string } | null> {
+  try {
+    const instance = sharp(buffer);
+    const { format } = await instance.metadata();
+
+    if (!format) return null;
+
+    const mapping = REENCODE_FORMAT_MAP[format];
+    if (!mapping) {
+      return null;
+    }
+
+    const reencoded = await instance
+      .toFormat(mapping.format)
+      .toBuffer();
+
+    return { buffer: reencoded, ext: mapping.ext };
+  } catch {
+    return null;
+  }
+}
+
 export class ImageService {
   private uploadDir = path.join(process.cwd(), 'uploads');
 
@@ -64,17 +181,31 @@ export class ImageService {
     try {
       await fs.access(this.uploadDir);
     } catch {
-      await fs.mkdir(this.uploadDir, { recursive: true });
+      try {
+        await fs.mkdir(this.uploadDir, { recursive: true });
+      } catch (error) {
+        if (isPermissionError(error)) {
+          console.error(`[ImageService] ${UPLOADS_PERMISSION_HINT}`);
+        }
+        throw error;
+      }
     }
   }
 
-  getUploadMiddleware() {
+  getUploadMiddleware(options?: { allowSvg?: boolean }) {
+    const allowSvg = options?.allowSvg ?? false;
     return multer({
       storage: multer.memoryStorage(),
       limits: {
         fileSize: 5 * 1024 * 1024,
       },
       fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'image/svg+xml' && !allowSvg) {
+          const err = new Error('SVG-Dateien sind für diesen Upload nicht erlaubt') as Error & { status: number };
+          err.status = 400;
+          cb(err);
+          return;
+        }
         if (ALLOWED_MIME_PREFIXES.some(prefix => file.mimetype.startsWith(prefix))) {
           cb(null, true);
         } else {
@@ -84,12 +215,28 @@ export class ImageService {
     });
   }
 
-  async processUpload(file: Express.Multer.File, context?: ScanContext): Promise<UploadResult> {
+  async processUpload(file: Express.Multer.File, context?: ScanContext, options?: { allowSvg?: boolean }): Promise<UploadResult> {
     if (!validateImageMagicBytes(file.buffer)) {
       console.warn(`[ImageService] Magic-Byte-Prüfung fehlgeschlagen: ${file.originalname} (${file.mimetype})`);
       return {
         success: false,
         error: 'Nur Bilddateien sind erlaubt',
+        invalidFileType: true,
+      };
+    }
+
+    const _svgTextStart = file.buffer.slice(0, 1024).toString('utf8').toLowerCase().trimStart();
+    const isSvgContent = file.mimetype === 'image/svg+xml' ||
+      _svgTextStart.startsWith('<svg') ||
+      _svgTextStart.startsWith('<?xml') ||
+      _svgTextStart.startsWith('<!doctype svg') ||
+      /^[\s\S]{0,300}<svg[\s>]/i.test(_svgTextStart);
+
+    if (isSvgContent && options?.allowSvg === false) {
+      console.warn(`[ImageService] SVG content blocked (endpoint disallows SVG): ${file.originalname} (${file.mimetype})`);
+      return {
+        success: false,
+        error: 'SVG-Dateien sind für diesen Upload nicht erlaubt',
         invalidFileType: true,
       };
     }
@@ -161,19 +308,66 @@ export class ImageService {
 
     await this.ensureUploadDir();
 
+    const isSvg = isSvgContent;
+    const isIco = file.mimetype === 'image/x-icon';
+    const isBmp = file.mimetype === 'image/bmp';
+
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const filename = `poll-image-${uniqueSuffix}${ext}`;
+
+    let finalBuffer: Buffer;
+    let finalExt: string;
+
+    if (isSvg || isIco || isBmp) {
+      if (isSvg) {
+        const svgText = file.buffer.toString('utf8');
+        const sanitized = sanitizeSvg(svgText);
+        if (sanitized === null) {
+          console.warn(`[ImageService] SVG sanitization fehlgeschlagen (Upload abgelehnt): ${file.originalname}`);
+          return {
+            success: false,
+            error: 'SVG-Datei konnte nicht verarbeitet werden',
+            invalidFileType: true,
+          };
+        }
+        finalBuffer = Buffer.from(sanitized, 'utf8');
+        console.log(`[ImageService] SVG sanitized: ${file.originalname}`);
+      } else {
+        finalBuffer = file.buffer;
+      }
+      finalExt = path.extname(file.originalname) || (isSvg ? '.svg' : isIco ? '.ico' : '.bmp');
+    } else {
+      const reencoded = await reencodeImage(file.buffer);
+      if (!reencoded) {
+        console.warn(`[ImageService] Re-encoding fehlgeschlagen (kein unterstütztes Format): ${file.originalname}`);
+        return {
+          success: false,
+          error: 'Nur Bilddateien sind erlaubt',
+        };
+      }
+      finalBuffer = reencoded.buffer;
+      finalExt = reencoded.ext;
+      console.log(`[ImageService] Re-encoding erfolgreich: ${file.originalname} → ${finalExt} (${reencoded.buffer.length} bytes)`);
+    }
+
+    const filename = `poll-image-${uniqueSuffix}${finalExt}`;
     const filePath = path.join(this.uploadDir, filename);
 
     try {
-      await fs.writeFile(filePath, file.buffer);
+      await fs.writeFile(filePath, finalBuffer);
 
       return {
         success: true,
         imageUrl: this.getImageUrl(filename),
       };
     } catch (error) {
+      if (isPermissionError(error)) {
+        console.error(`[ImageService] EACCES beim Schreiben in ${this.uploadDir}: ${UPLOADS_PERMISSION_HINT}`);
+        return {
+          success: false,
+          storagePermission: true,
+          error: 'Upload-Verzeichnis ist nicht beschreibbar (Berechtigungsfehler). Docker: Das Volume unter /app/uploads muss UID:GID 1001:1001 gehören.',
+        };
+      }
       console.error('Fehler beim Speichern der Datei:', error);
       return {
         success: false,
@@ -242,4 +436,3 @@ export class ImageService {
 }
 
 export const imageService = new ImageService();
-export { validateImageMagicBytes };

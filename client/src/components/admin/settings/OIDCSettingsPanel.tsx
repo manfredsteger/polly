@@ -9,8 +9,19 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import type { CustomizationSettings } from "@shared/schema";
 import { 
   Key,
   KeyRound,
@@ -24,7 +35,8 @@ import {
   UserPlus,
   UserX,
   Info,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck
 } from "lucide-react";
 
 interface OidcConfig {
@@ -36,12 +48,20 @@ interface OidcConfig {
   callbackUrl: string;
 }
 
+const DEFAULT_POLICY = {
+  minLength: 12,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSpecialChars: true,
+};
+
 export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isTesting, setIsTesting] = useState(false);
-  
+
   const { data: authMethods } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string }>({
     queryKey: ['/api/v1/auth/methods'],
   });
@@ -52,7 +72,18 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean>(true);
   const [ssoButtonLabel, setSsoButtonLabel] = useState<string>('');
-  
+  const [policyMinLength, setPolicyMinLength] = useState<number>(DEFAULT_POLICY.minLength);
+  const [policyUppercase, setPolicyUppercase] = useState<boolean>(DEFAULT_POLICY.requireUppercase);
+  const [policyLowercase, setPolicyLowercase] = useState<boolean>(DEFAULT_POLICY.requireLowercase);
+  const [policyNumbers, setPolicyNumbers] = useState<boolean>(DEFAULT_POLICY.requireNumbers);
+  const [policySpecial, setPolicySpecial] = useState<boolean>(DEFAULT_POLICY.requireSpecialChars);
+  const [adminMfaRequired, setAdminMfaRequired] = useState<boolean>(false);
+  const [showMfaConfirmDialog, setShowMfaConfirmDialog] = useState(false);
+  const [mfaCoverage, setMfaCoverage] = useState<{ total: number; withMfa: number; withoutMfa: number; adminsMissingMfa: string[] } | null>(null);
+  const [mfaCoverageError, setMfaCoverageError] = useState(false);
+  const [allowGuestPollCreation, setAllowGuestPollCreation] = useState<boolean>(true);
+  const [allowGuestVoting, setAllowGuestVoting] = useState<boolean>(true);
+
   useEffect(() => {
     if (authMethods) {
       setRegistrationEnabled(authMethods.registrationEnabled);
@@ -62,6 +93,28 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
   const { data: settings } = useQuery<any[]>({
     queryKey: ['/api/v1/admin/settings'],
   });
+
+  const { data: customization } = useQuery<CustomizationSettings>({
+    queryKey: ['/api/v1/admin/customization'],
+  });
+
+  useEffect(() => {
+    if (customization?.passwordPolicy) {
+      const p = customization.passwordPolicy;
+      setPolicyMinLength(p.minLength ?? DEFAULT_POLICY.minLength);
+      setPolicyUppercase(p.requireUppercase ?? DEFAULT_POLICY.requireUppercase);
+      setPolicyLowercase(p.requireLowercase ?? DEFAULT_POLICY.requireLowercase);
+      setPolicyNumbers(p.requireNumbers ?? DEFAULT_POLICY.requireNumbers);
+      setPolicySpecial(p.requireSpecialChars ?? DEFAULT_POLICY.requireSpecialChars);
+    }
+    if (customization?.mfa) {
+      setAdminMfaRequired(customization.mfa.adminMfaRequired ?? false);
+    }
+    if (customization?.guestAccess) {
+      setAllowGuestPollCreation(customization.guestAccess.allowGuestPollCreation ?? true);
+      setAllowGuestVoting(customization.guestAccess.allowGuestVoting ?? true);
+    }
+  }, [customization]);
 
   const ssoLabelFromDb = settings?.find((s: any) => s.key === 'oidc_button_label')?.value;
   const ssoLabelIsFromEnv = !ssoLabelFromDb && !!authMethods?.ssoButtonLabel;
@@ -137,6 +190,109 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
 
   const handleSaveSsoLabel = () => {
     saveSsoLabelMutation.mutate(ssoButtonLabel.trim());
+  };
+
+  const savePolicyMutation = useMutation({
+    mutationFn: async (policy: typeof DEFAULT_POLICY) => {
+      const res = await apiRequest('PUT', '/api/v1/admin/customization', { passwordPolicy: policy });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/password-policy'] });
+      toast({
+        title: t('admin.auth.passwordPolicySaved'),
+        description: t('admin.auth.passwordPolicySavedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.auth.passwordPolicySaveError'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSavePolicy = () => {
+    savePolicyMutation.mutate({
+      minLength: policyMinLength,
+      requireUppercase: policyUppercase,
+      requireLowercase: policyLowercase,
+      requireNumbers: policyNumbers,
+      requireSpecialChars: policySpecial,
+    });
+  };
+
+  const saveMfaMutation = useMutation({
+    mutationFn: async (mfa: { adminMfaRequired: boolean }) => {
+      const res = await apiRequest('PUT', '/api/v1/admin/customization', { mfa });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      toast({
+        title: t('admin.auth.mfaPolicySaved'),
+        description: t('admin.auth.mfaPolicySavedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.auth.mfaPolicySaveError'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSaveMfa = () => {
+    saveMfaMutation.mutate({ adminMfaRequired });
+  };
+
+  const handleMfaToggle = async (checked: boolean) => {
+    if (checked) {
+      // Fetch coverage then show the confirmation dialog.
+      // adminMfaRequired is NOT set here — it only becomes true when the user
+      // explicitly clicks the Confirm button, so Escape / backdrop-click /
+      // Cancel all leave the policy disabled with no further action required.
+      try {
+        const res = await apiRequest('GET', '/api/v1/admin/mfa-coverage');
+        const data = await res.json();
+        setMfaCoverage(data);
+        setMfaCoverageError(false);
+      } catch {
+        setMfaCoverage(null);
+        setMfaCoverageError(true);
+      }
+      setShowMfaConfirmDialog(true);
+    } else {
+      setAdminMfaRequired(false);
+    }
+  };
+
+  const saveGuestAccessMutation = useMutation({
+    mutationFn: async (guestAccess: { allowGuestPollCreation: boolean; allowGuestVoting: boolean }) => {
+      const res = await apiRequest('PUT', '/api/v1/admin/customization', { guestAccess });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/customization'] });
+      toast({
+        title: t('admin.auth.guestAccessSaved'),
+        description: t('admin.auth.guestAccessSavedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('errors.generic'),
+        description: t('admin.auth.guestAccessSaveError'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSaveGuestAccess = () => {
+    saveGuestAccessMutation.mutate({ allowGuestPollCreation, allowGuestVoting });
   };
 
   const handleTestConnection = async () => {
@@ -429,6 +585,241 @@ export function OIDCSettingsPanel({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <ShieldCheck className="w-5 h-5 mr-2" />
+              {t('admin.auth.passwordPolicy')}
+            </div>
+            {savePolicyMutation.isPending && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            )}
+          </CardTitle>
+          <CardDescription>{t('admin.auth.passwordPolicyDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="policy-min-length">{t('admin.auth.minLength')}</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="policy-min-length"
+                type="number"
+                min={8}
+                max={128}
+                value={policyMinLength}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= 8 && v <= 128) setPolicyMinLength(v);
+                }}
+                className="w-24"
+                data-testid="input-policy-min-length"
+              />
+              <p className="text-xs text-muted-foreground">{t('admin.auth.minLengthHint')}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {[
+              { id: 'policy-uppercase', key: 'requireUppercase', label: t('admin.auth.requireUppercase'), value: policyUppercase, setter: setPolicyUppercase },
+              { id: 'policy-lowercase', key: 'requireLowercase', label: t('admin.auth.requireLowercase'), value: policyLowercase, setter: setPolicyLowercase },
+              { id: 'policy-numbers', key: 'requireNumbers', label: t('admin.auth.requireNumbers'), value: policyNumbers, setter: setPolicyNumbers },
+              { id: 'policy-special', key: 'requireSpecialChars', label: t('admin.auth.requireSpecialChars'), value: policySpecial, setter: setPolicySpecial },
+            ].map(({ id, label, value, setter }) => (
+              <div key={id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                <Label htmlFor={id} className="cursor-pointer text-sm font-normal">{label}</Label>
+                <Switch
+                  id={id}
+                  checked={value}
+                  onCheckedChange={setter}
+                  data-testid={`switch-${id}`}
+                />
+              </div>
+            ))}
+          </div>
+
+          {policySpecial && (
+            <p className="text-xs text-muted-foreground">{t('admin.auth.specialCharsSet')}</p>
+          )}
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{t('admin.auth.policyNote')}</AlertDescription>
+          </Alert>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSavePolicy}
+              disabled={savePolicyMutation.isPending}
+              data-testid="button-save-password-policy"
+            >
+              {savePolicyMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t('admin.auth.passwordPolicySaveBtn')
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <ShieldCheck className="w-5 h-5 mr-2" />
+              {t('admin.auth.mfaPolicy')}
+            </div>
+            {saveMfaMutation.isPending && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            )}
+          </CardTitle>
+          <CardDescription>{t('admin.auth.mfaPolicyDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="switch-admin-mfa-required" className="text-sm font-normal cursor-pointer">
+                {t('admin.auth.adminMfaRequired')}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.auth.adminMfaRequiredDescription')}</p>
+            </div>
+            <Switch
+              id="switch-admin-mfa-required"
+              checked={adminMfaRequired}
+              onCheckedChange={handleMfaToggle}
+              data-testid="switch-admin-mfa-required"
+            />
+          </div>
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{t('admin.auth.mfaPolicyNote')}</AlertDescription>
+          </Alert>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveMfa}
+              disabled={saveMfaMutation.isPending}
+              data-testid="button-save-mfa-policy"
+            >
+              {saveMfaMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t('admin.auth.mfaPolicySaveBtn')
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showMfaConfirmDialog} onOpenChange={setShowMfaConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('admin.auth.mfaCoverageDialogTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {mfaCoverageError ? (
+                t('admin.auth.mfaCoverageDialogFetchError')
+              ) : mfaCoverage !== null ? (
+                mfaCoverage.withoutMfa === 0
+                  ? t('admin.auth.mfaCoverageDialogBodyAllReady')
+                  : t('admin.auth.mfaCoverageDialogBody', {
+                      withoutMfa: mfaCoverage.withoutMfa,
+                      total: mfaCoverage.total,
+                    })
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setAdminMfaRequired(false);
+                setShowMfaConfirmDialog(false);
+              }}
+            >
+              {t('admin.auth.mfaCoverageDialogCancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={mfaCoverageError}
+              onClick={() => {
+                // Set state to true now that the user has explicitly confirmed,
+                // then immediately persist — no second Save button press needed.
+                setAdminMfaRequired(true);
+                setShowMfaConfirmDialog(false);
+                saveMfaMutation.mutate({ adminMfaRequired: true });
+              }}
+            >
+              {t('admin.auth.mfaCoverageDialogConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card className="polly-card">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <ShieldCheck className="w-5 h-5 mr-2" />
+              {t('admin.auth.guestAccess')}
+            </div>
+            {saveGuestAccessMutation.isPending && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            )}
+          </CardTitle>
+          <CardDescription>{t('admin.auth.guestAccessDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="switch-guest-poll-creation" className="text-sm font-normal cursor-pointer">
+                {t('admin.auth.allowGuestPollCreation')}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.auth.allowGuestPollCreationDescription')}</p>
+            </div>
+            <Switch
+              id="switch-guest-poll-creation"
+              checked={allowGuestPollCreation}
+              onCheckedChange={setAllowGuestPollCreation}
+              data-testid="switch-guest-poll-creation"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div>
+              <Label htmlFor="switch-guest-voting" className="text-sm font-normal cursor-pointer">
+                {t('admin.auth.allowGuestVoting')}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.auth.allowGuestVotingDescription')}</p>
+            </div>
+            <Switch
+              id="switch-guest-voting"
+              checked={allowGuestVoting}
+              onCheckedChange={setAllowGuestVoting}
+              data-testid="switch-guest-voting"
+            />
+          </div>
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{t('admin.auth.guestAccessNote')}</AlertDescription>
+          </Alert>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveGuestAccess}
+              disabled={saveGuestAccessMutation.isPending}
+              data-testid="button-save-guest-access"
+            >
+              {saveGuestAccessMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t('admin.auth.guestAccessSaveBtn')
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

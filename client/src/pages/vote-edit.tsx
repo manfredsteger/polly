@@ -22,9 +22,14 @@ interface SecurePollOption {
 
 interface SecurePoll {
   id: string;
+  publicToken: string;
   title: string;
   description: string | null;
   type: string;
+  responseMode?: string;
+  maxSelections?: number | null;
+  allowMaybe?: boolean;
+  allowVoteEdit: boolean;
   isActive: boolean;
   expiresAt: string | null;
   createdAt: string;
@@ -45,6 +50,8 @@ export default function VoteEditPage() {
   const [, setLocation] = useLocation();
   const [currentVotes, setCurrentVotes] = useState<Record<number, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [saveRejected, setSaveRejected] = useState(false);
+  const [now, setNow] = useState(Date.now);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -52,6 +59,25 @@ export default function VoteEditPage() {
     queryKey: [`/api/v1/votes/edit/${editToken}`],
     enabled: !!editToken,
   });
+  // Disable actions when the deadline passes, including while the page stays open.
+  useEffect(() => {
+    if (!voterData?.poll.expiresAt) return;
+    const deadline = new Date(voterData.poll.expiresAt).getTime();
+    if (!Number.isFinite(deadline)) return;
+    const delay = deadline - Date.now();
+    if (delay <= 0) {
+      if (now < deadline) setNow(Date.now());
+      return;
+    }
+    const timer = window.setTimeout(() => setNow(Date.now()), Math.min(delay, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [voterData?.poll.expiresAt, now]);
+
+  const isPollExpired = voterData?.poll?.expiresAt ? new Date(voterData.poll.expiresAt).getTime() <= now : false;
+  const isPollClosed = voterData ? (!voterData.poll.isActive || isPollExpired) : false;
+  const canEdit = !!voterData?.poll.allowVoteEdit && !isPollClosed;
+  const isSimpleMode = !!voterData && (voterData.poll.type === 'survey' || voterData.poll.type === 'schedule') && voterData.poll.responseMode === 'simple';
+  const maxSelections = Math.max(1, voterData?.poll.maxSelections ?? 1);
 
   const updateVotesMutation = useMutation({
     mutationFn: (votes: { optionId: number; response: string }[]) =>
@@ -63,13 +89,39 @@ export default function VoteEditPage() {
         description: t('voteEdit.responsesChanged'),
       });
       setHasChanges(false);
+      setSaveRejected(false);
     },
-    onError: () => {
-      toast({
-        title: t('common.error'),
-        description: t('voteEdit.updateError'),
-        variant: "destructive",
-      });
+    onError: async (error: any) => {
+      let description = t('voteEdit.updateError');
+      let restriction: string | undefined;
+      if (error?.message) {
+        try {
+          const errorData = JSON.parse(error.message.split(': ').slice(1).join(': '));
+          if (errorData.errorCode === 'POLL_INACTIVE' || errorData.errorCode === 'POLL_EXPIRED') {
+            description = t('voteEdit.changesNotSavedClosed');
+            restriction = errorData.errorCode;
+          } else if (errorData.errorCode === 'VOTE_EDIT_NOT_ALLOWED') {
+            description = t('voteEdit.changesNotSavedDisabled');
+            restriction = errorData.errorCode;
+          } else if (errorData.errorCode === 'PAST_OPTION_DATE') {
+            description = t('voteEdit.optionNoLongerAvailable');
+          }
+        } catch {}
+      }
+      if (restriction) {
+        setSaveRejected(true);
+        setHasChanges(false);
+        // Immediately lock the controls even if refreshing subsequently fails.
+        queryClient.setQueryData<VoterEditData>([`/api/v1/votes/edit/${editToken}`], data => data && ({
+          ...data,
+          poll: {
+            ...data.poll,
+            ...(restriction === 'VOTE_EDIT_NOT_ALLOWED' ? { allowVoteEdit: false } : { isActive: false }),
+          },
+        }));
+        await queryClient.invalidateQueries({ queryKey: [`/api/v1/votes/edit/${editToken}`] });
+      }
+      toast({ title: t('common.error'), description, variant: "destructive" });
     },
   });
 
@@ -79,11 +131,16 @@ export default function VoteEditPage() {
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: t('voting.voteWithdrawn'),
-        description: t('voteEdit.voteRemoved'),
-      });
-      setLocation('/');
+      sessionStorage.setItem('vote-success-data', JSON.stringify({
+        action: 'withdrawn',
+        poll: { title: voterData?.poll.title },
+        publicToken: voterData?.poll.publicToken,
+      }));
+      queryClient.removeQueries({ queryKey: [`/api/v1/votes/edit/${editToken}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/polls'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/public/${voterData?.poll.publicToken}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${voterData?.poll.publicToken}/results`] });
+      setLocation('/vote-success', { replace: true });
     },
     onError: () => {
       toast({
@@ -101,10 +158,20 @@ export default function VoteEditPage() {
         votesMap[vote.optionId] = vote.response;
       });
       setCurrentVotes(votesMap);
+      setHasChanges(false);
     }
   }, [voterData]);
 
+  const computeHasChanges = (newVotes: Record<number, string>) => {
+    if (!voterData) return false;
+    const originalIds = new Set(voterData.votes.map(v => v.optionId));
+    const newIds = new Set(Object.keys(newVotes).map(Number));
+    if (originalIds.size !== newIds.size) return true;
+    return voterData.votes.some(vote => newVotes[vote.optionId] !== vote.response);
+  };
+
   const handleVoteChange = (optionId: number, response: string) => {
+    if (!canEdit) return;
     const newVotes = { ...currentVotes };
     if (newVotes[optionId] === response) {
       delete newVotes[optionId];
@@ -112,16 +179,47 @@ export default function VoteEditPage() {
       newVotes[optionId] = response;
     }
     setCurrentVotes(newVotes);
-    
-    // Check if there are changes from original votes
-    const hasAnyChanges = voterData?.votes.some(vote => 
-      newVotes[vote.optionId] !== vote.response
-    ) || false;
-    setHasChanges(hasAnyChanges);
+    setHasChanges(computeHasChanges(newVotes));
+  };
+
+  const handleSimpleToggle = (optionId: number) => {
+    if (!canEdit) return;
+    const newVotes = { ...currentVotes };
+    if (newVotes[optionId]) {
+      delete newVotes[optionId];
+    } else {
+      if (maxSelections <= 1) {
+        Object.keys(newVotes).forEach(id => delete newVotes[Number(id)]);
+      } else if (Object.keys(newVotes).length >= maxSelections) {
+        toast({
+          title: t('common.error'),
+          description: t('simpleChoice.maxSelectionsReached', { count: maxSelections }),
+          variant: "destructive",
+        });
+        return;
+      }
+      newVotes[optionId] = 'yes';
+    }
+    setCurrentVotes(newVotes);
+    setHasChanges(computeHasChanges(newVotes));
   };
 
   const handleSaveChanges = () => {
-    if (!voterData || !hasChanges) return;
+    if (!voterData || !hasChanges || !canEdit) return;
+
+    if (isSimpleMode) {
+      const selected = Object.keys(currentVotes).map(Number);
+      if (selected.length === 0) {
+        toast({
+          title: t('common.error'),
+          description: t('simpleChoice.selectAtLeastOne'),
+          variant: "destructive",
+        });
+        return;
+      }
+      updateVotesMutation.mutate(selected.map(optionId => ({ optionId, response: 'yes' })));
+      return;
+    }
 
     const updatedVotes = voterData.votes
       .filter(vote => currentVotes[vote.optionId] !== undefined)
@@ -198,6 +296,15 @@ export default function VoteEditPage() {
         </Card>
 
         {/* Voting Options */}
+        {!canEdit && (
+          <Card className="mb-4 border-orange-200 bg-orange-50">
+            <CardContent className="py-4 text-sm text-orange-900" role="status">
+              {isPollClosed
+                ? t(saveRejected ? 'voteEdit.changesNotSavedClosed' : 'voteEdit.pollClosedEditNotAllowed')
+                : t(saveRejected ? 'voteEdit.changesNotSavedDisabled' : 'voteEdit.editingCurrentlyDisabled')}
+            </CardContent>
+          </Card>
+        )}
         <div className="space-y-4 mb-6">
           {poll.options.map((option) => {
             const currentResponse = currentVotes[option.id];
@@ -214,6 +321,18 @@ export default function VoteEditPage() {
                         </p>
                       )}
                       
+                      {isSimpleMode ? (
+                        <Button
+                          variant={currentResponse ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleSimpleToggle(option.id)}
+                          disabled={!canEdit}
+                          className={currentResponse ? 'bg-green-600 text-white hover:bg-green-700' : ''}
+                          data-testid={`button-simple-toggle-${option.id}`}
+                        >
+                          {currentResponse ? t('simpleChoice.selected') : t('simpleChoice.select')}
+                        </Button>
+                      ) : (
                       <div className="flex gap-2">
                         {(['yes', 'maybe', 'no'] as const).map((response) => (
                           <Button
@@ -221,6 +340,7 @@ export default function VoteEditPage() {
                             variant={currentResponse === response ? "default" : "outline"}
                             size="sm"
                             onClick={() => handleVoteChange(option.id, response)}
+                            disabled={!canEdit}
                             className={`
                               ${response === 'yes' ? 'hover:bg-green-600 hover:text-white' : ''}
                               ${response === 'maybe' ? 'hover:bg-yellow-600 hover:text-white' : ''}
@@ -234,6 +354,7 @@ export default function VoteEditPage() {
                           </Button>
                         ))}
                       </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -244,7 +365,7 @@ export default function VoteEditPage() {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
-          <Button
+          {canEdit && <Button
             onClick={handleSaveChanges}
             disabled={!hasChanges || updateVotesMutation.isPending}
             className="whitespace-nowrap polly-button-primary"
@@ -260,7 +381,7 @@ export default function VoteEditPage() {
                 {t('voteEdit.saveChanges')}
               </>
             )}
-          </Button>
+          </Button>}
           
           <Button
             variant="outline"
@@ -274,7 +395,7 @@ export default function VoteEditPage() {
             <Button
               variant="destructive"
               onClick={() => withdrawVoteMutation.mutate()}
-              disabled={withdrawVoteMutation.isPending}
+              disabled={withdrawVoteMutation.isPending || isPollClosed}
               className="whitespace-nowrap polly-button-danger"
               data-testid="button-withdraw-vote"
             >
@@ -293,7 +414,7 @@ export default function VoteEditPage() {
           )}
         </div>
 
-        {hasChanges && (
+        {hasChanges && canEdit && (
           <p className="text-center text-sm text-orange-600 mt-4">
             {t('voteEdit.unsavedChanges')}
           </p>

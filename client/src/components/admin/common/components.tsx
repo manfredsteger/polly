@@ -41,6 +41,7 @@ export function NavButton({
       size={collapsed ? "icon" : "default"}
       onClick={onClick}
       data-testid={testId}
+      aria-label={label}
     >
       <span className="relative">
         {icon}
@@ -112,7 +113,7 @@ export function StatCard({
             <p className="text-white/80 text-sm">{label}</p>
             <p className="text-2xl font-bold">{value}</p>
           </div>
-          <div className={`w-8 h-8 ${iconColorClasses[color]}`}>
+          <div className={`w-8 h-8 shrink-0 ${iconColorClasses[color]}`}>
             {icon}
           </div>
         </div>
@@ -150,19 +151,19 @@ export function ActivityItem({ activity }: { activity: { type: string; message: 
   };
 
   return (
-    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-      <div className="flex items-center space-x-3">
-        <div className={`w-8 h-8 ${getColor()} rounded-full flex items-center justify-center`}>
+    <div className="flex flex-col gap-2 p-3 bg-muted rounded-lg sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3 sm:items-center">
+        <div className={`w-8 h-8 shrink-0 ${getColor()} rounded-full flex items-center justify-center`}>
           {getIcon()}
         </div>
-        <div>
+        <div className="min-w-0 [overflow-wrap:anywhere]">
           <p className="text-sm font-medium text-foreground">{activity.message}</p>
           <p className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: getDateLocale() })}
           </p>
         </div>
       </div>
-      {activity.actor && <span className="text-xs text-muted-foreground">{activity.actor}</span>}
+      {activity.actor && <span className="min-w-0 pl-11 text-xs text-muted-foreground [overflow-wrap:anywhere] sm:max-w-[30%] sm:shrink-0 sm:pl-0 sm:text-right">{activity.actor}</span>}
     </div>
   );
 }

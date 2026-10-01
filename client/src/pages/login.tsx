@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,111 +7,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
+import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Eye, EyeOff, ShieldCheck, QrCode, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { PasswordStrengthIndicator, usePasswordPolicy, validatePasswordWithPolicy } from '@/components/PasswordStrengthIndicator';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
-interface PasswordRequirement {
-  label: string;
-  met: boolean;
+const PENDING_LOGIN_REDIRECT_KEY = 'polly-pending-login-redirect';
+
+
+function isSafeRedirectPath(value: string | null): value is string {
+  return !!value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/anmelden');
 }
 
-function PasswordStrengthIndicator({ password, confirmPassword }: { password: string; confirmPassword: string }) {
-  const { t } = useTranslation();
-  
-  const requirements: PasswordRequirement[] = useMemo(() => [
-    { label: t('auth.passwordRequirements.minLength'), met: password.length >= 8 },
-    { label: t('auth.passwordRequirements.uppercase'), met: /[A-Z]/.test(password) },
-    { label: t('auth.passwordRequirements.lowercase'), met: /[a-z]/.test(password) },
-    { label: t('auth.passwordRequirements.number'), met: /[0-9]/.test(password) },
-    { label: t('auth.passwordRequirements.special'), met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password) },
-  ], [password, t]);
-
-  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
-  const allRequirementsMet = requirements.every(r => r.met);
-  
-  const strengthPercentage = (requirements.filter(r => r.met).length / requirements.length) * 100;
-  
-  const getStrengthColor = () => {
-    if (strengthPercentage < 40) return 'bg-red-500';
-    if (strengthPercentage < 80) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
-
-  const getStrengthLabel = () => {
-    if (strengthPercentage < 40) return t('auth.passwordStrength.weak');
-    if (strengthPercentage < 80) return t('auth.passwordStrength.medium');
-    return t('auth.passwordStrength.strong');
-  };
-
-  if (password.length === 0) return null;
-
-  return (
-    <div className="space-y-3 mt-2 p-3 bg-muted/50 rounded-lg border" data-testid="password-strength-indicator">
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">{t('auth.passwordStrength.label')}</span>
-          <span className={`font-medium ${strengthPercentage === 100 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
-            {getStrengthLabel()}
-          </span>
-        </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-300 ${getStrengthColor()}`}
-            style={{ width: `${strengthPercentage}%` }}
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-1.5">
-        {requirements.map((req, index) => (
-          <div 
-            key={index} 
-            className={`flex items-center gap-2 text-xs ${req.met ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
-            data-testid={`password-requirement-${index}`}
-          >
-            {req.met ? (
-              <Check className="h-3.5 w-3.5 flex-shrink-0" />
-            ) : (
-              <X className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/50" />
-            )}
-            <span>{req.label}</span>
-          </div>
-        ))}
-        
-        {confirmPassword.length > 0 && (
-          <div 
-            className={`flex items-center gap-2 text-xs ${passwordsMatch ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}
-            data-testid="password-match-indicator"
-          >
-            {passwordsMatch ? (
-              <Check className="h-3.5 w-3.5 flex-shrink-0" />
-            ) : (
-              <X className="h-3.5 w-3.5 flex-shrink-0" />
-            )}
-            <span>{t('auth.passwordsMatch')}</span>
-          </div>
-        )}
-      </div>
-
-      {allRequirementsMet && passwordsMatch && (
-        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 font-medium pt-1 border-t border-green-200 dark:border-green-800">
-          <Check className="h-4 w-4" />
-          <span>{t('auth.passwordMeetsRequirements')}</span>
-        </div>
-      )}
-    </div>
-  );
+function readRedirectFromSearch(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
+  return isSafeRedirectPath(redirect) ? redirect : null;
 }
 
-function validatePassword(password: string): boolean {
-  return (
-    password.length >= 8 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password) &&
-    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)
-  );
+function readMfaStepFromSearch(): MfaStep {
+  return new URLSearchParams(window.location.search).get('mfa') === 'verify'
+    ? 'verify'
+    : 'none';
 }
+
+type MfaStep = 'none' | 'verify' | 'setup-forced';
 
 function useParseErrorMessage() {
   const { t } = useTranslation();
@@ -153,12 +73,24 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
   const parseErrorMessage = useParseErrorMessage();
+  const [redirectUrl] = useState(() => {
+    const redirectFromSearch = readRedirectFromSearch();
+    if (redirectFromSearch) {
+      sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, redirectFromSearch);
+      return redirectFromSearch;
+    }
+
+    const storedRedirect = sessionStorage.getItem(PENDING_LOGIN_REDIRECT_KEY);
+    return isSafeRedirectPath(storedRedirect) ? storedRedirect : '/';
+  });
 
   const getEmailFromUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const email = searchParams.get('email');
-    return email ? decodeURIComponent(email) : '';
+    return email ?? '';
   };
+
+  const { data: passwordPolicy } = usePasswordPolicy();
 
   const [loginForm, setLoginForm] = useState({ usernameOrEmail: getEmailFromUrl(), password: '' });
   const [registerForm, setRegisterForm] = useState({ username: '', email: getEmailFromUrl(), name: '', password: '', confirmPassword: '' });
@@ -166,27 +98,57 @@ export default function Login() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
-  const getRedirectUrl = () => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
-    return redirect ? decodeURIComponent(redirect) : '/';
+  const [mfaStep, setMfaStep] = useState<MfaStep>(readMfaStepFromSearch);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaQrDataUrl, setMfaQrDataUrl] = useState('');
+  const [mfaManualKey, setMfaManualKey] = useState('');
+
+  const clearPendingRedirect = () => {
+    sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
+  };
+
+  const doNavigateAfterLogin = (role: string) => {
+    const hasExplicitRedirect = redirectUrl !== '/';
+    clearPendingRedirect();
+    if (role === 'admin' && !hasExplicitRedirect) navigate('/admin');
+    else navigate(redirectUrl);
   };
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
+  // Optional: skip this page and go straight to the SSO provider (SSO_AUTO_REDIRECT=true).
+  // Guarded so it never loops: not while authenticated, not during an MFA step
+  // (Keycloak's MFA callback lands back here as /anmelden?mfa=verify), and not
+  // when the provider bounced back with an ?error=.
+  const ssoAutoRedirect =
+    !!authMethods.autoRedirectSso &&
+    !!authMethods.keycloak &&
+    !isAuthenticated &&
+    mfaStep === 'none' &&
+    !new URLSearchParams(window.location.search).get('error');
+
+  useEffect(() => {
+    if (!ssoAutoRedirect) return;
+    window.location.href =
+      redirectUrl === '/'
+        ? '/api/v1/auth/keycloak'
+        : `/api/v1/auth/keycloak?redirect=${encodeURIComponent(redirectUrl)}`;
+  }, [ssoAutoRedirect, redirectUrl]);
+
   useEffect(() => {
     if (isAuthenticated && user) {
-      const searchParams = new URLSearchParams(window.location.search);
-      const hasExplicitRedirect = searchParams.get('redirect') || searchParams.get('returnTo');
+      const hasExplicitRedirect = redirectUrl !== '/';
       if (user.role === 'admin' && !hasExplicitRedirect) {
+        clearPendingRedirect();
         navigate('/admin');
       } else {
-        navigate(getRedirectUrl());
+        clearPendingRedirect();
+        navigate(redirectUrl);
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, redirectUrl]);
 
   if (isAuthenticated && user) {
     return null;
@@ -198,14 +160,31 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const loggedInUser = await login(loginForm.usernameOrEmail, loginForm.password);
-      const searchParams = new URLSearchParams(window.location.search);
-      const hasExplicitRedirect = searchParams.get('redirect') || searchParams.get('returnTo');
-      if (loggedInUser.role === 'admin' && !hasExplicitRedirect) {
-        navigate('/admin');
-      } else {
-        navigate(getRedirectUrl());
+      const res = await apiRequest('POST', '/api/v1/auth/login', {
+        usernameOrEmail: loginForm.usernameOrEmail,
+        password: loginForm.password,
+      });
+      const data = await res.json();
+
+      if (data.requiresMfa) {
+        setMfaStep('verify');
+        setMfaCode('');
+        setIsLoading(false);
+        return;
       }
+
+      if (data.requiresMfaSetup) {
+        const initRes = await apiRequest('POST', '/api/v1/auth/mfa/setup-init');
+        const initData = await initRes.json();
+        setMfaQrDataUrl(initData.qrCode ?? '');
+        setMfaManualKey(initData.secret ?? '');
+        setMfaCode('');
+        setMfaStep('setup-forced');
+        setIsLoading(false);
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
     } catch (err: any) {
       const rawError = err?.message || t('auth.loginError');
       setError(parseErrorMessage(rawError));
@@ -214,7 +193,44 @@ export default function Login() {
     }
   };
 
-  const isPasswordValid = validatePassword(registerForm.password);
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const res = await apiRequest('POST', '/api/v1/auth/mfa/validate', { token: mfaCode.replace(/\s/g, '') });
+      const data = await res.json();
+      if (!data.user) throw new Error(t('auth.mfaStep.invalidCode'));
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
+    } catch (err: any) {
+      const rawError = err?.message || t('auth.mfaStep.invalidCode');
+      setError(parseErrorMessage(rawError));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForcedSetupConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const res = await apiRequest('POST', '/api/v1/auth/mfa/setup-confirm', {
+        token: mfaCode.replace(/\s/g, ''),
+        forcedSetup: true,
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(t('profile.mfaInvalidCode'));
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/me'] });
+    } catch (err: any) {
+      const rawError = err?.message || t('profile.mfaInvalidCode');
+      setError(parseErrorMessage(rawError));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isPasswordValid = validatePasswordWithPolicy(registerForm.password, passwordPolicy);
   const passwordsMatch = registerForm.password === registerForm.confirmPassword;
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const emailValid = isValidEmail(registerForm.email);
@@ -246,7 +262,8 @@ export default function Login() {
 
     try {
       await register(registerForm.username, registerForm.email, registerForm.name, registerForm.password);
-      navigate(getRedirectUrl());
+      clearPendingRedirect();
+      navigate(redirectUrl);
     } catch (err: any) {
       const rawError = err?.message || t('auth.registerError');
       setError(parseErrorMessage(rawError));
@@ -256,8 +273,129 @@ export default function Login() {
   };
 
   const handleKeycloakLogin = () => {
-    window.location.href = '/api/v1/auth/keycloak';
+    window.location.href = redirectUrl === '/' 
+      ? '/api/v1/auth/keycloak'
+      : `/api/v1/auth/keycloak?redirect=${encodeURIComponent(redirectUrl)}`;
   };
+
+  if (mfaStep === 'verify') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl flex items-center justify-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-polly-orange" />
+              {t('auth.mfaStep.title')}
+            </CardTitle>
+            <CardDescription>{t('auth.mfaStep.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <div className="polly-alert-error rounded-lg p-4 flex items-start gap-3 mb-4">
+                <AlertCircle className="polly-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">{error}</div>
+              </div>
+            )}
+            <form onSubmit={handleMfaVerify} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="mfa-code">{t('auth.mfaStep.title')}</Label>
+                <Input
+                  id="mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('auth.mfaStep.codePlaceholder')}
+                  maxLength={6}
+                  autoFocus
+                  data-testid="input-mfa-code"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading || mfaCode.length !== 6} data-testid="button-mfa-verify">
+                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                {isLoading ? t('auth.mfaStep.verifying') : t('auth.mfaStep.verify')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => { setMfaStep('none'); setError(null); setMfaCode(''); }}
+                data-testid="button-mfa-back"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                {t('auth.mfaStep.backToLogin')}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (mfaStep === 'setup-forced') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl flex items-center justify-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-polly-orange" />
+              {t('auth.mfaSetupRequired.title')}
+            </CardTitle>
+            <CardDescription>{t('auth.mfaSetupRequired.description')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="polly-alert-error rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="polly-alert-icon h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">{error}</div>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">{t('profile.mfaSetupStep1Description')}</p>
+            {mfaQrDataUrl && (
+              <div className="flex justify-center p-4 bg-white rounded-lg border">
+                <img src={mfaQrDataUrl} alt="MFA QR Code" className="w-48 h-48" data-testid="mfa-qr-code" />
+              </div>
+            )}
+            {mfaManualKey && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-medium">{t('profile.mfaManualEntry')}</p>
+                <code className="block text-xs bg-muted px-3 py-2 rounded font-mono break-all">{mfaManualKey}</code>
+              </div>
+            )}
+            <form onSubmit={handleForcedSetupConfirm} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="mfa-setup-code">{t('profile.mfaSetupStep2')}</Label>
+                <Input
+                  id="mfa-setup-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('profile.mfaCodePlaceholder')}
+                  maxLength={6}
+                  data-testid="input-mfa-setup-code"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading || mfaCode.length !== 6} data-testid="button-mfa-setup-confirm">
+                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                {t('profile.mfaConfirm')}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (ssoAutoRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="h-6 w-6 animate-spin text-polly-orange" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">

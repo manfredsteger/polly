@@ -48,9 +48,12 @@ interface SurveyFormData {
   creatorEmail: string;
   options: SurveyOption[];
   allowVoteEdit: boolean;
+  notifyCreatorOnVote?: boolean;
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
   allowMaybe: boolean;
+  simpleMode?: boolean;
+  maxSelections?: number;
   expiresAt: string | null;
 }
 
@@ -132,7 +135,10 @@ export default function CreateSurvey() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
-  const [allowMaybe, setAllowMaybe] = useState(true);
+  const [notifyCreatorOnVote, setNotifyCreatorOnVote] = useState(true);
+  const [allowMaybe, setAllowMaybe] = useState(false);
+  const [simpleMode, setSimpleMode] = useState(false);
+  const [maxSelections, setMaxSelections] = useState(1);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const nextIdRef = useRef(2);
   const [options, setOptions] = useState<SurveyOption[]>([
@@ -172,7 +178,10 @@ export default function CreateSurvey() {
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setNotifyCreatorOnVote(stored.data.notifyCreatorOnVote ?? true);
       setAllowMaybe(stored.data.allowMaybe ?? true);
+      setSimpleMode(stored.data.simpleMode ?? false);
+      setMaxSelections(stored.data.maxSelections ?? 1);
       if (stored.data.options && stored.data.options.length >= 2) {
         const restored = stored.data.options.map((o: SurveyOption, i: number) => ({ ...o, id: o.id ?? String(i) }));
         nextIdRef.current = restored.length;
@@ -213,8 +222,16 @@ export default function CreateSurvey() {
       if (s && typeof s === "object") {
         if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
         if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
+        if (typeof s.notifyCreatorOnVote === "boolean") setNotifyCreatorOnVote(s.notifyCreatorOnVote);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
         if (typeof s.allowMaybe === "boolean") setAllowMaybe(s.allowMaybe);
+        if (s.responseMode === "simple") {
+          setSimpleMode(true);
+          const max = typeof s.maxSelections === "number" && Number.isInteger(s.maxSelections) && s.maxSelections >= 1 ? s.maxSelections : 1;
+          setMaxSelections(max);
+        } else if (s.responseMode === "classic") {
+          setSimpleMode(false);
+        }
       }
     } catch (_) {}
   }, []);
@@ -225,8 +242,7 @@ export default function CreateSurvey() {
     if (!isAuthenticated) return;
     
     const stored = formPersistence.getStoredData();
-    const validOptions = options.filter(o => o.text.trim());
-    if (stored?.pendingSubmit && stored.data && title && validOptions.length >= 2) {
+    if (stored?.pendingSubmit && stored.data && title) {
       autoSubmitTriggeredRef.current = true;
       
       const storedExpiresAt = stored.data.expiresAt;
@@ -238,21 +254,9 @@ export default function CreateSurvey() {
       });
       
       setTimeout(() => {
-        const surveyData = {
-          title: title.trim(),
-          description: description.trim() || undefined,
-          type: "survey" as const,
-          expiresAt: storedExpiresAt || undefined,
-          allowVoteEdit: allowVoteEdit,
-          allowVoteWithdrawal: allowVoteWithdrawal,
-          resultsPublic: resultsPublic,
-          options: validOptions.map((option, index) => ({
-            text: option.text,
-            imageUrl: option.imageUrl,
-            altText: option.altText,
-            order: index,
-          })),
-        };
+        const surveyData = buildSurveyPayload();
+        if (!surveyData) return;
+        surveyData.expiresAt = storedExpiresAt || undefined;
         createSurveyMutation.mutate(surveyData);
       }, 500);
     }
@@ -274,24 +278,34 @@ export default function CreateSurvey() {
       };
       sessionStorage.setItem('poll-success-data', JSON.stringify(successData));
       
-      setLocation("/success");
+      setLocation(`/success/${data.adminToken}`);
     },
     onError: async (error: any) => {
       let errorMessage = t('createSurvey.createError');
       let requiresLogin = false;
+      let requiresEmailVerification = false;
       
       if (error?.message) {
         try {
           const errorData = JSON.parse(error.message.split(': ').slice(1).join(': '));
-          if (errorData.errorCode === 'REQUIRES_LOGIN') {
+          if (errorData.errorCode === 'REQUIRES_LOGIN' || errorData.errorCode === 'GUEST_POLL_CREATION_DISABLED') {
             errorMessage = errorData.error;
             requiresLogin = true;
+          } else if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+            errorMessage = t('pollCreation.emailVerificationRequiredDescription');
+            requiresEmailVerification = true;
+          } else if (typeof errorData.retryAfter === 'number') {
+            errorMessage = t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
           }
         } catch {}
       }
       
       toast({
-        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
+        title: requiresLogin
+          ? t('pollCreation.loginRequired')
+          : requiresEmailVerification
+            ? t('pollCreation.emailVerificationRequired')
+            : t('pollCreation.error'),
         description: requiresLogin 
           ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
@@ -300,7 +314,7 @@ export default function CreateSurvey() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, allowMaybe, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, notifyCreatorOnVote, allowMaybe, simpleMode, maxSelections, expiresAt: expiresAt ? expiresAt.toISOString() : null },
           '/create-survey'
         );
         
@@ -350,27 +364,32 @@ export default function CreateSurvey() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    const surveyData = buildSurveyPayload();
+    if (!surveyData) return;
+    createSurveyMutation.mutate(surveyData);
+  };
+
+  const buildSurveyPayload = () => {
     if (!title.trim()) {
       toast({
         title: t('pollCreation.error'),
         description: t('pollCreation.pleaseEnterTitle'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
     const validOptions = options.filter(opt => opt.text.trim());
     const validNormalOptions = validOptions.filter(opt => !opt.isFreeText);
     const validFreeTextOptions = validOptions.filter(opt => opt.isFreeText);
-    // Need at least: 2 normal options, OR 1 free-text question (pure feedback form), OR 1 normal + 1 free-text
-    if (validOptions.length < 1 || (validFreeTextOptions.length === 0 && validNormalOptions.length < 2)) {
+    const hasEnoughOptions = validOptions.length >= 1 && (validFreeTextOptions.length > 0 || validNormalOptions.length >= 2);
+    if (!hasEnoughOptions) {
       toast({
         title: t('pollCreation.error'),
         description: t('createSurvey.minOptionsError'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
     if (!isAuthenticated && !creatorEmail.trim()) {
@@ -379,10 +398,28 @@ export default function CreateSurvey() {
         description: t('pollCreation.pleaseEnterEmail'),
         variant: "destructive",
       });
-      return;
+      return null;
     }
 
-    const surveyData = {
+    if (simpleMode && validFreeTextOptions.length > 0) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('simpleChoice.noFreeTextInSimpleMode'),
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    if (simpleMode && validNormalOptions.length < 2) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('createSurvey.minOptionsError'),
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    return {
       title: title.trim(),
       description: description.trim() || undefined,
       type: "survey" as const,
@@ -393,7 +430,10 @@ export default function CreateSurvey() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
-      allowMaybe,
+      notifyCreatorOnVote,
+      allowMaybe: simpleMode ? false : allowMaybe,
+      responseMode: simpleMode ? ("simple" as const) : ("classic" as const),
+      maxSelections: simpleMode ? Math.min(Math.max(1, maxSelections), validOptions.length) : undefined,
       options: validOptions.map((option, index) => {
         const opt: any = {
           text: option.text.trim(),
@@ -409,8 +449,6 @@ export default function CreateSurvey() {
         return opt;
       }),
     };
-
-    createSurveyMutation.mutate(surveyData);
   };
 
   return (
@@ -599,6 +637,20 @@ export default function CreateSurvey() {
                   </div>
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="space-y-0.5">
+                      <Label>{t('pollCreation.notifyCreatorOnVote')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.notifyCreatorOnVoteDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifyCreatorOnVote}
+                      onCheckedChange={setNotifyCreatorOnVote}
+                      data-testid="switch-notify-creator-on-vote"
+                      aria-label={t('pollCreation.notifyCreatorOnVote')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
                       <Label>{t('createSurvey.allowMaybe')}</Label>
                       <p className="text-sm text-muted-foreground">
                         {t('createSurvey.allowMaybeDescription')}
@@ -607,6 +659,7 @@ export default function CreateSurvey() {
                     <Switch
                       checked={allowMaybe}
                       onCheckedChange={setAllowMaybe}
+                      disabled={simpleMode}
                       data-testid="switch-allow-maybe"
                       aria-label={t('createSurvey.allowMaybe')}
                     />
@@ -637,6 +690,43 @@ export default function CreateSurvey() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-6 space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('simpleChoice.modeLabel')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('simpleChoice.modeDescription')}
+                  </p>
+                </div>
+                <Switch
+                  checked={simpleMode}
+                  onCheckedChange={(checked) => {
+                    setSimpleMode(checked);
+                    if (checked) setAllowMaybe(false);
+                  }}
+                  data-testid="switch-simple-mode"
+                  aria-label={t('simpleChoice.modeLabel')}
+                />
+              </div>
+              {simpleMode && (
+                <div className="flex items-center gap-3 pt-2 border-t">
+                  <Label htmlFor="maxSelections" className="shrink-0">{t('simpleChoice.maxSelectionsLabel')}</Label>
+                  <Input
+                    id="maxSelections"
+                    type="number"
+                    min={1}
+                    max={Math.max(1, options.filter(o => o.text.trim()).length || options.length)}
+                    value={maxSelections}
+                    onChange={(e) => setMaxSelections(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20"
+                    data-testid="input-max-selections"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {maxSelections <= 1 ? t('simpleChoice.singleChoiceHint') : t('simpleChoice.multipleChoiceHint', { count: maxSelections })}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {t('createSurvey.optionsHint')}
@@ -687,7 +777,7 @@ export default function CreateSurvey() {
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                     <p className="font-medium text-green-800 dark:text-green-200">
                       {t('pollCreation.loggedInAs', { name: user?.name || user?.username })}
                     </p>

@@ -32,7 +32,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies
-RUN npm ci && npm cache clean --force
+#RUN npm ci && npm cache clean --force
+RUN npm ci --foreground-scripts && npm cache clean --force
 
 # ============================================
 # Stage 2: Builder (compile TypeScript + Vite)
@@ -124,8 +125,17 @@ COPY --from=builder /app/client/src ./client/src
 # Copy migrations for schema setup
 COPY migrations ./migrations
 
+# Copy documentation assets required by integration tests that run inside the container
+COPY README.md ./
+COPY .env.example ./
+COPY docs/openapi.yaml ./docs/openapi.yaml
+COPY docs/SELF-HOSTING.md ./docs/SELF-HOSTING.md
+
 # Copy built frontend
 COPY --from=builder /app/dist/public ./server/public
+
+# Copy runtime branding defaults used by admin reset/bootstrap flows
+COPY branding.default.json ./
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh ./

@@ -7,13 +7,110 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-*(no pending changes)*
+### Security
+- Filter public poll/results responses to exclude account secrets, private voter credentials, other voters' emails, and votes when results are private.
+- Require authenticated ownership or a valid private token for vote changes and withdrawal; deliver guest management links by email rather than in guest responses.
+- Isolate database-backed tests using an explicit `TEST_DATABASE_URL`; reject unsafe configurations before test setup can modify application accounts.
+- Preserve existing accounts during startup admin seeding instead of resetting credentials or initial-login flags.
+
+### Fixed
+- Respect vote-edit permissions and withdrawal deadlines in the private edit page.
+- Show a withdrawal confirmation screen and send participant confirmation plus optional organizer notifications.
+- Include saved Yes/Maybe/No answers in confirmation/update emails, omit unanswered options, and hide results sections for private polls.
+- Use withdrawal wording for withdrawal-only management links and report guest confirmation-email failures accurately.
+- Save test reports in writable per-run temporary directories and include the changelog in test-capable images.
+
+### Deployment notes
+- No application database migration is required for these fixes. To run database-backed tests, provision a separate database with the current schema and configure `TEST_DATABASE_URL`; existing deployments without it can use normal app features but cannot start those tests.
+- `ADMIN_*` environment values are bootstrap credentials, not a mechanism to reset an existing account.
+- See [TESTING.md](TESTING.md) and [SELF-HOSTING.md](docs/SELF-HOSTING.md) for setup. Guest identity verification before the first vote and persistent organizer withdrawal history remain deferred.
+
+## [0.1.0-beta.9] - 2026-08-25
+
+### Added
+- **Generic OIDC / Authentik support**: In addition to the existing Keycloak realm configuration, Polly can now use any standards-compliant OIDC provider via `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_CLIENT_ID`, and `KEYCLOAK_CLIENT_SECRET`. This supports Authentik without breaking existing Keycloak installations. OIDC discovery, browser login, bearer-token validation, connection testing, and role mapping use the configured issuer URL. The self-hosting guide and environment template include an Authentik configuration example.
+
+## [0.1.0-beta.8] - 2026-08-25
+
+### Fixed
+- **Self-hosted upgrades (database schema)**: Upgrading an existing self-hosted installation to beta.5+ broke poll and survey creation with `column "response_mode" does not exist`, because container startup only applied the initial migration plus an incomplete hand-maintained column list. Startup now applies every migration file from the migration journal in order (idempotently), the fallback column list includes `polls.response_mode` / `polls.max_selections`, and the previously migration-less `ai_usage_logs` table is created as well. A regression test fails whenever a schema column is missing from the startup schema mechanism.
+- **Image uploads (volume permissions)**: When the volume mounted at `/app/uploads` is not writable by the container user (UID:GID 1001:1001) — common after upgrades or on Synology/Portainer setups — uploads failed with a generic 500. The container now logs an actionable warning at startup, upload failures caused by missing filesystem permissions return a distinct `storagePermission` error (HTTP 507) naming the required ownership, and the self-hosting docs describe the `chown -R 1001:1001` fix.
+
+## [0.1.0-beta.7] - 2026-08-24
+
+### Fixed
+- **Changelog accuracy**: The `v0.1.0-beta.6` release notes incorrectly repeated the `v0.1.0-beta.5` feature/fix entries instead of describing only its own (documentation/lockfile) changes. This release corrects the changelog history; no application behavior changes.
+
+## [0.1.0-beta.6] - 2026-08-24
+
+### Fixed
+- **Release documentation**: Corrected lingering `v0.1.0-beta.4` references in the self-hosting guide and the external-database Docker Compose template that were left over from the `v0.1.0-beta.5` release, and regenerated `package-lock.json` to match the published version. No application behavior changes; supersedes `v0.1.0-beta.5`, whose Docker image and GitHub release remain published but whose docs pointed at the wrong version.
+
+## [0.1.0-beta.5] - 2026-08-24
+
+### Added
+- **Simple choice voting mode**: Schedule and survey polls can now use a "Simple" response mode alongside the classic Yes/Maybe/No voting — participants pick a single option (radio) or up to a configurable number of options (checkboxes) with a clear, high-contrast selected state instead of per-option Yes/Maybe/No. Fully supported by the AI poll assistant, translations, poll editing, and results display; existing "classic" polls are unaffected.
+
+### Fixed
+- **Theming**: Selected options (and other elements using the primary brand color) could render with no visible background instead of the configured brand color, because the `--primary` / `--primary-foreground` CSS variables were defined as raw color components instead of a valid CSS color value — an invalid value that browsers silently ignore. Both the base stylesheet and the runtime branding code that applies a custom primary color from the admin panel are corrected, and a regression test guards the format going forward.
+
+## [0.1.0-beta.4] - 2026-08-23
+
+### Fixed
+- **Image uploads (branding & polls)**: A stale persisted scanner setting could keep blocking uploads even though `CLAMAV_ENABLED=false` was set at runtime, returning `503` for valid images. Explicit, non-empty ClamAV environment values (`CLAMAV_ENABLED`, `CLAMAV_HOST`, `CLAMAV_PORT`) now take precedence over the stored admin configuration; without them the admin panel remains authoritative.
+- **Upload security hardening**: Scanner, connection and configuration errors stay fail-secure. When scanning is effectively enabled — or its admin-managed state cannot be read — uploads are blocked instead of silently allowed.
+- **Survey voting**: Submitting a vote no longer requires a second click. The submit button is no longer disabled by the background email check triggered when leaving the email field, and duplicate submissions during an in-flight vote are prevented.
+- **MFA enforcement**: An admin with an enrolled authenticator app is now always challenged for a TOTP code after password or Keycloak browser login, even when the server-wide admin MFA setup policy is disabled. `MFA_ADMIN_REQUIRED=false` remains an emergency recovery override only.
+
+### Changed
+- **Docker Compose**: ClamAV environment variables are passed through empty when unset instead of exporting defaults, so admin-managed scanner settings are no longer unintentionally overridden by Compose. The documented ClamAV service host for the Compose profile is `clamav`.
+
+## [0.1.0-beta.3] - 2026-08-22
+
+### Fixed
+- **Image uploads**: A valid image signature is no longer reported as an invalid file type when image re-encoding fails later in processing. This keeps upload validation feedback accurate across supported Sharp environments.
+
+## [0.1.0-beta.2] - 2026-08-22
+
+### Added
+
+#### Guest Access & Admin Security
+- **Guest access controls**: Administrators can independently allow or disable guest poll creation and guest voting from the admin settings.
+- **Guest poll creation protection**: The guest-creation policy covers both the standard poll form and AI-assisted poll creation.
+- **Guest voting protection**: Disabling guest voting also blocks guest vote edits and withdrawals while keeping public poll links readable.
+- **Admin MFA policy**: Optional server-wide requirement for administrator MFA, with a pre-activation warning and MFA coverage indicator in the admin panel.
+- **MFA emergency override**: `MFA_ADMIN_REQUIRED=false` lets self-hosters recover access without changing the database setting when administrator authenticators are unavailable.
+
+#### Branding
+- **Branding**: Favicon upload directly in the admin panel and `FAVICON_URL` ENV-Var support
+- **Footer**: New rich default footer with MIT-License link, GitHub repository icon and "Made in Bayern" tagline
+- **Footer**: `POLLY_COPYRIGHT_TEXT` ENV-Var locks the copyright line and disables the form field in the admin panel
+- **Footer**: Copyright year is rendered dynamically from the current date
+- **Admin AI Settings**: KISSKI service-partner block with logo, GDPR notice (DE/EN) and contact link
+- **Service Partners**: Centralised in `shared/servicePartners.ts` so README and admin panel stay in sync
+
+### Fixed
+- **Auth (Docker)**: Session cookie was marked `Secure` whenever `NODE_ENV=production`, which silently broke login on plain-HTTP Docker deployments (`http://localhost:3080`). Browsers dropped the cookie and bounced users back to the login page with no error. Cookies are now only marked `Secure` when the app is actually served over HTTPS (`FORCE_HTTPS=true`, `https://` `APP_URL`, or Replit hosting). Covered by `server/tests/unit/sessionConfig.test.ts`.
+- **Docker**: KISSKI logo moved from `attached_assets/` (excluded from Docker context) to `client/src/assets/` so the production image builds successfully
+
+### Documentation
+- README roadmap section synchronised with `ROADMAP.md` (Beta runs Q1 2025 – Q2 2026, AI/Voice Control + OpenAI-compatible API marked as done)
+- Project structure section updated to reflect the modular `server/routes/` layout
+- New `Branding (ENV)` section in README and `.env.example` covering `SITE_NAME`, `SITE_NAME_ACCENT`, `FAVICON_URL`, `LOGO_URL`, `PRIMARY_COLOR`, `POLLY_COPYRIGHT_TEXT`
+ - Release and self-hosting documentation now reflects the public `feature/guest-access-control` beta branch, Docker tags, guest access controls, and the administrator MFA override.
+
+### Tests
+- `packageMeta.test.ts` — guards `name` and `version` in `package.json`
+- `changelogSync.test.ts` — fails when `[Unreleased]` is empty without a matching version block
+- `depsHygiene.test.ts` — flags accidental re-introduction of unused dependencies (passport)
+- `envDocsSync.test.ts` — every `process.env.X` read in server code must be documented
+- `loginCookieFlow.test.ts` — full login + `/me` round-trip on plain HTTP (Docker scenario)
+- `sessionConfig.test.ts` — secure-cookie decision for HTTPS / HTTP / Replit / Docker
+- `openapiSync.test.ts` — flags routes missing from `docs/openapi.yaml`
 
 ---
 
-## [0.1.0-beta.2] - 2026-04-10
-
-### Added
+### Previously prepared beta.2 features
 
 #### AI-Powered Poll Creation (GWDG KISSKI Integration)
 - AI assistant for poll creation via natural language input (German & English)
@@ -165,11 +262,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 0.1.0-beta.2 | 2026-04-10 | AI integration, schedule improvements, notification fixes |
+| 0.1.0-beta.9 | 2026-08-25 | Generic OIDC / Authentik support via configurable issuer URL |
+| 0.1.0-beta.8 | 2026-08-25 | Self-hosted upgrade fixes: startup migrations + uploads volume permissions |
+| 0.1.0-beta.7 | 2026-08-24 | Changelog history correction (supersedes beta.6) |
+| 0.1.0-beta.6 | 2026-08-24 | Release documentation/lockfile correction (supersedes beta.5) |
+| 0.1.0-beta.5 | 2026-08-24 | Simple choice voting mode + brand color theming fix |
+| 0.1.0-beta.3 | 2026-08-22 | Public beta release with corrected image-upload error classification |
+| 0.1.0-beta.2 | 2026-08-22 | Guest access controls, administrator MFA policy, AI integration, branding, Docker reliability, and notification improvements |
 | 0.1.0-beta.1 | 2025-02-24 | Initial beta release |
 
 ---
 
-[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.2...HEAD
+[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.9...HEAD
+[0.1.0-beta.9]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.8...v0.1.0-beta.9
+[0.1.0-beta.8]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.7...v0.1.0-beta.8
+[0.1.0-beta.7]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.6...v0.1.0-beta.7
+[0.1.0-beta.6]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.5...v0.1.0-beta.6
+[0.1.0-beta.5]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.4...v0.1.0-beta.5
+[0.1.0-beta.4]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.3...v0.1.0-beta.4
+[0.1.0-beta.3]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.2...v0.1.0-beta.3
 [0.1.0-beta.2]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/manfredsteger/polly/releases/tag/v0.1.0-beta.1

@@ -25,6 +25,75 @@ export function registerRoutes(app: Express): Server {
     next();
   }, express.static(path.join(process.cwd(), 'uploads')));
 
+  // Service worker: never cache, set scope header.
+  app.use('/sw.js', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Service-Worker-Allowed', '/');
+    next();
+  });
+
+  // Dynamic PWA manifest — reflects current admin branding.
+  app.get('/site.webmanifest', async (_req, res) => {
+    try {
+      const settings = await storage.getCustomizationSettings();
+      const siteName = `${settings.branding.siteName ?? 'Poll'}${settings.branding.siteNameAccent ?? ''}` || 'Polly';
+      const primary = settings.theme.primaryColor || '#F97316';
+      const themeMode = settings.theme.defaultThemeMode || 'system';
+      const backgroundColor = themeMode === 'dark' ? '#0f172a' : '#FFFFFF';
+      const lang = settings.language?.defaultLanguage || 'de';
+
+      const manifest = {
+        id: '/',
+        name: siteName,
+        short_name: siteName.length > 12 ? siteName.slice(0, 12) : siteName,
+        description: 'Modern polling and scheduling platform for teams',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        display_override: ['standalone', 'minimal-ui'],
+        orientation: 'any',
+        theme_color: primary,
+        background_color: backgroundColor,
+        lang,
+        dir: 'ltr',
+        categories: ['productivity', 'business', 'utilities'],
+        icons: [
+          {
+            src: '/android-chrome-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/android-chrome-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/android-chrome-maskable-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: '/android-chrome-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      };
+
+      res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.json(manifest);
+    } catch (error) {
+      console.error('[PWA] Failed to render manifest:', error);
+      res.status(500).json({ error: 'Failed to render manifest' });
+    }
+  });
+
   const v1Router = Router();
 
   // Test mode middleware - allows E2E tests to mark data as test data

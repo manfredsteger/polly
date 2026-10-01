@@ -4,6 +4,7 @@ import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { storage } from '../../storage';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from '../testCredentials';
+import { customizationSettingsSchema } from '@shared/schema';
 
 export const testMeta = {
   category: 'accessibility' as const,
@@ -29,13 +30,53 @@ function calcContrastRatio(fg: string, bg: string): number {
 const LIGHT_BG = '#ffffff';
 const DARK_BG = '#0f172a';
 
+const BACKUP_KEY = '_test_wcag_backup';
+
+/**
+ * Sentinel values written by the test cases — if these appear in the live DB
+ * it means a previous test run was interrupted before afterAll could clean up.
+ * Most WCAG tests set primaryColor + scheduleColor both to '#f97316'.
+ */
+const TEST_SENTINEL_PRIMARY = '#f97316';
+const TEST_SENTINEL_SCHEDULE = '#f97316';
+
 describe('WCAG Color Contrast Audit', () => {
   let app: Express;
   let adminAgent: any;
   let origCustomization: any;
 
   beforeAll(async () => {
-    origCustomization = await storage.getCustomizationSettings();
+    // Layer 1: if a previous run was killed after writing the backup key,
+    // restore from it so the live DB is correct before we take a new snapshot.
+    const staleBackup = await storage.getSetting(BACKUP_KEY);
+    if (staleBackup) {
+      const recovered = customizationSettingsSchema.parse(staleBackup.value);
+      await storage.setCustomizationSettings(recovered);
+      await storage.deleteSetting(BACKUP_KEY);
+    }
+
+    // Read the (possibly just-restored) live settings.
+    const liveSettings = await storage.getCustomizationSettings();
+
+    // Layer 2: detect known sentinel values left by an interrupted run that
+    // predates the backup-key mechanism, or one that crashed before writing it.
+    const isPolluted =
+      liveSettings.theme?.primaryColor?.toLowerCase() === TEST_SENTINEL_PRIMARY &&
+      liveSettings.theme?.scheduleColor?.toLowerCase() === TEST_SENTINEL_SCHEDULE;
+
+    if (isPolluted) {
+      // Reset to schema defaults and use those clean defaults as the baseline
+      // to restore in afterAll.
+      const clean = customizationSettingsSchema.parse({});
+      await storage.setCustomizationSettings(clean);
+      origCustomization = await storage.getCustomizationSettings();
+    } else {
+      origCustomization = liveSettings;
+    }
+
+    // Persist backup so afterAll recovery works even if this run crashes.
+    await storage.setSetting({ key: BACKUP_KEY, value: origCustomization });
+
     app = await createTestApp();
 
     adminAgent = request.agent(app);
@@ -49,7 +90,9 @@ describe('WCAG Color Contrast Audit', () => {
   });
 
   afterAll(async () => {
+    // Restore live DB and signal successful cleanup by removing the backup key.
     await storage.setCustomizationSettings(origCustomization);
+    await storage.deleteSetting(BACKUP_KEY);
   });
 
   describe('Per-mode audit (separate light/dark issues)', () => {

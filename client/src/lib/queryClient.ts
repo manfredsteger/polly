@@ -3,10 +3,32 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 export const API_VERSION = 'v1';
 export const API_BASE = `/api/${API_VERSION}`;
 
+export class ApiRequestError extends Error {
+  status: number;
+  statusText: string;
+  bodyText: string;
+
+  constructor(res: Response, bodyText: string) {
+    super(`${res.status}: ${bodyText || res.statusText}`);
+    this.name = "ApiRequestError";
+    this.status = res.status;
+    this.statusText = res.statusText;
+    this.bodyText = bodyText;
+  }
+
+  async json(): Promise<unknown> {
+    return JSON.parse(this.bodyText);
+  }
+
+  async text(): Promise<string> {
+    return this.bodyText;
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    throw new ApiRequestError(res, text);
   }
 }
 

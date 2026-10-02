@@ -295,6 +295,7 @@ function SortableSlotItem({ slot, index, slotsLength, isDayMode, updateSlot, add
             >
               <SelectTrigger
                 className="w-[130px] shrink-0"
+                aria-label={t('createOrganization.slotDuration')}
                 data-testid={`select-slot-duration-${index}`}
               >
                 <SelectValue placeholder={t('createOrganization.slotDuration')} />
@@ -424,6 +425,7 @@ function CustomSlotRow({ slot, index, slotsLength, updateSlot, removeSlot, t }: 
           >
             <SelectTrigger
               className="w-full"
+              aria-label={t('createOrganization.slotDuration')}
               data-testid={`select-slot-duration-${index}`}
             >
               <SelectValue placeholder={t('createOrganization.slotDuration')} />

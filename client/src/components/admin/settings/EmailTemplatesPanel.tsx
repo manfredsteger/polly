@@ -298,11 +298,14 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     poll_created: { name: t('admin.emailTemplates.templateTypes.poll_created'), icon: <PlusCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_created_desc') },
     invitation: { name: t('admin.emailTemplates.templateTypes.invitation'), icon: <UserPlus className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.invitation_desc') },
     vote_confirmation: { name: t('admin.emailTemplates.templateTypes.vote_confirmation'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.vote_confirmation_desc') },
+    vote_updated: { name: t('admin.emailTemplates.templateTypes.vote_updated'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.vote_updated_desc') },
     reminder: { name: t('admin.emailTemplates.templateTypes.reminder'), icon: <Bell className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.reminder_desc') },
     password_reset: { name: t('admin.emailTemplates.templateTypes.password_reset'), icon: <Key className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_reset_desc') },
     email_change: { name: t('admin.emailTemplates.templateTypes.email_change'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.email_change_desc') },
     password_changed: { name: t('admin.emailTemplates.templateTypes.password_changed'), icon: <Shield className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_changed_desc') },
     test_report: { name: t('admin.emailTemplates.templateTypes.test_report'), icon: <FileText className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.test_report_desc') },
+    welcome: { name: t('admin.emailTemplates.templateTypes.welcome'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.welcome_desc') },
+    poll_finalized: { name: t('admin.emailTemplates.templateTypes.poll_finalized'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_finalized_desc') },
   };
 
   if (isLoading) {

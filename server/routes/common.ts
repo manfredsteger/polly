@@ -7,6 +7,7 @@ import { deviceTokenService } from "../services/deviceTokenService";
 import { z } from "zod";
 import "express-session";
 import { AuthenticationError, AuthorizationError } from "../lib/errors";
+import { isValidHttpHttpsUrl } from "@shared/urlValidation";
 export { asyncHandler } from "../lib/errorHandler";
 export * from "../lib/errors";
 
@@ -16,8 +17,10 @@ export const API_BASE = `/api/${API_VERSION}`;
 declare module "express-session" {
   interface SessionData {
     userId?: number;
+    pendingMfaUserId?: number;
     keycloakCodeVerifier?: string;
     keycloakState?: string;
+    keycloakReturnTo?: string;
     lastActivity?: number;
   }
 }
@@ -59,10 +62,10 @@ export const registerSchema = z.object({
   username: z.string().min(3).max(30),
   email: z.string().email(),
   name: z.string().min(1).max(100),
-  password: passwordSchema,
+  password: z.string().min(1),
 });
 
-export const createPollSchema = z.object({
+export const createPollSchemaBase = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
   type: z.enum(['schedule', 'survey', 'organization']),
@@ -75,9 +78,13 @@ export const createPollSchema = z.object({
   allowVoteEdit: z.boolean().optional().default(false),
   allowVoteWithdrawal: z.boolean().optional().default(false),
   resultsPublic: z.boolean().optional().default(true),
-  videoConferenceUrl: z.string().url().max(2000).refine(
-    (url) => /^https?:\/\//i.test(url),
-    { message: 'Only http and https URLs are allowed' }
+  allowMaybe: z.boolean().optional().default(true),
+  responseMode: z.enum(['classic', 'simple']).optional().default('classic'),
+  maxSelections: z.number().int().min(1).optional().nullable(),
+  notifyCreatorOnVote: z.boolean().optional().default(true),
+  videoConferenceUrl: z.string().max(2000).refine(
+    (url) => isValidHttpHttpsUrl(url),
+    { message: 'Please enter a valid HTTP/HTTPS URL.' }
   ).optional().nullable(),
   options: z.array(z.object({
     text: z.string().min(1).max(500),
@@ -88,7 +95,80 @@ export const createPollSchema = z.object({
     maxCapacity: z.number().min(1).optional(),
     isFreeText: z.boolean().optional().default(false),
     order: z.number().default(0),
-  })).min(1),
+  }).superRefine((option, ctx) => {
+    if (!option.startTime || !option.endTime) return;
+    const start = new Date(option.startTime);
+    const end = new Date(option.endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'End time must be later than start time.',
+        path: ['endTime'],
+      });
+    }
+  })),
+});
+
+export const createPollSchema = createPollSchemaBase.superRefine((data, ctx) => {
+  if (data.type === 'survey') {
+    const normalOptions = data.options.filter((option) => !option.isFreeText);
+    const freeTextOptions = data.options.filter((option) => option.isFreeText);
+    if (data.options.length < 1 || (freeTextOptions.length === 0 && normalOptions.length < 2)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Survey requires at least two choice options or one free-text question.',
+        path: ['options'],
+      });
+    }
+  } else if (data.options.length < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Poll requires at least two options.',
+      path: ['options'],
+    });
+  }
+
+  if (data.responseMode === 'simple') {
+    if (data.type === 'organization') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Simple choice mode is only available for surveys and schedule polls.',
+        path: ['responseMode'],
+      });
+    }
+    if (data.options.some((option) => option.isFreeText)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Free-text questions cannot be combined with simple choice mode.',
+        path: ['options'],
+      });
+    }
+    if (data.maxSelections != null && data.maxSelections > data.options.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'maxSelections cannot exceed the number of options.',
+        path: ['maxSelections'],
+      });
+    }
+  }
+
+  if (data.type !== 'schedule' && data.type !== 'organization') return;
+  const now = new Date();
+  data.options.forEach((option, index) => {
+    if (!option.startTime && !option.endTime) return;
+    // New schedule options must be in the future when creating a poll.
+    // If startTime exists, it must be later than now. Fallback to endTime.
+    const reference = option.startTime ?? option.endTime;
+    if (!reference) return;
+    const when = new Date(reference);
+    if (!Number.isNaN(when.getTime()) && when <= now) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Schedule option must be in the future.',
+        path: ['options', index, 'endTime'],
+      });
+    }
+  });
 });
 
 export const voteSchema = z.object({
@@ -105,6 +185,7 @@ export const inviteSchema = z.object({
 });
 
 export const bulkVoteSchema = z.object({
+  voterEditToken: z.string().min(1).max(256).optional(),
   voterName: z.string().min(1).max(100),
   voterEmail: z.string().email().max(254),
   votes: z.array(z.object({

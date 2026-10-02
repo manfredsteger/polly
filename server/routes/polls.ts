@@ -7,9 +7,26 @@ import {
   createPollSchema,
   requireEmailVerified,
 } from "./common";
-import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
+import { pollCreationRateLimiter, apiGeneralRateLimiter } from "../services/apiRateLimiterService";
+import { adminCacheService } from "../services/adminCacheService";
+
+import { publicPollResponse, safePollCreator } from "../lib/publicPollResponse";
 
 const router = Router();
+
+function getReminderSelectionsForEmail(
+  poll: { options: Array<{ id: number; text: string }>; votes?: Array<{ voterEmail: string; optionId: number; response: string }> },
+  email: string
+): string[] | undefined {
+  const normalized = email.toLowerCase();
+  const optionMap = new Map<number, string>(poll.options.map((opt) => [opt.id, opt.text]));
+  const selections = (poll.votes || [])
+    .filter((vote) => vote.voterEmail?.toLowerCase() === normalized && vote.response === 'yes')
+    .map((vote) => optionMap.get(vote.optionId) || '')
+    .filter(Boolean);
+
+  return selections.length > 0 ? selections : undefined;
+}
 
 // Create poll (anonymous or authenticated, with rate limiting)
 // For logged-in users, email must be verified
@@ -21,8 +38,9 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
     let userId: number | null = null;
     let creatorEmail: string | null = null;
     
-    if (req.session?.userId) {
-      const sessionUser = await storage.getUser(req.session.userId);
+    const authenticatedUserId = await extractUserId(req);
+    if (authenticatedUserId) {
+      const sessionUser = await storage.getUser(authenticatedUserId);
       if (sessionUser) {
         userId = sessionUser.id;
         creatorEmail = sessionUser.email;
@@ -33,6 +51,13 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
         console.warn(`Authenticated user ${userId} tried to set different creatorEmail: ${data.creatorEmail}`);
       }
     } else {
+      const customization = await storage.getCustomizationSettings();
+      if (customization.guestAccess?.allowGuestPollCreation === false) {
+        return res.status(403).json({
+          error: 'Das Erstellen von Umfragen ist nur für angemeldete Benutzer möglich. Bitte melden Sie sich an.',
+          errorCode: 'GUEST_POLL_CREATION_DISABLED'
+        });
+      }
       creatorEmail = data.creatorEmail || null;
       
       if (creatorEmail) {
@@ -82,6 +107,12 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       allowVoteEdit: data.allowVoteEdit,
       allowVoteWithdrawal: data.allowVoteWithdrawal,
       resultsPublic: data.resultsPublic,
+      allowMaybe: data.allowMaybe,
+      responseMode: (data.type === 'survey' || data.type === 'schedule') ? data.responseMode : 'classic',
+      maxSelections: (data.type === 'survey' || data.type === 'schedule') && data.responseMode === 'simple'
+        ? (data.maxSelections ?? 1)
+        : null,
+      notifyCreatorOnVote: data.notifyCreatorOnVote,
       videoConferenceUrl: data.type === 'schedule' ? (data.videoConferenceUrl || null) : null,
       isTestData: req.isTestMode === true,
     };
@@ -99,6 +130,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
     }));
 
     const result = await storage.createPoll(pollData, options);
+    adminCacheService.invalidateCache();
     
     if (creatorEmail) {
       const { getBaseUrl } = await import('../utils/baseUrl');
@@ -123,6 +155,30 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const videoUrlError = error.errors.find((e) => e.path.includes('videoConferenceUrl'));
+      if (videoUrlError) {
+        return res.status(400).json({
+          error: 'Please enter a valid HTTP/HTTPS URL.',
+          errorCode: 'INVALID_VIDEO_URL',
+          details: error.errors,
+        });
+      }
+      const invalidTimeRangeError = error.errors.find((e) => e.message === 'End time must be later than start time.');
+      if (invalidTimeRangeError) {
+        return res.status(400).json({
+          error: 'End time must be later than start time.',
+          errorCode: 'INVALID_TIME_RANGE',
+          details: error.errors,
+        });
+      }
+      const pastSlotError = error.errors.find((e) => e.message === 'Schedule option must be in the future.');
+      if (pastSlotError) {
+        return res.status(400).json({
+          error: 'Schedule option must be in the future.',
+          errorCode: 'INVALID_PAST_TIME_SLOT',
+          details: error.errors,
+        });
+      }
       return res
         .status(400)
         .json({ error: 'Invalid input', details: error.errors });
@@ -134,7 +190,7 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
 });
 
 // Get poll by public token
-router.get('/public/:token', async (req, res) => {
+router.get('/public/:token', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -143,10 +199,10 @@ router.get('/public/:token', async (req, res) => {
     
     const isOwner = poll.userId != null && req.session?.userId === poll.userId;
     if (isOwner) {
-      res.json(poll);
+      // Preserve the owner's organizer controls without returning account secrets.
+      res.json({ ...poll, user: safePollCreator(poll) });
     } else {
-      const { adminToken, ...pollData } = poll;
-      res.json(pollData);
+      res.json(publicPollResponse(poll));
     }
   } catch (error) {
     console.error('Error fetching poll:', error);
@@ -160,23 +216,6 @@ router.get('/admin/:token', async (req, res) => {
     const poll = await storage.getPollByAdminToken(req.params.token);
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
-    }
-    
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          message: 'Diese Umfrage wurde von einem registrierten Benutzer erstellt. Bitte melden Sie sich an, um die Administrationsseite aufzurufen.',
-          requiresAuth: true
-        });
-      }
-      
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ 
-          error: 'Keine Berechtigung',
-          message: 'Sie können nur Ihre eigenen Umfragen verwalten.'
-        });
-      }
     }
     
     res.json(poll);
@@ -194,20 +233,8 @@ router.patch('/admin/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          requiresAuth: true
-        });
-      }
-      
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
-    
-    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, videoConferenceUrl, notifyParticipants } = req.body;
+    const { isActive, title, description, expiresAt, resultsPublic, allowVoteEdit, allowVoteWithdrawal, allowMaybe, allowMultipleSlots, notifyCreatorOnVote, videoConferenceUrl, notifyParticipants, enableExpiryReminder, expiryReminderHours, closingMessage } = req.body;
+    const sanitizedClosingMessage = typeof closingMessage === 'string' ? closingMessage.slice(0, 5000) : undefined;
     
     const updates: Record<string, any> = {};
     if (isActive !== undefined) updates.isActive = isActive;
@@ -219,31 +246,97 @@ router.patch('/admin/:token', async (req, res) => {
     if (allowVoteWithdrawal !== undefined) updates.allowVoteWithdrawal = allowVoteWithdrawal;
     if (allowMaybe !== undefined) updates.allowMaybe = allowMaybe;
     if (allowMultipleSlots !== undefined) updates.allowMultipleSlots = allowMultipleSlots;
+    if (notifyCreatorOnVote !== undefined) updates.notifyCreatorOnVote = notifyCreatorOnVote;
+    if (sanitizedClosingMessage !== undefined) updates.closingMessage = sanitizedClosingMessage;
     if (videoConferenceUrl !== undefined && poll.type === 'schedule') {
       if (videoConferenceUrl && typeof videoConferenceUrl === 'string') {
         try {
           new URL(videoConferenceUrl);
           if (!/^https?:\/\//i.test(videoConferenceUrl)) {
-            return res.status(400).json({ error: 'Nur HTTP/HTTPS-URLs sind erlaubt' });
+            return res.status(400).json({ error: 'Nur HTTP/HTTPS-URLs sind erlaubt', errorCode: 'INVALID_VIDEO_URL' });
           }
           if (videoConferenceUrl.length > 2000) {
-            return res.status(400).json({ error: 'URL ist zu lang (max. 2000 Zeichen)' });
+            return res.status(400).json({ error: 'URL ist zu lang (max. 2000 Zeichen)', errorCode: 'INVALID_VIDEO_URL' });
           }
           updates.videoConferenceUrl = videoConferenceUrl;
         } catch {
-          return res.status(400).json({ error: 'Ungültige URL' });
+          return res.status(400).json({ error: 'Ungültige URL', errorCode: 'INVALID_VIDEO_URL' });
         }
       } else {
         updates.videoConferenceUrl = null;
       }
     }
     
+    // Re-validate expiry reminder when expiresAt is being updated
+    if (expiresAt !== undefined) {
+      const newExpiresAt = updates.expiresAt; // already converted to Date or null
+      let resolvedEnableReminder: boolean =
+        enableExpiryReminder !== undefined ? !!enableExpiryReminder : (poll.enableExpiryReminder ?? false);
+      let resolvedReminderHours: number =
+        expiryReminderHours !== undefined ? Number(expiryReminderHours) : (poll.expiryReminderHours ?? 24);
+
+      if (!newExpiresAt) {
+        resolvedEnableReminder = false;
+      } else {
+        const hoursUntilExpiry = (newExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
+        if (hoursUntilExpiry < 6) {
+          resolvedEnableReminder = false;
+        } else if (resolvedEnableReminder && resolvedReminderHours >= hoursUntilExpiry) {
+          const cappedHours = Math.max(1, Math.floor(hoursUntilExpiry * 0.5));
+          resolvedEnableReminder = cappedHours >= 1;
+          resolvedReminderHours = cappedHours;
+        }
+      }
+      updates.enableExpiryReminder = resolvedEnableReminder;
+      updates.expiryReminderHours = resolvedReminderHours;
+    } else if (enableExpiryReminder !== undefined) {
+      updates.enableExpiryReminder = !!enableExpiryReminder;
+      if (expiryReminderHours !== undefined) updates.expiryReminderHours = Number(expiryReminderHours);
+    }
+
+    if (isActive === true) {
+      const now = new Date();
+      const effectiveExpiresAt = updates.expiresAt !== undefined ? updates.expiresAt : poll.expiresAt;
+      if (effectiveExpiresAt && new Date(effectiveExpiresAt) <= now) {
+        return res.status(400).json({
+          error: 'Die Umfrage kann nicht reaktiviert werden, weil das Ablaufdatum in der Vergangenheit liegt.',
+          errorCode: 'POLL_EXPIRES_AT_PAST'
+        });
+      }
+
+      if (poll.type === 'schedule') {
+        const hasFutureOption = (poll.options || []).some((opt) => {
+          if (opt.endTime) {
+            const end = new Date(opt.endTime);
+            return !isNaN(end.getTime()) && end > now;
+          }
+          if (opt.startTime) {
+            const start = new Date(opt.startTime);
+            return !isNaN(start.getTime()) && start > now;
+          }
+          return false;
+        });
+
+        if (!hasFutureOption) {
+          return res.status(400).json({
+            error: 'Die Umfrage kann nicht reaktiviert werden, weil alle Terminoptionen in der Vergangenheit liegen.',
+            errorCode: 'NO_FUTURE_OPTIONS'
+          });
+        }
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Keine gültigen Updates angegeben' });
     }
     
     const updatedPoll = await storage.updatePoll(poll.id, updates);
     res.json(updatedPoll);
+
+    // Persist the closing message when a poll is ended
+    if (isActive === false && sanitizedClosingMessage !== undefined) {
+      await storage.updatePoll(poll.id, { closingMessage: sanitizedClosingMessage });
+    }
 
     // Send end-of-poll notifications if requested
     if (isActive === false && notifyParticipants === true) {
@@ -299,7 +392,8 @@ router.patch('/admin/:token', async (req, res) => {
                 confirmedTime,
                 pollLink,
                 icsBuffer,
-                poll.videoConferenceUrl
+                poll.videoConferenceUrl,
+                sanitizedClosingMessage
               );
             } else {
               // No confirmed date yet — send generic "poll ended" notification
@@ -308,7 +402,10 @@ router.patch('/admin/:token', async (req, res) => {
                 poll.title,
                 pollLink,
                 effectiveResultsPublic,
-                'survey'
+                'survey',
+                undefined,
+                undefined,
+                sanitizedClosingMessage
               );
             }
           } else if (poll.type === 'organization') {
@@ -333,7 +430,8 @@ router.patch('/admin/:token', async (req, res) => {
               effectiveResultsPublic,
               'organization',
               undefined,
-              slotSummary
+              slotSummary,
+              sanitizedClosingMessage
             );
           } else if (poll.type === 'survey') {
             let finalOptionText: string | undefined;
@@ -349,7 +447,9 @@ router.patch('/admin/:token', async (req, res) => {
               pollLink,
               effectiveResultsPublic,
               'survey',
-              finalOptionText
+              finalOptionText,
+              undefined,
+              sanitizedClosingMessage
             );
           }
         }
@@ -371,14 +471,7 @@ router.delete('/admin/:token', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     await storage.deletePoll(poll.id);
     res.json({ success: true, message: 'Umfrage gelöscht' });
@@ -393,6 +486,7 @@ const finalizeSchema = z.object({
   optionId: z.number().int().nonnegative(),
   closePoll: z.boolean().optional().default(false),
   notifyParticipants: z.boolean().optional().default(false),
+  orgFinalize: z.boolean().optional().default(false),
 }).strict();
 
 // Finalize poll (set final option)
@@ -406,25 +500,54 @@ router.post('/admin/:token/finalize', async (req, res) => {
       });
     }
     
-    const { optionId, closePoll, notifyParticipants } = parseResult.data;
+    const { optionId, closePoll, notifyParticipants, orgFinalize } = parseResult.data;
     
     const poll = await storage.getPollByAdminToken(req.params.token);
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
     }
-    
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          requiresAuth: true
-        });
+
+    // Org-Liste finalization: sentinel value -1, skips single-option winner logic
+    if (orgFinalize && poll.type === 'organization') {
+      const updateData: { finalOptionId: number | null; isActive?: boolean } = { finalOptionId: -1 };
+      if (closePoll) updateData.isActive = false;
+      const updatedPoll = await storage.updatePoll(poll.id, updateData);
+
+      let emailResult: { sent: number; failed: number } | undefined;
+      if (notifyParticipants) {
+        try {
+          const { getBaseUrl } = await import('../utils/baseUrl');
+          const baseUrl = getBaseUrl();
+          const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
+
+          let organizerEmail: string | null = poll.creatorEmail || null;
+          if (poll.userId) {
+            const user = await storage.getUser(poll.userId);
+            if (user) {
+              organizerEmail = user.email || organizerEmail;
+            }
+          }
+
+          emailResult = await emailService.sendOrgConfirmationEmails(
+            poll.title,
+            pollLink,
+            poll.options as Array<{ id: number; text: string }>,
+            poll.votes as Array<{ optionId: number; voterEmail: string; voterName: string; response: string }>,
+            organizerEmail
+          );
+        } catch (emailError) {
+          console.error('Error sending org confirmation emails:', emailError);
+        }
       }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
+
+      return res.json({
+        success: true,
+        poll: updatedPoll,
+        message: 'Anmeldungen wurden bestätigt.',
+        emailResult,
+      });
     }
-    
+
     if (optionId !== 0) {
       const optionExists = poll.options.some((o: { id: number }) => o.id === optionId);
       if (!optionExists) {
@@ -433,9 +556,19 @@ router.post('/admin/:token/finalize', async (req, res) => {
     }
     
     const finalOptionId = optionId === 0 ? null : optionId;
+    if (finalOptionId && (!poll.votes || poll.votes.length === 0)) {
+      return res.status(400).json({
+        error: 'Finalisierung ohne abgegebene Stimmen ist nicht möglich',
+        errorCode: 'NO_VOTES_TO_FINALIZE'
+      });
+    }
     const updateData: { finalOptionId: number | null; isActive?: boolean } = { finalOptionId };
     if (finalOptionId && closePoll) {
       updateData.isActive = false;
+    }
+    // Undo org finalization: always reopen registration (restore isActive=true)
+    if (finalOptionId === null && poll.finalOptionId === -1) {
+      updateData.isActive = true;
     }
     const updatedPoll = await storage.updatePoll(poll.id, updateData);
 
@@ -528,19 +661,23 @@ router.post('/admin/:token/options', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { text, startTime, endTime, maxCapacity, imageUrl, altText, order } = req.body;
     
     if (!text && !startTime) {
       return res.status(400).json({ error: 'Text oder Startzeit erforderlich' });
+    }
+
+    if (startTime && endTime) {
+      const startDate = new Date(startTime);
+      const endDate = new Date(endTime);
+      if (endDate <= startDate) {
+        return res.status(400).json({
+          error: 'End time must be later than start time.',
+          errorCode: 'INVALID_TIME_RANGE',
+        });
+      }
     }
     
     const newOption = await storage.addPollOption({
@@ -569,14 +706,7 @@ router.patch('/admin/:token/options/:optionId', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const optionId = parseInt(req.params.optionId);
     const existingOption = poll.options?.find(o => o.id === optionId);
@@ -585,6 +715,19 @@ router.patch('/admin/:token/options/:optionId', async (req, res) => {
     }
     
     const { text, startTime, endTime, maxCapacity, imageUrl, altText, order } = req.body;
+
+    const effectiveStartTime = startTime !== undefined ? startTime : existingOption.startTime;
+    const effectiveEndTime = endTime !== undefined ? endTime : existingOption.endTime;
+    if (effectiveStartTime && effectiveEndTime) {
+      const startDate = new Date(effectiveStartTime);
+      const endDate = new Date(effectiveEndTime);
+      if (endDate <= startDate) {
+        return res.status(400).json({
+          error: 'End time must be later than start time.',
+          errorCode: 'INVALID_TIME_RANGE',
+        });
+      }
+    }
     
     const updates: Record<string, any> = {};
     if (text !== undefined) updates.text = text;
@@ -611,21 +754,54 @@ router.delete('/admin/:token/options/:optionId', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const optionId = parseInt(req.params.optionId);
     const existingOption = poll.options?.find(o => o.id === optionId);
     if (!existingOption) {
       return res.status(404).json({ error: 'Option nicht gefunden' });
     }
-    
+
+    if ((poll.options?.length ?? 0) <= 2) {
+      return res.status(400).json({ error: 'A poll must have at least 2 options.' });
+    }
+
+    const optionVotes = (poll.votes || []).filter((v: any) => v.optionId === optionId);
+
+    if (poll.type === 'organization') {
+      const signupCount = optionVotes.filter((v: any) => v.response === 'yes').length;
+      if (signupCount > 0) {
+        const adminForce = req.body?.adminForce === true || req.query.adminForce === 'true';
+        if (!adminForce) {
+          return res.status(409).json({
+            error: `Diese Option hat ${signupCount} Anmeldung(en) und kann nicht gelöscht werden.`,
+            errorCode: 'OPTION_HAS_SIGNUPS',
+            signupCount,
+          });
+        }
+        // adminForce=true: only system admins may force-delete
+        const sessionUser = req.session?.userId ? await storage.getUser(req.session.userId) : null;
+        if (!sessionUser || sessionUser.role !== 'admin') {
+          return res.status(403).json({
+            error: 'Nur Administratoren können Optionen mit bestehenden Anmeldungen löschen.',
+            errorCode: 'ADMIN_REQUIRED',
+          });
+        }
+      }
+    } else {
+      const voteCount = optionVotes.length;
+      if (voteCount > 0) {
+        const confirmed = req.query.confirmed === 'true' || req.body?.confirmed === true;
+        if (!confirmed) {
+          return res.status(409).json({
+            error: `Diese Option hat ${voteCount} Stimme(n). Bitte bestätigen Sie die Löschung.`,
+            errorCode: 'OPTION_HAS_VOTES',
+            voteCount,
+          });
+        }
+      }
+    }
+
     await storage.deletePollOption(optionId);
     res.json({ success: true });
   } catch (error) {
@@ -642,14 +818,7 @@ router.post('/admin/:token/invite', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { emails, customMessage } = req.body;
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
@@ -699,14 +868,7 @@ router.post('/admin/:token/remind', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { emails, customMessage } = req.body;
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
@@ -795,17 +957,33 @@ router.post('/:id/send-reminder', async (req, res) => {
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
     }
-    
-    // Check authorization - must be poll creator or have admin token
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
+
+    // Ownership check: every caller must be authorized — owner session, system admin, or valid poll admin token
+    {
+      const sessionUserId = req.session?.userId;
+      let authorized = false;
+      if (sessionUserId) {
+        if (poll.userId && sessionUserId === poll.userId) {
+          authorized = true; // session owner
+        } else {
+          const sessionUser = await storage.getUser(sessionUserId);
+          if (sessionUser?.role === 'admin') authorized = true; // system admin
+        }
       }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
+      if (!authorized) {
+        const providedAdminToken = req.body?.adminToken as string | undefined;
+        if (providedAdminToken && poll.adminToken === providedAdminToken) {
+          authorized = true; // valid poll admin token
+        }
+      }
+      if (!authorized) {
+        return res.status(403).json({
+          error: 'Keine Berechtigung zum Senden von Erinnerungen für diese Umfrage.',
+          errorCode: 'NOT_AUTHORIZED',
+        });
       }
     }
-    
+
     // Extract unique emails from votes
     const votes = poll.votes || [];
     const participantEmails = [...new Set(
@@ -870,8 +1048,13 @@ router.post('/:id/send-reminder', async (req, res) => {
     // Pass the raw date string (ISO format) - emailService will format it
     const expiresAtISO = poll.expiresAt ? new Date(poll.expiresAt).toISOString() : undefined;
     
-    const results = await emailService.sendBulkReminders(
-      participantEmails,
+    const personalizedReminders = participantEmails.map((email) => ({
+      email,
+      selectedOptions: getReminderSelectionsForEmail(poll, email),
+    }));
+
+    const results = await emailService.sendPersonalizedReminders(
+      personalizedReminders,
       poll.title,
       senderName,
       pollLink,
@@ -903,7 +1086,7 @@ router.post('/:id/send-reminder', async (req, res) => {
 });
 
 // Get poll results
-router.get('/:token/results', async (req, res) => {
+router.get('/:token/results', apiGeneralRateLimiter, async (req, res) => {
   try {
     let poll;
     let isAdmin = false;
@@ -919,10 +1102,9 @@ router.get('/:token/results', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
 
+    const userId = await extractUserId(req);
+    const isCreator = userId != null && poll.userId === userId;
     if (!poll.resultsPublic && !isAdmin) {
-      const userId = await extractUserId(req);
-      const isCreator = userId && poll.userId === userId;
-      
       if (!isCreator) {
         return res.status(403).json({ 
           error: 'Ergebnisse sind nur für den Ersteller sichtbar',
@@ -932,7 +1114,19 @@ router.get('/:token/results', async (req, res) => {
     }
 
     const results = await storage.getPollResults(poll.id);
-    res.json(results);
+    if (isAdmin || isCreator) {
+      res.json({ ...results, poll: { ...results.poll, user: safePollCreator(poll) } });
+    } else {
+      const publicPoll = publicPollResponse({ ...poll, options: results.options, votes: results.votes });
+      res.json({
+        poll: publicPoll,
+        options: publicPoll.options,
+        votes: publicPoll.votes,
+        stats: results.stats,
+        participantCount: results.participantCount,
+        responseRate: results.responseRate,
+      });
+    }
   } catch (error) {
     console.error('Error fetching results:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -984,17 +1178,7 @@ router.get('/admin/:token/vote-count', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ 
-          error: 'Anmeldung erforderlich',
-          requiresAuth: true
-        });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const totalVotes = poll.votes?.length || 0;
     const uniqueVoters = new Set(poll.votes?.map(v => v.voterEmail)).size;
@@ -1015,14 +1199,7 @@ router.post('/:token/invite', async (req, res) => {
       return res.status(404).json({ error: 'Poll not found' });
     }
     
-    if (poll.userId) {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: 'Anmeldung erforderlich', requiresAuth: true });
-      }
-      if (req.session.userId !== poll.userId) {
-        return res.status(403).json({ error: 'Keine Berechtigung' });
-      }
-    }
+
     
     const { emails, customMessage } = req.body;
     if (!emails || !Array.isArray(emails) || emails.length === 0) {

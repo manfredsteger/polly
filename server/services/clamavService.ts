@@ -7,6 +7,7 @@ export interface ClamAVConfig {
   port: number;
   timeout: number; // milliseconds
   maxFileSize: number; // bytes
+  configurationUnavailable?: boolean;
 }
 
 export interface ScanResult {
@@ -24,6 +25,32 @@ const DEFAULT_CONFIG: ClamAVConfig = {
   maxFileSize: 25 * 1024 * 1024, // 25MB
 };
 
+function getEnvironmentOverrides(): Partial<ClamAVConfig> {
+  const overrides: Partial<ClamAVConfig> = {};
+  const enabled = process.env.CLAMAV_ENABLED?.trim().toLowerCase();
+  const host = process.env.CLAMAV_HOST?.trim();
+  const port = process.env.CLAMAV_PORT?.trim();
+
+  if (enabled === 'true') overrides.enabled = true;
+  else if (enabled === 'false') overrides.enabled = false;
+  else if (enabled) {
+    console.warn('[ClamAV] Ignoring invalid CLAMAV_ENABLED value; use true or false');
+  }
+
+  if (host) overrides.host = host;
+
+  if (port) {
+    const parsedPort = Number(port);
+    if (/^\d+$/.test(port) && Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
+      overrides.port = parsedPort;
+    } else {
+      console.warn('[ClamAV] Ignoring invalid CLAMAV_PORT value');
+    }
+  }
+
+  return overrides;
+}
+
 export class ClamAVService {
   private configCache: ClamAVConfig | null = null;
   private configCacheTime: number = 0;
@@ -34,11 +61,8 @@ export class ClamAVService {
     if (this.envInitialized) return;
     this.envInitialized = true;
 
-    const envEnabled = process.env.CLAMAV_ENABLED;
-    const envHost = process.env.CLAMAV_HOST;
-    const envPort = process.env.CLAMAV_PORT;
-
-    if (!envEnabled && !envHost && !envPort) {
+    const environmentOverrides = getEnvironmentOverrides();
+    if (Object.keys(environmentOverrides).length === 0) {
       return;
     }
 
@@ -47,18 +71,15 @@ export class ClamAVService {
       
       if (!existingSetting?.value) {
         const envConfig: ClamAVConfig = {
-          enabled: envEnabled === 'true',
-          host: envHost || 'localhost',
-          port: envPort ? parseInt(envPort, 10) : 3310,
-          timeout: 30000,
-          maxFileSize: 25 * 1024 * 1024,
+          ...DEFAULT_CONFIG,
+          ...environmentOverrides,
         };
 
         await storage.setSetting({ key: 'clamav_config', value: envConfig });
         console.log(`[ClamAV] Initialized from environment: enabled=${envConfig.enabled}, host=${envConfig.host}:${envConfig.port}`);
         this.clearConfigCache();
       } else {
-        console.log('[ClamAV] Configuration already exists in database, skipping env initialization');
+        console.log('[ClamAV] Runtime environment overrides persisted scanner configuration');
       }
     } catch (error) {
       console.error('[ClamAV] Failed to initialize from environment:', error);
@@ -73,16 +94,42 @@ export class ClamAVService {
 
     try {
       const setting = await storage.getSetting('clamav_config');
+      const environmentOverrides = getEnvironmentOverrides();
       if (setting?.value) {
-        this.configCache = { ...DEFAULT_CONFIG, ...setting.value as Partial<ClamAVConfig> };
+        this.configCache = {
+          ...DEFAULT_CONFIG,
+          ...setting.value as Partial<ClamAVConfig>,
+          ...environmentOverrides,
+        };
       } else {
-        this.configCache = DEFAULT_CONFIG;
+        this.configCache = { ...DEFAULT_CONFIG, ...environmentOverrides };
       }
       this.configCacheTime = now;
       return this.configCache;
     } catch (error) {
       console.error('Failed to load ClamAV config:', error);
-      return DEFAULT_CONFIG;
+      const environmentOverrides = getEnvironmentOverrides();
+
+      // A last-known configuration is safer and more useful than silently
+      // falling back to the disabled default when a transient DB read fails.
+      if (this.configCache) {
+        return { ...this.configCache, ...environmentOverrides };
+      }
+
+      // An explicit runtime choice is authoritative. Without one, the
+      // scanner state is unknown, so uploads must fail closed rather than
+      // assuming that an Admin-managed scanner was disabled.
+      if (environmentOverrides.enabled === false) {
+        return { ...DEFAULT_CONFIG, ...environmentOverrides };
+      }
+      if (environmentOverrides.enabled === true) {
+        return { ...DEFAULT_CONFIG, ...environmentOverrides };
+      }
+      return {
+        ...DEFAULT_CONFIG,
+        enabled: true,
+        configurationUnavailable: true,
+      };
     }
   }
 
@@ -164,6 +211,15 @@ export class ClamAVService {
   async scanBuffer(buffer: Buffer, filename?: string): Promise<ScanResult> {
     const config = await this.getConfig();
 
+    if (config.configurationUnavailable) {
+      console.error('[ClamAV] SECURITY: Scanner configuration unavailable - Upload BLOCKIERT (fail-secure)');
+      return {
+        isClean: false,
+        scannerUnavailable: true,
+        error: 'Virenscanner-Konfiguration nicht verfügbar. Upload wurde aus Sicherheitsgründen blockiert.',
+      };
+    }
+
     if (!config.enabled) {
       return { isClean: true };
     }
@@ -231,12 +287,15 @@ export class ClamAVService {
           console.error(`ClamAV Scan-Fehler: ${response}`);
           resolve({
             isClean: false,
-            error: `Scan-Fehler: ${response}`,
+            scannerUnavailable: true,
+            error: 'Virenscanner-Fehler. Upload wurde aus Sicherheitsgründen blockiert.',
           });
         } else {
+          console.error(`ClamAV Scan-Fehler: Unerwartete Antwort: ${response || '(leer)'}`);
           resolve({
             isClean: false,
-            error: `Unbekannte Antwort: ${response}`,
+            scannerUnavailable: true,
+            error: 'Virenscanner-Fehler. Upload wurde aus Sicherheitsgründen blockiert.',
           });
         }
       });
@@ -251,10 +310,11 @@ export class ClamAVService {
             error: `Virenscanner nicht erreichbar (${config.host}:${config.port}). Upload aus Sicherheitsgründen blockiert. Bitte ClamAV-Daemon starten oder Scanner deaktivieren.`,
           });
         } else {
-          console.error(`[ClamAV] Connection error: ${error.message}`);
+          console.error(`[ClamAV] SECURITY: Scanner communication error (${error.code || 'unknown'}) - Upload BLOCKIERT (fail-secure)`);
           resolve({
             isClean: false,
-            error: `Connection error: ${error.message}`,
+            scannerUnavailable: true,
+            error: 'Virenscanner nicht erreichbar. Upload wurde aus Sicherheitsgründen blockiert.',
           });
         }
       });

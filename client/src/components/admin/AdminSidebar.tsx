@@ -51,8 +51,8 @@ export function AdminSidebar({
   };
 
   return (
-    <div className={`flex-shrink-0 transition-all duration-200 ${sidebarCollapsed ? 'w-14' : 'w-48'}`}>
-      <Card className="polly-card sticky top-24">
+    <div className={`w-full min-w-0 flex-shrink-0 transition-all duration-200 ${sidebarCollapsed ? 'lg:w-14' : 'lg:w-48'}`}>
+      <Card className="polly-card lg:sticky lg:top-24">
         <CardContent className="p-2">
           <div className="flex items-center justify-center mb-2">
             <Tooltip>
@@ -70,7 +70,7 @@ export function AdminSidebar({
               <TooltipContent side="bottom">{sidebarCollapsed ? t('admin.nav.expand') : t('admin.nav.collapse')}</TooltipContent>
             </Tooltip>
           </div>
-          <nav className="space-y-1">
+          <nav className={`grid gap-1 lg:block lg:space-y-1 ${sidebarCollapsed ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-1 sm:grid-cols-2'}`}>
             <NavButton 
               collapsed={sidebarCollapsed} 
               active={activeTab === "overview"} 

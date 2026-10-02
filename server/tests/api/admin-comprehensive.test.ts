@@ -4,6 +4,7 @@ import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 import { storage } from '../../storage';
+import { customizationSettingsSchema } from '@shared/schema';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -175,7 +176,7 @@ describe('Admin API - Comprehensive Functional Tests', () => {
     it('should reject patch with no updates', async () => {
       const pollsRes = await adminAgent.get('/api/v1/admin/polls');
       if (pollsRes.body.length > 0) {
-        const res = await adminAgent.patch(`/api/v1/admin/polls/${pollsRes.body[0].id}`).send({});
+        const res = await adminAgent.patch(`/api/v1/admin/polls/${pollsRes.body[0].publicToken}`).send({});
         expect(res.status).toBe(400);
       }
     });
@@ -293,13 +294,29 @@ describe('Admin API - Comprehensive Functional Tests', () => {
 
   describe('Customization & Branding', () => {
     let savedCustomization: any;
+    const CUSTOMIZATION_BACKUP_KEY = '_test_admin_backup';
 
     beforeAll(async () => {
+      // Layer 1: if a previous run was killed after writing the backup key,
+      // restore from it so the live DB is correct before we take a new snapshot.
+      const staleBackup = await storage.getSetting(CUSTOMIZATION_BACKUP_KEY);
+      if (staleBackup) {
+        const recovered = customizationSettingsSchema.parse(staleBackup.value);
+        await storage.setCustomizationSettings(recovered);
+        await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
+      }
+
+      // Read the (possibly just-restored) live settings.
       savedCustomization = await storage.getCustomizationSettings();
+
+      // Persist backup so afterAll recovery works even if this run crashes.
+      await storage.setSetting({ key: CUSTOMIZATION_BACKUP_KEY, value: savedCustomization });
     });
 
     afterAll(async () => {
+      // Restore live DB and signal successful cleanup by removing the backup key.
       await storage.setCustomizationSettings(savedCustomization);
+      await storage.deleteSetting(CUSTOMIZATION_BACKUP_KEY);
     });
 
     it('should get customization settings', async () => {
@@ -343,7 +360,7 @@ describe('Admin API - Comprehensive Functional Tests', () => {
       expect(res.body.length).toBeGreaterThan(0);
     });
 
-    const templateTypes = ['poll_created', 'invitation', 'vote_confirmation', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report'];
+    const templateTypes = ['poll_created', 'invitation', 'vote_confirmation', 'vote_updated', 'reminder', 'password_reset', 'email_change', 'password_changed', 'test_report', 'welcome', 'poll_finalized'];
 
     for (const type of templateTypes) {
       it(`should get template ${type}`, async () => {
@@ -502,6 +519,21 @@ describe('Admin API - Comprehensive Functional Tests', () => {
   });
 
   describe('Tests & Monitoring', () => {
+    const TEST_SCHEDULE_KEY = 'test_schedule_config';
+    let savedScheduleSetting: any;
+
+    beforeAll(async () => {
+      savedScheduleSetting = await storage.getSetting(TEST_SCHEDULE_KEY);
+    });
+
+    afterAll(async () => {
+      if (savedScheduleSetting) {
+        await storage.setSetting(savedScheduleSetting);
+      } else {
+        await storage.deleteSetting(TEST_SCHEDULE_KEY);
+      }
+    });
+
     it('should get test environment', async () => {
       const res = await adminAgent.get('/api/v1/admin/tests/environment');
       expect(res.status).toBe(200);
@@ -521,6 +553,35 @@ describe('Admin API - Comprehensive Functional Tests', () => {
     it('should get test schedule', async () => {
       const res = await adminAgent.get('/api/v1/admin/tests/schedule');
       expect(res.status).toBe(200);
+    });
+
+    it('should normalize legacy single-recipient schedule config', async () => {
+      await storage.setSetting({
+        key: TEST_SCHEDULE_KEY,
+        value: {
+          enabled: false,
+          intervalDays: 7,
+          runTime: '03:00',
+          notifyEmail: 'legacy@example.com',
+        },
+        description: 'Automated test schedule configuration',
+      });
+
+      const res = await adminAgent.get('/api/v1/admin/tests/schedule');
+      expect(res.status).toBe(200);
+      expect(res.body.notifyEmail).toBe('legacy@example.com');
+      expect(res.body.notifyEmails).toEqual(['legacy@example.com']);
+    });
+
+    it('should save multiple notification recipients for test schedule', async () => {
+      const res = await adminAgent.put('/api/v1/admin/tests/schedule').send({
+        notifyEmails: ['first@example.com', 'second@example.com', 'first@example.com'],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.config.notifyEmail).toBe('first@example.com');
+      expect(res.body.config.notifyEmails).toEqual(['first@example.com', 'second@example.com']);
     });
 
     it('should get test configurations', async () => {

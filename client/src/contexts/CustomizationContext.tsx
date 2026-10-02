@@ -103,8 +103,8 @@ function applyThemeColors(settings: CustomizationSettings) {
       : (settings.theme.primaryColorLight || settings.theme.primaryColor);
     const primaryHSL = colorConverter(effectiveColor);
     root.style.setProperty('--polly-orange', `hsl(${primaryHSL})`);
-    root.style.setProperty('--primary', primaryHSL);
-    root.style.setProperty('--primary-foreground', '0 0% 100%');
+    root.style.setProperty('--primary', `hsl(${primaryHSL})`);
+    root.style.setProperty('--primary-foreground', 'hsl(0, 0%, 100%)');
     cachedColors.primary = `hsl(${primaryHSL})`;
     cachedColors.primaryHSL = primaryHSL;
   }
@@ -208,6 +208,47 @@ export function CustomizationProvider({ children }: { children: React.ReactNode 
     const links = document.querySelectorAll<HTMLLinkElement>('link[rel*="icon"]');
     links.forEach((link) => { link.href = faviconUrl; });
   }, [settings?.branding?.faviconUrl]);
+
+  // Sync PWA / iOS meta tags with admin branding.
+  useEffect(() => {
+    if (!settings) return;
+    const siteName = `${settings.branding?.siteName ?? ''}${settings.branding?.siteNameAccent ?? ''}` || 'Polly';
+    const themeColor = settings.theme?.primaryColor || '#F97316';
+    const lang = settings.language?.defaultLanguage || 'de';
+    const dir = 'ltr';
+
+    const setMeta = (name: string, content: string) => {
+      if (!content) return;
+      let el = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('name', name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    setMeta('apple-mobile-web-app-title', siteName);
+    setMeta('application-name', siteName);
+    setMeta('theme-color', themeColor);
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('dir', dir);
+
+    try {
+      localStorage.setItem('polly-pwa-meta', JSON.stringify({
+        siteName,
+        themeColor,
+        lang,
+        dir,
+      }));
+    } catch (e) {}
+  }, [
+    settings,
+    settings?.branding?.siteName,
+    settings?.branding?.siteNameAccent,
+    settings?.theme?.primaryColor,
+    settings?.language?.defaultLanguage,
+  ]);
 
   return (
     <CustomizationContext.Provider value={{ settings: settings || null, customization: settings || null, isLoading }}>

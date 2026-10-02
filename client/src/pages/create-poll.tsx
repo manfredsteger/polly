@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { apiRequest } from "@/lib/queryClient";
 import { formatScheduleOptionText } from "@/lib/utils";
+import { isValidHttpHttpsUrl } from "@shared/urlValidation";
 import { ArrowLeft, Calendar, Clock, Mail, Trash2, Pencil, CheckCircle, QrCode, Link as LinkIcon, Info, Bell, ChevronDown, Video } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,11 +39,16 @@ interface PollFormData {
   description: string;
   creatorEmail: string;
   options: PollOption[];
+  enableExpiryReminder: boolean;
+  expiryReminderHours: number;
   allowVoteEdit: boolean;
   allowVoteWithdrawal: boolean;
   resultsPublic: boolean;
+  notifyCreatorOnVote: boolean;
   expiresAt: string | null;
   videoConferenceUrl?: string;
+  simpleMode?: boolean;
+  maxSelections?: number;
 }
 
 export default function CreatePoll() {
@@ -60,7 +66,11 @@ export default function CreatePoll() {
   const [allowVoteEdit, setAllowVoteEdit] = useState(false);
   const [allowVoteWithdrawal, setAllowVoteWithdrawal] = useState(false);
   const [resultsPublic, setResultsPublic] = useState(true);
+  const [notifyCreatorOnVote, setNotifyCreatorOnVote] = useState(true);
   const [videoConferenceUrl, setVideoConferenceUrl] = useState("");
+  const [simpleMode, setSimpleMode] = useState(false);
+  const [maxSelections, setMaxSelections] = useState(1);
+  const [videoConferenceUrlError, setVideoConferenceUrlError] = useState<"" | "invalid">("");
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [options, setOptions] = useState<PollOption[]>([]);
   
@@ -69,6 +79,7 @@ export default function CreatePoll() {
   const [editStartTime, setEditStartTime] = useState("");
   const [editEndTime, setEditEndTime] = useState("");
   const [editDate, setEditDate] = useState<Date | null>(null);
+  const [editTimeRangeError, setEditTimeRangeError] = useState("");
 
   const formPersistence = useFormPersistence<PollFormData>({ key: 'create-poll' });
   const hasRestoredRef = useRef(false);
@@ -84,10 +95,15 @@ export default function CreatePoll() {
       setDescription(stored.data.description || "");
       setCreatorEmail(stored.data.creatorEmail || "");
       setOptions(stored.data.options || []);
+      setEnableExpiryReminder(stored.data.enableExpiryReminder ?? false);
+      setExpiryReminderHours(stored.data.expiryReminderHours ?? 24);
       setAllowVoteEdit(stored.data.allowVoteEdit ?? false);
       setAllowVoteWithdrawal(stored.data.allowVoteWithdrawal ?? false);
       setResultsPublic(stored.data.resultsPublic ?? true);
+      setNotifyCreatorOnVote(stored.data.notifyCreatorOnVote ?? true);
       setVideoConferenceUrl(stored.data.videoConferenceUrl || "");
+      setSimpleMode(stored.data.simpleMode ?? false);
+      setMaxSelections(stored.data.maxSelections ?? 1);
       if (stored.data.expiresAt) {
         setExpiresAt(new Date(stored.data.expiresAt));
       }
@@ -134,6 +150,14 @@ export default function CreatePoll() {
         if (typeof s.resultsPublic === "boolean") setResultsPublic(s.resultsPublic);
         if (typeof s.allowVoteEdit === "boolean") setAllowVoteEdit(s.allowVoteEdit);
         if (typeof s.allowVoteWithdrawal === "boolean") setAllowVoteWithdrawal(s.allowVoteWithdrawal);
+        if (typeof s.notifyCreatorOnVote === "boolean") setNotifyCreatorOnVote(s.notifyCreatorOnVote);
+        if (s.responseMode === "simple") {
+          setSimpleMode(true);
+          const max = typeof s.maxSelections === "number" && Number.isInteger(s.maxSelections) && s.maxSelections >= 1 ? s.maxSelections : 1;
+          setMaxSelections(max);
+        } else if (s.responseMode === "classic") {
+          setSimpleMode(false);
+        }
       }
     } catch (_) {}
   }, []);
@@ -148,6 +172,8 @@ export default function CreatePoll() {
       autoSubmitTriggeredRef.current = true;
       
       const storedExpiresAt = stored.data.expiresAt;
+      const storedEnableExpiryReminder = stored.data.enableExpiryReminder ?? false;
+      const storedExpiryReminderHours = stored.data.expiryReminderHours ?? 24;
       formPersistence.clearStoredData();
       
       toast({
@@ -161,10 +187,15 @@ export default function CreatePoll() {
           description: description.trim() || undefined,
           type: "schedule" as const,
           expiresAt: storedExpiresAt || undefined,
+          enableExpiryReminder: !!storedExpiresAt ? storedEnableExpiryReminder : false,
+          expiryReminderHours: !!storedExpiresAt && storedEnableExpiryReminder ? storedExpiryReminderHours : undefined,
           allowVoteEdit: allowVoteEdit,
           allowVoteWithdrawal: allowVoteWithdrawal,
           resultsPublic: resultsPublic,
+          notifyCreatorOnVote: notifyCreatorOnVote,
           videoConferenceUrl: videoConferenceUrl.trim() || undefined,
+          responseMode: simpleMode ? ("simple" as const) : ("classic" as const),
+          maxSelections: simpleMode ? Math.min(Math.max(1, maxSelections), options.length) : undefined,
           options: options.map((option) => {
             const opt: any = {
               text: option.text,
@@ -199,24 +230,41 @@ export default function CreatePoll() {
       };
       sessionStorage.setItem('poll-success-data', JSON.stringify(successData));
       
-      setLocation("/success");
+      setLocation(`/success/${data.adminToken}`);
     },
     onError: async (error: any) => {
       let errorMessage = t('createPoll.createError');
       let requiresLogin = false;
+      let requiresEmailVerification = false;
       
       if (error?.message) {
         try {
           const errorData = JSON.parse(error.message.split(': ').slice(1).join(': '));
-          if (errorData.errorCode === 'REQUIRES_LOGIN') {
+          if (errorData.errorCode === 'REQUIRES_LOGIN' || errorData.errorCode === 'GUEST_POLL_CREATION_DISABLED') {
             errorMessage = errorData.error;
             requiresLogin = true;
+          } else if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+            errorMessage = t('pollCreation.emailVerificationRequiredDescription');
+            requiresEmailVerification = true;
+          } else if (typeof errorData.retryAfter === 'number') {
+            errorMessage = t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
+          } else if (errorData.errorCode === 'INVALID_TIME_RANGE') {
+            errorMessage = t('createPoll.invalidTimeRange');
+          } else if (errorData.errorCode === 'INVALID_PAST_TIME_SLOT') {
+            errorMessage = t('createPoll.pastTimeSlotError');
+          } else if (errorData.errorCode === 'INVALID_VIDEO_URL') {
+            errorMessage = t('pollCreation.invalidVideoConferenceUrl');
+            setVideoConferenceUrlError("invalid");
           }
         } catch {}
       }
       
       toast({
-        title: requiresLogin ? t('pollCreation.loginRequired') : t('pollCreation.error'),
+        title: requiresLogin
+          ? t('pollCreation.loginRequired')
+          : requiresEmailVerification
+            ? t('pollCreation.emailVerificationRequired')
+            : t('pollCreation.error'),
         description: requiresLogin 
           ? t('pollCreation.loginRequiredDescription')
           : errorMessage,
@@ -225,7 +273,22 @@ export default function CreatePoll() {
       
       if (requiresLogin) {
         formPersistence.saveBeforeRedirect(
-          { title, description, creatorEmail, options, allowVoteEdit, allowVoteWithdrawal, resultsPublic, expiresAt: expiresAt ? expiresAt.toISOString() : null, videoConferenceUrl: videoConferenceUrl || undefined },
+          {
+            title,
+            description,
+            creatorEmail,
+            options,
+            enableExpiryReminder,
+            expiryReminderHours,
+            allowVoteEdit,
+            allowVoteWithdrawal,
+            resultsPublic,
+            notifyCreatorOnVote,
+            expiresAt: expiresAt ? expiresAt.toISOString() : null,
+            videoConferenceUrl: videoConferenceUrl || undefined,
+            simpleMode,
+            maxSelections
+          },
           '/create-poll'
         );
         
@@ -278,6 +341,10 @@ export default function CreatePoll() {
 
   const saveEditedOption = () => {
     if (editIndex !== null && editDate && editStartTime && editEndTime) {
+      if (editEndTime <= editStartTime) {
+        setEditTimeRangeError(t('createPoll.invalidTimeRange'));
+        return;
+      }
       setOptions(prev => prev.map((opt, i) => {
         if (i === editIndex) {
           return {
@@ -291,6 +358,7 @@ export default function CreatePoll() {
       }));
       setEditDialogOpen(false);
       setEditIndex(null);
+      setEditTimeRangeError("");
     }
   };
 
@@ -324,6 +392,27 @@ export default function CreatePoll() {
       return;
     }
 
+    const trimmedVideoConferenceUrl = videoConferenceUrl.trim();
+    if (trimmedVideoConferenceUrl && !isValidHttpHttpsUrl(trimmedVideoConferenceUrl)) {
+      setVideoConferenceUrlError("invalid");
+      return;
+    }
+
+    const hasInvalidRange = options.some((option) => {
+      if (!option.startTime || !option.endTime) return false;
+      const start = new Date(option.startTime);
+      const end = new Date(option.endTime);
+      return Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start;
+    });
+    if (hasInvalidRange) {
+      toast({
+        title: t('pollCreation.error'),
+        description: t('createPoll.invalidTimeRange'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     const pollData = {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -335,7 +424,10 @@ export default function CreatePoll() {
       allowVoteEdit,
       allowVoteWithdrawal,
       resultsPublic,
-      videoConferenceUrl: videoConferenceUrl.trim() || undefined,
+      notifyCreatorOnVote,
+      videoConferenceUrl: trimmedVideoConferenceUrl || undefined,
+      responseMode: simpleMode ? ("simple" as const) : ("classic" as const),
+      maxSelections: simpleMode ? Math.min(Math.max(1, maxSelections), options.length) : undefined,
       options: options.map((option) => {
         const opt: any = {
           text: option.text,
@@ -427,15 +519,37 @@ export default function CreatePoll() {
               </Label>
               <Input
                 id="videoConferenceUrl"
-                type="url"
+                type="text"
                 value={videoConferenceUrl}
-                onChange={(e) => setVideoConferenceUrl(e.target.value)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  setVideoConferenceUrl(nextValue);
+                  const trimmed = nextValue.trim();
+                  if (!trimmed) {
+                    setVideoConferenceUrlError("");
+                  } else if (!isValidHttpHttpsUrl(trimmed)) {
+                    setVideoConferenceUrlError("invalid");
+                  } else {
+                    setVideoConferenceUrlError("");
+                  }
+                }}
+                onBlur={() => {
+                  const trimmed = videoConferenceUrl.trim();
+                  if (trimmed && !isValidHttpHttpsUrl(trimmed)) {
+                    setVideoConferenceUrlError("invalid");
+                  } else {
+                    setVideoConferenceUrlError("");
+                  }
+                }}
                 placeholder={t('pollCreation.videoConferencePlaceholder')}
-                className="mt-1"
+                className={`mt-1 ${videoConferenceUrlError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {t('pollCreation.videoConferenceHint')}
               </p>
+              {videoConferenceUrlError === "invalid" && (
+                <p className="text-xs text-destructive mt-1">{t('pollCreation.invalidVideoConferenceUrl')}</p>
+              )}
             </div>
 
             {expiresAt && (() => {
@@ -513,7 +627,41 @@ export default function CreatePoll() {
               </button>
               {settingsExpanded && (
                 <div className="space-y-4 mt-4">
-                  <div className="flex items-center justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>{t('simpleChoice.modeLabel')}</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {t('simpleChoice.modeDescriptionSchedule')}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={simpleMode}
+                        onCheckedChange={setSimpleMode}
+                        data-testid="switch-simple-mode"
+                        aria-label={t('simpleChoice.modeLabel')}
+                      />
+                    </div>
+                    {simpleMode && (
+                      <div className="flex items-center gap-3">
+                        <Label htmlFor="maxSelections" className="shrink-0">{t('simpleChoice.maxSelectionsLabel')}</Label>
+                        <Input
+                          id="maxSelections"
+                          type="number"
+                          min={1}
+                          max={Math.max(1, options.length)}
+                          value={maxSelections}
+                          onChange={(e) => setMaxSelections(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-20"
+                          data-testid="input-max-selections"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {maxSelections <= 1 ? t('simpleChoice.singleChoiceHint') : t('simpleChoice.multipleChoiceHint', { count: maxSelections })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
                     <div className="space-y-0.5">
                       <Label>{t('pollCreation.allowVoteEdit')}</Label>
                       <p className="text-sm text-muted-foreground">
@@ -553,6 +701,20 @@ export default function CreatePoll() {
                       onCheckedChange={setResultsPublic}
                       data-testid="switch-results-public"
                       aria-label={t('pollCreation.resultsPublic')}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="space-y-0.5">
+                      <Label>{t('pollCreation.notifyCreatorOnVote')}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t('pollCreation.notifyCreatorOnVoteDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifyCreatorOnVote}
+                      onCheckedChange={setNotifyCreatorOnVote}
+                      data-testid="switch-notify-creator-on-vote"
+                      aria-label={t('pollCreation.notifyCreatorOnVote')}
                     />
                   </div>
                 </div>
@@ -632,7 +794,7 @@ export default function CreatePoll() {
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                     <p className="font-medium text-green-800 dark:text-green-200">
                       {t('pollCreation.loggedInAs', { name: user?.name || user?.username })}
                     </p>
@@ -725,12 +887,27 @@ export default function CreatePoll() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium">{t('pollView.date')}</Label>
+              <div className="mt-1">
+                <DatePicker
+                  date={editDate}
+                  onDateChange={(date) => setEditDate(date)}
+                  showClearButton={false}
+                  inline
+                  data-testid="input-edit-date"
+                />
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edit-startTime" className="text-sm font-medium">{t('pollCreation.from')}</Label>
                 <TimePickerDropdown
                   value={editStartTime}
-                  onChange={setEditStartTime}
+                  onChange={(value) => {
+                    setEditStartTime(value);
+                    if (editTimeRangeError) setEditTimeRangeError("");
+                  }}
                   label={t('pollCreation.from')}
                   className="mt-1"
                   data-testid="input-edit-start-time"
@@ -740,13 +917,19 @@ export default function CreatePoll() {
                 <Label htmlFor="edit-endTime" className="text-sm font-medium">{t('pollCreation.to')}</Label>
                 <TimePickerDropdown
                   value={editEndTime}
-                  onChange={setEditEndTime}
+                  onChange={(value) => {
+                    setEditEndTime(value);
+                    if (editTimeRangeError) setEditTimeRangeError("");
+                  }}
                   label={t('pollCreation.to')}
                   className="mt-1"
                   data-testid="input-edit-end-time"
                 />
               </div>
             </div>
+            {editTimeRangeError && (
+              <p className="text-sm text-destructive">{editTimeRangeError}</p>
+            )}
             
             <div className="flex gap-3 pt-2">
               <Button
@@ -761,7 +944,7 @@ export default function CreatePoll() {
               <Button
                 type="button"
                 onClick={saveEditedOption}
-                disabled={!editStartTime || !editEndTime}
+                disabled={!editDate || !editStartTime || !editEndTime || editEndTime <= editStartTime}
                 className="flex-1 polly-button-schedule"
                 data-testid="button-save-edit"
               >

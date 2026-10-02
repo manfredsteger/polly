@@ -8,11 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertBanner } from "@/components/ui/AlertBanner";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Check, X, HelpCircle, Calendar, Clock, Mail, AlertTriangle, ListChecks, LogIn, User, Trash2 } from "lucide-react";
 import type { PollWithOptions } from "@shared/schema";
 import { SimpleImageVoting } from "./SimpleImageVoting";
+import { SimpleChoiceVoting } from "./SimpleChoiceVoting";
 import { OrganizationSlotVoting } from "./OrganizationSlotVoting";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLiveVoting } from "@/hooks/useLiveVoting";
@@ -73,13 +75,39 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   const [voterEmail, setVoterEmail] = useState("");
   const [votes, setVotes] = useState<Record<number, VoteResponse>>({});
   const [freeTextAnswers, setFreeTextAnswers] = useState<Record<number, string>>({});
+  const [surveyComment, setSurveyComment] = useState("");
   const [orgaBookings, setOrgaBookings] = useState<SlotBookingInfo[]>([]);
+  const [initialVotesSnapshot, setInitialVotesSnapshot] = useState<Record<number, VoteResponse>>({});
+  const [initialSurveyCommentSnapshot, setInitialSurveyCommentSnapshot] = useState("");
+  const [initialOrgaBookingsSnapshot, setInitialOrgaBookingsSnapshot] = useState<SlotBookingInfo[]>([]);
   const [hasOrgaChanges, setHasOrgaChanges] = useState(false);
   const [showSelfVote, setShowSelfVote] = useState(false);
   const [duplicateEmailError, setDuplicateEmailError] = useState<string | null>(null);
+  const [alreadyVotedWithEmail, setAlreadyVotedWithEmail] = useState<string | null>(null);
   const [emailRequiresLogin, setEmailRequiresLogin] = useState(false);
+  const [isKitaHubEmail, setIsKitaHubEmail] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+  const submitInFlightRef = useRef(false);
   const [isUserEmailLocked, setIsUserEmailLocked] = useState(false);
+  const allowMaybeForPoll = (poll.type === 'schedule' || poll.type === 'survey') && poll.allowMaybe === true;
+  const isSimpleChoiceMode = (poll.type === 'schedule' || poll.type === 'survey') && (poll as any).responseMode === 'simple';
+  const simpleMaxSelections = isSimpleChoiceMode ? Math.max(1, (poll as any).maxSelections ?? 1) : 1;
+  const simpleSelectedOptionIds = useMemo(
+    () => Object.entries(votes).filter(([, response]) => response === 'yes').map(([id]) => Number(id)),
+    [votes]
+  );
+  const handleSimpleSelectionChange = (selectedIds: number[]) => {
+    const next: Record<number, VoteResponse> = {};
+    selectedIds.forEach((id) => { next[id] = 'yes'; });
+    setVotes(next);
+    if (voterName && isConnected) {
+      const prevSet = new Set(simpleSelectedOptionIds);
+      const nextSet = new Set(selectedIds);
+      selectedIds.forEach((id) => { if (!prevSet.has(id)) sendVoteInProgress(String(id), 'yes'); });
+      simpleSelectedOptionIds.forEach((id) => { if (!nextSet.has(id)) sendVoteInProgress(String(id), null); });
+    }
+  };
   
   // Live slot updates from WebSocket for organization polls
   const [liveSlotUpdates, setLiveSlotUpdates] = useState<Record<number, { currentCount: number; maxCapacity: number | null }>>({});
@@ -92,12 +120,32 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     } : undefined,
   });
 
+  // Remove legacy browser-stored management links. Guest access is email-only.
+  useEffect(() => {
+    try { localStorage.removeItem(`polly-edit-token-${poll.id}`); } catch (_) {}
+  }, [poll.id]);
+
+  useEffect(() => {
+    if (allowMaybeForPoll) return;
+    setVotes((currentVotes) => {
+      const nextVotes = { ...currentVotes };
+      let changed = false;
+      for (const [optionId, response] of Object.entries(nextVotes)) {
+        if (response === 'maybe') {
+          delete nextVotes[Number(optionId)];
+          changed = true;
+        }
+      }
+      return changed ? nextVotes : currentVotes;
+    });
+  }, [allowMaybeForPoll]);
+
   // Calculate current signups from poll.votes for organization polls
   // Uses live WebSocket updates when available for real-time accuracy
   const currentSignups = useMemo(() => {
     if (poll.type !== 'organization') return {};
     
-    const signups: Record<number, { count: number; maxCapacity: number; names: string[] }> = {};
+    const signups: Record<number, { count: number; maxCapacity: number | null; names: string[] }> = {};
     
     // Initialize all options with their maxCapacity
     poll.options.forEach(option => {
@@ -106,13 +154,13 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       if (liveData) {
         signups[option.id] = {
           count: liveData.currentCount,
-          maxCapacity: liveData.maxCapacity ?? option.maxCapacity ?? 1,
+          maxCapacity: liveData.maxCapacity !== undefined ? liveData.maxCapacity : (option.maxCapacity ?? null),
           names: [] // Names will still come from poll.votes (names aren't sent in slot updates)
         };
       } else {
         signups[option.id] = {
-          count: 0,
-          maxCapacity: option.maxCapacity || 1,
+          count: poll.slotCounts?.[option.id] ?? 0,
+          maxCapacity: option.maxCapacity ?? null,
           names: []
         };
       }
@@ -121,8 +169,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     // Always populate names from poll.votes (even if using live counts)
     poll.votes?.forEach(vote => {
       if (vote.response === 'yes' && signups[vote.optionId]) {
-        // Only increment count if we're not using live data
-        if (!liveSlotUpdates[vote.optionId]) {
+        // Only derive counts from votes when no live or server-provided counts exist
+        if (!liveSlotUpdates[vote.optionId] && poll.slotCounts?.[vote.optionId] === undefined) {
           signups[vote.optionId].count++;
         }
         if (vote.voterName) {
@@ -132,7 +180,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     });
     
     return signups;
-  }, [poll.type, poll.options, poll.votes, liveSlotUpdates]);
+  }, [poll.type, poll.options, poll.votes, poll.slotCounts, liveSlotUpdates]);
 
   useEffect(() => {
     if (voterName && isConnected) {
@@ -170,8 +218,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             existingVotes[v.optionId] = v.response as VoteResponse;
           }
         });
-        if (Object.keys(existingVotes).length > 0) {
-          setVotes(existingVotes);
+        setVotes(existingVotes);
+        setInitialVotesSnapshot(existingVotes);
+        if (poll.type === 'survey' || poll.type === 'schedule') {
+          const firstComment = myVotesData.votes.find(v => v.comment?.trim())?.comment?.trim() || "";
+          setSurveyComment(firstComment);
+          setInitialSurveyCommentSnapshot(firstComment);
         }
       } else {
         // Pre-fill slot bookings for organization polls
@@ -181,12 +233,50 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             optionId: v.optionId,
             comment: v.comment || undefined
           }));
-        if (existingBookings.length > 0 && orgaBookings.length === 0) {
-          setOrgaBookings(existingBookings);
-        }
+        setOrgaBookings(existingBookings);
+        setInitialOrgaBookingsSnapshot(existingBookings);
+        setHasOrgaChanges(false);
       }
     }
-  }, [myVotesData, canEdit, poll.type, voterName, voterEmail, orgaBookings.length]);
+  }, [myVotesData, canEdit, poll.type, voterName, voterEmail]);
+
+  const hasPendingVoteChanges = useMemo(() => {
+    if (!hasAlreadyVoted || !canEdit) return false;
+    if (poll.type === 'organization') {
+      const normalize = (bookings: SlotBookingInfo[]) =>
+        [...bookings]
+          .map((b) => ({ optionId: b.optionId, comment: b.comment?.trim() || "" }))
+          .sort((a, b) => a.optionId - b.optionId || a.comment.localeCompare(b.comment));
+      return JSON.stringify(normalize(orgaBookings)) !== JSON.stringify(normalize(initialOrgaBookingsSnapshot));
+    }
+    const votesChanged = JSON.stringify(votes) !== JSON.stringify(initialVotesSnapshot);
+    if (poll.type === 'survey' || poll.type === 'schedule') {
+      return votesChanged || surveyComment.trim() !== initialSurveyCommentSnapshot.trim();
+    }
+    return votesChanged;
+  }, [
+    hasAlreadyVoted,
+    canEdit,
+    poll.type,
+    orgaBookings,
+    initialOrgaBookingsSnapshot,
+    votes,
+    initialVotesSnapshot,
+    surveyComment,
+    initialSurveyCommentSnapshot,
+  ]);
+
+  const handleCancelVoteChanges = () => {
+    if (poll.type === 'organization') {
+      setOrgaBookings(initialOrgaBookingsSnapshot);
+      setHasOrgaChanges(false);
+      return;
+    }
+    setVotes(initialVotesSnapshot);
+    if (poll.type === 'survey' || poll.type === 'schedule') {
+      setSurveyComment(initialSurveyCommentSnapshot);
+    }
+  };
 
   // Check if email belongs to a registered user
   const checkEmailRegistration = async (email: string) => {
@@ -198,6 +288,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     // Skip check if user is logged in and using their own email
     if (isAuthenticated && user && user.email.toLowerCase() === email.toLowerCase().trim()) {
       setEmailRequiresLogin(false);
+      setAlreadyVotedWithEmail(null);
       return;
     }
     
@@ -208,18 +299,29 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       
       if (result.requiresLogin) {
         setEmailRequiresLogin(true);
+        setIsKitaHubEmail(!!result.isKitaHubUser);
+        setAlreadyVotedWithEmail(null);
         if (containerRef.current) {
           containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       } else {
         setEmailRequiresLogin(false);
-        
-        if (poll.type === 'organization') {
-          try {
-            const voteResponse = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/votes-by-email`, { email: email.trim() });
-            const voteResult = await voteResponse.json();
-            
-            if (voteResult.hasVoted && voteResult.votes.length > 0) {
+        setIsKitaHubEmail(false);
+
+        try {
+          const voteResponse = await apiRequest("POST", `/api/v1/polls/${poll.publicToken}/votes-by-email`, { email: email.trim() });
+          const voteResult = await voteResponse.json();
+
+          if (voteResult.hasVoted && voteResult.votes.length > 0) {
+            if (!poll.allowVoteEdit && poll.type !== 'organization') {
+              setAlreadyVotedWithEmail(email.trim());
+              setDuplicateEmailError(null);
+              return;
+            }
+
+            setAlreadyVotedWithEmail(null);
+
+            if (poll.type === 'organization') {
               const existingBookings: SlotBookingInfo[] = voteResult.votes
                 .filter((v: any) => v.response === 'yes')
                 .map((v: any) => ({
@@ -245,16 +347,54 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 });
               }
             }
-          } catch (error) {
-            console.error('Error fetching existing org votes:', error);
+          } else {
+            setAlreadyVotedWithEmail(null);
           }
+        } catch (error) {
+          console.error('Error fetching existing votes:', error);
+          setAlreadyVotedWithEmail(null);
         }
       }
     } catch (error) {
       console.error('Error checking email:', error);
       setEmailRequiresLogin(false);
+      setAlreadyVotedWithEmail(null);
     } finally {
       setIsCheckingEmail(false);
+    }
+  };
+
+  const parseApiError = (error: unknown): { errorCode?: string; error?: string; retryAfter?: number } | null => {
+    if (!(error instanceof Error) || !error.message) return null;
+    try {
+      const match = error.message.match(/\d+:\s*(.+)/);
+      if (!match || !match[1]) return null;
+      return JSON.parse(match[1]);
+    } catch {
+      return null;
+    }
+  };
+
+  const mapVotingErrorMessage = (errorData: { errorCode?: string; error?: string; retryAfter?: number } | null) => {
+    if (!errorData) return t('votingInterface.voteCouldNotBeSaved');
+    if (typeof errorData.retryAfter === 'number') {
+      return t('pollCreation.tooManyRequestsDescription', { seconds: errorData.retryAfter });
+    }
+    switch (errorData.errorCode) {
+      case 'POLL_EXPIRED':
+        return poll.type === 'organization' ? t('votingInterface.orgaExpiredMessage') : t('votingInterface.pollExpiredMessage');
+      case 'POLL_INACTIVE':
+        return poll.type === 'organization' ? t('votingInterface.orgaInactiveMessage') : t('votingInterface.pollInactiveMessage');
+      case 'VOTE_AUTHORIZATION_REQUIRED':
+        return t('votingInterface.voteAuthorizationRequired');
+      case 'EMAIL_BELONGS_TO_ANOTHER_USER':
+        return t('votingInterface.loginToVoteWithEmail');
+      case 'WITHDRAWAL_NOT_ALLOWED':
+        return t('votingInterface.voteWithdrawError');
+      case 'PAST_OPTION_DATE':
+        return t('votingInterface.optionNoLongerAvailable');
+      default:
+        return errorData.error || t('votingInterface.voteCouldNotBeSaved');
     }
   };
 
@@ -266,32 +406,28 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     onError: (error) => {
       console.error('Vote error:', error);
       
-      // Clear any previous duplicate email error
+      // Clear any previous inline voting errors
       setDuplicateEmailError(null);
+      setAlreadyVotedWithEmail(null);
       
       // Try to parse the error message
       let errorMessage = t('votingInterface.voteCouldNotBeSaved');
-      let isDuplicateEmail = false;
-      let requiresLogin = false;
       
       if (error instanceof Error && error.message) {
         try {
-          // Extract JSON from error message (format: "400: {json}")
-          const match = error.message.match(/\d+:\s*(.+)/);
-          if (match && match[1]) {
-            const errorData = JSON.parse(match[1]);
+          const errorData = parseApiError(error);
+          if (errorData) {
             if (errorData.errorCode === 'DUPLICATE_EMAIL_VOTE') {
-              errorMessage = errorData.error;
-              isDuplicateEmail = true;
+              errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
               setDuplicateEmailError(voterEmail);
-            } else if (errorData.errorCode === 'REQUIRES_LOGIN') {
-              errorMessage = errorData.error;
-              requiresLogin = true;
+            } else if (errorData.errorCode === 'REQUIRES_LOGIN' || errorData.errorCode === 'GUEST_VOTING_DISABLED') {
+              errorMessage = errorData.error || t('votingInterface.loginRequiredDescription');
               setEmailRequiresLogin(true);
             } else if (errorData.errorCode === 'EMAIL_MISMATCH') {
-              errorMessage = errorData.error;
+              errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
             } else if (errorData.errorCode === 'ALREADY_VOTED') {
-              errorMessage = errorData.error;
+              errorMessage = errorData.error || t('votingInterface.alreadyVotedDescription');
+              setAlreadyVotedWithEmail(voterEmail.trim());
               // Show toast with already voted message
               toast({
                 title: t('votingInterface.alreadyVoted'),
@@ -300,11 +436,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
               });
               return; // Don't show second toast
             } else if (errorData.errorCode === 'USE_EDIT_LINK') {
-              errorMessage = errorData.error;
-              isDuplicateEmail = true;
+              errorMessage = errorData.error || t('votingInterface.voteCouldNotBeSaved');
               setDuplicateEmailError(voterEmail);
-            } else if (errorData.error) {
-              errorMessage = errorData.error;
+            } else {
+              errorMessage = mapVotingErrorMessage(errorData);
             }
           }
         } catch (parseError) {
@@ -362,19 +497,25 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
     },
   });
 
+  const getPrivateVoteToken = () => isAuthenticated
+    ? myVotesData?.votes.find(v => v.voterEmail.toLowerCase() === voterEmail.trim().toLowerCase())?.voterEditToken
+    : undefined;
+
   const withdrawVoteMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/v1/polls/${poll.publicToken}/vote`);
+      const response = await apiRequest("DELETE", `/api/v1/polls/${poll.publicToken}/vote`, {
+        voterEditToken: isAuthenticated ? undefined : getPrivateVoteToken(),
+      });
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: t('votingInterface.voteWithdrawn'),
-        description: t('votingInterface.voteWithdrawnSuccess'),
-        variant: "default",
-      });
+      sessionStorage.setItem('vote-success-data', JSON.stringify({
+        action: 'withdrawn', poll: { title: poll.title }, publicToken: poll.publicToken,
+      }));
+      try { localStorage.removeItem(`polly-edit-token-${poll.id}`); } catch (_) {}
       // Reset form state
       setVotes({});
+      setSurveyComment("");
       setOrgaBookings([]);
       setHasOrgaChanges(false);
       // Invalidate queries to refresh data - use correct tokens for each endpoint
@@ -384,22 +525,11 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
       queryClient.invalidateQueries({ queryKey: [`/api/v1/polls/${poll.publicToken}/results`] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/polls', poll.publicToken, 'my-votes'] });
+      setLocation('/vote-success', { replace: true });
     },
     onError: (error) => {
-      let errorMessage = t('votingInterface.voteWithdrawError');
-      if (error instanceof Error && error.message) {
-        try {
-          const match = error.message.match(/\d+:\s*(.+)/);
-          if (match && match[1]) {
-            const errorData = JSON.parse(match[1]);
-            if (errorData.error) {
-              errorMessage = errorData.error;
-            }
-          }
-        } catch (parseError) {
-          console.error('Error parsing error message:', parseError);
-        }
-      }
+      const errorData = parseApiError(error);
+      const errorMessage = mapVotingErrorMessage(errorData);
       toast({
         title: t('common.error'),
         description: errorMessage,
@@ -448,12 +578,23 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   };
 
   const handleSubmitVotes = async () => {
+    if (submitInFlightRef.current) return;
+
     // Block submission if email requires login
     if (emailRequiresLogin) {
       toast({
         title: t('votingInterface.loginRequired'),
         description: t('votingInterface.loginRequiredDescription'),
         variant: "destructive",
+      });
+      return;
+    }
+
+    if (submitBlockedByExistingVote) {
+      toast({
+        title: t('votingInterface.alreadyVoted'),
+        description: t('votingInterface.alreadyVotedEmailDescription'),
+        variant: "default",
       });
       return;
     }
@@ -499,7 +640,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
     } else {
       const hasFreeTextOptions = poll.options.some((o: any) => o.isFreeText);
-      const votesToSubmit = Object.entries(votes);
+      const votesToSubmit = Object.entries(votes).filter(([optionId]) =>
+        !(poll.type === 'schedule' && expiredScheduleOptionIds.has(Number(optionId)))
+      );
       const hasFreeTextAnswers = hasFreeTextOptions && Object.values(freeTextAnswers).some(v => v?.trim());
       if (votesToSubmit.length === 0 && !hasFreeTextAnswers) {
         toast({
@@ -511,12 +654,16 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       }
     }
 
+    submitInFlightRef.current = true;
+    setIsSubmittingVote(true);
+
     try {
       if (poll.type === 'organization') {
         // For organization polls: Use bulk vote endpoint to submit all bookings at once
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: getPrivateVoteToken(),
           votes: orgaBookings.map(booking => ({
             optionId: booking.optionId,
             response: 'yes' as const,
@@ -529,7 +676,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         
         // Reset unsaved changes state
         setHasOrgaChanges(false);
-        
+
         const successData = {
           poll: {
             title: poll.title,
@@ -539,13 +686,17 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: result.voterEditToken,
+          voterEditToken: isAuthenticated ? result.voterEditToken : undefined,
+          managementLinkByEmail: result.managementLinkByEmail,
+          allowVoteEdit: poll.allowVoteEdit || poll.type === 'organization',
+          confirmationEmailStatus: result.confirmationEmailStatus,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else if (poll.type === 'survey') {
         // For surveys: Use bulk vote endpoint to ensure atomicity
         // Include free-text answers for isFreeText options
+        const trimmedSurveyComment = surveyComment.trim();
         const freeTextOptions = poll.options.filter((o: any) => o.isFreeText);
         const freeTextVotes = freeTextOptions
           .filter((o: any) => freeTextAnswers[o.id]?.trim())
@@ -553,10 +704,12 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
             optionId: o.id,
             response: 'freetext' as const,
             freeTextAnswer: freeTextAnswers[o.id].trim(),
+            comment: trimmedSurveyComment || undefined,
           }));
         const regularVotes = Object.entries(votes).map(([optionId, response]) => ({
           optionId: parseInt(optionId),
           response,
+          comment: trimmedSurveyComment || undefined,
         }));
         const allVotes = [...regularVotes, ...freeTextVotes];
         if (allVotes.length === 0) {
@@ -570,6 +723,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: getPrivateVoteToken(),
           votes: allVotes,
         };
         
@@ -586,19 +740,25 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: result.voterEditToken, // Include the edit token from bulk vote response
+          voterEditToken: isAuthenticated ? result.voterEditToken : undefined,
+          managementLinkByEmail: result.managementLinkByEmail,
+          allowVoteEdit: poll.allowVoteEdit,
+          confirmationEmailStatus: result.confirmationEmailStatus,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
       } else {
         // For schedule polls: Use bulk vote endpoint to submit all votes at once
-        const votesToSubmit = Object.entries(votes);
+        const votesToSubmit = Object.entries(votes).filter(([optionId]) => !expiredScheduleOptionIds.has(Number(optionId)));
+        const trimmedSurveyComment = surveyComment.trim();
         const bulkVoteData = {
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
+          voterEditToken: getPrivateVoteToken(),
           votes: votesToSubmit.map(([optionId, response]) => ({
             optionId: parseInt(optionId),
-            response
+            response,
+            comment: trimmedSurveyComment || undefined,
           }))
         };
         
@@ -615,7 +775,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
           publicToken: poll.publicToken,
           voterName: voterName.trim(),
           voterEmail: voterEmail.trim(),
-          voterEditToken: result.voterEditToken,
+          voterEditToken: isAuthenticated ? result.voterEditToken : undefined,
+          managementLinkByEmail: result.managementLinkByEmail,
+          allowVoteEdit: poll.allowVoteEdit || poll.type === 'organization',
+          confirmationEmailStatus: result.confirmationEmailStatus,
           allowVoteWithdrawal: poll.allowVoteWithdrawal
         };
         sessionStorage.setItem('vote-success-data', JSON.stringify(successData));
@@ -640,27 +803,19 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
       console.error('Voting failed:', error);
       
       // Parse error response for better error handling
-      let errorMessage = "Ihre Stimme konnte nicht gespeichert werden.";
+      let errorMessage = t('votingInterface.voteCouldNotBeSaved');
       let errorCode = "";
       
-      if (error instanceof Error && error.message) {
-        try {
-          const match = error.message.match(/\d+:\s*(.+)/);
-          if (match && match[1]) {
-            const errorData = JSON.parse(match[1]);
-            errorMessage = errorData.error || errorMessage;
-            errorCode = errorData.errorCode || "";
-          }
-        } catch (parseError) {
-          // Use original error message if parsing fails
-          errorMessage = error.message;
-        }
+      const errorData = parseApiError(error);
+      if (errorData) {
+        errorMessage = mapVotingErrorMessage(errorData);
+        errorCode = errorData.errorCode || "";
       }
       
       // Handle specific error codes
       if (errorCode === 'DUPLICATE_EMAIL_VOTE' || errorCode === 'USE_EDIT_LINK') {
         setDuplicateEmailError(voterEmail.trim());
-      } else if (errorCode === 'REQUIRES_LOGIN') {
+      } else if (errorCode === 'REQUIRES_LOGIN' || errorCode === 'GUEST_VOTING_DISABLED') {
         setEmailRequiresLogin(true);
       } else if (errorCode === 'ALREADY_VOTED') {
         // User has already voted - show info toast instead of error
@@ -682,6 +837,9 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
         description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      submitInFlightRef.current = false;
+      setIsSubmittingVote(false);
     }
   };
 
@@ -712,6 +870,43 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
 
   const isPollExpired = poll.expiresAt && new Date() > new Date(poll.expiresAt);
   const canVote = poll.isActive && !isPollExpired;
+  const submitBlockedByExistingVote = Boolean(alreadyVotedWithEmail && !canEdit);
+  const expiredScheduleOptionIds = useMemo(() => {
+    if (poll.type !== 'schedule') return new Set<number>();
+    const now = new Date();
+    const ids = new Set<number>();
+    for (const option of poll.options) {
+      // For schedule slots, expiry should be based on endTime.
+      // Fallback to startTime only when endTime is missing.
+      if (option.endTime) {
+        const end = new Date(option.endTime);
+        if (!isNaN(end.getTime()) && end < now) {
+          ids.add(option.id);
+        }
+      } else if (option.startTime) {
+        const start = new Date(option.startTime);
+        if (!isNaN(start.getTime()) && start < now) {
+          ids.add(option.id);
+        }
+      }
+    }
+    return ids;
+  }, [poll.type, poll.options]);
+
+  useEffect(() => {
+    if (poll.type !== 'schedule' || expiredScheduleOptionIds.size === 0) return;
+    setVotes((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const optionId of Object.keys(next)) {
+        if (expiredScheduleOptionIds.has(Number(optionId))) {
+          delete next[Number(optionId)];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [poll.type, expiredScheduleOptionIds]);
 
   if (isLoadingMyVotes) {
     return (
@@ -722,7 +917,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
   }
 
   if (showAlreadyVotedMessage) {
-    const canWithdraw = poll.allowVoteWithdrawal && myVotesData?.allowVoteWithdrawal;
+    const canWithdraw = isAuthenticated && poll.allowVoteWithdrawal && myVotesData?.allowVoteWithdrawal;
     return (
       <div ref={containerRef} className="space-y-6">
         <Alert className="border-green-200 bg-green-50" data-testid="alert-already-voted">
@@ -821,7 +1016,7 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   onChange={(e) => setVoterName(e.target.value)}
                   placeholder={t('votingInterface.namePlaceholder')}
                   className="mt-1"
-                  disabled={!canVote}
+                  disabled={!canVote || isAuthenticated}
                   data-testid="input-voter-name"
                 />
               </div>
@@ -842,6 +1037,8 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   onChange={(e) => {
                     setVoterEmail(e.target.value);
                     setEmailRequiresLogin(false);
+                    setAlreadyVotedWithEmail(null);
+                    setDuplicateEmailError(null);
                   }}
                   onBlur={(e) => checkEmailRegistration(e.target.value)}
                   placeholder={t('votingInterface.emailPlaceholder')}
@@ -868,8 +1065,10 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                 <strong>{t('votingInterface.loginRequiredAlert')}</strong>
               </p>
               <p>
-                <code className="bg-orange-100 px-1 py-0.5 rounded text-sm">{voterEmail}</code> 
-                {' '}{t('votingInterface.emailBelongsToAccount')}
+                <code className="bg-orange-100 px-1 py-0.5 rounded text-sm">{voterEmail}</code>
+                {' '}{isKitaHubEmail
+                  ? t('votingInterface.emailBelongsToKitaHub')
+                  : t('votingInterface.emailBelongsToAccount')}
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link href={`/anmelden?redirect=${encodeURIComponent(`/poll/${poll.publicToken}`)}`}>
@@ -882,13 +1081,35 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                     {t('votingInterface.loginNow')}
                   </Button>
                 </Link>
-                <span className="text-sm text-orange-700 self-center">
+                <button
+                  type="button"
+                  className="text-sm text-orange-700 self-center underline hover:text-orange-900"
+                  onClick={() => {
+                    setVoterEmail('');
+                    setEmailRequiresLogin(false);
+                    setIsKitaHubEmail(false);
+                  }}
+                >
                   {t('votingInterface.orUseOtherEmail')}
-                </span>
+                </button>
               </div>
             </div>
           </AlertDescription>
         </Alert>
+      )}
+
+      {submitBlockedByExistingVote && (
+        <AlertBanner variant="warning" data-testid="alert-already-voted-email">
+          <div className="space-y-2">
+            <p>
+              <strong>{t('votingInterface.alreadyVotedTitle')}</strong>
+            </p>
+            <p>
+              <code className="bg-amber-100 px-1 py-0.5 rounded text-sm">{alreadyVotedWithEmail}</code>{' '}
+              {t('votingInterface.alreadyVotedEmailDescription')}
+            </p>
+          </div>
+        </AlertBanner>
       )}
 
       {/* Duplicate Email Alert */}
@@ -995,26 +1216,72 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                   </div>
                 )}
                 {poll.options.filter((o: any) => !o.isFreeText).length > 0 && (
-                  <SimpleImageVoting
-                    options={poll.options.filter((o: any) => !o.isFreeText)}
-                    onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
-                    existingVotes={Object.fromEntries(
-                      Object.entries(votes).map(([id, response]) => [id, response])
+                  <>
+                    {poll.type === 'schedule' && expiredScheduleOptionIds.size > 0 && (
+                      <div className="mb-3 text-sm text-muted-foreground">
+                        {t('votingInterface.expiredOptionsNotice')}
+                      </div>
                     )}
-                    disabled={!canVote}
-                    allowMaybe={poll.allowMaybe ?? true}
-                  />
+                    {isSimpleChoiceMode ? (
+                      <SimpleChoiceVoting
+                        options={poll.options.filter((o: any) => !o.isFreeText)}
+                        maxSelections={simpleMaxSelections}
+                        selectedOptionIds={simpleSelectedOptionIds}
+                        onChange={handleSimpleSelectionChange}
+                        disabled={!canVote}
+                        expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                      />
+                    ) : (
+                      <SimpleImageVoting
+                        options={poll.options.filter((o: any) => !o.isFreeText)}
+                        onVote={(optionId, response) => handleVote(parseInt(optionId), response)}
+                        existingVotes={Object.fromEntries(
+                          Object.entries(votes).map(([id, response]) => [id, response])
+                        )}
+                        disabled={!canVote}
+                        allowMaybe={allowMaybeForPoll}
+                        expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                      />
+                    )}
+                  </>
                 )}
+                <div className="space-y-1 mt-4">
+                  <label className="block text-sm font-medium text-foreground">
+                    {t('votingInterface.additionalCommentLabel')}
+                    <span className="ml-1 text-xs text-muted-foreground">({t('common.optional')})</span>
+                  </label>
+                  <textarea
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors resize-none"
+                    rows={3}
+                    placeholder={t('votingInterface.additionalCommentPlaceholder')}
+                    value={surveyComment}
+                    onChange={(e) => setSurveyComment(e.target.value)}
+                    maxLength={1000}
+                  />
+                </div>
               </>
             ) : (
-              <SimpleImageVoting
-                options={poll.options.filter((o: any) => !o.isFreeText)}
-                onVote={() => {}}
-                existingVotes={{}}
-                disabled={true}
-                adminPreview={true}
-                allowMaybe={poll.allowMaybe ?? true}
-              />
+              isSimpleChoiceMode ? (
+                <SimpleChoiceVoting
+                  options={poll.options.filter((o: any) => !o.isFreeText)}
+                  maxSelections={simpleMaxSelections}
+                  selectedOptionIds={[]}
+                  onChange={() => {}}
+                  disabled={true}
+                  adminPreview={true}
+                  expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                />
+              ) : (
+                <SimpleImageVoting
+                  options={poll.options.filter((o: any) => !o.isFreeText)}
+                  onVote={() => {}}
+                  existingVotes={{}}
+                  disabled={true}
+                  adminPreview={true}
+                  allowMaybe={allowMaybeForPoll}
+                  expiredOptionIds={poll.type === 'schedule' ? expiredScheduleOptionIds : undefined}
+                />
+              )
             )
           )}
 
@@ -1040,11 +1307,22 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                           ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed' 
                           : 'polly-button-organization'
                       }`}
-                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || orgaBookings.length === 0}
+                      disabled={voteMutation.isPending || isSubmittingVote || !voterName.trim() || emailRequiresLogin || submitBlockedByExistingVote || orgaBookings.length === 0}
                       data-testid="button-submit-vote"
                     >
-                      {voteMutation.isPending ? t('votingInterface.saving') : orgaBookings.length > 0 ? t('votingInterface.submit') : t('votingInterface.selectSlot')}
+                      {voteMutation.isPending || isSubmittingVote ? t('votingInterface.saving') : orgaBookings.length > 0 ? t('votingInterface.submit') : t('votingInterface.selectSlot')}
                     </Button>
+                    {hasPendingVoteChanges && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelVoteChanges}
+                        className="px-6"
+                        data-testid="button-cancel-vote-changes"
+                      >
+                        {t('votingInterface.cancelChanges')}
+                      </Button>
+                    )}
                     {hasAlreadyVoted && poll.allowVoteWithdrawal && (
                       <Button
                         variant="outline"
@@ -1067,11 +1345,22 @@ export function VotingInterface({ poll, isAdminAccess = false }: VotingInterface
                       className={`px-8 ${
                         poll.type === 'survey' ? 'polly-button-survey' : 'polly-button-schedule'
                       }`}
-                      disabled={voteMutation.isPending || !voterName.trim() || emailRequiresLogin || isCheckingEmail || (Object.keys(votes).length === 0 && !poll.options.some((o: any) => o.isFreeText))}
+                      disabled={voteMutation.isPending || isSubmittingVote || !voterName.trim() || emailRequiresLogin || submitBlockedByExistingVote || (Object.keys(votes).length === 0 && !poll.options.some((o: any) => o.isFreeText))}
                       data-testid="button-submit-vote"
                     >
-                      {voteMutation.isPending ? t('votingInterface.saving') : t('votingInterface.submitVote')}
+                      {voteMutation.isPending || isSubmittingVote ? t('votingInterface.saving') : t('votingInterface.submitVote')}
                     </Button>
+                    {hasPendingVoteChanges && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelVoteChanges}
+                        className="px-6"
+                        data-testid="button-cancel-vote-changes"
+                      >
+                        {t('votingInterface.cancelChanges')}
+                      </Button>
+                    )}
                     {hasAlreadyVoted && poll.allowVoteWithdrawal && (
                       <Button
                         variant="outline"

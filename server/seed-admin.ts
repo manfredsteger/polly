@@ -1,6 +1,7 @@
 /**
  * Polly - Initial Admin Seeder
- * Creates or updates the default admin account on startup.
+ * Creates the initial admin account on startup only when it does not exist.
+ * Environment credentials are bootstrap values, not password-reset settings.
  * 
  * Configurable via environment variables:
  *   ADMIN_USERNAME  (default: admin)
@@ -60,40 +61,9 @@ export async function seedInitialAdmin() {
       .limit(1);
 
     if (existingAdmin.length > 0) {
-      const admin = existingAdmin[0];
-      console.log(`[Admin Seed] Found existing admin (id=${admin.id}, role=${admin.role})`);
-
-      const currentHash = admin.passwordHash || "";
-      let passwordMatches = false;
-      try {
-        passwordMatches = currentHash.length > 0 && await bcrypt.compare(config.password, currentHash);
-      } catch (e) {
-        console.log("[Admin Seed] Password comparison failed, will reset password");
-      }
-
-      const shouldBeInitialAdmin = config.isUsingDefaults;
-      const needsUpdate = !passwordMatches || admin.email !== config.email || admin.role !== "admin" || !admin.emailVerified || admin.isInitialAdmin !== shouldBeInitialAdmin;
-
-      if (needsUpdate) {
-        const newHash = await bcrypt.hash(config.password, 10);
-        await db
-          .update(users)
-          .set({
-            passwordHash: newHash,
-            email: config.email,
-            name: config.name,
-            role: "admin",
-            emailVerified: true,
-            isInitialAdmin: shouldBeInitialAdmin,
-          })
-          .where(eq(users.username, config.username));
-        console.log(`[Admin Seed] Admin credentials updated successfully (isInitialAdmin=${shouldBeInitialAdmin})`);
-
-        const verify = await bcrypt.compare(config.password, newHash);
-        console.log(`[Admin Seed] Password verification: ${verify ? 'OK' : 'FAILED'}`);
-      } else {
-        console.log("[Admin Seed] Admin exists with correct credentials, no changes needed.");
-      }
+      // Existing local and IDM accounts belong to the user. Never reset their
+      // password, initial-login flag, identity, role, or MFA during startup.
+      console.log("[Admin Seed] Configured username already exists; preserving the account.");
 
       return;
     }
@@ -104,7 +74,7 @@ export async function seedInitialAdmin() {
     const verify = await bcrypt.compare(config.password, passwordHash);
     console.log(`[Admin Seed] Password hash verification before insert: ${verify ? 'OK' : 'FAILED'}`);
 
-    await db.insert(users).values({
+    const created = await db.insert(users).values({
       username: config.username,
       email: config.email,
       name: config.name,
@@ -113,7 +83,14 @@ export async function seedInitialAdmin() {
       provider: "local",
       isInitialAdmin: config.isUsingDefaults,
       emailVerified: true,
-    });
+    }).onConflictDoNothing().returning({ id: users.id });
+
+    // Another instance may have created the account after the lookup, or the
+    // configured email may already belong to an account. Preserve either one.
+    if (created.length === 0) {
+      console.log("[Admin Seed] Username or email already exists; preserving the account.");
+      return;
+    }
 
     console.log("[Admin Seed] Initial admin created successfully");
     console.log(`[Admin Seed] Username: ${config.username}`);

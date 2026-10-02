@@ -35,7 +35,7 @@ interface AdminDashboardProps {
   stats?: {
     totalUsers: number;
     activePolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
   };
   users?: User[];
@@ -82,6 +82,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
   });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedPoll, setSelectedPoll] = useState<PollWithOptions | null>(null);
+  const [pollTypeFilter, setPollTypeFilter] = useState<'schedule' | 'survey' | 'organization' | null>(null);
   const [selectedSettingsPanel, setSelectedSettingsPanel] = useState<SettingsPanelType>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -97,8 +98,8 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
 
   const { data: extendedStats, isLoading: statsLoading, refetch: refetchExtendedStats } = useQuery<ExtendedStats>({
     queryKey: ['/api/v1/admin/extended-stats'],
-    staleTime: 1000 * 60 * 60 * 24, // 24h - matches backend cache
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5, // 5m - aligned with backend cache
+    refetchOnWindowFocus: true,
   });
 
   const [statsRefreshing, setStatsRefreshing] = useState(false);
@@ -223,10 +224,14 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
     setSelectedUser(null);
     setSelectedPoll(null);
     setSelectedSettingsPanel(null);
+    setPollTypeFilter(null);
   };
 
-  const handleStatCardClick = (target: string) => {
+  const handleStatCardClick = (target: string, filter?: { pollType?: 'schedule' | 'survey' | 'organization' }) => {
     clearSelections();
+    if (target === "polls" && filter?.pollType) {
+      setPollTypeFilter(filter.pollType);
+    }
     setActiveTab(target as AdminTab);
   };
 
@@ -234,7 +239,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
 
   return (
     <TooltipProvider>
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:gap-3">
         <AdminSidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -276,6 +281,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               selectedPoll={selectedPoll}
               onPollClick={setSelectedPoll}
               onBackToPolls={() => setSelectedPoll(null)}
+              initialTypeFilter={pollTypeFilter}
             />
           )}
 
@@ -286,7 +292,7 @@ export function AdminDashboard({ stats, users, polls, settings, userRole }: Admi
               selectedUser={selectedUser}
               onUserClick={setSelectedUser}
               onBackToUsers={() => setSelectedUser(null)}
-              onPollClick={setSelectedPoll}
+              onUserUpdated={setSelectedUser}
               isDeprovisionEnabled={isDeprovisionEnabled}
             />
           )}

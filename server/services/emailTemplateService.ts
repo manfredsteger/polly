@@ -113,6 +113,22 @@ function darkenColor(hex: string, percent: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripLeadingSitePrefix(subject: string, siteName: string): string {
+  const trimmed = subject.trim();
+  if (!trimmed) return trimmed;
+
+  if (!siteName) {
+    return trimmed.replace(/^\[\]\s*/, '').trim();
+  }
+
+  const sitePrefix = new RegExp(`^\\[${escapeRegExp(siteName)}\\]\\s*`, 'i');
+  return trimmed.replace(sitePrefix, '').trim();
+}
+
 const NAMED_COLORS: Record<string, string> = {
   white: '#FFFFFF', black: '#000000', red: '#FF0000', green: '#008000',
   blue: '#0000FF', yellow: '#FFFF00', orange: '#FFA500', gray: '#808080',
@@ -552,6 +568,71 @@ function buildVoteConfirmationTemplate(): TemplateDefinition {
   };
 }
 
+function buildVoteUpdatedTemplate(): TemplateDefinition {
+  const linkBox = container('update-link-box', '#e8f4f8', '#1e3a4a', [
+    txt('ulb-t', 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.'),
+    btn('ulb-btn1', 'Ergebnisse anzeigen', 'resultsLink', 'secondary'),
+  ], 'secondary');
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('uh1', 'Ihre Abstimmung wurde aktualisiert', 'h1'),
+    txt('ut1', 'Hallo {{voterName}},'),
+    txt('ut2', 'Ihre Auswahl für die {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich aktualisiert.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    divider('ud1'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = linkBox.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(linkBox.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  return {
+    name: 'Abstimmung aktualisiert',
+    subject: '[{{siteName}}] Abstimmung aktualisiert - {{pollTitle}}',
+    jsonContent: tpl(allBlocks, topIds),
+    textContent: 'Ihre Abstimmung wurde aktualisiert\n\nHallo {{voterName}},\n\nIhre Auswahl für die {{pollType}} "{{pollTitle}}" wurde erfolgreich aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}',
+  };
+}
+
+// ---- new_vote_notification: notify creator on new vote ----
+function buildNewVoteNotificationTemplate(): TemplateDefinition {
+  const adminBox = container('nvn-admin-box', '#f8f9fa', '#2a2a3e', [
+    txt('nvn-ab-t', 'Hier können Sie die aktuellen Ergebnisse einsehen und die Umfrage verwalten.'),
+    btn('nvn-ab-btn', 'Ergebnisse anzeigen', 'adminLink', 'primary'),
+  ]);
+
+  const topDefs: [string, EmailBuilderBlock][] = [
+    heading('nvn-h1', 'Neue Abstimmung eingegangen', 'h1'),
+    txt('nvn-t1', 'Hallo,'),
+    txt('nvn-t2', '<strong>{{voterName}}</strong> hat soeben an Ihrer {{pollType}} <strong>"{{pollTitle}}"</strong> teilgenommen.'),
+  ];
+
+  const bottomDefs: [string, EmailBuilderBlock][] = [
+    divider('nvn-d1'),
+  ];
+
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = adminBox.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(adminBox.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+
+  return {
+    name: 'Neue Abstimmung (Ersteller)',
+    subject: '[{{siteName}}] Neue Abstimmung – {{pollTitle}}',
+    jsonContent: tpl(allBlocks, topIds),
+    textContent: 'Neue Abstimmung eingegangen\n\nHallo,\n\n{{voterName}} hat soeben an Ihrer {{pollType}} "{{pollTitle}}" teilgenommen.\n\nErgebnisse anzeigen: {{adminLink}}',
+  };
+}
+
 // ---- password_reset with container ----
 function buildPasswordResetTemplate(): TemplateDefinition {
   const actionBox = container('action-box', '#f8f9fa', '#2a2a3e', [
@@ -626,6 +707,10 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
 
   vote_confirmation: buildVoteConfirmationTemplate(),
 
+  vote_updated: buildVoteUpdatedTemplate(),
+
+  new_vote_notification: buildNewVoteNotificationTemplate(),
+
   reminder: buildReminderTemplate(),
 
   password_reset: buildPasswordResetTemplate(),
@@ -663,6 +748,7 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
     '{{status}} — Automatischer Testbericht',
     [
       'Der automatische Testlauf <strong>#{{testRunId}}</strong> wurde abgeschlossen.',
+      '{{failedSummaryHtml}}',
       'Gesamte Tests: {{totalTests}}',
       'Bestanden: {{passed}}',
       'Fehlgeschlagen: {{failed}}',
@@ -706,6 +792,15 @@ function htmlEscape(str: string): string {
  * - {{link:https://example.com|Datenschutz}} → <a href="https://example.com" target="_blank">Datenschutz</a>
  * - All other text is HTML-escaped for XSS safety.
  */
+/** Strip dangerous HTML tags from plain footer text (not from inside {{link:...}} labels). */
+function stripFooterHtml(text: string): string {
+  return text
+    // Remove dangerous block tags including their inner content
+    .replace(/<(script|style|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    // Strip remaining HTML tags (keeping their text content)
+    .replace(/<[^>]+>/g, '');
+}
+
 function renderFooterMarkup(input: string, linkStyle: string = ''): string {
   const linkPattern = /\{\{link:([^|}]+?)(?:\|([^}]+?))?\}\}/g;
   const parts: string[] = [];
@@ -714,7 +809,9 @@ function renderFooterMarkup(input: string, linkStyle: string = ''): string {
 
   while ((match = linkPattern.exec(input)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(htmlEscape(input.slice(lastIndex, match.index)));
+      // Strip HTML from plain-text segments only; labels inside {{link:...}} are
+      // handled separately by htmlEscape below so they are not affected here.
+      parts.push(htmlEscape(stripFooterHtml(input.slice(lastIndex, match.index))));
     }
     const url = match[1].trim();
     const label = match[2]?.trim();
@@ -730,7 +827,7 @@ function renderFooterMarkup(input: string, linkStyle: string = ''): string {
   }
 
   if (lastIndex < input.length) {
-    parts.push(htmlEscape(input.slice(lastIndex)));
+    parts.push(htmlEscape(stripFooterHtml(input.slice(lastIndex))));
   }
 
   return parts.join('').replace(/\n/g, '<br>');
@@ -791,6 +888,33 @@ export function substituteVariables(
   }
   
   return result;
+}
+
+function renderSafeCustomMarkup(
+  template: string,
+  variables: Record<string, string | undefined>
+): string {
+  const allowedTagMap: Record<string, string> = {
+    '<strong>': '__ALLOWED_TAG_STRONG_OPEN__',
+    '</strong>': '__ALLOWED_TAG_STRONG_CLOSE__',
+    '<em>': '__ALLOWED_TAG_EM_OPEN__',
+    '</em>': '__ALLOWED_TAG_EM_CLOSE__',
+    '<br>': '__ALLOWED_TAG_BR__',
+    '<br/>': '__ALLOWED_TAG_BR__',
+    '<br />': '__ALLOWED_TAG_BR__',
+  };
+
+  let tokenized = template;
+  for (const [tag, token] of Object.entries(allowedTagMap)) {
+    tokenized = tokenized.replace(new RegExp(tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), token);
+  }
+
+  let rendered = substituteVariables(tokenized, variables, true);
+  for (const [tag, token] of Object.entries(allowedTagMap)) {
+    rendered = rendered.replace(new RegExp(token, 'g'), tag === '<br/>' || tag === '<br />' ? '<br>' : tag);
+  }
+
+  return rendered;
 }
 
 function resolveTheme(theme?: EmailTheme, rootData?: Record<string, unknown>) {
@@ -980,6 +1104,24 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       pollTitle: 'Teammeeting Q1 2025',
       publicLink: 'https://polly.example.com/poll/abc123',
       resultsLink: 'https://polly.example.com/poll/abc123/results',
+      editLink: 'https://polly.example.com/edit/token123',
+      siteName,
+    },
+    vote_updated: {
+      voterName: 'Anna Schmidt',
+      pollType: 'Terminumfrage',
+      pollTitle: 'Teammeeting Q1 2025',
+      publicLink: 'https://polly.example.com/poll/abc123',
+      resultsLink: 'https://polly.example.com/poll/abc123/results',
+      editLink: 'https://polly.example.com/edit/token123',
+      siteName,
+    },
+    new_vote_notification: {
+      voterName: 'Anna Schmidt',
+      pollType: 'Terminumfrage',
+      pollTitle: 'Teammeeting Q1 2025',
+      adminLink: 'https://polly.example.com/admin/abc123',
+      resultsLink: 'https://polly.example.com/poll/abc123#results',
       siteName,
     },
     reminder: {
@@ -1013,6 +1155,8 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       skipped: '1',
       duration: '12.5 Sekunden',
       startedAt: new Date().toLocaleString('de-DE'),
+      failedSummaryHtml: '<p><strong>Fehlgeschlagene Tests (1)</strong></p><ul><li>API should reject invalid token (server/tests/api/security.test.ts)</li></ul>',
+      failedSummaryText: 'Fehlgeschlagene Tests (1): API should reject invalid token (server/tests/api/security.test.ts)',
       siteName,
     },
     welcome: {
@@ -1026,7 +1170,7 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       pollType: 'schedule',
       statusLabel: 'Termin bestätigt',
       confirmedDate: 'Montag, 15. Januar 2025',
-      confirmedTime: '<strong>Uhrzeit:</strong> 14:00 – 15:00 Uhr',
+      confirmedTime: '14:00 – 15:00 Uhr',
       pollLink: 'https://polly.example.com/poll/abc123',
       buttonLink: 'https://polly.example.com/poll/abc123',
       buttonLabel: 'Zur Umfrage \u2192',
@@ -1191,9 +1335,12 @@ function v3LinkSection(label: string, title: string, desc: string, buttonText: s
   const bgColor = buttonType === 'primary' ? primaryColor : secondaryColor;
   const textColor = ensureButtonTextContrast(bgColor, '#ffffff');
   const cssClass = buttonType === 'primary' ? 'btn-primary' : 'btn-secondary';
+  const titleHtml = title
+    ? `<p class="link-title" style="font-family: ${fontFamily}; font-size: 17px; color: #1a202c; margin-bottom: 5px;">${title}</p>`
+    : '';
   return `<tr><td style="padding: 24px 40px 24px;">
       <p class="link-label" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px;">${label}</p>
-      <p class="link-title" style="font-family: ${fontFamily}; font-size: 17px; color: #1a202c; margin-bottom: 5px;">${title}</p>
+      ${titleHtml}
       <p class="link-desc" style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; line-height: 1.6; margin-bottom: 18px;">${desc}</p>
       <table cellpadding="0" cellspacing="0" role="presentation"><tr><td>
         <a href="${htmlEscape(buttonUrl)}" class="${cssClass}" style="display: inline-block; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; color: ${textColor}; background-color: ${bgColor}; padding: 10px 22px; border-radius: 6px; text-decoration: none;">${buttonText}</a>
@@ -1241,6 +1388,160 @@ interface V3BodyContext {
   fontFamily: string;
 }
 
+interface PollCreatedTextOverrides {
+  greeting?: string;
+  subline?: string;
+  adminLabel?: string;
+  adminTitle?: string;
+  adminDescription?: string;
+  adminButtonText?: string;
+  publicLabel?: string;
+  publicTitle?: string;
+  publicDescription?: string;
+  publicButtonText?: string;
+  noticeTitle?: string;
+  noticeBody?: string;
+}
+
+function stripTrailingColon(value: string): string {
+  return value.trim().replace(/:\s*$/, '');
+}
+
+function parseLinkLine(line: string, variableName: 'adminLink' | 'publicLink'): string | undefined {
+  const match = line.match(new RegExp(`^(.*?)\\s*\\{\\{${variableName}\\}\\}\\s*$`));
+  if (!match) return undefined;
+  const label = stripTrailingColon(match[1] || '');
+  return label || undefined;
+}
+
+// Extracts only the introductory paragraph(s) from a custom poll_created text
+// template — i.e. the lines before any link-section content (admin link lines,
+// participant link lines, "Wichtig" notice, etc.).  The link sections are
+// rendered automatically by the V3 body builder below the intro.
+function extractPollCreatedIntroText(textContent: string): string {
+  const LINK_SECTION_MARKERS = [
+    '{{adminLink}}',
+    '{{publicLink}}',
+    'Administrator-Link',
+    'Admin-Link',
+    'Administratorlink',
+    'Teilnehmer-Link',
+    'Öffentlicher Link',
+    'Oeffentlicher Link',
+    'Zur Verwaltung',
+    'Zur Umfrage',
+    'Zur Abstimmung',
+    'Wichtig:',
+    'Wichtig ',
+  ];
+
+  const lines = textContent.split(/\r?\n/);
+  const introLines: string[] = [];
+
+  for (const line of lines) {
+    const isLinkLine = LINK_SECTION_MARKERS.some(marker =>
+      line.includes(marker)
+    );
+    if (isLinkLine) break;
+    introLines.push(line);
+  }
+
+  return introLines.join('\n').trimEnd();
+}
+
+function parsePollCreatedTextOverrides(textContent?: string | null): PollCreatedTextOverrides {
+  if (!textContent) return {};
+
+  const lines = textContent
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const adminLinkIndex = lines.findIndex((line) => line.includes('{{adminLink}}'));
+  const publicLinkIndex = lines.findIndex((line) => line.includes('{{publicLink}}'));
+
+  if (adminLinkIndex < 0 || publicLinkIndex < 0 || publicLinkIndex <= adminLinkIndex) {
+    return {};
+  }
+
+  const overrides: PollCreatedTextOverrides = {};
+
+  const greetingLine = lines[0];
+  const hasGreeting = /^hallo\b/i.test(greetingLine || '');
+  if (hasGreeting) {
+    overrides.greeting = greetingLine;
+  }
+
+  const introAndAdminLines = lines.slice(hasGreeting ? 1 : 0, adminLinkIndex);
+  // Match the admin section header: line must mention "administrator" or "admin"
+  // (with or without a trailing colon — users often omit it)
+  const adminTitleIndex = introAndAdminLines.findIndex((line) => /\badministrator|\badmin[-\s]/i.test(line));
+
+  if (adminTitleIndex >= 0) {
+    const introLines = introAndAdminLines.slice(0, adminTitleIndex);
+    if (introLines.length > 0) {
+      overrides.subline = introLines.join(' ');
+    }
+    overrides.adminLabel = stripTrailingColon(introAndAdminLines[adminTitleIndex]);
+    const adminDescriptionLines = introAndAdminLines.slice(adminTitleIndex + 1);
+    if (adminDescriptionLines.length > 0) {
+      overrides.adminDescription = adminDescriptionLines.join(' ');
+    }
+  } else if (introAndAdminLines.length > 0) {
+    overrides.subline = introAndAdminLines.join(' ');
+  }
+
+  const adminButtonText = parseLinkLine(lines[adminLinkIndex], 'adminLink');
+  if (adminButtonText) {
+    overrides.adminButtonText = adminButtonText;
+  }
+
+  const publicSectionLines = lines.slice(adminLinkIndex + 1, publicLinkIndex);
+  // Match the public section header: line mentions "teilnehmer" or "öffentlich"
+  // (with or without a trailing colon — users often omit it)
+  const publicTitleIndex = publicSectionLines.findIndex((line) => /(teilnehmer|öffentlich|oeffentlich)/i.test(line));
+  if (publicTitleIndex >= 0) {
+    overrides.publicLabel = stripTrailingColon(publicSectionLines[publicTitleIndex]);
+    const publicDescriptionLines = publicSectionLines.slice(publicTitleIndex + 1);
+    if (publicDescriptionLines.length > 0) {
+      overrides.publicDescription = publicDescriptionLines.join(' ');
+    }
+  } else if (publicSectionLines.length > 0) {
+    overrides.publicDescription = publicSectionLines.join(' ');
+  }
+
+  const publicButtonText = parseLinkLine(lines[publicLinkIndex], 'publicLink');
+  if (publicButtonText) {
+    overrides.publicButtonText = publicButtonText;
+  }
+
+  const noticeLines = lines.slice(publicLinkIndex + 1);
+  if (noticeLines.length > 0) {
+    const firstNoticeLine = noticeLines[0];
+    const noticeMatch = firstNoticeLine.match(/^([^:]+):\s*(.*)$/);
+    if (noticeMatch) {
+      overrides.noticeTitle = noticeMatch[1].trim();
+      const bodyLines = [noticeMatch[2].trim(), ...noticeLines.slice(1)].filter(Boolean);
+      if (bodyLines.length > 0) {
+        overrides.noticeBody = bodyLines.join(' ');
+      }
+    } else {
+      overrides.noticeBody = noticeLines.join(' ');
+    }
+  }
+
+  return overrides;
+}
+
+function resolveOverrideText(
+  vars: Record<string, string | undefined>,
+  key: keyof PollCreatedTextOverrides,
+): string | undefined {
+  const value = vars[`pollCreatedOverride_${key}`];
+  if (!value) return undefined;
+  return renderTemplate(value, vars).trim();
+}
+
 function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
   const pollType = vars.pollType || 'Umfrage';
   const pollTitle = htmlEscape(vars.pollTitle || '');
@@ -1248,29 +1549,63 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
   const adminLink = vars.adminLink || '#';
   const publicLink = vars.publicLink || '#';
   const isRegistered = vars.isRegisteredUser === 'true';
-  const greeting = creatorName ? `Hallo ${creatorName}` : 'Hallo';
 
-  const subline = isRegistered
-    ? `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`
-    : `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`;
+  // Custom intro text is set when the admin has saved a custom text template.
+  // In that case, we show the custom text as a simple paragraph instead of the
+  // default tag + headline block, but keep all the link sections and notice below.
+  const customIntro = vars.pollCreatedCustomIntro ?? null;
 
-  const noticeTitle = isRegistered
-    ? 'Diese E-Mail dient als Schnellzugriff.'
-    : 'Bitte diese E-Mail aufbewahren.';
-
-  const noticeBody = isRegistered
-    ? 'Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten \u2014 nach der Anmeldung.'
-    : 'Diese E-Mail enth\u00E4lt den pers\u00F6nlichen Administratorlink \u2014 nur damit l\u00E4sst sich die Umfrage verwalten, bearbeiten und schlie\u00DFen.';
-
-  return `${v3BodyStart()}
+  let headBlock: string;
+  if (customIntro !== null) {
+    const lines = customIntro.split('\n').map(line => htmlEscape(line)).join('<br>');
+    headBlock = `${v3BodyStart()}
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 15px; color: #374151; line-height: 1.6; margin: 0;">${lines}</p>
+    ${v3BodyEnd()}`;
+  } else {
+    const greetingOverride = resolveOverrideText(vars, 'greeting');
+    const greeting = greetingOverride
+      ? htmlEscape(greetingOverride)
+      : (creatorName ? `Hallo ${creatorName}` : 'Hallo');
+    const defaultSubline = isRegistered
+      ? `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`
+      : `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`;
+    const sublineOverride = resolveOverrideText(vars, 'subline');
+    const subline = htmlEscape(sublineOverride || defaultSubline);
+    headBlock = `${v3BodyStart()}
       ${v3Tag(pollType, ctx.primaryColor)}
       ${v3Headline('Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(subline)}
-    ${v3BodyEnd()}
+    ${v3BodyEnd()}`;
+  }
+
+  const defaultNoticeTitle = isRegistered
+    ? 'Diese E-Mail dient als Schnellzugriff.'
+    : 'Bitte diese E-Mail aufbewahren.';
+
+  const defaultNoticeBody = isRegistered
+    ? 'Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten \u2014 nach der Anmeldung.'
+    : 'Diese E-Mail enth\u00E4lt den pers\u00F6nlichen Administratorlink \u2014 nur damit l\u00E4sst sich die Umfrage verwalten, bearbeiten und schlie\u00DFen.';
+
+  // When showing a custom intro (non-default template), omit the big section titles
+  // ("Umfrage verwalten", "Abstimmung öffnen") by default — the custom label already
+  // serves as the section header.  Default templates always show full titles.
+  const isCustomTemplate = customIntro !== null;
+  const adminLabel = htmlEscape(resolveOverrideText(vars, 'adminLabel') || 'Administratorlink');
+  const adminTitle = htmlEscape(resolveOverrideText(vars, 'adminTitle') ?? (isCustomTemplate ? '' : 'Umfrage verwalten'));
+  const adminDescription = htmlEscape(resolveOverrideText(vars, 'adminDescription') || 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nicht weitergeben.');
+  const adminButtonText = htmlEscape(resolveOverrideText(vars, 'adminButtonText') || 'Zur Verwaltung \u2192');
+  const publicLabel = htmlEscape(resolveOverrideText(vars, 'publicLabel') || '\u00D6ffentlicher Link \u00B7 F\u00FCr Teilnehmer');
+  const publicTitle = htmlEscape(resolveOverrideText(vars, 'publicTitle') ?? (isCustomTemplate ? '' : 'Abstimmung \u00F6ffnen'));
+  const publicDescription = htmlEscape(resolveOverrideText(vars, 'publicDescription') || 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.');
+  const publicButtonText = htmlEscape(resolveOverrideText(vars, 'publicButtonText') || 'Zur Abstimmung \u2192');
+  const noticeTitle = htmlEscape(resolveOverrideText(vars, 'noticeTitle') || defaultNoticeTitle);
+  const noticeBody = htmlEscape(resolveOverrideText(vars, 'noticeBody') || defaultNoticeBody);
+
+  return `${headBlock}
     ${v3Divider()}
-    ${v3LinkSection('Administratorlink', 'Umfrage verwalten', 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nicht weitergeben.', 'Zur Verwaltung \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3LinkSection(adminLabel, adminTitle, adminDescription, adminButtonText, adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
     ${v3Divider()}
-    ${v3LinkSection('\u00D6ffentlicher Link \u00B7 F\u00FCr Teilnehmer', 'Abstimmung \u00F6ffnen', 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.', 'Zur Abstimmung \u2192', publicLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3LinkSection(publicLabel, publicTitle, publicDescription, publicButtonText, publicLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
     ${v3Notice(noticeTitle, noticeBody, ctx.primaryColor)}`;
 }
 
@@ -1289,17 +1624,45 @@ function buildV3InvitationBody(vars: Record<string, string | undefined>, ctx: V3
     ${v3SingleButtonSection('Klicken Sie auf den Button, um zur Abstimmung zu gelangen.', 'Jetzt abstimmen \u2192', publicLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
 
+function buildV3NewVoteNotificationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const voterName = htmlEscape(vars.voterName || '');
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const pollType = vars.pollType || 'Umfrage';
+  const adminLink = vars.adminLink || '#';
+  const resultsLink = vars.resultsLink || '#';
+  const participant = voterName || 'Ein Teilnehmer';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Neue Abstimmung', ctx.primaryColor)}
+      ${v3SimpleHeadline('Neue Abstimmung eingegangen', ctx.fontFamily)}
+      ${v3Subline(`${participant} hat soeben an Ihrer ${htmlEscape(pollType)} \u201E${pollTitle}\u201C teilgenommen.`)}
+    ${v3BodyEnd()}
+    ${v3Divider()}
+    ${v3LinkSection('Verwaltung', 'Umfrage verwalten', 'Hier k\u00F6nnen Sie die Umfrage verwalten und alle Stimmen einsehen.', 'Umfrage verwalten \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3Divider()}
+    ${v3LinkSection('Ergebnisse', 'Ergebnisse ansehen', 'Sehen Sie sich die aktuellen Ergebnisse der Umfrage an.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}`;
+}
+
 function buildV3ReminderBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
   const senderName = htmlEscape(vars.senderName || '');
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const expiresAt = vars.expiresAt ? htmlEscape(vars.expiresAt) : '';
   const pollLink = vars.pollLink || '#';
+  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
+
+  const optionsBlock = selectedOptionsHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre aktuelle Auswahl</p>
+      ${selectedOptionsHtml}
+    </td></tr>`
+    : '';
 
   return `${v3BodyStart()}
       ${v3Tag('Erinnerung', ctx.primaryColor)}
       ${v3Headline('Erinnerung an', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(`${senderName} erinnert Sie freundlich an die Teilnahme. Ihre Stimme ist wichtig!${expiresAt ? ` ${expiresAt}` : ''}`)}
     ${v3BodyEnd()}
+    ${optionsBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('Bitte nehmen Sie sich kurz Zeit, um abzustimmen.', 'Jetzt abstimmen \u2192', pollLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
@@ -1309,15 +1672,66 @@ function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, c
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const pollType = vars.pollType || 'Umfrage';
   const resultsLink = vars.resultsLink || '#';
+  const editLink = vars.editLink || '';
+  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
   const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
+
+  const optionsBlock = selectedOptionsHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre Auswahl</p>
+      ${selectedOptionsHtml}
+    </td></tr>`
+    : '';
+
+  const editSection = editLink
+    ? `${v3Divider()}
+    ${v3SingleButtonSection(
+      vars.voteManagementAction === 'withdraw'
+        ? 'Über diesen Link können Sie Ihre Stimme zurückziehen.'
+        : 'Wenn Sie Ihre Auswahl später ändern möchten, können Sie dafür diesen Link verwenden.',
+      vars.voteManagementAction === 'withdraw' ? 'Stimme zurückziehen →' : 'Stimme bearbeiten →',
+      editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
+    : '';
 
   return `${v3BodyStart()}
       ${v3Tag('Best\u00E4tigung', ctx.primaryColor)}
       ${v3SimpleHeadline('Vielen Dank f\u00FCr Ihre Teilnahme!', ctx.fontFamily)}
       ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Teilnahme an der ${htmlEscape(pollType)} \u201E${pollTitle}\u201C. Ihre Auswahl wurde erfolgreich gespeichert.`)}
     ${v3BodyEnd()}
-    ${v3Divider()}
-    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
+    ${optionsBlock}
+    ${vars.resultsPublic === 'false' ? '' : `${v3Divider()}
+    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
+}
+
+function buildV3VoteUpdatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const voterName = htmlEscape(vars.voterName || '');
+  const pollTitle = htmlEscape(vars.pollTitle || '');
+  const pollType = vars.pollType || 'Umfrage';
+  const resultsLink = vars.resultsLink || '#';
+  const editLink = vars.editLink || '';
+  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
+  const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
+
+  const optionsBlock = selectedOptionsHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre aktuelle Auswahl</p>
+      ${selectedOptionsHtml}
+    </td></tr>`
+    : '';
+
+  const editSection = editLink
+    ? `${v3Divider()}
+    ${v3SingleButtonSection('Wenn Sie Ihre Auswahl erneut ändern möchten, können Sie dafür diesen Link verwenden.', 'Stimme weiter bearbeiten →', editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
+    : '';
+
+  return `${v3BodyStart()}
+      ${v3Tag('Aktualisiert', ctx.primaryColor)}
+      ${v3SimpleHeadline('Ihre Abstimmung wurde aktualisiert', ctx.fontFamily)}
+      ${v3Subline(`${greeting} — Ihre Auswahl für die ${htmlEscape(pollType)} „${pollTitle}“ wurde erfolgreich aktualisiert.`)}
+    ${v3BodyEnd()}
+    ${optionsBlock}
+    ${vars.resultsPublic === 'false' ? '' : `${v3Divider()}
+    ${v3SingleButtonSection('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen →', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
 }
 
 function buildV3PasswordResetBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
@@ -1372,12 +1786,14 @@ function buildV3TestReportBody(vars: Record<string, string | undefined>, ctx: V3
   const skipped = htmlEscape(vars.skipped || '0');
   const duration = htmlEscape(vars.duration || '');
   const startedAt = htmlEscape(vars.startedAt || '');
+  const failedSummaryHtml = vars.failedSummaryHtml || '';
 
   return `${v3BodyStart()}
       ${v3Tag('Testbericht', ctx.primaryColor)}
       ${v3SimpleHeadline(`${status} \u2014 Testlauf #${testRunId}`, ctx.fontFamily)}
       ${v3Subline('Der automatische Testlauf wurde abgeschlossen.')}
     ${v3BodyEnd()}
+    ${failedSummaryHtml ? v3TextBlock(failedSummaryHtml) : ''}
     ${v3TextBlock(`Gesamte Tests: <strong>${totalTests}</strong><br>Bestanden: <strong>${passed}</strong><br>Fehlgeschlagen: <strong>${failed}</strong><br>\u00DCbersprungen: <strong>${skipped}</strong><br>Dauer: <strong>${duration}</strong><br>Gestartet: <strong>${startedAt}</strong>`)}`;
 }
 
@@ -1405,16 +1821,22 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
 
   if (pollType === 'schedule') {
     const confirmedDate = htmlEscape(vars.confirmedDate || '');
-    const confirmedTime = vars.confirmedTime || '';
+    const confirmedTime = htmlEscape(vars.confirmedTime || '');
     const videoConferenceUrl = vars.videoConferenceUrl || '';
     const videoLine = videoConferenceUrl
       ? `<br/><strong>Videokonferenz:</strong> <a href="${htmlEscape(videoConferenceUrl)}" style="color:${ctx.primaryColor};text-decoration:underline;">${htmlEscape(videoConferenceUrl)}</a>`
       : '';
+    const scheduleClosingHtml = vars.closingMessageHtml || '';
+    const scheduleClosingBlock = scheduleClosingHtml
+      ? `${v3Divider()}
+    ${buildPollFinalizedClosingBlock(scheduleClosingHtml, ctx.primaryColor)}`
+      : '';
     return `${v3BodyStart()}
       ${v3Tag('Termin bestätigt', ctx.primaryColor)}
       ${v3Headline('Termin festgelegt für', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/>${confirmedTime}` : ''}${videoLine}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
+      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/><strong>Uhrzeit:</strong> ${confirmedTime}` : ''}${videoLine}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
     ${v3BodyEnd()}
+    ${scheduleClosingBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('Klicken Sie auf den Button, um die Umfrage und Ergebnisse einzusehen.', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
   }
@@ -1442,14 +1864,29 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     </td></tr>`;
   }
 
+  const closingMessageHtml = vars.closingMessageHtml || '';
+  const closingBlock = buildPollFinalizedClosingBlock(closingMessageHtml, ctx.primaryColor);
+
   return `${v3BodyStart()}
       ${v3Tag('Umfrage beendet', ctx.primaryColor)}
       ${v3Headline('Die Umfrage wurde abgeschlossen:', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(resultNote)}
     ${v3BodyEnd()}
     ${extraBlock}
+    ${closingBlock}
     ${v3Divider()}
     ${v3SingleButtonSection('', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+}
+
+function buildPollFinalizedClosingBlock(closingMessageHtml: string, primaryColor: string): string {
+  if (!closingMessageHtml) return '';
+
+  return `<tr><td style="padding: 0 40px 20px;">
+        <div style="background-color: #f8f5f0; border-left: 4px solid ${primaryColor}; border-radius: 4px; padding: 14px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #374151; line-height: 1.6;">
+          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Nachricht des Organisators</p>
+          <div style="margin: 0;">${closingMessageHtml}</div>
+        </div>
+      </td></tr>`;
 }
 
 function buildV3GenericBody(bodyHtml: string, fontFamily: string): string {
@@ -1460,11 +1897,52 @@ function buildV3GenericBody(bodyHtml: string, fontFamily: string): string {
     ${v3BodyEnd()}`;
 }
 
+function buildV3CustomContentBody(text: string, ctx: V3BodyContext): string {
+  const paragraphs = text.split('\n\n').filter(p => p.trim());
+
+  const textParas: string[] = [];
+  const urlBlocks: Array<{ before: string; url: string }> = [];
+
+  for (const para of paragraphs) {
+    const m = para.match(/(https?:\/\/[^\s]+)/);
+    if (m) {
+      const url = m[1];
+      const before = para.substring(0, m.index).trim().replace(/:$/, '').trim();
+      urlBlocks.push({ before, url });
+    } else {
+      textParas.push(para);
+    }
+  }
+
+  const sublines = textParas
+    .map(p => v3Subline(p.replace(/\n/g, '<br>')))
+    .join('');
+
+  const buttonSections = urlBlocks
+    .map(({ before, url }) =>
+      `${v3Divider()}${v3SingleButtonSection(
+        before ? htmlEscape(before) : htmlEscape(url),
+        'Link \u00f6ffnen \u2192',
+        url,
+        'primary',
+        ctx.primaryColor,
+        ctx.secondaryColor,
+      )}`
+    )
+    .join('');
+
+  return `${v3BodyStart()}
+      ${sublines}
+    ${v3BodyEnd()}${buttonSections}`;
+}
+
 const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>, ctx: V3BodyContext) => string> = {
   poll_created: buildV3PollCreatedBody,
   invitation: buildV3InvitationBody,
   reminder: buildV3ReminderBody,
   vote_confirmation: buildV3VoteConfirmationBody,
+  vote_updated: buildV3VoteUpdatedBody,
+  new_vote_notification: buildV3NewVoteNotificationBody,
   password_reset: buildV3PasswordResetBody,
   email_change: buildV3EmailChangeBody,
   password_changed: buildV3PasswordChangedBody,
@@ -1474,6 +1952,86 @@ const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>
 };
 
 export class EmailTemplateService {
+  private withCurrentVariables(template: EmailTemplate): EmailTemplate {
+    return {
+      ...template,
+      variables: EMAIL_TEMPLATE_VARIABLES[template.type as EmailTemplateType] as unknown as unknown[],
+    };
+  }
+
+  private appendVoteEditLink(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    if (!variables.editLink) return text;
+
+    const hasEditPlaceholder = text.includes('{{editLink}}');
+    const hasRenderedEditLink = !!variables.editLink && text.includes(variables.editLink);
+    if (hasEditPlaceholder || hasRenderedEditLink) return text;
+
+    const label = variables.voteManagementAction === 'withdraw' ? 'Stimme zurückziehen' : 'Stimme bearbeiten';
+    return text.trimEnd() + `\n\n${label}: {{editLink}}`;
+  }
+
+  private extractSelectedOptionsText(selectedOptionsHtml: string | undefined): string[] {
+    if (!selectedOptionsHtml) return [];
+
+    return selectedOptionsHtml
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '')
+      .replace(/<ul[^>]*>/gi, '')
+      .replace(/<\/ul>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+  }
+
+  private appendVoteSelectedOptions(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    const optionLines = this.extractSelectedOptionsText(variables.selectedOptionsHtml);
+    if (optionLines.length === 0) return text;
+
+    const alreadyContainsAllOptions = optionLines.every(line => text.includes(line));
+    if (alreadyContainsAllOptions) return text;
+
+    const optionsSection = `Ihre Auswahl:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
+    return text.trimEnd() + `\n\n${optionsSection}`;
+  }
+
+  private appendReminderSelectedOptions(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    const optionLines = this.extractSelectedOptionsText(variables.selectedOptionsHtml);
+    if (optionLines.length === 0) return text;
+
+    const alreadyContainsAllOptions = optionLines.every(line => text.includes(line));
+    if (alreadyContainsAllOptions) return text;
+
+    const optionsSection = `Ihre aktuelle Auswahl:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
+    return text.trimEnd() + `\n\n${optionsSection}`;
+  }
+
+  private enhanceVoteTemplateText(
+    text: string,
+    variables: Record<string, string | undefined>
+  ): string {
+    // Remove the results link and standard explanatory copy in plain-text and
+    // customized text templates as well as in the default HTML body.
+    if (variables.resultsPublic === 'false') {
+      text = text.split('\n').filter(line =>
+        !line.includes('{{resultsLink}}') &&
+        !line.includes('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.')
+      ).join('\n');
+    }
+    let enhanced = this.appendVoteSelectedOptions(text, variables);
+    enhanced = this.appendVoteEditLink(enhanced, variables);
+    return enhanced;
+  }
+
   // Static method: Get default template by type
   static getDefaultTemplate(type: EmailTemplateType): {
     type: EmailTemplateType;
@@ -1556,7 +2114,7 @@ export class EmailTemplateService {
     for (const type of EMAIL_TEMPLATE_TYPES) {
       const dbTemplate = dbTemplates.find(t => t.type === type);
       if (dbTemplate) {
-        result.push(dbTemplate);
+        result.push(this.withCurrentVariables(dbTemplate));
       } else {
         // Return default template as a pseudo-template
         const defaultData = DEFAULT_TEMPLATES[type];
@@ -1585,7 +2143,7 @@ export class EmailTemplateService {
     const dbTemplate = await storage.getEmailTemplate(type);
     
     if (dbTemplate) {
-      return dbTemplate;
+      return this.withCurrentVariables(dbTemplate);
     }
 
     // Return default template
@@ -1826,14 +2384,17 @@ export class EmailTemplateService {
 
   // Convert plain text to simple HTML for email body (with theme support)
   private textToSimpleHtmlWithTheme(text: string, theme: EmailTheme): string {
-    const escapedText = htmlEscape(text);
-    const paragraphs = escapedText.split('\n\n').filter(p => p.trim());
+    const paragraphs = text.split('\n\n').filter(p => p.trim());
     
     let html = `<div style="padding: 16px 24px; font-family: ${theme.fontFamily};">`;
     for (const para of paragraphs) {
-      // Check if it looks like a URL
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
-      const withLinks = para.replace(urlRegex, `<a href="$1" style="color: ${theme.linkColor};">$1</a>`);
+      const safePara = htmlEscape(para);
+      // Linkify only after escaping so arbitrary HTML cannot be injected.
+      const urlRegex = /(https?:\/\/[^\s<]+)/g;
+      const withLinks = safePara.replace(
+        urlRegex,
+        `<a href="$1" style="color: ${theme.linkColor};">$1</a>`,
+      );
       html += `<p style="color: ${theme.textColor}; font-size: 16px; line-height: 1.5; margin: 0 0 16px 0;">${withLinks.replace(/\n/g, '<br>')}</p>`;
     }
     html += '</div>';
@@ -1917,14 +2478,32 @@ export class EmailTemplateService {
       logoDataUri,
       siteName: customization.branding.siteName || '',
       siteAccent: customization.branding.siteNameAccent || '',
-      primaryColor: emailTheme.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor,
-      secondaryColor: emailTheme.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
+      primaryColor: customization.theme?.primaryColor || emailTheme.buttonBackgroundColor || DEFAULT_EMAIL_THEME.buttonBackgroundColor,
+      secondaryColor: customization.theme?.secondaryColor || emailTheme.secondaryButtonBackgroundColor || DEFAULT_EMAIL_THEME.secondaryButtonBackgroundColor,
       siteUrl,
       privacyUrl: hasFooterPrivacyPlaceholder ? '' : privacyUrl,
       footerHtml,
       footerText,
       fontFamily: emailTheme.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,
       subject,
+    };
+  }
+
+  // Uses the existing branding without adding persisted template types.
+  async renderVoteWithdrawalEmail(voterName: string, pollTitle: string, link: string, organizer = false) {
+    const subject = organizer ? `Stimme zurückgezogen: ${pollTitle}` : `Ihre Stimme wurde zurückgezogen: ${pollTitle}`;
+    const heading = organizer ? 'Eine Stimme wurde zurückgezogen.' : 'Ihre Stimme wurde zurückgezogen.';
+    const message = organizer
+      ? `${voterName || 'Eine teilnehmende Person'} hat die Teilnahme an „${pollTitle}“ zurückgezogen. Die Antworten werden nicht mehr gezählt.`
+      : `${voterName ? `Hallo ${voterName} — ` : ''}Ihre Antworten für „${pollTitle}“ wurden entfernt und werden nicht mehr gezählt.`;
+    const label = organizer ? 'Umfrage verwalten' : 'Zur Umfrage';
+    const customization = await storage.getCustomizationSettings();
+    const data = await this.buildV3TemplateData(customization, await this.getEmailTheme(), subject);
+    const body = `${v3BodyStart()}${v3Tag('Zurückgezogen', data.primaryColor)}${v3SimpleHeadline(heading, data.fontFamily)}${v3Subline(htmlEscape(message))}${v3BodyEnd()}${v3Divider()}${v3SingleButtonSection('', `${label} →`, link, 'primary', data.primaryColor, data.secondaryColor)}`;
+    return {
+      subject,
+      html: v3Shell(data, body),
+      text: `${heading}\n\n${message}\n\n${label}: ${link}\n\n${data.footerText}`,
     };
   }
 
@@ -1940,19 +2519,70 @@ export class EmailTemplateService {
     const allVariables: Record<string, string | undefined> = { siteName, ...variables };
 
     const rawSubject = renderTemplate(template.subject, allVariables);
-    const subject = rawSubject.replace(/^\[\]\s*/, '');
+    const subject = stripLeadingSitePrefix(rawSubject, siteName);
 
     const v3Builder = V3_BODY_BUILDERS[type];
-    if (template.isDefault && v3Builder) {
+    const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!v3Builder && !!template.textContent;
+    if (v3Builder) {
       const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
       const ctx: V3BodyContext = {
         primaryColor: v3Data.primaryColor,
         secondaryColor: v3Data.secondaryColor,
         fontFamily: v3Data.fontFamily,
       };
-      const bodyHtml = v3Builder(allVariables, ctx);
+      let mergedVariables = { ...allVariables };
+      let bodyHtml: string;
+      if (shouldUsePollCreatedV3 && template.textContent) {
+        // Parse the custom template text into structured overrides for the V3 sections.
+        // The greeting + subline become the intro paragraph (replacing the default tag+headline).
+        // All other overrides (adminLabel, adminDescription, adminButtonText, publicLabel, etc.)
+        // are passed as pollCreatedOverride_* vars so the V3 sections use the custom content.
+        const overrides = parsePollCreatedTextOverrides(template.textContent);
+        const introLines = [overrides.greeting, overrides.subline].filter(Boolean).join('\n');
+        // Fall back to line-based extraction if the structured parse didn't find a greeting
+        const rawIntro = introLines || extractPollCreatedIntroText(template.textContent);
+        const customIntroText = substituteVariables(rawIntro || template.textContent, allVariables, false);
+        const overrideVars = Object.fromEntries(
+          Object.entries(overrides)
+            .filter(([, v]) => v !== undefined)
+            .map(([key, value]) => [`pollCreatedOverride_${key}`, value as string])
+        );
+        mergedVariables = { ...allVariables, ...overrideVars, pollCreatedCustomIntro: customIntroText };
+        bodyHtml = v3Builder(mergedVariables, ctx);
+      } else if (!template.isDefault && template.textContent) {
+        // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
+        // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
+        // The outer v3Shell (logo, branding, footer) is always applied.
+        let customTemplateText = template.textContent;
+        if (type === 'vote_confirmation' || type === 'vote_updated') {
+          customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables);
+        } else if (type === 'reminder') {
+          customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables);
+        }
+        const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
+        bodyHtml = buildV3CustomContentBody(renderedText, ctx);
+        if (type === 'poll_finalized') {
+          const closingBlock = buildPollFinalizedClosingBlock(allVariables.closingMessageHtml || '', ctx.primaryColor);
+          if (closingBlock) {
+            bodyHtml += `${v3Divider()}
+    ${closingBlock}`;
+          }
+        }
+      } else {
+        bodyHtml = v3Builder(mergedVariables, ctx);
+      }
       const html = v3Shell(v3Data, bodyHtml);
       let textBase = template.textContent || '';
+      if (type === 'vote_confirmation' || type === 'vote_updated') {
+        textBase = this.enhanceVoteTemplateText(textBase, allVariables);
+      } else if (type === 'reminder') {
+        textBase = this.appendReminderSelectedOptions(textBase, allVariables);
+      } else if (type === 'poll_finalized') {
+        const closingMsgText = allVariables.closingMessageText;
+        if (closingMsgText && closingMsgText.trim()) {
+          textBase = textBase.trimEnd() + `\n\nNachricht des Organisators:\n${closingMsgText.trim()}`;
+        }
+      }
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
         textBase = textBase
           .replace(/Den Administratorlink sicher aufbewahren\. Nur damit l\u00E4sst sich die Umfrage verwalten\./,
@@ -1969,7 +2599,13 @@ export class EmailTemplateService {
 
     let bodyHtml: string;
     if (!template.isDefault && template.textContent) {
-      const renderedText = substituteVariables(template.textContent, allVariables, false);
+      let customTemplateText = template.textContent;
+      if (type === 'vote_confirmation' || type === 'vote_updated') {
+        customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables);
+      } else if (type === 'reminder') {
+        customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables);
+      }
+      const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.htmlContent) {
       bodyHtml = substituteVariables(template.htmlContent, allVariables, true);

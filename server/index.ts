@@ -7,9 +7,11 @@ import pg from "pg";
 import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 import { liveVotingService } from "./services/liveVotingService";
+import { startPollScheduler } from "./services/pollSchedulerService";
 import { bootstrapBranding } from "./scripts/applyBranding";
 import { errorHandler } from "./lib/errorHandler";
 import { getBaseUrl, warnIfLocalhostInProduction } from "./utils/baseUrl";
+import { shouldUseSecureCookies } from "./utils/sessionConfig";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -30,6 +32,15 @@ const isProxied = process.env.NODE_ENV === 'production' ||
 if (isProxied) {
   app.set('trust proxy', 1);
 }
+
+// Secure cookies require HTTPS. See server/utils/sessionConfig.ts for the
+// rationale and unit tests guarding against the Docker login regression.
+const useSecureCookies = shouldUseSecureCookies({
+  resolvedAppUrl,
+  forceHttps: process.env.FORCE_HTTPS,
+  replitDevDomain: process.env.REPLIT_DEV_DOMAIN,
+  replId: process.env.REPL_ID,
+});
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
@@ -130,7 +141,7 @@ app.use(session({
   saveUninitialized: false,
   name: 'polly.sid',
   cookie: {
-    secure: isProxied ? true : false,
+    secure: useSecureCookies,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',
@@ -256,7 +267,7 @@ app.use((req, res, next) => {
     console.error('[Branding] Failed to bootstrap branding on startup:', error);
   }
 
-  // Seed/update admin account if ADMIN_PASSWORD is set (Docker or manual override via secrets)
+  // Bootstrap a missing admin account; existing accounts are never modified.
   if (process.env.DOCKER_ENV === 'true' || process.env.ADMIN_PASSWORD) {
     try {
       const { seedInitialAdmin } = await import('./seed-admin');
@@ -273,6 +284,11 @@ app.use((req, res, next) => {
     } catch (error) {
       console.error('[Demo Seed] Failed:', error);
     }
+  }
+
+  // Warn when admin MFA enforcement is overridden by environment variable
+  if (process.env.MFA_ADMIN_REQUIRED === 'false') {
+    console.warn('[MFA] adminMfaRequired overridden by environment: MFA_ADMIN_REQUIRED=false');
   }
 
   // Initialize ClamAV from environment variables (for Docker deployments)
@@ -316,7 +332,10 @@ app.use((req, res, next) => {
   // Initialize live voting WebSocket after Vite to avoid conflicts with HMR
   // Must use noServer mode and handle upgrade manually to not interfere with Vite's WebSocket
   liveVotingService.initializeWithUpgrade(server);
-  
+
+  // Start poll expiry scheduler: deactivates expired polls and sends expiry reminder emails
+  startPollScheduler();
+
   server.listen({
     port,
     host: "0.0.0.0",

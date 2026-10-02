@@ -10,11 +10,239 @@ import {
   recentEmailSends,
   EMAIL_COOLDOWN,
 } from "./common";
+import { voteRateLimiter, emailRateLimiter, apiGeneralRateLimiter } from "../services/apiRateLimiterService";
+
+import { publicVote } from '../lib/publicPollResponse';
+import { assertVoteOwnership, VOTE_AUTHORIZATION_REQUIRED } from '../lib/voteOwnership';
+import type { Poll, Vote } from '@shared/schema';
 
 const router = Router();
 
+async function notifyWithdrawal(poll: Poll, votes: Vote[], isTestMode: boolean) {
+  if (isTestMode || !emailService.smtpConfigured) return;
+  // Email failures must never turn a completed withdrawal into an API failure.
+  try {
+    const { getBaseUrl } = await import('../utils/baseUrl');
+    const baseUrl = getBaseUrl();
+    const participants = new Map<string, Vote>();
+    for (const vote of votes) {
+      if (vote.voterEmail) participants.set(vote.voterEmail.trim().toLowerCase(), vote);
+    }
+    const deliveries: Promise<void>[] = [];
+    for (const [email, vote] of participants) {
+      deliveries.push(emailService.sendVoteWithdrawalEmail(email, vote.voterName, poll.title, `${baseUrl}/poll/${poll.publicToken}`));
+      if (poll.notifyCreatorOnVote && poll.creatorEmail && poll.creatorEmail.trim().toLowerCase() !== email) {
+        deliveries.push(emailService.sendVoteWithdrawalEmail(
+          poll.creatorEmail, poll.isAnonymous ? '' : vote.voterName, poll.title, `${baseUrl}/admin/${poll.adminToken}`, true
+        ));
+      }
+    }
+    const results = await Promise.allSettled(deliveries);
+    for (const result of results) {
+      if (result.status === 'rejected') console.error('Withdrawal email delivery failed:', result.reason);
+    }
+  } catch (error) {
+    console.error('Withdrawal email delivery failed:', error);
+  }
+}
+
+const voteAuthorizationError = {
+  error: 'Bitte melden Sie sich als Eigentümer dieser Stimmen an oder verwenden Sie Ihren privaten Bearbeitungslink.',
+  errorCode: VOTE_AUTHORIZATION_REQUIRED,
+};
+
+// Returns a 403 response body when the requester is a guest and guest voting
+// is disabled by the admin; returns null when the request may proceed.
+const checkGuestVotingAllowed = async (req: Parameters<typeof extractUserId>[0]) => {
+  const userId = await extractUserId(req);
+  if (userId) return null;
+  const customization = await storage.getCustomizationSettings();
+  if (customization.guestAccess?.allowGuestVoting === false) {
+    return {
+      error: 'Das Abstimmen ist nur für angemeldete Benutzer möglich. Bitte melden Sie sich an.',
+      errorCode: 'GUEST_VOTING_DISABLED' as const,
+    };
+  }
+  return null;
+};
+
+const isPastScheduleOption = (option: { startTime?: Date | string | null; endTime?: Date | string | null }) => {
+  const now = new Date();
+  if (option.endTime) {
+    const end = new Date(option.endTime);
+    return !isNaN(end.getTime()) && end < now;
+  }
+  if (option.startTime) {
+    const start = new Date(option.startTime);
+    return !isNaN(start.getTime()) && start < now;
+  }
+  return false;
+};
+
+const validateVoteOptionIds = (
+  poll: { type: string; options: Array<{ id: number; startTime?: Date | string | null; endTime?: Date | string | null }> },
+  votes: Array<{ optionId: number }>
+) => {
+  const validOptionIds = new Set(poll.options.map((opt) => opt.id));
+  for (const vote of votes) {
+    if (!validOptionIds.has(vote.optionId)) {
+      return {
+        status: 400,
+        body: {
+          error: 'One or more options are invalid for this poll.',
+          errorCode: 'INVALID_OPTION_ID',
+        },
+      };
+    }
+  }
+
+  if (poll.type === 'schedule') {
+    const optionById = new Map(poll.options.map((opt) => [opt.id, opt]));
+    for (const vote of votes) {
+      const option = optionById.get(vote.optionId);
+      if (option && isPastScheduleOption(option)) {
+        return {
+          status: 400,
+          body: {
+            error: 'This date/time option is in the past and can no longer be voted.',
+            errorCode: 'PAST_OPTION_DATE',
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
+const validateVoteResponses = (
+  poll: { type: string; allowMaybe?: boolean | null; responseMode?: string | null; maxSelections?: number | null; options: Array<{ id: number; isFreeText?: boolean | null }> },
+  voteItems: Array<{ optionId: number; response: string }>
+) => {
+  if ((poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple') {
+    const hasInvalidSimpleResponse = voteItems.some((vote) => vote.response !== 'yes');
+    if (hasInvalidSimpleResponse) {
+      return {
+        status: 400,
+        body: {
+          error: 'This poll only accepts selecting options (yes responses).',
+          errorCode: 'INVALID_SIMPLE_RESPONSE',
+        },
+      };
+    }
+
+    const optionIds = voteItems.map((vote) => vote.optionId);
+    if (new Set(optionIds).size !== optionIds.length) {
+      return {
+        status: 400,
+        body: {
+          error: 'Duplicate options are not allowed.',
+          errorCode: 'DUPLICATE_OPTION_SELECTION',
+        },
+      };
+    }
+
+    const maxSelections = poll.maxSelections ?? 1;
+    if (voteItems.length > maxSelections) {
+      return {
+        status: 400,
+        body: {
+          error: `A maximum of ${maxSelections} option(s) may be selected.`,
+          errorCode: 'TOO_MANY_SELECTIONS',
+          maxSelections,
+        },
+      };
+    }
+  }
+
+  if (poll.type === 'organization') {
+    const hasInvalidOrganizationResponse = voteItems.some(
+      (vote) => vote.response !== 'yes' && vote.response !== 'no'
+    );
+    if (hasInvalidOrganizationResponse) {
+      return {
+        status: 400,
+        body: {
+          error: 'Organization polls only accept yes/no slot responses.',
+          errorCode: 'INVALID_ORGANIZATION_RESPONSE',
+        },
+      };
+    }
+  }
+
+  if (poll.type !== 'survey') {
+    const hasFreeText = voteItems.some((vote) => vote.response === 'freetext');
+    if (hasFreeText) {
+      return {
+        status: 400,
+        body: {
+          error: 'Free-text responses are only allowed for surveys.',
+          errorCode: 'INVALID_FREE_TEXT_RESPONSE',
+        },
+      };
+    }
+  }
+
+  if ((poll.type === 'schedule' || poll.type === 'survey') && poll.allowMaybe === false) {
+    const hasMaybe = voteItems.some((vote) => vote.response === 'maybe');
+    if (hasMaybe) {
+      return {
+        status: 400,
+        body: {
+          error: 'Maybe responses are not allowed for this poll.',
+          errorCode: 'MAYBE_NOT_ALLOWED',
+        },
+      };
+    }
+  }
+
+  if (poll.type === 'survey') {
+    const optionById = new Map(poll.options.map((option) => [option.id, option]));
+    for (const vote of voteItems) {
+      const option = optionById.get(vote.optionId);
+      if (
+        (vote.response === 'freetext' && !option?.isFreeText) ||
+        (option?.isFreeText && vote.response !== 'freetext')
+      ) {
+        return {
+          status: 400,
+          body: {
+            error: 'Free-text responses are only allowed for free-text survey questions.',
+            errorCode: 'INVALID_FREE_TEXT_RESPONSE',
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
+export const getVoteEmailSummary = (
+  poll: { type: string; responseMode?: string | null; options: Array<{ id: number; text?: string | null }> },
+  votes: Array<{ optionId: number; response: string }>
+) => {
+  const optionMap = new Map(poll.options.map(opt => [opt.id, opt.text || '']));
+  const selectionOnly = poll.responseMode === 'simple' || poll.type === 'organization';
+  const labels: Record<string, string> = { yes: 'Ja', maybe: 'Vielleicht', no: 'Nein' };
+  const summary = votes.flatMap(vote => {
+    const text = optionMap.get(vote.optionId);
+    if (!text || !labels[vote.response]) return [];
+    if (selectionOnly) return vote.response === 'yes' ? [text] : [];
+    return [`${text} — ${labels[vote.response]}`];
+  });
+  return summary.length > 0 ? summary : undefined;
+};
+
+const editVotesUpdateSchema = z.object({
+  votes: z.array(z.object({
+    optionId: z.number(),
+    response: z.enum(['yes', 'maybe', 'no']),
+  })).min(1),
+});
+
 // Bulk vote (primary voting endpoint)
-router.post('/polls/:token/vote', async (req, res) => {
+router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -35,12 +263,50 @@ router.post('/polls/:token/vote', async (req, res) => {
       });
     }
 
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
     const data = bulkVoteSchema.parse(req.body);
-    
+    const optionValidation = validateVoteOptionIds(poll, data.votes);
+    if (optionValidation) {
+      return res.status(optionValidation.status).json(optionValidation.body);
+    }
+    const responseValidation = validateVoteResponses(poll, data.votes);
+    if (responseValidation) {
+      return res.status(responseValidation.status).json(responseValidation.body);
+    }
+
+    // Validate freeTextAnswer and comment length (max 500 chars each)
+    for (const voteData of data.votes) {
+      const fta = (voteData as any).freeTextAnswer;
+      if (fta && typeof fta === 'string' && fta.length > 500) {
+        return res.status(400).json({
+          error: 'Freitextantwort darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'FREE_TEXT_TOO_LONG',
+        });
+      }
+      const comment = voteData.comment;
+      if (comment && typeof comment === 'string' && comment.length > 500) {
+        return res.status(400).json({
+          error: 'Kommentar darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'COMMENT_TOO_LONG',
+        });
+      }
+    }
+
     const currentUserId = await extractUserId(req);
+    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
+    // Check every affected vote before deleting, replacing or returning its token.
+    assertVoteOwnership(existingVotes, currentUserId, data.voterEditToken);
     let userId: number | null = null;
-    
-    if (currentUserId) {
+
+    if (existingVotes.length > 0) {
+      // A valid private token can also authorize a guest editing an account vote.
+      // Preserve the original identity when adding replacement options.
+      userId = existingVotes[0].userId;
+    } else if (currentUserId) {
       const currentUser = await storage.getUser(currentUserId);
       if (currentUser) {
         if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
@@ -67,7 +333,6 @@ router.post('/polls/:token/vote', async (req, res) => {
 
     const isTestMode = req.isTestMode === true;
 
-    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
     if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
@@ -78,9 +343,44 @@ router.post('/polls/:token/vote', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    const isOrgEditMode = poll.type === 'organization' && existingVotes.length > 0 && 
-      data.votes.some(v => existingVotes.some(ev => ev.optionId === v.optionId));
-    if (poll.allowVoteEdit && existingVotes.length > 0 && (poll.type !== 'organization' || isOrgEditMode)) {
+    const isSimpleModePoll = (poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple';
+
+    if (isSimpleModePoll) {
+      // Atomic replacement with per-voter serialization: concurrent submissions
+      // cannot exceed maxSelections (advisory lock + in-transaction re-check).
+      try {
+        const replaceResult = await storage.replaceSimpleModeVotes({
+          pollId: poll.id,
+          lockIdentifier: data.voterEmail.toLowerCase().trim(),
+          editToken: voterEditToken || null,
+          voterEmail: data.voterEmail,
+          voteItems: data.votes.map(v => ({
+            optionId: v.optionId,
+            response: v.response,
+            comment: v.comment ?? null,
+            freeTextAnswer: (v as any).freeTextAnswer || null,
+          })),
+          maxSelections: Math.max(1, poll.maxSelections ?? 1),
+          newVoteTemplate: {
+            voterName: data.voterName,
+            voterEmail: data.voterEmail,
+            userId: userId,
+            isTestData: isTestMode,
+          },
+        });
+        createdVotes.push(...replaceResult.votes);
+        voterEditToken = replaceResult.editToken;
+      } catch (err: any) {
+        if (err?.message === 'TOO_MANY_SELECTIONS') {
+          return res.status(400).json({
+            error: `Es dürfen höchstens ${Math.max(1, poll.maxSelections ?? 1)} Optionen ausgewählt werden.`,
+            errorCode: 'TOO_MANY_SELECTIONS',
+          });
+        }
+        throw err;
+      }
+    } else {
+    if (existingVotes.length > 0 && (poll.allowVoteEdit || poll.type === 'organization')) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {
@@ -94,7 +394,10 @@ router.post('/polls/:token/vote', async (req, res) => {
 
       if (existingVote) {
         if (poll.allowVoteEdit || poll.type === 'organization') {
-          const updated = await storage.updateVote(existingVote.id, voteData.response);
+          const updated = await storage.updateVote(existingVote.id, voteData.response, {
+            comment: voteData.comment,
+            freeTextAnswer: (voteData as any).freeTextAnswer || null,
+          });
           createdVotes.push(updated);
         }
       } else {
@@ -113,6 +416,7 @@ router.post('/polls/:token/vote', async (req, res) => {
         createdVotes.push(result.vote);
         voterEditToken = result.editToken;
       }
+    }
     }
 
     // For organization polls: Broadcast slot update via WebSocket
@@ -134,8 +438,12 @@ router.post('/polls/:token/vote', async (req, res) => {
       }
     }
 
-    // Send confirmation email (with anti-spam check)
-    if (!isTestMode && data.voterEmail && createdVotes.length > 0) {
+    let confirmationEmailStatus: 'sent' | 'failed' | 'unavailable' | 'skipped' | 'cooldown' =
+      isTestMode ? 'skipped' : 'unavailable';
+    // Wait for SMTP acceptance; a saved vote must not be reported as an email success
+    // when SMTP is missing, fails, or the cooldown suppresses this message.
+    if (!isTestMode && emailService.smtpConfigured && data.voterEmail && createdVotes.length > 0) {
+      confirmationEmailStatus = 'cooldown';
       const now = Date.now();
       const emailKey = `${poll.id}:${data.voterEmail.toLowerCase()}`;
       const lastSent = recentEmailSends.get(emailKey);
@@ -144,21 +452,34 @@ router.post('/polls/:token/vote', async (req, res) => {
         const { getBaseUrl } = await import('../utils/baseUrl');
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
-        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+        const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
+        const editLink =
+          (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && voterEditToken
+            ? `${baseUrl}/edit/${voterEditToken}`
+            : undefined;
+
+        // Summarize saved answers, including explicit Maybe and No responses.
+        const selectedOptions = getVoteEmailSummary(poll, createdVotes);
         
-        emailService.sendVotingConfirmationEmail(
+        recentEmailSends.set(emailKey, now);
+        await emailService.sendVotingConfirmationEmail(
           data.voterEmail,
           data.voterName,
           poll.title,
-          poll.type as 'schedule' | 'survey',
+          poll.type as 'schedule' | 'survey' | 'organization',
           publicLink,
-          resultsLink
-        ).catch(err => {
+          resultsLink,
+          selectedOptions,
+          editLink,
+          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
+        ).then(() => {
+          confirmationEmailStatus = 'sent';
+        }).catch(err => {
+          confirmationEmailStatus = 'failed';
+          recentEmailSends.delete(emailKey);
           console.error('Error sending voting confirmation email:', err);
         });
-        
-        recentEmailSends.set(emailKey, now);
-        
+
         // Clean up old entries
         const entriesToDelete: string[] = [];
         recentEmailSends.forEach((timestamp, key) => {
@@ -169,11 +490,54 @@ router.post('/polls/:token/vote', async (req, res) => {
         entriesToDelete.forEach(key => recentEmailSends.delete(key));
       }
     }
+
+    // Notify the poll creator about a new vote (with anti-spam check).
+    // Only fires on a genuinely new vote (not edits/withdrawals) and never when
+    // the creator votes on their own poll.
+    if (
+      !isTestMode &&
+      poll.notifyCreatorOnVote &&
+      poll.creatorEmail &&
+      createdVotes.length > 0 &&
+      existingVotes.length === 0 &&
+      poll.creatorEmail.toLowerCase() !== data.voterEmail.toLowerCase()
+    ) {
+      const now = Date.now();
+      const creatorKey = `creator:${poll.id}:${data.voterEmail.toLowerCase()}`;
+      const lastSent = recentEmailSends.get(creatorKey);
+
+      if (!lastSent || (now - lastSent) > EMAIL_COOLDOWN) {
+        // Mark the cooldown before any await so concurrent first-time votes
+        // cannot both pass the check and trigger duplicate creator emails.
+        recentEmailSends.set(creatorKey, now);
+
+        const { getBaseUrl } = await import('../utils/baseUrl');
+        const baseUrl = getBaseUrl();
+        const adminLink = `${baseUrl}/admin/${poll.adminToken}`;
+        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+
+        emailService.sendNewVoteNotificationEmail(
+          poll.creatorEmail,
+          data.voterName,
+          poll.title,
+          poll.type as 'schedule' | 'survey' | 'organization',
+          adminLink,
+          resultsLink
+        ).catch(err => {
+          console.error('Error sending new vote notification email:', err);
+        });
+      }
+    }
     
-    res.json({ 
-      success: true, 
-      votes: createdVotes,
-      voterEditToken: poll.allowVoteEdit ? voterEditToken : null
+    const isAuthenticatedVoter = currentUserId != null && userId === currentUserId;
+    const canManageVote = poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization';
+    res.json({
+      success: true,
+      // Guest management credentials are delivered only to the submitted email.
+      votes: isAuthenticatedVoter ? createdVotes : createdVotes.map(publicVote),
+      ...(isAuthenticatedVoter ? { voterEditToken: canManageVote ? voterEditToken : null } : {}),
+      managementLinkByEmail: !isAuthenticatedVoter && canManageVote,
+      confirmationEmailStatus,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -183,6 +547,9 @@ router.post('/polls/:token/vote', async (req, res) => {
         error: 'Invalid vote data',
         details: error.errors,
       });
+    }
+    if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
+      return res.status(403).json(voteAuthorizationError);
     }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
@@ -197,7 +564,7 @@ router.post('/polls/:token/vote', async (req, res) => {
 
 // Bulk vote endpoint (alias for backward compatibility)
 // Uses the same logic as /vote - just a different path
-router.post('/polls/:token/vote-bulk', async (req, res) => {
+router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -218,12 +585,50 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
       });
     }
 
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
     const data = bulkVoteSchema.parse(req.body);
-    
+    const optionValidation = validateVoteOptionIds(poll, data.votes);
+    if (optionValidation) {
+      return res.status(optionValidation.status).json(optionValidation.body);
+    }
+    const responseValidation = validateVoteResponses(poll, data.votes);
+    if (responseValidation) {
+      return res.status(responseValidation.status).json(responseValidation.body);
+    }
+
+    // Validate freeTextAnswer and comment length (max 500 chars each)
+    for (const voteData of data.votes) {
+      const fta = (voteData as any).freeTextAnswer;
+      if (fta && typeof fta === 'string' && fta.length > 500) {
+        return res.status(400).json({
+          error: 'Freitextantwort darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'FREE_TEXT_TOO_LONG',
+        });
+      }
+      const comment = voteData.comment;
+      if (comment && typeof comment === 'string' && comment.length > 500) {
+        return res.status(400).json({
+          error: 'Kommentar darf nicht länger als 500 Zeichen sein.',
+          errorCode: 'COMMENT_TOO_LONG',
+        });
+      }
+    }
+
     const currentUserId = await extractUserId(req);
+    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
+    // Check every affected vote before deleting, replacing or returning its token.
+    assertVoteOwnership(existingVotes, currentUserId, data.voterEditToken);
     let userId: number | null = null;
-    
-    if (currentUserId) {
+
+    if (existingVotes.length > 0) {
+      // A valid private token can also authorize a guest editing an account vote.
+      // Preserve the original identity when adding replacement options.
+      userId = existingVotes[0].userId;
+    } else if (currentUserId) {
       const currentUser = await storage.getUser(currentUserId);
       if (currentUser) {
         if (currentUser.email.toLowerCase() === data.voterEmail.toLowerCase()) {
@@ -250,7 +655,6 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
 
     const isTestMode = req.isTestMode === true;
 
-    const existingVotes = await storage.getVotesByEmail(poll.id, data.voterEmail);
     if (existingVotes.length > 0 && !poll.allowVoteEdit && poll.type !== 'organization') {
       return res.status(400).json({
         error: 'Sie haben bereits abgestimmt. Diese Umfrage erlaubt keine Bearbeitung.',
@@ -261,9 +665,44 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
     const createdVotes = [];
     let voterEditToken = existingVotes[0]?.voterEditToken;
 
-    const isOrgEditMode = poll.type === 'organization' && existingVotes.length > 0 && 
-      data.votes.some(v => existingVotes.some(ev => ev.optionId === v.optionId));
-    if (poll.allowVoteEdit && existingVotes.length > 0 && (poll.type !== 'organization' || isOrgEditMode)) {
+    const isSimpleModePoll = (poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple';
+
+    if (isSimpleModePoll) {
+      // Atomic replacement with per-voter serialization: concurrent submissions
+      // cannot exceed maxSelections (advisory lock + in-transaction re-check).
+      try {
+        const replaceResult = await storage.replaceSimpleModeVotes({
+          pollId: poll.id,
+          lockIdentifier: data.voterEmail.toLowerCase().trim(),
+          editToken: voterEditToken || null,
+          voterEmail: data.voterEmail,
+          voteItems: data.votes.map(v => ({
+            optionId: v.optionId,
+            response: v.response,
+            comment: v.comment ?? null,
+            freeTextAnswer: (v as any).freeTextAnswer || null,
+          })),
+          maxSelections: Math.max(1, poll.maxSelections ?? 1),
+          newVoteTemplate: {
+            voterName: data.voterName,
+            voterEmail: data.voterEmail,
+            userId: userId,
+            isTestData: isTestMode,
+          },
+        });
+        createdVotes.push(...replaceResult.votes);
+        voterEditToken = replaceResult.editToken;
+      } catch (err: any) {
+        if (err?.message === 'TOO_MANY_SELECTIONS') {
+          return res.status(400).json({
+            error: `Es dürfen höchstens ${Math.max(1, poll.maxSelections ?? 1)} Optionen ausgewählt werden.`,
+            errorCode: 'TOO_MANY_SELECTIONS',
+          });
+        }
+        throw err;
+      }
+    } else {
+    if (existingVotes.length > 0 && (poll.allowVoteEdit || poll.type === 'organization')) {
       const newOptionIds = new Set(data.votes.map(v => v.optionId));
       for (const existingVote of existingVotes) {
         if (!newOptionIds.has(existingVote.optionId)) {
@@ -277,7 +716,10 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
 
       if (existingVote) {
         if (poll.allowVoteEdit || poll.type === 'organization') {
-          const updated = await storage.updateVote(existingVote.id, voteData.response);
+          const updated = await storage.updateVote(existingVote.id, voteData.response, {
+            comment: voteData.comment,
+            freeTextAnswer: (voteData as any).freeTextAnswer || null,
+          });
           createdVotes.push(updated);
         }
       } else {
@@ -296,6 +738,7 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
         createdVotes.push(result.vote);
         voterEditToken = result.editToken;
       }
+    }
     }
 
     // For organization polls: Broadcast slot update via WebSocket
@@ -317,8 +760,12 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
       }
     }
 
-    // Send confirmation email (with anti-spam check)
-    if (!isTestMode && data.voterEmail && createdVotes.length > 0) {
+    let confirmationEmailStatus: 'sent' | 'failed' | 'unavailable' | 'skipped' | 'cooldown' =
+      isTestMode ? 'skipped' : 'unavailable';
+    // Wait for SMTP acceptance; a saved vote must not be reported as an email success
+    // when SMTP is missing, fails, or the cooldown suppresses this message.
+    if (!isTestMode && emailService.smtpConfigured && data.voterEmail && createdVotes.length > 0) {
+      confirmationEmailStatus = 'cooldown';
       const now = Date.now();
       const emailKey = `${poll.id}:${data.voterEmail.toLowerCase()}`;
       const lastSent = recentEmailSends.get(emailKey);
@@ -327,21 +774,32 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
         const { getBaseUrl } = await import('../utils/baseUrl');
         const baseUrl = getBaseUrl();
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
-        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+        const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
+
+        // Summarize saved answers, including explicit Maybe and No responses.
+        const selectedOptions = getVoteEmailSummary(poll, createdVotes);
         
-        emailService.sendVotingConfirmationEmail(
+        recentEmailSends.set(emailKey, now);
+        await emailService.sendVotingConfirmationEmail(
           data.voterEmail,
           data.voterName,
           poll.title,
-          poll.type as 'schedule' | 'survey',
+          poll.type as 'schedule' | 'survey' | 'organization',
           publicLink,
-          resultsLink
-        ).catch(err => {
+          resultsLink,
+          selectedOptions,
+          (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && voterEditToken
+            ? `${baseUrl}/edit/${voterEditToken}`
+            : undefined,
+          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
+        ).then(() => {
+          confirmationEmailStatus = 'sent';
+        }).catch(err => {
+          confirmationEmailStatus = 'failed';
+          recentEmailSends.delete(emailKey);
           console.error('Error sending voting confirmation email:', err);
         });
-        
-        recentEmailSends.set(emailKey, now);
-        
+
         // Clean up old entries
         const entriesToDelete: string[] = [];
         recentEmailSends.forEach((timestamp, key) => {
@@ -352,11 +810,54 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
         entriesToDelete.forEach(key => recentEmailSends.delete(key));
       }
     }
+
+    // Notify the poll creator about a new vote (with anti-spam check).
+    // Only fires on a genuinely new vote (not edits/withdrawals) and never when
+    // the creator votes on their own poll.
+    if (
+      !isTestMode &&
+      poll.notifyCreatorOnVote &&
+      poll.creatorEmail &&
+      createdVotes.length > 0 &&
+      existingVotes.length === 0 &&
+      poll.creatorEmail.toLowerCase() !== data.voterEmail.toLowerCase()
+    ) {
+      const now = Date.now();
+      const creatorKey = `creator:${poll.id}:${data.voterEmail.toLowerCase()}`;
+      const lastSent = recentEmailSends.get(creatorKey);
+
+      if (!lastSent || (now - lastSent) > EMAIL_COOLDOWN) {
+        // Mark the cooldown before any await so concurrent first-time votes
+        // cannot both pass the check and trigger duplicate creator emails.
+        recentEmailSends.set(creatorKey, now);
+
+        const { getBaseUrl } = await import('../utils/baseUrl');
+        const baseUrl = getBaseUrl();
+        const adminLink = `${baseUrl}/admin/${poll.adminToken}`;
+        const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+
+        emailService.sendNewVoteNotificationEmail(
+          poll.creatorEmail,
+          data.voterName,
+          poll.title,
+          poll.type as 'schedule' | 'survey' | 'organization',
+          adminLink,
+          resultsLink
+        ).catch(err => {
+          console.error('Error sending new vote notification email:', err);
+        });
+      }
+    }
     
-    res.json({ 
-      success: true, 
-      votes: createdVotes,
-      voterEditToken: poll.allowVoteEdit ? voterEditToken : null
+    const isAuthenticatedVoter = currentUserId != null && userId === currentUserId;
+    const canManageVote = poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization';
+    res.json({
+      success: true,
+      // Guest management credentials are delivered only to the submitted email.
+      votes: isAuthenticatedVoter ? createdVotes : createdVotes.map(publicVote),
+      ...(isAuthenticatedVoter ? { voterEditToken: canManageVote ? voterEditToken : null } : {}),
+      managementLinkByEmail: !isAuthenticatedVoter && canManageVote,
+      confirmationEmailStatus,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -366,6 +867,9 @@ router.post('/polls/:token/vote-bulk', async (req, res) => {
         error: 'Invalid vote data',
         details: error.errors,
       });
+    }
+    if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
+      return res.status(403).json(voteAuthorizationError);
     }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
@@ -400,32 +904,33 @@ router.delete('/polls/:token/vote', async (req, res) => {
       });
     }
 
-    const { voterEmail, voterEditToken } = req.body;
+    if (poll.expiresAt && new Date(poll.expiresAt) <= new Date()) {
+      return res.status(400).json({
+        error: 'Diese Umfrage ist abgelaufen.',
+        errorCode: 'POLL_EXPIRED',
+      });
+    }
+
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
+    const { voterEditToken } = req.body ?? {};
     const currentUserId = await extractUserId(req);
-    
-    let votesToDelete: any[] = [];
-    
-    if (currentUserId) {
-      const user = await storage.getUser(currentUserId);
-      if (user) {
-        const votesByEmail = await storage.getVotesByEmail(poll.id, user.email);
-        votesToDelete = votesByEmail;
-        console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes for user ${user.email} in poll ${poll.id}`);
-      }
+    if (voterEditToken !== undefined && (typeof voterEditToken !== 'string' || !voterEditToken || voterEditToken.length > 256)) {
+      return res.status(400).json({ error: 'Invalid vote edit token' });
     }
-    
-    if (votesToDelete.length === 0 && voterEditToken) {
-      const votesByToken = await storage.getVotesByEditToken(voterEditToken);
-      votesToDelete = votesByToken.filter(v => v.pollId === poll.id);
-      console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes by edit token in poll ${poll.id}`);
+    if (!currentUserId && !voterEditToken) {
+      return res.status(403).json(voteAuthorizationError);
     }
-    
-    if (votesToDelete.length === 0 && voterEmail && !currentUserId) {
-      const votesByEmail = await storage.getVotesByEmail(poll.id, voterEmail);
-      votesToDelete = votesByEmail;
-      console.log(`[Vote Withdrawal] Found ${votesToDelete.length} votes by email ${voterEmail} in poll ${poll.id}`);
-    }
-    
+
+    // Explicit token targets that voter; otherwise use the authenticated user ID.
+    // This works equally for local and IDM sessions, even after an email change.
+    const votesToDelete = voterEditToken
+      ? (await storage.getVotesByEditToken(voterEditToken)).filter(v => v.pollId === poll.id)
+      : await storage.getVotesByUserId(poll.id, currentUserId!);
+
     if (votesToDelete.length === 0) {
       return res.status(404).json({ 
         error: 'Keine Stimmen gefunden, die zurückgezogen werden können.',
@@ -438,6 +943,7 @@ router.delete('/polls/:token/vote', async (req, res) => {
     }
     
     console.log(`[Vote] Withdrew ${votesToDelete.length} votes from poll ${poll.id}`);
+    await notifyWithdrawal(poll, votesToDelete, req.isTestMode === true);
     
     // For organization polls: Broadcast slot update via WebSocket after withdrawal
     if (poll.type === 'organization') {
@@ -487,9 +993,15 @@ router.get('/votes/edit/:editToken', async (req, res) => {
     // SECURITY: Only return poll metadata and options, NOT other voters' data
     const securePoll = {
       id: fullPoll.id,
+      publicToken: fullPoll.publicToken,
       title: fullPoll.title,
       description: fullPoll.description,
       type: fullPoll.type,
+      responseMode: fullPoll.responseMode,
+      maxSelections: fullPoll.maxSelections,
+      allowMaybe: fullPoll.allowMaybe,
+      // Organization booking changes remain editable under the existing policy.
+      allowVoteEdit: fullPoll.allowVoteEdit || fullPoll.type === 'organization',
       isActive: fullPoll.isActive,
       expiresAt: fullPoll.expiresAt,
       createdAt: fullPoll.createdAt,
@@ -520,29 +1032,134 @@ router.get('/votes/edit/:editToken', async (req, res) => {
 // Update voter's votes by edit token
 router.put('/votes/edit/:editToken', async (req, res) => {
   try {
-    const editToken = req.params.editToken;
-    const { votes: updatedVotes } = req.body;
-
-    if (!updatedVotes || !Array.isArray(updatedVotes)) {
-      return res.status(400).json({ error: 'Invalid votes data' });
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
     }
+
+    const editToken = req.params.editToken;
+    const { votes: updatedVotes } = editVotesUpdateSchema.parse(req.body);
 
     const existingVotes = await storage.getVotesByEditToken(editToken);
     if (existingVotes.length === 0) {
       return res.status(404).json({ error: 'No votes found for this edit token' });
     }
 
-    const updatedResults = [];
-    for (const updatedVote of updatedVotes) {
-      const existingVote = existingVotes.find((v: any) => v.optionId === updatedVote.optionId);
-      if (existingVote) {
-        const updated = await storage.updateVote(existingVote.id, updatedVote.response);
-        updatedResults.push(updated);
+    const pollId = existingVotes[0].pollId;
+    const poll = await storage.getPoll(pollId);
+    if (!poll) {
+      return res.status(404).json({ error: 'Poll not found' });
+    }
+
+    if (!poll.allowVoteEdit && poll.type !== 'organization') {
+      return res.status(403).json({
+        error: 'Vote editing is not allowed for this poll.',
+        errorCode: 'VOTE_EDIT_NOT_ALLOWED',
+      });
+    }
+
+    if (!poll.isActive) {
+      return res.status(400).json({
+        error: 'This poll is no longer active.',
+        errorCode: 'POLL_INACTIVE',
+      });
+    }
+
+    if (poll.expiresAt && new Date(poll.expiresAt) < new Date()) {
+      return res.status(400).json({
+        error: 'This poll has expired.',
+        errorCode: 'POLL_EXPIRED',
+      });
+    }
+
+    const optionValidation = validateVoteOptionIds(poll, updatedVotes);
+    if (optionValidation) {
+      return res.status(optionValidation.status).json(optionValidation.body);
+    }
+    const responseValidation = validateVoteResponses(poll, updatedVotes);
+    if (responseValidation) {
+      return res.status(responseValidation.status).json(responseValidation.body);
+    }
+
+    const isSimpleMode = (poll.type === 'survey' || poll.type === 'schedule') && poll.responseMode === 'simple';
+
+    let updatedResults = [];
+    if (isSimpleMode) {
+      // Simple choice mode: the submitted list is the full replacement selection.
+      // Atomic per-voter replacement (advisory lock) so concurrent edits cannot
+      // exceed maxSelections.
+      const template = existingVotes[0];
+      try {
+        const replaceResult = await storage.replaceSimpleModeVotes({
+          pollId: poll.id,
+          lockIdentifier: editToken,
+          editToken,
+          voteItems: updatedVotes.map((v) => ({ optionId: v.optionId, response: v.response })),
+          maxSelections: Math.max(1, poll.maxSelections ?? 1),
+          newVoteTemplate: {
+            voterName: template.voterName,
+            voterEmail: template.voterEmail,
+            userId: template.userId ?? null,
+            isTestData: template.isTestData ?? false,
+          },
+        });
+        updatedResults = replaceResult.votes;
+      } catch (err: any) {
+        if (err?.message === 'TOO_MANY_SELECTIONS') {
+          return res.status(400).json({
+            error: `Es dürfen höchstens ${Math.max(1, poll.maxSelections ?? 1)} Optionen ausgewählt werden.`,
+            errorCode: 'TOO_MANY_SELECTIONS',
+          });
+        }
+        throw err;
       }
+    } else {
+      for (const updatedVote of updatedVotes) {
+        const existingVote = existingVotes.find((v: any) => v.optionId === updatedVote.optionId);
+        if (existingVote) {
+          const updated = await storage.updateVote(existingVote.id, updatedVote.response);
+          updatedResults.push(updated);
+        }
+      }
+    }
+
+    const voterEmail = existingVotes[0]?.voterEmail;
+    const voterName = existingVotes[0]?.voterName;
+    if (voterEmail && voterName && updatedResults.length > 0) {
+      const { getBaseUrl } = await import('../utils/baseUrl');
+      const baseUrl = getBaseUrl();
+      const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
+      const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
+      const editLink = `${baseUrl}/edit/${editToken}`;
+      // Classic edits can update only a subset; include unchanged saved answers too.
+      const savedAnswers = isSimpleMode ? updatedResults : existingVotes.map(vote =>
+        updatedResults.find(updated => updated.id === vote.id) ?? vote
+      );
+      const selectedOptions = getVoteEmailSummary(poll, savedAnswers);
+
+      emailService.sendVoteUpdatedEmail(
+        voterEmail,
+        voterName,
+        poll.title,
+        poll.type as 'schedule' | 'survey' | 'organization',
+        publicLink,
+        resultsLink,
+        selectedOptions,
+        editLink
+      ).catch(err => {
+        console.error('Error sending updated voting confirmation email:', err);
+      });
     }
 
     res.json({ success: true, votes: updatedResults });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Invalid votes data',
+        errorCode: 'INVALID_VOTE_PAYLOAD',
+        details: error.errors,
+      });
+    }
     console.error('Error updating voter votes:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -551,6 +1168,11 @@ router.put('/votes/edit/:editToken', async (req, res) => {
 // Withdraw votes via edit token
 router.delete('/votes/edit/:editToken', async (req, res) => {
   try {
+    const guestBlock = await checkGuestVotingAllowed(req);
+    if (guestBlock) {
+      return res.status(403).json(guestBlock);
+    }
+
     const editToken = req.params.editToken;
     const votes = await storage.getVotesByEditToken(editToken);
 
@@ -579,11 +1201,19 @@ router.delete('/votes/edit/:editToken', async (req, res) => {
       });
     }
 
+    if (poll.expiresAt && new Date(poll.expiresAt) <= new Date()) {
+      return res.status(400).json({
+        error: 'Diese Umfrage ist abgelaufen.',
+        errorCode: 'POLL_EXPIRED',
+      });
+    }
+
     for (const vote of votes) {
       await storage.deleteVote(vote.id);
     }
 
     console.log(`[Vote] Withdrew ${votes.length} votes via edit token from poll ${poll.id}`);
+    await notifyWithdrawal(poll, votes, req.isTestMode === true);
 
     if (poll.type === 'organization') {
       const freshPoll = await storage.getPollByPublicToken(poll.publicToken);
@@ -615,7 +1245,7 @@ router.delete('/votes/edit/:editToken', async (req, res) => {
 });
 
 // Resend voting confirmation email for vote editing
-router.post('/polls/:token/resend-email', async (req, res) => {
+router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -637,16 +1267,26 @@ router.post('/polls/:token/resend-email', async (req, res) => {
     const { getBaseUrl } = await import('../utils/baseUrl');
     const baseUrl = getBaseUrl();
     const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
-    const resultsLink = `${baseUrl}/poll/${poll.publicToken}#results`;
+    const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
+    const editLink =
+      (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && existingVotes[0].voterEditToken
+        ? `${baseUrl}/edit/${existingVotes[0].voterEditToken}`
+        : undefined;
 
+    if (!emailService.smtpConfigured) {
+      return res.status(503).json({ success: false, error: 'Email delivery is unavailable' });
+    }
     try {
       await emailService.sendVotingConfirmationEmail(
         email,
         voterName,
         poll.title,
-        poll.type as 'schedule' | 'survey',
+        poll.type as 'schedule' | 'survey' | 'organization',
         publicLink,
-        resultsLink
+        resultsLink,
+        undefined,
+        editLink,
+        !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
       );
       res.json({ success: true, message: 'Email sent successfully' });
     } catch (emailError: any) {
@@ -670,15 +1310,11 @@ router.post('/polls/:token/resend-email', async (req, res) => {
 });
 
 // Look up existing votes by email for a poll (used by org polls to merge bookings)
-router.post('/polls/:token/votes-by-email', async (req, res) => {
+router.post('/polls/:token/votes-by-email', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
       return res.status(404).json({ error: 'Poll not found' });
-    }
-
-    if (poll.type !== 'organization') {
-      return res.status(400).json({ error: 'This endpoint is only available for organization polls' });
     }
 
     const { email } = req.body;
@@ -705,7 +1341,7 @@ router.post('/polls/:token/votes-by-email', async (req, res) => {
 });
 
 // Check if current user/device has already voted on a poll
-router.get('/polls/:token/my-votes', async (req, res) => {
+router.get('/polls/:token/my-votes', apiGeneralRateLimiter, async (req, res) => {
   try {
     const poll = await storage.getPollByPublicToken(req.params.token);
     if (!poll) {
@@ -715,7 +1351,7 @@ router.get('/polls/:token/my-votes', async (req, res) => {
     // Calculate voterKey from session or device token
     const deviceToken = req.cookies?.deviceToken;
     const userAgent = req.headers['user-agent'] || 'unknown';
-    const sessionUserId = req.session?.userId || null;
+    const sessionUserId = await extractUserId(req);
     const { voterKey, voterSource, newDeviceToken } = deviceTokenService.getVoterKey(
       sessionUserId,
       deviceToken,
@@ -752,7 +1388,7 @@ router.get('/polls/:token/my-votes', async (req, res) => {
         voterName: v.voterName,
         voterEmail: v.voterEmail,
         comment: v.comment,
-        voterEditToken: v.voterEditToken
+        ...(sessionUserId != null && v.userId === sessionUserId ? { voterEditToken: v.voterEditToken } : {}),
       })),
       allowVoteEdit: poll.allowVoteEdit,
       allowVoteWithdrawal: poll.allowVoteWithdrawal,

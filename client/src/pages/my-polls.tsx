@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PollTypeBadge } from '@/components/ui/PollTypeBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Users, Calendar, BarChart3, Plus, ExternalLink, Clock, CheckCircle, Shield, ListChecks, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2 } from 'lucide-react';
+import { ClipboardList, Users, Calendar, BarChart3, Plus, Clock, CheckCircle, Copy, Check, RefreshCw, Info, ChevronDown, Activity, TrendingUp, Archive, Share2, Edit, Trash2, House, ListChecks } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -34,28 +34,24 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import type { PollWithOptions, User, SystemSetting } from '@shared/schema';
+import type { PollWithOptions } from '@shared/schema';
 import { format } from 'date-fns';
 import { getDateLocale } from '@/lib/i18n';
-import { AdminDashboard } from '@/components/admin';
 
-interface ExtendedStats {
-  totalUsers: number;
-  activePolls: number;
-  inactivePolls: number;
-  totalPolls: number;
-  totalVotes: number;
-  monthlyPolls: number;
-  weeklyPolls: number;
-  todayPolls: number;
-  schedulePolls: number;
-  surveyPolls: number;
-  recentActivity: Array<{
-    type: string;
-    message: string;
-    timestamp: string;
-    actor?: string;
-  }>;
+function hasFutureScheduleOption(poll: PollWithOptions): boolean {
+  if (poll.type !== 'schedule') return true;
+  const now = new Date();
+  return (poll.options || []).some((opt) => {
+    if (opt.endTime) {
+      const end = new Date(opt.endTime);
+      return !isNaN(end.getTime()) && end > now;
+    }
+    if (opt.startTime) {
+      const start = new Date(opt.startTime);
+      return !isNaN(start.getTime()) && start > now;
+    }
+    return false;
+  });
 }
 
 function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; showAdminLink?: boolean }) {
@@ -63,8 +59,15 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date());
-  const voteCount = poll.votes?.length || 0;
+  const isActive = poll.isActive && (!poll.expiresAt || new Date(poll.expiresAt) > new Date()) && hasFutureScheduleOption(poll);
+  const canEditPoll = showAdminLink && isActive;
+  const participantCount = new Set(
+    (poll.votes || []).map((vote) => {
+      if (vote.voterKey?.trim()) return `key:${vote.voterKey.trim()}`;
+      if (vote.userId != null) return `user:${vote.userId}`;
+      return `email:${vote.voterEmail.trim().toLowerCase()}`;
+    })
+  ).size;
   const optionCount = poll.options?.length || 0;
 
   const deleteMutation = useMutation({
@@ -110,8 +113,8 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
       data-testid={`poll-card-${poll.id}`}
     >
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 basis-32">
             <CardTitle className="text-lg line-clamp-1">{poll.title}</CardTitle>
             {poll.description && (
               <CardDescription className="line-clamp-2 mt-1">
@@ -119,7 +122,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
               </CardDescription>
             )}
           </div>
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} variant="solid" />
             <Badge className={isActive ? 'polly-badge-active' : 'polly-badge-inactive'}>
               {isActive ? (
@@ -132,18 +135,18 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center">
-              <Users className="h-4 w-4 mr-1" />
-              {voteCount} {voteCount !== 1 ? t('myPolls.votes') : t('myPolls.vote')}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="flex items-center whitespace-nowrap">
+              <Users className="h-4 w-4 shrink-0 mr-1" />
+              {participantCount} {participantCount !== 1 ? t('myPolls.participants') : t('myPolls.participant')}
             </span>
-            <span className="flex items-center">
-              <BarChart3 className="h-4 w-4 mr-1" />
+            <span className="flex items-center whitespace-nowrap">
+              <ListChecks className="h-4 w-4 shrink-0 mr-1" />
               {optionCount} {optionCount !== 1 ? t('myPolls.options') : t('myPolls.option')}
             </span>
           </div>
-          <span>
+          <span className="whitespace-nowrap">
             {poll.createdAt && format(new Date(poll.createdAt), 'dd. MMM yyyy', { locale: getDateLocale() })}
           </span>
         </div>
@@ -159,7 +162,7 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/poll/${poll.publicToken}`); }}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/poll/${poll.publicToken}#results`); }}
                   data-testid={`poll-action-stats-${poll.id}`}
                 >
                   <BarChart3 className="h-4 w-4" />
@@ -189,13 +192,21 @@ function PollCard({ poll, showAdminLink = false }: { poll: PollWithOptions; show
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/${poll.adminToken}`); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canEditPoll) {
+                          navigate(`/admin/${poll.adminToken}`);
+                        }
+                      }}
+                      disabled={!canEditPoll}
                       data-testid={`poll-action-edit-${poll.id}`}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{t('common.edit')}</TooltipContent>
+                  <TooltipContent>
+                    {canEditPoll ? t('common.edit') : t('myPolls.editDisabledClosed')}
+                  </TooltipContent>
                 </Tooltip>
 
                 <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -457,8 +468,6 @@ export default function MyPolls() {
   const { user, isAuthenticated, isLoading: authLoading, isAuthReady } = useAuth();
   const [, navigate] = useLocation();
 
-  const isAdmin = user?.role === 'admin';
-
   // SECURITY: Only enable queries when auth is verified and ready
   // This prevents showing cached data from a previous user session
   const queriesEnabled = isAuthenticated && isAuthReady;
@@ -473,34 +482,6 @@ export default function MyPolls() {
   const { data: participatedPolls, isLoading: participatedLoading } = useQuery<PollWithOptions[]>({
     queryKey: ['/api/v1/user/participations'],
     enabled: queriesEnabled,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminStats } = useQuery<ExtendedStats>({
-    queryKey: ['/api/v1/admin/extended-stats'],
-    enabled: queriesEnabled && isAdmin,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminUsers } = useQuery<User[]>({
-    queryKey: ['/api/v1/admin/users'],
-    enabled: queriesEnabled && isAdmin,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminPolls } = useQuery<PollWithOptions[]>({
-    queryKey: ['/api/v1/admin/polls'],
-    enabled: queriesEnabled && isAdmin,
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const { data: adminSettings } = useQuery<SystemSetting[]>({
-    queryKey: ['/api/v1/admin/settings'],
-    enabled: queriesEnabled && isAdmin,
     staleTime: 0,
     gcTime: 0,
   });
@@ -530,29 +511,21 @@ export default function MyPolls() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/create-poll')} className="polly-button-schedule" data-testid="button-new-poll">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('myPolls.newSchedule')}
-          </Button>
-          <Button onClick={() => navigate('/create-survey')} className="polly-button-survey" data-testid="button-new-survey">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('myPolls.newSurvey')}
-          </Button>
-          <Button onClick={() => navigate('/create-organization')} className="polly-button-organization" data-testid="button-new-orga">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('myPolls.newOrga')}
+          <Button onClick={() => navigate('/')} variant="outline" data-testid="button-home">
+            <House className="h-4 w-4 mr-2" />
+            {t('myPolls.backToHome')}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="polly-gradient-orange text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-orange-100 text-sm">{t('myPolls.statsActivePolls')}</p>
                 <p className="text-2xl font-bold">
-                  {createdLoading ? '–' : (createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date())).length || 0)}
+                  {createdLoading ? '–' : (createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date()) && hasFutureScheduleOption(p)).length || 0)}
                 </p>
               </div>
               <Activity className="w-8 h-8 text-orange-200" />
@@ -570,20 +543,6 @@ export default function MyPolls() {
                 </p>
               </div>
               <BarChart3 className="w-8 h-8 text-blue-200" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100 text-sm">{t('myPolls.statsParticipations')}</p>
-                <p className="text-2xl font-bold">
-                  {createdLoading ? '–' : (createdPolls?.reduce((sum, p) => sum + (p.votes?.length || 0), 0) || 0)}
-                </p>
-              </div>
-              <Users className="w-8 h-8 text-green-200" />
             </div>
           </CardContent>
         </Card>
@@ -612,38 +571,32 @@ export default function MyPolls() {
       <Tabs defaultValue="created" className="w-full">
         {(() => {
           const now = new Date();
-          const activePolls = createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > now)) || [];
-          const archivedPolls = createdPolls?.filter(p => !p.isActive || (p.expiresAt && new Date(p.expiresAt) <= now)) || [];
+          const activePolls = createdPolls?.filter(p => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > now) && hasFutureScheduleOption(p)) || [];
+          const archivedPolls = createdPolls?.filter(p => !p.isActive || (p.expiresAt && new Date(p.expiresAt) <= now) || !hasFutureScheduleOption(p)) || [];
           return (
             <>
-              <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>
-                <TabsTrigger value="created" data-testid="tab-created">
-                  <ClipboardList className="h-4 w-4 mr-2" />
+              <TabsList className="flex h-auto w-full flex-wrap gap-1 mb-6">
+                <TabsTrigger value="created" className="min-w-fit flex-1" data-testid="tab-created">
+                  <ClipboardList className="h-4 w-4 shrink-0 mr-2" />
                   {t('myPolls.tabCreated')}
                   {activePolls.length > 0 && (
                     <Badge variant="secondary" className="ml-2">{activePolls.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="participated" data-testid="tab-participated">
-                  <Users className="h-4 w-4 mr-2" />
+                <TabsTrigger value="participated" className="min-w-fit flex-1" data-testid="tab-participated">
+                  <Users className="h-4 w-4 shrink-0 mr-2" />
                   {t('myPolls.tabParticipated')}
                   {participatedPolls && participatedPolls.length > 0 && (
                     <Badge variant="secondary" className="ml-2">{participatedPolls.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="archive" data-testid="tab-archive">
-                  <Archive className="h-4 w-4 mr-2" />
+                <TabsTrigger value="archive" className="min-w-fit flex-1" data-testid="tab-archive">
+                  <Archive className="h-4 w-4 shrink-0 mr-2" />
                   {t('myPolls.tabArchive')}
                   {archivedPolls.length > 0 && (
                     <Badge variant="secondary" className="ml-2">{archivedPolls.length}</Badge>
                   )}
                 </TabsTrigger>
-                {isAdmin && (
-                  <TabsTrigger value="admin" data-testid="tab-admin">
-                    <Shield className="h-4 w-4 mr-2" />
-                    {t('myPolls.tabAdmin')}
-                  </TabsTrigger>
-                )}
               </TabsList>
 
               <TabsContent value="created">
@@ -694,18 +647,6 @@ export default function MyPolls() {
                   </Card>
                 )}
               </TabsContent>
-
-              {isAdmin && (
-                <TabsContent value="admin" className="mt-0">
-                  <AdminDashboard 
-                    stats={adminStats}
-                    users={adminUsers}
-                    polls={adminPolls}
-                    settings={adminSettings}
-                    userRole="admin"
-                  />
-                </TabsContent>
-              )}
             </>
           );
         })()}

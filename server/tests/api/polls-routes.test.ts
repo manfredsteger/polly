@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
+import { emailService } from '../../services/emailService';
 
 let app: Express;
 let agent: ReturnType<typeof request.agent>;
@@ -22,6 +24,10 @@ describe('Poll CRUD Routes', () => {
     app = await createTestApp();
     agent = request.agent(app);
     await loginAsAdmin(agent);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('POST /api/v1/polls', () => {
@@ -166,7 +172,8 @@ describe('Poll CRUD Routes', () => {
           voterEmail: 'test-voter-routes@example.com',
         });
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('voterEditToken');
+      expect(res.body).not.toHaveProperty('voterEditToken');
+      expect(res.body.votes.every((vote: any) => !('voterEditToken' in vote))).toBe(true);
     });
 
     it('should get votes by edit token', async () => {
@@ -182,7 +189,7 @@ describe('Poll CRUD Routes', () => {
         });
 
       expect(voteRes.status).toBe(200);
-      const editToken = voteRes.body.voterEditToken;
+      const editToken = await getSubmittedVoteToken(voteRes);
       expect(editToken).toBeTruthy();
 
       const getRes = await request(app).get(`/api/v1/votes/edit/${editToken}`);
@@ -196,6 +203,48 @@ describe('Poll CRUD Routes', () => {
     it('should return 404 for invalid edit token', async () => {
       const res = await request(app).get('/api/v1/votes/edit/invalid_edit_token_xyz');
       expect(res.status).toBe(404);
+    });
+
+    it('should send a confirmation email after editing votes via edit token', async () => {
+      const settingsRes = await agent.patch(`/api/v1/polls/admin/${adminToken}`)
+        .send({ resultsPublic: false });
+      expect(settingsRes.status).toBe(200);
+      const pollRes = await request(app).get(`/api/v1/polls/public/${publicToken}`);
+      const optionId = pollRes.body.options[0].id;
+
+      const voteRes = await request(app)
+        .post(`/api/v1/polls/${publicToken}/vote`)
+        .send({
+          votes: [{ optionId, response: 'yes' }],
+          voterName: 'Edited Vote Mailer',
+          voterEmail: 'edit-mailer-routes@example.com',
+        });
+
+      expect(voteRes.status).toBe(200);
+      const editToken = await getSubmittedVoteToken(voteRes);
+      expect(editToken).toBeTruthy();
+
+      const emailSpy = vi.spyOn(emailService, 'sendVoteUpdatedEmail').mockResolvedValue(undefined);
+
+      const updateRes = await request(app)
+        .put(`/api/v1/votes/edit/${editToken}`)
+        .send({
+          votes: [{ optionId, response: 'no' }],
+        });
+
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body.success).toBe(true);
+      expect(emailSpy).toHaveBeenCalledTimes(1);
+      expect(emailSpy).toHaveBeenCalledWith(
+        'edit-mailer-routes@example.com',
+        'Edited Vote Mailer',
+        'Updated Schedule Poll',
+        'schedule',
+        expect.stringContaining(`/poll/${publicToken}`),
+        undefined, // This fixture has private results.
+        [expect.stringContaining(' — Nein')],
+        expect.stringContaining(`/edit/${editToken}`)
+      );
     });
   });
 

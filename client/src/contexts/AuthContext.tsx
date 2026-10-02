@@ -14,8 +14,8 @@ interface AuthContextType {
   isAuthMethodsLoading: boolean;
   login: (usernameOrEmail: string, password: string) => Promise<SafeUser>;
   register: (username: string, email: string, name: string, password: string) => Promise<SafeUser>;
-  logout: () => Promise<void>;
-  authMethods: { local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string; showLoginForm?: boolean };
+  logout: () => Promise<{ success?: boolean; keycloakLogoutUrl?: string } | void>;
+  authMethods: { local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string; showLoginForm?: boolean; autoRedirectSso?: boolean };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
 
-  const { data: methods, isLoading: isAuthMethodsLoading } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string; showLoginForm?: boolean }>({
+  const { data: methods, isLoading: isAuthMethodsLoading } = useQuery<{ local: boolean; keycloak: boolean; registrationEnabled: boolean; ssoButtonLabel?: string; showLoginForm?: boolean; autoRedirectSso?: boolean }>({
     queryKey: ['/api/v1/auth/methods'],
     staleTime: 1000 * 60 * 5,
   });
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await logoutMutation.mutateAsync();
+    return logoutMutation.mutateAsync();
   };
 
   const value: AuthContextType = {

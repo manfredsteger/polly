@@ -66,7 +66,8 @@ polly/
 │   ├── storage.ts          # Datenbank-Interface
 │   └── tests/              # Backend-Tests
 ├── shared/                 # Geteilte TypeScript-Typen
-│   └── schema.ts           # Drizzle-Schema & Zod-Validierung
+│   ├── schema.ts           # Drizzle-Schema & Zod-Validierung
+│   └── servicePartners.ts  # GWDG/KISSKI-Partnerdaten (README + Admin synchron)
 ├── docs/                   # Dokumentation
 │   ├── openapi.yaml        # API-Spezifikation
 │   └── SELF-HOSTING.md     # Deployment-Anleitung
@@ -76,7 +77,11 @@ polly/
 
 ## Tests schreiben
 
-Polly verwendet [Vitest](https://vitest.dev/) für Backend-Tests und [Playwright](https://playwright.dev/) für E2E-Tests.
+Datenbankgestützte Tests benötigen eine separate, initialisierte Datenbank und
+`TEST_DATABASE_URL`. Die Anwendungsdatenbank darf nicht verwendet werden.
+Einrichtung und datenbankfreie Regressionstests: [TESTING.md](TESTING.md#automated-tests-and-database-isolation).
+
+Polly verwendet [Vitest](https://vitest.dev/) für Backend-Tests und [Playwright](https://playwright.dev/) für E2E-Tests. Die Test-Suite umfasst derzeit **454+ Tests** (Unit, Integration, API, Services, Security, E2E).
 
 ### Backend-Tests ausführen
 
@@ -272,11 +277,38 @@ describe('Feature/Component Name', () => {
 
 ## Pull Requests
 
+### Branch-Strategie
+
+Der aktuelle öffentliche Beta-Stand wird vom freigegebenen Beta-Branch aus erstellt:
+
+| Branch | Zweck |
+|--------|-------|
+| `main` | Upstream für stabile Releases; wird nicht als Teil eines Beta-Releases geändert. |
+| `feature/guest-access-control` | Freigegebener Branch für den aktuellen Beta-Stand und dessen Release-Tag. |
+| `feature/<name>` | Dein Feature-Branch, abgezweigt vom aktuell freigegebenen Beta-Branch. |
+
+**Workflow:**
+
+```bash
+# Aktuellen Beta-Stand holen
+git fetch origin feature/guest-access-control
+git checkout -b feature/mein-feature origin/feature/guest-access-control
+
+# … arbeiten, committen …
+
+git push origin feature/mein-feature
+# PR auf GitHub gegen den für die nächste Version vereinbarten Branch öffnen
+```
+
+Maintainer entscheiden den Zielbranch und erstellen den Release-Tag erst nach
+erfolgreichen Prüfungen.
+
 ### Vor dem Einreichen
 
 1. **Tests ausführen**: `npx vitest run`
 2. **Type-Check**: `npx tsc --noEmit`
 3. **Lokale Funktionsprüfung**: Testen Sie die Änderung manuell
+4. **Doku aktualisieren**: `README.md`, `CHANGELOG.md` (`[Unreleased]`-Abschnitt) und `.env.example` bei neuen Konfigurationsvariablen
 
 ### PR-Beschreibung
 

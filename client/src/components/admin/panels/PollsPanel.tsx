@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from 'react-i18next';
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -48,7 +48,8 @@ import {
   ArrowLeft,
   Loader2,
   Copy,
-  User
+  User,
+  SlidersHorizontal
 } from "lucide-react";
 import { PollTypeBadge } from "@/components/ui/PollTypeBadge";
 import { formatDistanceToNow, format } from "date-fns";
@@ -57,11 +58,68 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { PollWithOptions } from "@shared/schema";
 
+type CreatorMeta = {
+  label: string | null;
+  name: string | null;
+  email: string | null;
+  badgeClassName: string | null;
+};
+
+function getCreatorMeta(poll: PollWithOptions, t: (key: string) => string): CreatorMeta {
+  if (poll.user) {
+    return {
+      label: null,
+      name: poll.user.name || poll.user.username || poll.user.email,
+      email: poll.user.email,
+      badgeClassName: null,
+    };
+  }
+
+  if (poll.creatorEmail) {
+    return {
+      label: t('admin.polls.guestCreator'),
+      name: null,
+      email: poll.creatorEmail,
+      badgeClassName: 'bg-amber-100 text-amber-900 border-amber-200',
+    };
+  }
+
+  return {
+    label: t('admin.polls.unknownCreator'),
+    name: t('admin.polls.anonymousCreator'),
+    email: null,
+    badgeClassName: 'bg-muted text-muted-foreground border-border',
+  };
+}
+
+function CreatorIdentity({ poll }: { poll: PollWithOptions }) {
+  const { t } = useTranslation();
+  const creator = getCreatorMeta(poll, t);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-1">
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <User className="w-3 h-3" />
+        {creator.name || creator.email || t('admin.polls.anonymousCreator')}
+      </span>
+      {creator.label && creator.name && creator.email && creator.name !== creator.email ? (
+        <span className="text-xs text-muted-foreground">{creator.email}</span>
+      ) : null}
+      {creator.label && creator.badgeClassName ? (
+        <Badge variant="outline" className={creator.badgeClassName}>
+          {creator.label}
+        </Badge>
+      ) : null}
+    </div>
+  );
+}
+
 interface PollsPanelProps {
   polls: PollWithOptions[] | undefined;
   selectedPoll: PollWithOptions | null;
   onPollClick: (poll: PollWithOptions) => void;
   onBackToPolls: () => void;
+  initialTypeFilter?: 'schedule' | 'survey' | 'organization' | null;
 }
 
 export function PollsPanel({
@@ -69,10 +127,17 @@ export function PollsPanel({
   selectedPoll,
   onPollClick,
   onBackToPolls,
+  initialTypeFilter = null,
 }: PollsPanelProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<'schedule' | 'survey' | 'organization' | null>(initialTypeFilter);
+  const [statusFilter, setStatusFilter] = useState<'active' | 'inactive' | null>(null);
+
+  useEffect(() => {
+    setTypeFilter(initialTypeFilter ?? null);
+  }, [initialTypeFilter]);
 
   const updatePollMutation = useMutation({
     mutationFn: async ({ pollId, updates }: { pollId: string; updates: any }) => {
@@ -107,12 +172,16 @@ export function PollsPanel({
 
   const filteredPolls = polls?.filter(poll => {
     const term = searchTerm.toLowerCase();
-    return poll.title.toLowerCase().includes(term) ||
+    const matchesText = poll.title.toLowerCase().includes(term) ||
       poll.publicToken.toLowerCase().includes(term) ||
       (poll.user?.username?.toLowerCase().includes(term)) ||
       (poll.user?.email?.toLowerCase().includes(term)) ||
       (poll.creatorEmail?.toLowerCase().includes(term));
+    const matchesType = !typeFilter || poll.type === typeFilter;
+    const matchesStatus = !statusFilter || (statusFilter === 'active' ? poll.isActive : !poll.isActive);
+    return matchesText && matchesType && matchesStatus;
   }) || [];
+  const hasActiveFilters = Boolean(searchTerm || typeFilter || statusFilter);
 
   if (selectedPoll) {
     return (
@@ -134,23 +203,102 @@ export function PollsPanel({
         <h2 className="text-2xl font-semibold text-foreground">{t('admin.polls.title')}</h2>
         <Badge variant="outline" className="text-polly-orange border-polly-orange">
           <Vote className="w-3 h-3 mr-1" />
-          {t('admin.polls.totalCount', { count: polls?.length || 0 })}
+          {t('admin.polls.totalCount', { count: filteredPolls.length })}
         </Badge>
       </div>
 
       <Card className="polly-card">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>{t('admin.polls.allPolls')}</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder={t('admin.polls.search')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-                data-testid="input-poll-search"
-              />
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <div>
+                <CardTitle>{t('admin.polls.allPolls')}</CardTitle>
+                <CardDescription>{t('admin.polls.filterHint')}</CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <SlidersHorizontal className="w-4 h-4" />
+                      {t('admin.polls.statusFilter')}
+                      {statusFilter && (
+                        <Badge variant="secondary" className="ml-1 px-1.5">
+                          {statusFilter === 'active' ? t('admin.polls.active') : t('admin.polls.inactive')}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => setStatusFilter(null)}>
+                      {t('admin.polls.allStatuses')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setStatusFilter('active')}>
+                      {t('admin.polls.active')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setStatusFilter('inactive')}>
+                      {t('admin.polls.inactive')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Vote className="w-4 h-4" />
+                      {t('admin.polls.typeFilter')}
+                      {typeFilter && (
+                        <Badge variant="secondary" className="ml-1 px-1.5">
+                          {typeFilter === 'schedule'
+                            ? t('admin.overview.schedulePolls')
+                            : typeFilter === 'survey'
+                              ? t('admin.overview.classicPolls')
+                              : t('admin.overview.orgLists')}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => setTypeFilter(null)}>
+                      {t('admin.polls.allTypes')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTypeFilter('schedule')}>
+                      {t('admin.overview.schedulePolls')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTypeFilter('survey')}>
+                      {t('admin.overview.classicPolls')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTypeFilter('organization')}>
+                      {t('admin.overview.orgLists')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setTypeFilter(null);
+                      setStatusFilter(null);
+                    }}
+                  >
+                    {t('admin.polls.clearFilters')}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative w-full lg:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder={t('admin.polls.search')}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-poll-search"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -178,24 +326,24 @@ export function PollsPanel({
                       data-testid={`poll-row-${poll.publicToken}`}
                     >
                       <TableCell className="font-medium">
-                        <div>
+                        <div className="space-y-2">
                           <p className="font-medium">{poll.title}</p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                              <User className="w-3 h-3" />
-                              {poll.user?.username || poll.user?.email || poll.creatorEmail || t('admin.polls.anonymousCreator')}
-                            </span>
-                            <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
-                          </div>
+                          <CreatorIdentity poll={poll} />
+                          <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
                         </div>
                       </TableCell>
                       <TableCell>
                         <PollTypeBadge type={poll.type as 'schedule' | 'survey' | 'organization'} />
                       </TableCell>
                       <TableCell>
-                        <Badge variant={poll.isActive ? "default" : "secondary"}>
-                          {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
-                        </Badge>
+                        <div className="space-y-1">
+                          <Badge variant={poll.isActive ? "default" : "secondary"}>
+                            {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
+                          </Badge>
+                          {poll.isActive && !poll.expiresAt && (
+                            <p className="text-xs text-amber-700">{t('admin.polls.noExpiryDate')}</p>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDistanceToNow(new Date(poll.createdAt), { addSuffix: true, locale: getDateLocale() })}
@@ -274,11 +422,10 @@ function PollDetailView({
         </Button>
         <div>
           <h2 className="text-xl font-bold">{poll.title}</h2>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-              <User className="w-3.5 h-3.5" />
-              {poll.user?.username || poll.user?.email || poll.creatorEmail || t('admin.polls.anonymousCreator')}
-            </span>
+          <div className="mt-1">
+            <CreatorIdentity poll={poll} />
+          </div>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <TokenPill token={poll.publicToken} label={t('admin.polls.publicToken')} />
             <TokenPill token={poll.adminToken} label={t('admin.polls.adminToken')} />
           </div>
@@ -297,9 +444,14 @@ function PollDetailView({
             </div>
             <div className="flex items-center justify-between">
               <Label>{t('admin.polls.status')}</Label>
-              <Badge variant={poll.isActive ? "default" : "secondary"}>
-                {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
-              </Badge>
+              <div className="text-right">
+                <Badge variant={poll.isActive ? "default" : "secondary"}>
+                  {poll.isActive ? t('admin.polls.active') : t('admin.polls.inactive')}
+                </Badge>
+                {poll.isActive && !poll.expiresAt && (
+                  <p className="text-xs text-amber-700 mt-1">{t('admin.polls.noExpiryDate')}</p>
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <Label>{t('admin.polls.created')}</Label>

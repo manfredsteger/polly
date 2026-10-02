@@ -26,6 +26,21 @@ import { eq, desc, and, sql, count, isNull, asc } from "drizzle-orm";
 // Export db for direct database access in routes
 export { db };
 import { randomBytes } from "crypto";
+import { assertVoteOwnership } from "./lib/voteOwnership";
+
+const participationIdentitySql = sql<string>`
+  coalesce(
+    nullif(${votes.voterKey}, ''),
+    case
+      when ${votes.userId} is not null then concat('user:', ${votes.userId}::text)
+      else lower(trim(${votes.voterEmail}))
+    end
+  )
+`;
+
+const participationCountSql = sql<number>`
+  count(distinct (${votes.pollId}::text || ':' || ${participationIdentitySql}))
+`;
 
 export interface IStorage {
   // User management
@@ -63,8 +78,17 @@ export interface IStorage {
   // Voting
   vote(vote: InsertVote): Promise<Vote>;
   createVote(vote: InsertVote, existingEditToken?: string | null): Promise<{ vote: Vote; editToken: string }>;
+  replaceSimpleModeVotes(params: {
+    pollId: string;
+    lockIdentifier: string;
+    editToken?: string | null;
+    voterEmail?: string | null;
+    voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
+    maxSelections: number;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+  }): Promise<{ votes: Vote[]; editToken: string }>;
   voteBulk(pollId: string, voterName: string, voterEmail: string, userId: number | null, voterEditToken: string | null, voteItems: Array<{ optionId: number; response: string }>): Promise<{ votes: Vote[]; alreadyVoted: boolean }>;
-  updateVote(id: number, response: string): Promise<Vote>;
+  updateVote(id: number, response: string, updates?: Pick<InsertVote, 'comment' | 'freeTextAnswer'>): Promise<Vote>;
   deleteVote(id: number): Promise<void>;
   getUserVoteForOption(userId: number | undefined, optionId: number, voterName?: string): Promise<Vote | undefined>;
   getVotesByEmail(pollId: string, voterEmail: string): Promise<Vote[]>;
@@ -105,12 +129,14 @@ export interface IStorage {
   getLastManualReminderTime(pollId: string): Promise<Date | null>;
   getPollsNeedingExpiryReminder(): Promise<Poll[]>;
   markExpiryReminderSent(pollId: string): Promise<void>;
+  getVoterEmailsForPoll(pollId: string): Promise<string[]>;
+  deactivateExpiredPolls(): Promise<Poll[]>;
 
   // Analytics
   getSystemStats(): Promise<{
     totalUsers: number;
     activePolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
   }>;
   
@@ -119,7 +145,7 @@ export interface IStorage {
     activePolls: number;
     inactivePolls: number;
     totalPolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
     weeklyPolls: number;
     todayPolls: number;
@@ -534,9 +560,10 @@ export class DatabaseStorage implements IStorage {
             sql`SELECT * FROM votes WHERE option_id = ${insertVote.optionId} 
                 AND voter_email = ${insertVote.voterEmail} FOR UPDATE`
           );
-          const existingVote = existingVoteResult.rows[0] as { id: number } | undefined;
+          const existingVote = existingVoteResult.rows[0] as { id: number; user_id: number | null; voter_edit_token: string | null } | undefined;
           
           if (existingVote) {
+            assertVoteOwnership([{ userId: existingVote.user_id, voterEditToken: existingVote.voter_edit_token }], insertVote.userId ?? null, insertVote.voterEditToken);
             // Update existing vote (e.g., adding/changing comment or cancelling)
             const [updatedVote] = await tx.update(votes)
               .set({ 
@@ -582,6 +609,7 @@ export class DatabaseStorage implements IStorage {
       const existingVoteOnSameOption = existingEmailVotesOnSurvey.find(vote => vote.optionId === insertVote.optionId);
       
       if (existingVoteOnSameOption) {
+        assertVoteOwnership([existingVoteOnSameOption], insertVote.userId ?? null, insertVote.voterEditToken);
         // Update existing vote on same option
         return this.updateVote(existingVoteOnSameOption.id, insertVote.response);
       }
@@ -614,6 +642,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (existingVote) {
+        assertVoteOwnership([existingVote], insertVote.userId ?? null, insertVote.voterEditToken);
         // Update existing vote
         return this.updateVote(existingVote.id, insertVote.response);
       }
@@ -692,8 +721,98 @@ export class DatabaseStorage implements IStorage {
     return { vote: createdVote, editToken };
   }
 
-  async updateVote(id: number, response: string): Promise<Vote> {
-    const [vote] = await db.update(votes).set({ response, updatedAt: new Date() }).where(eq(votes.id, id)).returning();
+  /**
+   * Atomically replaces a voter's selection for simple-choice polls.
+   * Serializes concurrent requests per poll+voter via a transaction-scoped
+   * advisory lock, re-reads the current votes inside the transaction and
+   * re-enforces maxSelections so parallel submissions cannot exceed the limit.
+   */
+  async replaceSimpleModeVotes(params: {
+    pollId: string;
+    lockIdentifier: string; // stable per voter: edit token or lowercased email
+    editToken?: string | null;
+    voterEmail?: string | null;
+    voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
+    maxSelections: number;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+  }): Promise<{ votes: Vote[]; editToken: string }> {
+    const { pollId, lockIdentifier, voteItems, maxSelections, newVoteTemplate } = params;
+
+    if (voteItems.length > maxSelections) {
+      throw new Error('TOO_MANY_SELECTIONS');
+    }
+
+    return await db.transaction(async (tx) => {
+      const lockKey = `${pollId}-${lockIdentifier}`.split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+
+      // Re-read current votes inside the transaction (post-lock state)
+      let existingVotes: Vote[];
+      if (params.editToken) {
+        existingVotes = await tx.select().from(votes)
+          .where(and(eq(votes.pollId, pollId), eq(votes.voterEditToken, params.editToken)));
+      } else if (params.voterEmail) {
+        existingVotes = await tx.select().from(votes)
+          .where(and(eq(votes.pollId, pollId), eq(votes.voterEmail, params.voterEmail)));
+      } else {
+        existingVotes = [];
+      }
+
+      // Recheck ownership after the lock: another request may have voted since
+      // the route's initial lookup. Never adopt its private token based on email.
+      assertVoteOwnership(existingVotes, newVoteTemplate.userId ?? null, params.editToken);
+      const editToken = params.editToken || existingVotes[0]?.voterEditToken || randomBytes(32).toString('hex');
+      const newOptionIds = new Set(voteItems.map((v) => v.optionId));
+
+      // Delete deselected votes
+      for (const existingVote of existingVotes) {
+        if (!newOptionIds.has(existingVote.optionId)) {
+          await tx.delete(votes).where(eq(votes.id, existingVote.id));
+        }
+      }
+
+      const result: Vote[] = [];
+      for (const item of voteItems) {
+        const existingVote = existingVotes.find((v) => v.optionId === item.optionId);
+        if (existingVote) {
+          const [updated] = await tx.update(votes)
+            .set({ response: item.response, comment: item.comment ?? existingVote.comment, updatedAt: new Date() })
+            .where(eq(votes.id, existingVote.id))
+            .returning();
+          result.push(updated);
+        } else {
+          const [created] = await tx.insert(votes).values({
+            pollId,
+            optionId: item.optionId,
+            voterName: newVoteTemplate.voterName,
+            voterEmail: newVoteTemplate.voterEmail,
+            response: item.response,
+            comment: item.comment ?? null,
+            freeTextAnswer: item.freeTextAnswer ?? null,
+            userId: newVoteTemplate.userId ?? null,
+            isTestData: newVoteTemplate.isTestData ?? false,
+            voterEditToken: editToken,
+          }).returning();
+          result.push(created);
+        }
+      }
+
+      // Post-condition: the voter's persisted selection must not exceed the limit
+      const finalVotes = await tx.select().from(votes)
+        .where(and(eq(votes.pollId, pollId), eq(votes.voterEditToken, editToken)));
+      if (finalVotes.length > maxSelections) {
+        throw new Error('TOO_MANY_SELECTIONS');
+      }
+
+      return { votes: result, editToken };
+    });
+  }
+
+  async updateVote(id: number, response: string, updates: Pick<InsertVote, 'comment' | 'freeTextAnswer'> = {}): Promise<Vote> {
+    const [vote] = await db.update(votes).set({ response, ...updates, updatedAt: new Date() }).where(eq(votes.id, id)).returning();
     return vote;
   }
 
@@ -834,12 +953,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomizationSettings(): Promise<CustomizationSettings> {
-    const [themeSetting, brandingSetting, footerSetting, wcagSetting, languageSetting] = await Promise.all([
+    const [themeSetting, brandingSetting, footerSetting, wcagSetting, languageSetting, passwordPolicySetting, mfaSetting, guestAccessSetting] = await Promise.all([
       this.getSetting('customization_theme'),
       this.getSetting('customization_branding'),
       this.getSetting('customization_footer'),
       this.getSetting('customization_wcag'),
       this.getSetting('customization_language'),
+      this.getSetting('customization_password_policy'),
+      this.getSetting('customization_mfa'),
+      this.getSetting('customization_guest_access'),
     ]);
 
     const settings = {
@@ -848,6 +970,9 @@ export class DatabaseStorage implements IStorage {
       footer: footerSetting?.value || {},
       wcag: wcagSetting?.value || {},
       language: languageSetting?.value || {},
+      passwordPolicy: passwordPolicySetting?.value || {},
+      mfa: mfaSetting?.value || {},
+      guestAccess: guestAccessSetting?.value || {},
     };
 
     return customizationSettingsSchema.parse(settings);
@@ -868,6 +993,15 @@ export class DatabaseStorage implements IStorage {
     }
     if (settings.language) {
       await this.setSetting({ key: 'customization_language', value: settings.language });
+    }
+    if (settings.passwordPolicy) {
+      await this.setSetting({ key: 'customization_password_policy', value: settings.passwordPolicy });
+    }
+    if (settings.mfa) {
+      await this.setSetting({ key: 'customization_mfa', value: settings.mfa });
+    }
+    if (settings.guestAccess) {
+      await this.setSetting({ key: 'customization_guest_access', value: settings.guestAccess });
     }
 
     return await this.getCustomizationSettings();
@@ -942,7 +1076,7 @@ export class DatabaseStorage implements IStorage {
   async getSystemStats(): Promise<{
     totalUsers: number;
     activePolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
   }> {
     // Exclude test data from all statistics
@@ -954,7 +1088,7 @@ export class DatabaseStorage implements IStorage {
         eq(polls.isTestData, false),
         sql`${polls.expiresAt} > NOW() OR ${polls.expiresAt} IS NULL`
       ));
-    const [totalVotesResult] = await db.select({ count: count() }).from(votes)
+    const [totalParticipationsResult] = await db.select({ count: participationCountSql }).from(votes)
       .innerJoin(polls, eq(votes.pollId, polls.id))
       .where(eq(polls.isTestData, false));
     const [monthlyPollsResult] = await db.select({ count: count() }).from(polls)
@@ -966,7 +1100,7 @@ export class DatabaseStorage implements IStorage {
     return {
       totalUsers: totalUsersResult.count,
       activePolls: activePollsResult.count,
-      totalVotes: totalVotesResult.count,
+      totalParticipations: totalParticipationsResult.count,
       monthlyPolls: monthlyPollsResult.count,
     };
   }
@@ -1020,7 +1154,7 @@ export class DatabaseStorage implements IStorage {
     activePolls: number;
     inactivePolls: number;
     totalPolls: number;
-    totalVotes: number;
+    totalParticipations: number;
     monthlyPolls: number;
     weeklyPolls: number;
     todayPolls: number;
@@ -1041,7 +1175,7 @@ export class DatabaseStorage implements IStorage {
       [totalPollsResult],
       [activePollsResult],
       [inactivePollsResult],
-      [totalVotesResult],
+      [totalParticipationsResult],
       [monthlyPollsResult],
       [weeklyPollsResult],
       [todayPollsResult],
@@ -1050,17 +1184,17 @@ export class DatabaseStorage implements IStorage {
       [organizationPollsResult],
       recentPollsWithUsers,
       recentVotesWithPolls,
+      recentNotificationsWithPolls,
       recentUsers,
     ] = await Promise.all([
       db.select({ count: count() }).from(users).where(eq(users.isTestData, false)),
       db.select({ count: count() }).from(polls).where(eq(polls.isTestData, false)),
       db.select({ count: count() }).from(polls).where(and(
         eq(polls.isActive, true),
-        eq(polls.isTestData, false),
-        sql`${polls.expiresAt} > NOW() OR ${polls.expiresAt} IS NULL`
+        eq(polls.isTestData, false)
       )),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isActive, false), eq(polls.isTestData, false))),
-      db.select({ count: count() }).from(votes).innerJoin(polls, eq(votes.pollId, polls.id)).where(eq(polls.isTestData, false)),
+      db.select({ count: participationCountSql }).from(votes).innerJoin(polls, eq(votes.pollId, polls.id)).where(eq(polls.isTestData, false)),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '30 days'`)),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '7 days'`)),
       db.select({ count: count() }).from(polls).where(and(eq(polls.isTestData, false), sql`${polls.createdAt} >= NOW() - INTERVAL '1 day'`)),
@@ -1082,6 +1216,14 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(polls, eq(votes.pollId, polls.id))
         .where(eq(polls.isTestData, false))
         .orderBy(desc(votes.createdAt))
+        .limit(5),
+      db.select({
+        notification: notificationLogs,
+        poll: polls,
+      }).from(notificationLogs)
+        .innerJoin(polls, eq(notificationLogs.pollId, polls.id))
+        .where(eq(polls.isTestData, false))
+        .orderBy(desc(notificationLogs.createdAt))
         .limit(5),
       db.select({
         id: users.id,
@@ -1115,6 +1257,22 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
+    for (const { notification, poll } of recentNotificationsWithPolls) {
+      let message = 'Benachrichtigung versendet';
+      if (notification.type === 'manual_reminder') {
+        message = `Erinnerung versendet für "${poll.title}"`;
+      } else if (notification.type === 'auto_expired_poll_ended') {
+        message = `Umfrage automatisch beendet und Teilnehmer benachrichtigt: "${poll.title}"`;
+      }
+      activity.push({
+        type: 'notification',
+        message,
+        timestamp: notification.createdAt,
+        actor: notification.sentBy || 'System',
+        pollToken: poll.publicToken,
+      });
+    }
+
     for (const user of recentUsers) {
       activity.push({
         type: 'user_registered',
@@ -1132,7 +1290,7 @@ export class DatabaseStorage implements IStorage {
       activePolls: activePollsResult.count,
       inactivePolls: inactivePollsResult.count,
       totalPolls: totalPollsResult.count,
-      totalVotes: totalVotesResult.count,
+      totalParticipations: totalParticipationsResult.count,
       monthlyPolls: monthlyPollsResult.count,
       weeklyPolls: weeklyPollsResult.count,
       todayPolls: todayPollsResult.count,
@@ -1242,6 +1400,30 @@ export class DatabaseStorage implements IStorage {
       .update(polls)
       .set({ expiryReminderSent: true })
       .where(eq(polls.id, pollId));
+  }
+
+  async getVoterEmailsForPoll(pollId: string): Promise<string[]> {
+    const rows = await db
+      .selectDistinct({ voterEmail: votes.voterEmail })
+      .from(votes)
+      .where(and(
+        eq(votes.pollId, pollId),
+        sql`${votes.voterEmail} IS NOT NULL AND ${votes.voterEmail} <> ''`
+      ));
+    return rows.map(r => r.voterEmail).filter((e): e is string => !!e);
+  }
+
+  async deactivateExpiredPolls(): Promise<Poll[]> {
+    const expired = await db
+      .update(polls)
+      .set({ isActive: false })
+      .where(and(
+        eq(polls.isActive, true),
+        sql`${polls.expiresAt} IS NOT NULL`,
+        sql`${polls.expiresAt} <= NOW()`
+      ))
+      .returning();
+    return expired;
   }
 
   // Password reset tokens

@@ -31,7 +31,7 @@ export function VoiceRecordingOverlay({
     if (!rawValue) return { full: "hsl(220, 70%, 45%)", half: "hsla(220, 70%, 45%, 0.4)" };
     return {
       full: `hsl(${rawValue})`,
-      half: `hsla(${rawValue}, 0.4)`,
+      half: `hsl(${rawValue} / 0.4)`,
     };
   }, []);
 
@@ -186,6 +186,7 @@ export function VoiceRecordingOverlay({
                   className="bg-primary rounded-full"
                   style={{
                     width: "3px",
+                    height: "4px",
                     animation: `voiceBar 1.2s ease-in-out ${i * 0.05}s infinite`,
                   }}
                 />

@@ -10,17 +10,29 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity, Key, Globe, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, Zap, Info, CheckCircle, XCircle, Infinity, Key, Globe, Trash2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AiSettings } from "@shared/schema";
+import kisskiLogo from "@/assets/kisski-logo.png";
+import { getServicePartner } from "@shared/servicePartners";
 
-const GWDG_MODELS = [
-  { id: "llama-3.3-70b-instruct", name: "LLaMA 3.3 70B", noteKey: "modelRecommended" },
-  { id: "gemma-3-27b-it", name: "Gemma 3 27B", noteKey: "modelFast" },
-  { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B", noteKey: "modelReasoning" },
-  { id: "qwen3-235b-a22b", name: "Qwen3 235B", noteKey: "modelVeryStrong" },
-  { id: "mistral-large-3-675b-instruct-2512", name: "Mistral Large 675B", noteKey: "modelLargest" },
-  { id: "meta-llama-3.1-8b-instruct", name: "LLaMA 3.1 8B", noteKey: "modelVeryFast" },
+const KISSKI_PARTNER = getServicePartner("kisski")!;
+
+const FALLBACK_MODELS = [
+  "gemma-4-31b-it",
+  "meta-llama-3.1-8b-instruct",
+  "deepseek-v4-flash-0731",
+  "qwen3.6-35b-a3b",
+  "mistral-medium-3.5-128b",
+];
+
+const PREFERRED_MODELS = [
+  "meta-llama-3.1-8b-instruct",
+  "qwen3.5-122b-a10b",
+  "qwen3.6-35b-a3b",
+  "mistral-medium-3.5-128b",
+  "openai-gpt-oss-120b",
+  "gemma-4-31b-it",
 ];
 
 interface Props {
@@ -38,6 +50,48 @@ interface AdminAiData {
   apiUrlViaEnv: boolean;
   envModel: string | null;
   envApiUrl: string | null;
+}
+
+interface LiveAiModel {
+  id: string;
+  object?: string;
+  owned_by?: string;
+}
+
+interface AiModelsData {
+  models: LiveAiModel[];
+  fetchedAt: string;
+  cached: boolean;
+  activeModel: string | null;
+  activeBaseUrl: string;
+}
+
+interface AiCheckStatus {
+  configured: boolean;
+  ok: boolean;
+  status: number | null;
+  message: string;
+  modelCount: number;
+}
+
+interface AiCheckResult {
+  checkedAt: string;
+  baseUrl: string;
+  activeModel: string | null;
+  primary: AiCheckStatus;
+  fallback: AiCheckStatus;
+  liveModelsAvailable: boolean;
+  liveModelCount: number;
+  activeModelAdvertised: boolean;
+}
+
+function getVisibleModelOptions(allModels: string[], currentModel: string, envModel: string | null): string[] {
+  const curated = allModels.filter((modelId) => PREFERRED_MODELS.includes(modelId));
+  const ordered = [
+    ...PREFERRED_MODELS.filter((modelId) => curated.includes(modelId)),
+  ];
+
+  return Array.from(new Set([...ordered, currentModel, envModel || ""].filter(Boolean)));
 }
 
 function RoleLimitControl({
@@ -128,6 +182,8 @@ export function AiSettingsPanel({ onBack }: Props) {
   const [newApiKey, setNewApiKey] = useState("");
   const [newApiKeyFallback, setNewApiKeyFallback] = useState("");
   const [newApiUrl, setNewApiUrl] = useState("");
+  const [checkResult, setCheckResult] = useState<AiCheckResult | null>(null);
+  const [modelsData, setModelsData] = useState<AiModelsData | null>(null);
   const settings: AiSettings | null = localSettings ?? data?.settings ?? null;
 
   const saveMutation = useMutation({
@@ -143,6 +199,44 @@ export function AiSettingsPanel({ onBack }: Props) {
     },
     onError: () => {
       toast({ title: t('admin.aiSettings.saveError'), variant: "destructive" });
+    },
+  });
+
+  const modelsMutation = useMutation({
+    mutationFn: () => apiRequest("GET", "/api/v1/ai/models"),
+    onSuccess: async (res) => {
+      const result = await res.json();
+      setModelsData(result as AiModelsData);
+      toast({ title: t('admin.aiSettings.modelsLoaded') });
+    },
+    onError: async (err: any) => {
+      let title = t('admin.aiSettings.modelsLoadError');
+      try {
+        const data = await err.json?.();
+        if (data && typeof data === "object" && typeof (data as any).error === "string") {
+          title = (data as any).error;
+        }
+      } catch {}
+      toast({ title, variant: "destructive" });
+    },
+  });
+
+  const checkMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/v1/ai/admin/check", {}),
+    onSuccess: async (res) => {
+      const result = await res.json();
+      setCheckResult(result as AiCheckResult);
+      toast({ title: t('admin.aiSettings.checkSuccess') });
+    },
+    onError: async (err: any) => {
+      let title = t('admin.aiSettings.checkError');
+      try {
+        const data = await err.json?.();
+        if (data && typeof data === "object" && typeof (data as any).error === "string") {
+          title = (data as any).error;
+        }
+      } catch {}
+      toast({ title, variant: "destructive" });
     },
   });
 
@@ -177,6 +271,19 @@ export function AiSettingsPanel({ onBack }: Props) {
   }
 
   const apiOk = data?.apiConfigured;
+  const liveModels = modelsData?.models?.map((model) => model.id) ?? [];
+  const candidateModels = Array.from(
+    new Set(
+      [
+        ...(liveModels.length > 0 ? liveModels : PREFERRED_MODELS),
+        settings.model,
+        data?.envModel || "",
+      ].filter(Boolean)
+    )
+  );
+  const modelOptions = getVisibleModelOptions(candidateModels, settings.model, data?.envModel || null);
+  const usingFallbackModels = !modelsData;
+  const configuredModelMissing = !!settings.model && liveModels.length > 0 && !liveModels.includes(settings.model);
 
   return (
     <div className="space-y-6">
@@ -347,6 +454,33 @@ export function AiSettingsPanel({ onBack }: Props) {
           </CardContent>
         </Card>
 
+        <Card className="border-2 border-emerald-500/60 bg-emerald-50/60 dark:bg-emerald-950/20 dark:border-emerald-500/40">
+          <CardContent className="p-4 flex items-center gap-4">
+            <img
+              src={kisskiLogo}
+              alt="KISSKI"
+              className="h-12 w-auto flex-shrink-0 object-contain"
+            />
+            <div className="flex-1 min-w-0 space-y-1">
+              <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                {t('admin.aiSettings.kisskiTitle')}
+              </h3>
+              <p className="text-xs text-emerald-900/80 dark:text-emerald-200/80">
+                {t('admin.aiSettings.kisskiDescription')}
+              </p>
+              <a
+                href={KISSKI_PARTNER.contactUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
+              >
+                {t('admin.aiSettings.kisskiContact')}
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -368,7 +502,22 @@ export function AiSettingsPanel({ onBack }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label>{t('admin.aiSettings.model')}</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label>{t('admin.aiSettings.model')}</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => modelsMutation.mutate()}
+                  disabled={modelsMutation.isPending}
+                >
+                  {modelsMutation.isPending
+                    ? t('admin.aiSettings.loadingModels')
+                    : modelsData
+                    ? t('admin.aiSettings.refreshModels')
+                    : t('admin.aiSettings.loadModels')}
+                </Button>
+              </div>
               <Select
                 value={settings.model}
                 onValueChange={(v) => update({ model: v })}
@@ -377,10 +526,9 @@ export function AiSettingsPanel({ onBack }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GWDG_MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <span>{m.name}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">({t(`admin.aiSettings.${m.noteKey}`)})</span>
+                  {modelOptions.map((modelId) => (
+                    <SelectItem key={modelId} value={modelId}>
+                      {modelId}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -389,6 +537,89 @@ export function AiSettingsPanel({ onBack }: Props) {
                 <p className="text-xs text-muted-foreground">
                   {t('admin.aiSettings.envOverride')} <code className="font-mono">{data.envModel}</code>
                 </p>
+              )}
+              {usingFallbackModels && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t('admin.aiSettings.modelsManualHint')}
+                </p>
+              )}
+              {modelsData && (
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.aiSettings.liveModelsSource')} <code className="font-mono">{modelsData.activeBaseUrl}</code>.
+                </p>
+              )}
+              {configuredModelMissing && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t('admin.aiSettings.modelMissing')}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t('admin.aiSettings.modelFilterHint', { count: modelOptions.length })}
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label>{t('admin.aiSettings.checkTitle')}</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('admin.aiSettings.checkDescription')}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => checkMutation.mutate()}
+                  disabled={checkMutation.isPending}
+                >
+                  {checkMutation.isPending ? t('admin.aiSettings.checking') : t('admin.aiSettings.checkNow')}
+                </Button>
+              </div>
+
+              {checkResult && (
+                <div className="space-y-2 text-sm">
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.aiSettings.checkedAt')} {new Date(checkResult.checkedAt).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.aiSettings.checkBaseUrl')} <code className="font-mono">{checkResult.baseUrl}</code>
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-md border border-border p-3">
+                      <div className="flex items-center gap-2 font-medium">
+                        {checkResult.primary.ok ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                        {t('admin.aiSettings.primaryKeyStatus')}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{checkResult.primary.message}</p>
+                      {checkResult.primary.status !== null && (
+                        <p className="text-xs text-muted-foreground">{t('admin.aiSettings.statusCode')} {checkResult.primary.status}</p>
+                      )}
+                    </div>
+                    <div className="rounded-md border border-border p-3">
+                      <div className="flex items-center gap-2 font-medium">
+                        {checkResult.fallback.ok ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                        {t('admin.aiSettings.fallbackKeyStatus')}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{checkResult.fallback.message}</p>
+                      {checkResult.fallback.status !== null && (
+                        <p className="text-xs text-muted-foreground">{t('admin.aiSettings.statusCode')} {checkResult.fallback.status}</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t('admin.aiSettings.liveModelsCount', { count: checkResult.liveModelCount })}
+                  </p>
+                  {checkResult.activeModel && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('admin.aiSettings.activeModelStatus')}{" "}
+                      <code className="font-mono">{checkResult.activeModel}</code>:{" "}
+                      {checkResult.activeModelAdvertised
+                        ? t('admin.aiSettings.activeModelListed')
+                        : t('admin.aiSettings.activeModelNotListed')}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

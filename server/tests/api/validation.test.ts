@@ -23,7 +23,7 @@ describe('API - Input Validation', () => {
       .send({
         title: 'Test Poll with Ümlauts & Special chars',
         type: 'survey',
-        options: [{ text: 'Option 1' }],
+        options: [{ text: 'Option 1' }, { text: 'Option 2' }],
       });
 
     expect(response.status).toBe(200);
@@ -84,7 +84,7 @@ describe('API - Input Validation', () => {
       .send({
         title: 'Test Poll',
         type: 'survey',
-        options: [{ text: 'Option 1' }],
+        options: [{ text: 'Option 1' }, { text: 'Option 2' }],
       });
 
     const publicToken = createResponse.body.publicToken;
@@ -110,7 +110,7 @@ describe('API - Input Validation', () => {
       .send({
         title: 'Schedule Poll',
         type: 'schedule',
-        options: [{ text: 'Option 1' }],
+        options: [{ text: 'Option 1' }, { text: 'Option 2' }],
       });
 
     expect(response.status).toBe(200);
@@ -123,7 +123,7 @@ describe('API - Input Validation', () => {
       .send({
         title: 'Orga Poll',
         type: 'organization',
-        options: [{ text: 'Option 1' }],
+        options: [{ text: 'Option 1' }, { text: 'Option 2' }],
       });
 
     expect(response.status).toBe(200);

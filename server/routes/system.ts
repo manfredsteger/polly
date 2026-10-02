@@ -40,6 +40,11 @@ router.post('/oidc-test', requireAdmin, async (req, res) => {
 router.get('/customization', async (req, res) => {
   try {
     const settings = await storage.getCustomizationSettings();
+    const envCopyright = process.env.POLLY_COPYRIGHT_TEXT || '';
+    if (envCopyright) {
+      settings.footer.copyrightText = envCopyright;
+      settings.footer.copyrightEnvLocked = true;
+    }
     res.json(settings);
   } catch (error) {
     console.error('Error fetching public customization settings:', error);
@@ -295,17 +300,19 @@ router.post('/upload/image', imageService.getUploadMiddleware().single('image'),
     requestIp: req.ip || req.socket.remoteAddress || undefined,
   };
   
-  const result = await imageService.processUpload(req.file, scanContext);
+  const result = await imageService.processUpload(req.file, scanContext, { allowSvg: false });
   
   if (!result.success) {
     let statusCode = 500;
     if (result.invalidFileType) statusCode = 400;
     else if (result.virusName) statusCode = 422;
     else if (result.scannerUnavailable) statusCode = 503;
+    else if (result.storagePermission) statusCode = 507;
     return res.status(statusCode).json({ 
       error: result.error,
       virusName: result.virusName,
       scannerUnavailable: result.scannerUnavailable,
+      storagePermission: result.storagePermission,
     });
   }
   

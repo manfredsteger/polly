@@ -333,7 +333,10 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
   test('sollte Kapazitätsgrenze respektieren', async ({ page }) => {
     const pollData = await createPollViaAPI(page, 'organization', {
       title: `Orga-Capacity-${nanoid(6)}`,
-      slots: [{ text: 'Limitierter Slot', maxCapacity: 2 }],
+      slots: [
+        { text: 'Limitierter Slot', maxCapacity: 2 },
+        { text: 'Zusätzlicher Slot', maxCapacity: 5 },
+      ],
       resultsPublic: true,
     });
     

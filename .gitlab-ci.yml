@@ -210,6 +210,7 @@ unit-tests:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
+    TEST_DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test_isolated"
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
@@ -244,6 +245,7 @@ integration-tests:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
+    TEST_DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test_isolated"
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
@@ -274,6 +276,7 @@ api-tests:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
+    TEST_DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test_isolated"
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
@@ -304,6 +307,7 @@ auth-tests:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
+    TEST_DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test_isolated"
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:
@@ -334,6 +338,7 @@ poll-tests:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test"
+    TEST_DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/polly_test_isolated"
     SMTP_ENABLED: "false"
     SESSION_SECRET: "test-session-secret-minimum-32-characters-long"
   script:

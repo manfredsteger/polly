@@ -216,7 +216,8 @@ unit-tests:
   script:
     - *npm_install
     - *wait_for_postgres
-    - npm run db:push
+    - psql "postgresql://postgres:postgres@postgres:5432/postgres" -c "CREATE DATABASE polly_test_isolated" || true
+    - DATABASE_URL="$TEST_DATABASE_URL" npm run db:push
     - npx vitest run --reporter=verbose --reporter=junit --outputFile=test-results.xml
   artifacts:
     when: always
@@ -251,7 +252,8 @@ integration-tests:
   script:
     - *npm_install
     - *wait_for_postgres
-    - npm run db:push
+    - psql "postgresql://postgres:postgres@postgres:5432/postgres" -c "CREATE DATABASE polly_test_isolated" || true
+    - DATABASE_URL="$TEST_DATABASE_URL" npm run db:push
     - npx vitest run server/tests/integration --reporter=verbose
   allow_failure: true
 
@@ -282,7 +284,8 @@ api-tests:
   script:
     - *npm_install
     - *wait_for_postgres
-    - npm run db:push
+    - psql "postgresql://postgres:postgres@postgres:5432/postgres" -c "CREATE DATABASE polly_test_isolated" || true
+    - DATABASE_URL="$TEST_DATABASE_URL" npm run db:push
     - npx vitest run server/tests/api --reporter=verbose
   allow_failure: true
 
@@ -313,7 +316,8 @@ auth-tests:
   script:
     - *npm_install
     - *wait_for_postgres
-    - npm run db:push
+    - psql "postgresql://postgres:postgres@postgres:5432/postgres" -c "CREATE DATABASE polly_test_isolated" || true
+    - DATABASE_URL="$TEST_DATABASE_URL" npm run db:push
     - npx vitest run server/tests/auth --reporter=verbose
   allow_failure: true
 
@@ -344,7 +348,8 @@ poll-tests:
   script:
     - *npm_install
     - *wait_for_postgres
-    - npm run db:push
+    - psql "postgresql://postgres:postgres@postgres:5432/postgres" -c "CREATE DATABASE polly_test_isolated" || true
+    - DATABASE_URL="$TEST_DATABASE_URL" npm run db:push
     - npx vitest run server/tests/polls --reporter=verbose
   allow_failure: true
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import sharp from 'sharp';
 import { createTestApp } from '../testApp';
@@ -41,6 +41,25 @@ const TEST_SENTINEL_MAX_FILE_SIZE = 100;
 describe('ClamAV Security - Fail-Secure Behavior', () => {
   let app: Express;
   let originalConfig: any;
+
+  beforeEach(async () => {
+    // Deployment overrides otherwise win over the DB settings used by these
+    // scenarios and can make tests contact the real scanner. This changes only
+    // the test worker's environment, not the running application or Rancher.
+    vi.stubEnv('CLAMAV_ENABLED', undefined);
+    vi.stubEnv('CLAMAV_HOST', undefined);
+    vi.stubEnv('CLAMAV_PORT', undefined);
+    const { clamavService } = await import('../../services/clamavService');
+    clamavService.clearConfigCache();
+  });
+
+  afterEach(async () => {
+    // Restore inherited values even after a failed assertion. The next test
+    // must not reuse configuration cached by this one.
+    vi.unstubAllEnvs();
+    const { clamavService } = await import('../../services/clamavService');
+    clamavService.clearConfigCache();
+  });
 
   beforeAll(async () => {
     // Layer 1: if a previous run was killed after writing the backup key,
@@ -112,6 +131,13 @@ describe('ClamAV Security - Fail-Secure Behavior', () => {
       (testService as any).configCacheTime = 0;
 
       const testBuffer = Buffer.from('test file content for security check');
+      // Verify the target before scanning: inherited deployment settings must
+      // not redirect this unreachable-scanner scenario to the real service.
+      expect(await testService.getConfig()).toMatchObject({
+        enabled: true,
+        host: '127.0.0.1',
+        port: TEST_SENTINEL_PORT,
+      });
       const result = await testService.scanBuffer(testBuffer, 'test-file.jpg');
 
       expect(result.isClean).toBe(false);

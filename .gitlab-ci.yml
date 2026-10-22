@@ -44,7 +44,7 @@ sync-from-github:
       fi
 
 variables:
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
   GIT_STRATEGY: none
   CI: "true"
   npm_config_cache: "/tmp/.npm"

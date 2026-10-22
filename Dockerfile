@@ -5,7 +5,7 @@
 # ============================================
 # Stage 1: Dependencies (build tools + native modules)
 # ============================================
-FROM node:22-slim AS deps
+FROM node:24-slim AS deps
 
 # Install build dependencies for native modules (canvas, pdfkit)
 # Note: Full apt reset to guarantee fresh package lists (no stale GPG signatures)
@@ -38,7 +38,7 @@ RUN npm ci --foreground-scripts && npm cache clean --force
 # ============================================
 # Stage 2: Builder (compile TypeScript + Vite)
 # ============================================
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 
 # Skip Puppeteer Chromium download
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
@@ -66,7 +66,7 @@ RUN npm run build
 # ============================================
 # Stage 3: Production Runtime
 # ============================================
-FROM node:22-slim AS production
+FROM node:24-slim AS production
 
 # Install minimal runtime dependencies
 # - canvas/pdfkit: libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 libpixman-1-0

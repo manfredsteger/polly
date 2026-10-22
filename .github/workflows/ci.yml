@@ -7,7 +7,7 @@ on:
     branches: [main, develop, release]
 
 env:
-  NODE_VERSION: '22'
+  NODE_VERSION: '24'
   CI: true
 
 jobs:

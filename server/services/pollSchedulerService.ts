@@ -26,10 +26,10 @@ async function runExpiryReminderCheck(): Promise<void> {
           continue;
         }
 
-        let senderName = 'Jemand';
+        let senderName = ''; // localized "someone" is filled in per recipient
         if (poll.userId) {
           const user = await storage.getUser(poll.userId);
-          if (user) senderName = user.name || user.username || 'Jemand';
+          if (user) senderName = user.name || user.username || '';
         }
 
         const pollLink = `${baseUrl}/poll/${fullPoll.publicToken}`;

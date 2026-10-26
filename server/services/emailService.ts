@@ -1,7 +1,9 @@
 import nodemailer from 'nodemailer';
 import { qrService } from './qrService';
 import { emailTemplateService } from './emailTemplateService';
-import type { EmailTemplateType } from '@shared/schema';
+import type { EmailTemplateType, EmailLanguage } from '@shared/schema';
+import { emailStrings, emailLocale, pollTypeLabel, formatConfirmedSlot } from './emailI18n';
+import { resolveEmailLanguage, groupRecipientsByLanguage } from './emailLanguage';
 import { getBaseUrl, validateEmailUrl, warnIfLocalhostInProduction } from '../utils/baseUrl';
 import { marked } from 'marked';
 import { JSDOM } from 'jsdom';
@@ -38,6 +40,17 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function renderSelectedOptionsHtml(selectedOptions?: string[]): string {
+  return selectedOptions && selectedOptions.length > 0
+    ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
+        .map(
+          opt =>
+            `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
+        )
+        .join('')}</ul>`
+    : '';
 }
 
 function summarizeTestError(error: string | null): string {
@@ -176,9 +189,10 @@ export class EmailService {
 
   private async renderTemplate(
     type: EmailTemplateType,
-    variables: Record<string, string | undefined>
+    variables: Record<string, string | undefined>,
+    lang: EmailLanguage
   ): Promise<{ subject: string; html: string; text: string }> {
-    return emailTemplateService.renderEmail(type, variables);
+    return emailTemplateService.renderEmail(type, variables, lang);
   }
 
   async sendMail(options: SendMailOptions): Promise<void> {
@@ -231,18 +245,18 @@ export class EmailService {
     publicLink: string,
     adminLink: string,
     pollType: 'schedule' | 'survey' | 'organization',
-    isRegisteredUser: boolean = false
+    isRegisteredUser: boolean = false,
+    languageHint?: EmailLanguage
   ): Promise<void> {
     try {
-      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
-
+      const lang = await resolveEmailLanguage(creatorEmail, languageHint);
       const rendered = await this.renderTemplate('poll_created', {
         pollTitle,
-        pollType: pollTypeText,
+        pollType: pollTypeLabel(pollType, lang),
         publicLink: validateEmailUrl(publicLink),
         adminLink: validateEmailUrl(adminLink),
         isRegisteredUser: isRegisteredUser ? 'true' : '',
-      });
+      }, lang);
 
       await this.sendMail({
         to: creatorEmail,
@@ -272,13 +286,15 @@ export class EmailService {
         console.error('Failed to generate QR code for email:', qrError);
       }
 
+      const lang = await resolveEmailLanguage(inviteeEmail);
       const rendered = await this.renderTemplate('invitation', {
         pollTitle,
-        inviterName,
+        // Callers pass '' when the poll has no named owner.
+        inviterName: inviterName || emailStrings(lang).someone,
         publicLink: validatedLink,
         message: customMessage || '',
         qrCodeUrl: qrCodeDataUrl,
-      });
+      }, lang);
 
       await this.sendMail({
         to: inviteeEmail,
@@ -301,34 +317,26 @@ export class EmailService {
     resultsLink: string | undefined,
     selectedOptions?: string[],
     editLink?: string,
-    withdrawalOnly = false
+    withdrawalOnly = false,
+    languageHint?: EmailLanguage
   ): Promise<void> {
     if (!voterEmail) return;
 
     try {
-      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
-
-      const selectedOptionsHtml =
-        selectedOptions && selectedOptions.length > 0
-          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
-              .map(
-                opt =>
-                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
-              )
-              .join('')}</ul>`
-          : '';
+      const lang = await resolveEmailLanguage(voterEmail, languageHint);
+      const selectedOptionsHtml = renderSelectedOptionsHtml(selectedOptions);
 
       const rendered = await this.renderTemplate('vote_confirmation', {
         voterName,
         pollTitle,
-        pollType: pollTypeText,
+        pollType: pollTypeLabel(pollType, lang),
         publicLink: validateEmailUrl(publicLink),
         resultsLink: resultsLink ? validateEmailUrl(resultsLink) : undefined,
         resultsPublic: resultsLink ? 'true' : 'false',
         editLink: editLink ? validateEmailUrl(editLink) : undefined,
         voteManagementAction: withdrawalOnly ? 'withdraw' : 'edit',
         selectedOptionsHtml,
-      });
+      }, lang);
 
       await this.sendMail({
         to: voterEmail,
@@ -350,33 +358,25 @@ export class EmailService {
     publicLink: string,
     resultsLink: string | undefined,
     selectedOptions?: string[],
-    editLink?: string
+    editLink?: string,
+    languageHint?: EmailLanguage
   ): Promise<void> {
     if (!voterEmail) return;
 
     try {
-      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
-
-      const selectedOptionsHtml =
-        selectedOptions && selectedOptions.length > 0
-          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
-              .map(
-                opt =>
-                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
-              )
-              .join('')}</ul>`
-          : '';
+      const lang = await resolveEmailLanguage(voterEmail, languageHint);
+      const selectedOptionsHtml = renderSelectedOptionsHtml(selectedOptions);
 
       const rendered = await this.renderTemplate('vote_updated', {
         voterName,
         pollTitle,
-        pollType: pollTypeText,
+        pollType: pollTypeLabel(pollType, lang),
         publicLink: validateEmailUrl(publicLink),
         resultsLink: resultsLink ? validateEmailUrl(resultsLink) : undefined,
         resultsPublic: resultsLink ? 'true' : 'false',
         editLink: editLink ? validateEmailUrl(editLink) : undefined,
         selectedOptionsHtml,
-      });
+      }, lang);
 
       await this.sendMail({
         to: voterEmail,
@@ -391,11 +391,14 @@ export class EmailService {
   }
 
   async sendVoteWithdrawalEmail(
-    recipientEmail: string, voterName: string, pollTitle: string, link: string, organizer = false
+    recipientEmail: string, voterName: string, pollTitle: string, link: string, organizer = false,
+    languageHint?: EmailLanguage
   ): Promise<void> {
     if (!recipientEmail) return;
+    // The requester's UI language only applies to the voter's own receipt.
+    const lang = await resolveEmailLanguage(recipientEmail, organizer ? undefined : languageHint);
     const rendered = await emailTemplateService.renderVoteWithdrawalEmail(
-      voterName, pollTitle, validateEmailUrl(link), organizer
+      voterName, pollTitle, validateEmailUrl(link), organizer, lang
     );
     await this.sendMail({ to: recipientEmail, ...rendered });
   }
@@ -411,15 +414,14 @@ export class EmailService {
     if (!creatorEmail) return;
 
     try {
-      const pollTypeText = pollType === 'schedule' ? 'Terminumfrage' : pollType === 'organization' ? 'Orga-Liste' : 'Umfrage';
-
+      const lang = await resolveEmailLanguage(creatorEmail);
       const rendered = await this.renderTemplate('new_vote_notification', {
         voterName,
         pollTitle,
-        pollType: pollTypeText,
+        pollType: pollTypeLabel(pollType, lang),
         adminLink: validateEmailUrl(adminLink),
         resultsLink: validateEmailUrl(resultsLink),
-      });
+      }, lang);
 
       await this.sendMail({
         to: creatorEmail,
@@ -450,28 +452,21 @@ export class EmailService {
         console.error('Failed to generate QR code for reminder email:', qrError);
       }
 
+      const lang = await resolveEmailLanguage(recipientEmail);
       const expiryText = expiresAt
-        ? `Die Umfrage endet am ${new Date(expiresAt).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr.`
+        ? emailStrings(lang).reminder.expiry(new Date(expiresAt).toLocaleDateString(emailLocale(lang), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }))
         : '';
 
-      const selectedOptionsHtml =
-        selectedOptions && selectedOptions.length > 0
-          ? `<ul style="margin: 0; padding-left: 18px;">${selectedOptions
-              .map(
-                opt =>
-                  `<li style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 13px; color: #4b5563; margin: 3px 0;">${escapeHtml(opt)}</li>`
-              )
-              .join('')}</ul>`
-          : '';
+      const selectedOptionsHtml = renderSelectedOptionsHtml(selectedOptions);
 
       const rendered = await this.renderTemplate('reminder', {
-        senderName,
+        senderName: senderName || emailStrings(lang).someone,
         pollTitle,
         pollLink: validatedLink,
         expiresAt: expiryText,
         qrCodeUrl: qrCodeDataUrl,
         selectedOptionsHtml,
-      });
+      }, lang);
 
       await this.sendMail({
         to: recipientEmail,
@@ -486,12 +481,13 @@ export class EmailService {
     }
   }
 
-  async sendPasswordResetEmail(email: string, resetLink: string, userName?: string): Promise<void> {
+  async sendPasswordResetEmail(email: string, resetLink: string, userName?: string, languageHint?: EmailLanguage): Promise<void> {
     try {
+      const lang = await resolveEmailLanguage(email, languageHint);
       const rendered = await this.renderTemplate('password_reset', {
         userName: userName || '',
         resetLink: validateEmailUrl(resetLink),
-      });
+      }, lang);
 
       await this.sendMail({
         to: email,
@@ -505,13 +501,16 @@ export class EmailService {
     }
   }
 
-  async sendEmailChangeConfirmation(oldEmail: string, newEmail: string, confirmLink: string): Promise<void> {
+  async sendEmailChangeConfirmation(oldEmail: string, newEmail: string, confirmLink: string, languageHint?: EmailLanguage): Promise<void> {
     try {
+      // Only one of the two addresses belongs to an account yet; whichever does
+      // decides the language.
+      const lang = await resolveEmailLanguage([newEmail, oldEmail], languageHint);
       const rendered = await this.renderTemplate('email_change', {
         oldEmail,
         newEmail,
         confirmLink: validateEmailUrl(confirmLink),
-      });
+      }, lang);
 
       await this.sendMail({
         to: newEmail,
@@ -525,11 +524,12 @@ export class EmailService {
     }
   }
 
-  async sendPasswordChangedEmail(email: string, userName?: string): Promise<void> {
+  async sendPasswordChangedEmail(email: string, userName?: string, languageHint?: EmailLanguage): Promise<void> {
     try {
+      const lang = await resolveEmailLanguage(email, languageHint);
       const rendered = await this.renderTemplate('password_changed', {
         userName: userName || '',
-      });
+      }, lang);
 
       await this.sendMail({
         to: email,
@@ -579,15 +579,17 @@ export class EmailService {
     try {
       const results = Array.isArray(pdfBufferOrResults) ? pdfBufferOrResults : (maybeResults || []);
       const pdfBuffer = Array.isArray(pdfBufferOrResults) ? undefined : pdfBufferOrResults;
+      const lang = await resolveEmailLanguage(recipientEmail);
+      const T = emailStrings(lang).testReport;
       const isSuccess = testRun.status === 'completed' && testRun.failed === 0;
       const statusEmoji = isSuccess ? '✅' : '❌';
-      const statusText = isSuccess ? 'Alle Tests bestanden' : `${testRun.failed} Test(s) fehlgeschlagen`;
+      const statusText = isSuccess ? T.allPassed : T.someFailed(testRun.failed);
 
       const durationText = testRun.duration 
-        ? `${Math.round(testRun.duration / 1000)} Sekunden`
-        : 'Unbekannt';
+        ? T.seconds(Math.round(testRun.duration / 1000))
+        : T.unknownDuration;
       
-      const startedAtText = testRun.startedAt.toLocaleString('de-DE', {
+      const startedAtText = testRun.startedAt.toLocaleString(emailLocale(lang), {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -599,25 +601,25 @@ export class EmailService {
       const failedSummaryHtml = failedResults.length > 0
         ? `
           <div style="margin: 6px 0 0;">
-            <p style="margin: 0 0 10px; color: #991b1b; font-size: 14px; font-weight: 700;">Fehlgeschlagene Tests (${testRun.failed})</p>
+            <p style="margin: 0 0 10px; color: #991b1b; font-size: 14px; font-weight: 700;">${T.failedHeading(testRun.failed)}</p>
             <ul style="margin: 0; padding-left: 18px; color: #7f1d1d;">
               ${failedResults.map((result) => {
                 const firstErrorLine = summarizeTestError(result.error);
                 return `<li style="margin: 6px 0;"><strong>${escapeHtml(result.testName)}</strong>${result.testFile ? ` <span style="color:#7f1d1d;">(${escapeHtml(result.testFile)})</span>` : ''}${firstErrorLine ? `<br/><span style="color:#991b1b;">${escapeHtml(firstErrorLine)}</span>` : ''}</li>`;
               }).join('')}
             </ul>
-            <p style="margin: 10px 0 0; color: #6b7280;">Vollständige Details finden Sie im angehängten PDF-Bericht.</p>
+            <p style="margin: 10px 0 0; color: #6b7280;">${T.pdfHint}</p>
           </div>
         `
         : '';
       const failedSummaryText = failedResults.length > 0
         ? [
-            `Fehlgeschlagene Tests (${testRun.failed}):`,
+            `${T.failedHeading(testRun.failed)}:`,
             ...failedResults.map((result) => {
               const firstErrorLine = summarizeTestError(result.error);
               return `- ${result.testName}${result.testFile ? ` (${result.testFile})` : ''}${firstErrorLine ? `: ${firstErrorLine}` : ''}`;
             }),
-            'Vollständige Details finden Sie im angehängten PDF-Bericht.',
+            T.pdfHint,
             '',
           ].join('\n')
         : '';
@@ -633,10 +635,10 @@ export class EmailService {
         startedAt: startedAtText,
         failedSummaryHtml,
         failedSummaryText,
-      });
+      }, lang);
 
       const attachments: nodemailer.SendMailOptions['attachments'] = pdfBuffer
-        ? [{ filename: `testbericht-${testRun.id}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+        ? [{ filename: T.pdfFilename(testRun.id), content: pdfBuffer, contentType: 'application/pdf' }]
         : undefined;
 
       await this.sendMail({
@@ -677,8 +679,7 @@ export class EmailService {
   async sendFinalizationEmails(
     participantEmails: string[],
     pollTitle: string,
-    confirmedDate: string,
-    confirmedTime: string,
+    confirmedSlot: { startTime: Date | null; endTime: Date | null; text: string },
     pollLink: string,
     icsBuffer: Buffer,
     videoConferenceUrl?: string | null,
@@ -690,55 +691,61 @@ export class EmailService {
     }
 
     const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const videoConfHtml = videoConferenceUrl
-      ? `<strong>Videokonferenz:</strong> <a href="${escapeHtml(videoConferenceUrl)}" style="color:#7A3800;text-decoration:underline;">${escapeHtml(videoConferenceUrl)}</a>`
-      : '';
-
     const closingMessageHtml = closingMessage ? renderMarkdownToSafeHtml(closingMessage) : '';
     const closingMessageText = closingMessage ? markdownToPlainText(closingMessage) : '';
-
-    const rendered = await this.renderTemplate('poll_finalized', {
-      pollType: 'schedule',
-      statusLabel: 'Termin bestätigt',
-      pollTitle,
-      confirmedDate,
-      confirmedTime,
-      pollLink,
-      buttonLink: pollLink,
-      buttonLabel: 'Zur Umfrage \u2192',
-      videoConferenceUrl: videoConferenceUrl || '',
-      videoConferenceHtml: videoConfHtml,
-      resultsPublic: 'true',
-      closingMessageHtml,
-      closingMessageText,
-    });
-
-    const attachments: nodemailer.SendMailOptions['attachments'] = [
-      {
-        filename: 'termin.ics',
-        content: icsBuffer,
-        contentType: 'text/calendar; method=PUBLISH',
-      },
-    ];
 
     let sent = 0;
     let failed = 0;
 
-    for (const email of participantEmails) {
-      try {
-        await this.sendMail({
-          to: email,
-          subject: rendered.subject,
-          html: rendered.html,
-          text: rendered.text,
-          attachments,
-          isBulk: true,
-        });
-        sent++;
-        console.log(`[Email] Finalization notification sent to ${email}`);
-      } catch (error) {
-        failed++;
-        console.error(`[Email] Failed to send finalization notification to ${email}:`, error);
+    // Each language group gets its own rendering (date format, labels, ICS name).
+    const groups = await groupRecipientsByLanguage(participantEmails, email => email);
+    for (const [lang, emails] of groups) {
+      const F = emailStrings(lang).finalized;
+      const { confirmedDate, confirmedTime } = formatConfirmedSlot(confirmedSlot, lang);
+      const videoConfHtml = videoConferenceUrl
+        ? `<strong>${F.videoConference}</strong> <a href="${escapeHtml(videoConferenceUrl)}" style="color:#7A3800;text-decoration:underline;">${escapeHtml(videoConferenceUrl)}</a>`
+        : '';
+
+      const rendered = await this.renderTemplate('poll_finalized', {
+        pollType: 'schedule',
+        statusLabel: F.scheduleTag,
+        pollTitle,
+        confirmedDate,
+        confirmedTime,
+        pollLink,
+        buttonLink: pollLink,
+        buttonLabel: F.goToPoll,
+        videoConferenceUrl: videoConferenceUrl || '',
+        videoConferenceHtml: videoConfHtml,
+        resultsPublic: 'true',
+        closingMessageHtml,
+        closingMessageText,
+      }, lang);
+
+      const attachments: nodemailer.SendMailOptions['attachments'] = [
+        {
+          filename: F.icsFilename,
+          content: icsBuffer,
+          contentType: 'text/calendar; method=PUBLISH',
+        },
+      ];
+
+      for (const email of emails) {
+        try {
+          await this.sendMail({
+            to: email,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+            attachments,
+            isBulk: true,
+          });
+          sent++;
+          console.log(`[Email] Finalization notification sent to ${email}`);
+        } catch (error) {
+          failed++;
+          console.error(`[Email] Failed to send finalization notification to ${email}:`, error);
+        }
       }
     }
 
@@ -761,68 +768,146 @@ export class EmailService {
       return { sent: 0, failed: 0 };
     }
 
-    const buttonLabel = resultsPublic ? 'Ergebnisse anzeigen \u2192' : 'Zur Umfrage \u2192';
     const buttonLink = resultsPublic ? `${pollLink}#results` : pollLink;
-
-    // Build slot summary HTML for orga polls
-    let slotSummaryHtml = '';
-    if (slotSummary && slotSummary.length > 0) {
-      const MAX_SLOTS = 5;
-      const displayed = slotSummary.slice(0, MAX_SLOTS);
-      const remaining = slotSummary.length - displayed.length;
-      const rows = displayed.map((s) => {
-        const capacityStr = s.total !== null ? ` / ${s.total}` : '';
-        return `<li style="margin:2px 0;">${escapeHtml(s.text)}: <strong>${s.filled}${capacityStr}</strong> belegt</li>`;
-      });
-      if (remaining > 0) {
-        rows.push(`<li style="margin:2px 0; color:#666;">… und ${remaining} weitere</li>`);
-      }
-      slotSummaryHtml = `<ul style="margin:8px 0 0 0; padding-left:18px;">${rows.join('')}</ul>`;
-    }
-
     const closingMessageHtml = closingMessage ? renderMarkdownToSafeHtml(closingMessage) : '';
     const closingMessageText = closingMessage ? markdownToPlainText(closingMessage) : '';
-
-    const rendered = await this.renderTemplate('poll_finalized', {
-      pollType,
-      statusLabel: 'Umfrage beendet',
-      pollTitle,
-      pollLink,
-      buttonLink,
-      buttonLabel,
-      resultsPublic: String(resultsPublic),
-      confirmedDate: '',
-      confirmedTime: '',
-      videoConferenceUrl: '',
-      videoConferenceHtml: '',
-      finalOptionText: finalOptionText ? escapeHtml(finalOptionText) : '',
-      slotSummaryHtml,
-      closingMessageHtml,
-      closingMessageText,
-    });
 
     let sent = 0;
     let failed = 0;
 
-    for (const email of recipientEmails) {
-      try {
-        await this.sendMail({
-          to: email,
-          subject: rendered.subject,
-          html: rendered.html,
-          text: rendered.text,
-          isBulk: true,
+    const groups = await groupRecipientsByLanguage(recipientEmails, email => email);
+    for (const [lang, emails] of groups) {
+      const F = emailStrings(lang).finalized;
+      const buttonLabel = resultsPublic ? F.viewResults : F.goToPoll;
+
+      // Build slot summary HTML for orga polls
+      let slotSummaryHtml = '';
+      if (slotSummary && slotSummary.length > 0) {
+        const MAX_SLOTS = 5;
+        const displayed = slotSummary.slice(0, MAX_SLOTS);
+        const remaining = slotSummary.length - displayed.length;
+        const rows = displayed.map((s) => {
+          const capacityStr = s.total !== null ? ` / ${s.total}` : '';
+          return `<li style="margin:2px 0;">${escapeHtml(s.text)}: <strong>${s.filled}${capacityStr}</strong> ${F.slotFilled}</li>`;
         });
-        sent++;
-        console.log(`[Email] Poll-ended notification sent to ${email}`);
-      } catch (error) {
-        failed++;
-        console.error(`[Email] Failed to send poll-ended notification to ${email}:`, error);
+        if (remaining > 0) {
+          rows.push(`<li style="margin:2px 0; color:#666;">${F.moreSlots(remaining)}</li>`);
+        }
+        slotSummaryHtml = `<ul style="margin:8px 0 0 0; padding-left:18px;">${rows.join('')}</ul>`;
+      }
+
+      const rendered = await this.renderTemplate('poll_finalized', {
+        pollType,
+        statusLabel: F.pollEndedStatus,
+        pollTitle,
+        pollLink,
+        buttonLink,
+        buttonLabel,
+        resultsPublic: String(resultsPublic),
+        confirmedDate: '',
+        confirmedTime: '',
+        videoConferenceUrl: '',
+        videoConferenceHtml: '',
+        finalOptionText: finalOptionText ? escapeHtml(finalOptionText) : '',
+        slotSummaryHtml,
+        closingMessageHtml,
+        closingMessageText,
+      }, lang);
+
+      for (const email of emails) {
+        try {
+          await this.sendMail({
+            to: email,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+            isBulk: true,
+          });
+          sent++;
+          console.log(`[Email] Poll-ended notification sent to ${email}`);
+        } catch (error) {
+          failed++;
+          console.error(`[Email] Failed to send poll-ended notification to ${email}:`, error);
+        }
       }
     }
 
     console.log(`[Email] Poll-ended notifications: ${sent} sent, ${failed} failed`);
     return { sent, failed };
+  }
+
+  /** Hand-built security alert (not an editable template), localized per admin. */
+  private buildVirusAlert(
+    lang: EmailLanguage,
+    details: {
+      filename: string;
+      fileSize: number;
+      virusName: string;
+      uploaderEmail?: string | null;
+      requestIp?: string | null;
+      scannedAt: Date;
+    }
+  ): { subject: string; bodyHtml: string; plainText: string } {
+    const V = emailStrings(lang).virus;
+    const locale = emailLocale(lang);
+    const fileSizeFormatted = details.fileSize < 1024 
+      ? `${details.fileSize} ${V.bytes}` 
+      : details.fileSize < 1024 * 1024 
+        ? `${(details.fileSize / 1024).toFixed(2)} KB`
+        : `${(details.fileSize / 1024 / 1024).toFixed(2)} MB`;
+    const scannedAtText = details.scannedAt.toLocaleString(locale);
+
+    const subject = V.subject(escapeHtml(details.virusName));
+    const bodyHtml = `
+      <div style="padding: 16px 24px;">
+        <div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+          <h2 class="email-heading" style="margin: 0; font-size: 24px; color: white;">${V.heading}</h2>
+        </div>
+        
+        <div style="background-color: #fff5f5; border: 1px solid #dc3545; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
+          <p class="email-text" style="font-size: 16px; margin-bottom: 20px;">
+            ${V.intro} <strong>${V.blocked}</strong>
+          </p>
+          
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24; width: 140px;">${V.virusName}</td>
+              <td style="padding: 10px 0; color: #dc3545; font-weight: bold;">${escapeHtml(details.virusName)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">${V.filename}</td>
+              <td style="padding: 10px 0;">${escapeHtml(details.filename)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">${V.fileSize}</td>
+              <td style="padding: 10px 0;">${fileSizeFormatted}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">${V.uploader}</td>
+              <td style="padding: 10px 0;">${details.uploaderEmail ? escapeHtml(details.uploaderEmail) : V.anonymous}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f5c6cb;">
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">${V.ip}</td>
+              <td style="padding: 10px 0;">${details.requestIp ? escapeHtml(details.requestIp) : V.notAvailable}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">${V.time}</td>
+              <td style="padding: 10px 0;">${scannedAtText}</td>
+            </tr>
+          </table>
+          
+          <div style="background-color: #d4edda; border: 1px solid #28a745; padding: 15px; border-radius: 6px; margin-top: 20px;">
+            <p style="margin: 0; color: #155724;">
+              <strong>${V.actionBold}</strong> ${V.action}
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const plainText = `${V.textTitle}\n\n${V.intro}\n${V.blocked}\n\n${V.virusName} ${details.virusName}\n${V.filename} ${details.filename}\n${V.fileSize} ${fileSizeFormatted}\n${V.uploader} ${details.uploaderEmail || V.anonymous}\n${V.ip} ${details.requestIp || V.notAvailable}\n${V.time} ${scannedAtText}\n\n${V.action}`;
+
+    return { subject, bodyHtml, plainText };
   }
 
   async sendVirusDetectionAlert(
@@ -841,88 +926,37 @@ export class EmailService {
       return;
     }
 
-    const fileSizeFormatted = details.fileSize < 1024 
-      ? `${details.fileSize} Bytes` 
-      : details.fileSize < 1024 * 1024 
-        ? `${(details.fileSize / 1024).toFixed(2)} KB`
-        : `${(details.fileSize / 1024 / 1024).toFixed(2)} MB`;
-
-    const subject = `[Polly Security Alert] Virus erkannt: ${escapeHtml(details.virusName)}`;
-    const bodyHtml = `
-      <div style="padding: 16px 24px;">
-        <div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-          <h2 class="email-heading" style="margin: 0; font-size: 24px; color: white;">⚠️ Sicherheitswarnung: Virus erkannt</h2>
-        </div>
-        
-        <div style="background-color: #fff5f5; border: 1px solid #dc3545; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
-          <p class="email-text" style="font-size: 16px; margin-bottom: 20px;">
-            ClamAV hat einen Virus in einer hochgeladenen Datei erkannt. <strong>Die Datei wurde automatisch blockiert und nicht gespeichert.</strong>
-          </p>
-          
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr style="border-bottom: 1px solid #f5c6cb;">
-              <td style="padding: 10px 0; font-weight: bold; color: #721c24; width: 140px;">Erkannter Virus:</td>
-              <td style="padding: 10px 0; color: #dc3545; font-weight: bold;">${escapeHtml(details.virusName)}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f5c6cb;">
-              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Dateiname:</td>
-              <td style="padding: 10px 0;">${escapeHtml(details.filename)}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f5c6cb;">
-              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Dateigröße:</td>
-              <td style="padding: 10px 0;">${fileSizeFormatted}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f5c6cb;">
-              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Uploader:</td>
-              <td style="padding: 10px 0;">${details.uploaderEmail ? escapeHtml(details.uploaderEmail) : 'Anonym / Unbekannt'}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f5c6cb;">
-              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">IP-Adresse:</td>
-              <td style="padding: 10px 0;">${details.requestIp || 'Nicht verfügbar'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0; font-weight: bold; color: #721c24;">Zeitpunkt:</td>
-              <td style="padding: 10px 0;">${details.scannedAt.toLocaleString('de-DE')}</td>
-            </tr>
-          </table>
-          
-          <div style="background-color: #d4edda; border: 1px solid #28a745; padding: 15px; border-radius: 6px; margin-top: 20px;">
-            <p style="margin: 0; color: #155724;">
-              <strong>✓ Automatische Maßnahme:</strong> Die infizierte Datei wurde abgelehnt und nicht im System gespeichert.
-            </p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const plainText = `POLLY SECURITY ALERT - Virus erkannt!\n\nClamAV hat einen Virus in einer hochgeladenen Datei erkannt.\nDie Datei wurde automatisch blockiert und nicht gespeichert.\n\nErkannter Virus: ${details.virusName}\nDateiname: ${details.filename}\nDateigröße: ${fileSizeFormatted}\nUploader: ${details.uploaderEmail || 'Anonym / Unbekannt'}\nIP-Adresse: ${details.requestIp || 'Nicht verfügbar'}\nZeitpunkt: ${details.scannedAt.toLocaleString('de-DE')}\n\nDie infizierte Datei wurde abgelehnt und nicht im System gespeichert.`;
-
     try {
-      const rendered = await emailTemplateService.wrapWithEmailTheme(subject, bodyHtml, plainText);
+      const groups = await groupRecipientsByLanguage(adminEmails, email => email);
+      for (const [lang, emails] of groups) {
+        const alert = this.buildVirusAlert(lang, details);
+        const rendered = await emailTemplateService.wrapWithEmailTheme(alert.subject, alert.bodyHtml, alert.plainText, lang);
 
-      for (const adminEmail of adminEmails) {
-        await this.sendMail({
-          to: adminEmail,
-          subject: rendered.subject,
-          html: rendered.html,
-          text: rendered.text,
-          priority: 'high',
-          fromPrefix: 'Security',
-        });
-        console.log(`[Email] Virus detection alert sent to ${adminEmail}`);
+        for (const adminEmail of emails) {
+          await this.sendMail({
+            to: adminEmail,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+            priority: 'high',
+            fromPrefix: 'Security',
+          });
+          console.log(`[Email] Virus detection alert sent to ${adminEmail}`);
+        }
       }
     } catch (error) {
       console.error('Failed to send virus detection alert:', error);
     }
   }
 
-  async sendWelcomeEmail(email: string, userName: string, verificationLink: string): Promise<void> {
+  async sendWelcomeEmail(email: string, userName: string, verificationLink: string, languageHint?: EmailLanguage): Promise<void> {
     try {
+      const lang = await resolveEmailLanguage(email, languageHint);
       const rendered = await this.renderTemplate('welcome', {
         userName,
         userEmail: email,
         verificationLink: validateEmailUrl(verificationLink),
-      });
+      }, lang);
 
       await this.sendMail({
         to: email,
@@ -939,48 +973,53 @@ export class EmailService {
 
   async sendDeletionRequestNotification(adminEmails: string[], userName: string, userEmail: string, adminPanelUrl: string): Promise<void> {
     try {
-      const requestDate = new Date().toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
-      const subject = 'Neuer Löschantrag eingegangen';
       const validatedUrl = validateEmailUrl(adminPanelUrl);
-      const bodyHtml = `
+      const now = new Date();
+      const groups = await groupRecipientsByLanguage(adminEmails, email => email);
+      for (const [lang, emails] of groups) {
+        const D = emailStrings(lang).deletion;
+        const requestDate = now.toLocaleString(emailLocale(lang), { dateStyle: 'medium', timeStyle: 'short' });
+        const subject = D.subject;
+        const bodyHtml = `
         <div style="padding: 16px 24px;">
-          <h2 class="email-heading" style="margin: 0 0 16px 0;">Neuer Löschantrag</h2>
+          <h2 class="email-heading" style="margin: 0 0 16px 0;">${D.heading}</h2>
           <p class="email-text" style="margin-bottom: 16px;">
-            Ein Benutzer hat die Löschung seines Kontos beantragt:
+            ${D.intro}
           </p>
           <table style="width: 100%; border-collapse: collapse;">
             <tr style="border-bottom: 1px solid #e5e7eb;">
-              <td style="padding: 8px 0; font-weight: bold; width: 120px;">Benutzer:</td>
+              <td style="padding: 8px 0; font-weight: bold; width: 120px;">${D.user}</td>
               <td style="padding: 8px 0;">${escapeHtml(userName)}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
-              <td style="padding: 8px 0; font-weight: bold;">E-Mail:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${D.email}</td>
               <td style="padding: 8px 0;">${escapeHtml(userEmail)}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; font-weight: bold;">Datum:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${D.date}</td>
               <td style="padding: 8px 0;">${requestDate}</td>
             </tr>
           </table>
           <p class="email-text" style="margin-top: 16px;">
-            <a href="${escapeHtml(validatedUrl)}" style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 6px;">Löschanträge verwalten</a>
+            <a href="${escapeHtml(validatedUrl)}" style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 6px;">${D.button}</a>
           </p>
         </div>
       `;
 
-      const plainText = `Neuer Löschantrag\n\nEin Benutzer hat die Löschung seines Kontos beantragt:\n\nBenutzer: ${userName}\nE-Mail: ${userEmail}\nDatum: ${requestDate}\n\nLöschanträge verwalten: ${validatedUrl}`;
+        const plainText = `${D.heading}\n\n${D.intro}\n\n${D.user} ${userName}\n${D.email} ${userEmail}\n${D.date} ${requestDate}\n\n${D.button}: ${validatedUrl}`;
 
-      const rendered = await emailTemplateService.wrapWithEmailTheme(subject, bodyHtml, plainText);
+        const rendered = await emailTemplateService.wrapWithEmailTheme(subject, bodyHtml, plainText, lang);
 
-      for (const adminEmail of adminEmails) {
-        await this.sendMail({
-          to: adminEmail,
-          subject: rendered.subject,
-          html: rendered.html,
-          text: rendered.text,
-          priority: 'high',
-        });
-        console.log(`[Email] Deletion request notification sent to ${adminEmail}`);
+        for (const adminEmail of emails) {
+          await this.sendMail({
+            to: adminEmail,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+            priority: 'high',
+          });
+          console.log(`[Email] Deletion request notification sent to ${adminEmail}`);
+        }
       }
     } catch (error) {
       console.error('Failed to send deletion request notification:', error);
@@ -1046,19 +1085,21 @@ export class EmailService {
     for (const [email, { slots }] of voterSlots.entries()) {
       if (slots.length === 0) continue;
       try {
+        const lang = await resolveEmailLanguage(email);
+        const F = emailStrings(lang).finalized;
         const slotSummaryHtml = `<ul style="margin:8px 0 0 0;padding-left:18px;">${
           slots.map(s => `<li style="margin:2px 0;">${escapeHtml(s)}</li>`).join('')
         }</ul>`;
         const rendered = await this.renderTemplate('poll_finalized', {
           pollType: 'organization',
-          statusLabel: 'Anmeldung bestätigt',
+          statusLabel: F.orgConfirmedStatus,
           pollTitle,
           pollLink: validatedLink,
           buttonLink: validatedLink,
-          buttonLabel: 'Zur Anmeldeliste \u2192',
+          buttonLabel: F.orgConfirmedButton,
           resultsPublic: 'true',
           slotSummaryHtml,
-        });
+        }, lang);
         await this.sendMail({ to: email, subject: rendered.subject, html: rendered.html, text: rendered.text, isBulk: true });
         sent++;
         console.log(`[Email] Org confirmation sent to ${email}`);
@@ -1071,6 +1112,8 @@ export class EmailService {
     // Organizer always gets the full participant-list summary (all yes-votes, including no-email participants)
     if (organizerEmail && organizerEmail.includes('@')) {
       try {
+        const lang = await resolveEmailLanguage(organizerEmail);
+        const F = emailStrings(lang).finalized;
         const slotSummaryHtml = allSlotNamesMap.size > 0
           ? `<ul style="margin:8px 0 0 0;padding-left:18px;">${
               [...allSlotNamesMap.entries()].map(([slot, names]) =>
@@ -1080,14 +1123,14 @@ export class EmailService {
           : '';
         const rendered = await this.renderTemplate('poll_finalized', {
           pollType: 'organization',
-          statusLabel: 'Anmeldeübersicht',
+          statusLabel: F.orgSummaryStatus,
           pollTitle,
           pollLink: validatedLink,
           buttonLink: validatedLink,
-          buttonLabel: 'Anmeldeliste öffnen \u2192',
+          buttonLabel: F.orgSummaryButton,
           resultsPublic: 'true',
           slotSummaryHtml,
-        });
+        }, lang);
         await this.sendMail({ to: organizerEmail, subject: rendered.subject, html: rendered.html, text: rendered.text, isBulk: true });
         sent++;
         console.log(`[Email] Org summary sent to organizer ${organizerEmail}`);

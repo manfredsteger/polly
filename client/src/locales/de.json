@@ -927,7 +927,19 @@
         "themeResetDescription": "Theme wurde auf Standard zurückgesetzt",
         "themeResetError": "Theme konnte nicht zurückgesetzt werden",
         "invalidJson": "Ungültiges JSON",
-        "invalidJsonDescription": "Bitte überprüfen Sie die JSON-Syntax"
+        "invalidJsonDescription": "Bitte überprüfen Sie die JSON-Syntax",
+        "languageSaved": "Die Standardsprache für E-Mails wurde gespeichert.",
+        "languageError": "Die E-Mail-Sprache konnte nicht gespeichert werden."
+      },
+      "languageCardTitle": "E-Mail-Sprache",
+      "languageCardDescription": "Registrierte Nutzer erhalten E-Mails immer in der Sprache ihres Kontos. Gäste erhalten die Sprache, in der sie Polly gerade nutzen.",
+      "defaultLanguage": "Standardsprache für E-Mails",
+      "defaultLanguageHint": "Gilt für Empfänger, deren Sprache unbekannt ist – z. B. eingeladene Personen ohne Konto.",
+      "editingLanguage": "Vorlagen bearbeiten für",
+      "editingLanguageHint": "Jede Sprache hat eigene Vorlagen und eine eigene Fußzeile. Änderungen wirken nur auf die gewählte Sprache.",
+      "languages": {
+        "de": "Deutsch",
+        "en": "Englisch"
       }
     },
     "customization": {

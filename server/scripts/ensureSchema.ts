@@ -47,6 +47,7 @@ export const COLUMN_UPDATES: { table: string; column: string; definition: string
   { table: 'users', column: 'totp_enabled', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'users', column: 'mfa_required', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'users', column: 'last_used_totp_token', definition: 'TEXT' },
+  { table: 'email_templates', column: 'language', definition: 'TEXT NOT NULL DEFAULT \'de\'' },
 ];
 
 /**
@@ -245,6 +246,11 @@ async function ensureSchema(): Promise<void> {
         'CREATE INDEX IF NOT EXISTS "notification_logs_poll_id_idx" ON "notification_logs" ("poll_id")',
         'CREATE INDEX IF NOT EXISTS "notification_logs_type_idx" ON "notification_logs" ("type")',
         'CREATE INDEX IF NOT EXISTS "votes_voter_edit_token_idx" ON "votes" ("voter_edit_token")',
+        // Email templates are unique per (type, language); the legacy single-column
+        // unique constraint on "type" is dropped by migration 0003.
+        'ALTER TABLE "email_templates" DROP CONSTRAINT IF EXISTS "email_templates_type_unique"',
+        'ALTER TABLE "email_templates" DROP CONSTRAINT IF EXISTS "email_templates_type_key"',
+        'CREATE UNIQUE INDEX IF NOT EXISTS "email_templates_type_language_unique" ON "email_templates" ("type", "language")',
       ];
       for (const stmt of indexStatements) {
         try {
@@ -397,7 +403,8 @@ async function createCoreTables(client: any): Promise<void> {
   await client.query(`
     CREATE TABLE IF NOT EXISTS email_templates (
       id SERIAL PRIMARY KEY,
-      type TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL,
+      language TEXT NOT NULL DEFAULT 'de',
       name TEXT NOT NULL,
       subject TEXT NOT NULL,
       json_content JSONB NOT NULL,

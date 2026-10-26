@@ -6,20 +6,34 @@ import { requireAdmin, loginRateLimiter } from "./common";
 import { authService } from "../services/authService";
 import { clamavService } from "../services/clamavService";
 import { emailService } from "../services/emailService";
-import { emailTemplateService } from "../services/emailTemplateService";
+import { emailTemplateService, EmailTemplateService } from "../services/emailTemplateService";
+import { getEmailLanguageSettings, setEmailLanguageSettings } from "../services/emailLanguage";
 import { matrixService } from "../services/matrixService";
 import { pentestToolsService, TOOL_IDS, SCAN_TYPES } from "../services/pentestToolsService";
 import { apiRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
 import { imageService } from "../services/imageService";
 import type { User } from "@shared/schema";
-import { apiRateLimitsSettingsSchema, EMAIL_TEMPLATE_TYPES } from "@shared/schema";
+import { apiRateLimitsSettingsSchema, EMAIL_TEMPLATE_TYPES, DEFAULT_EMAIL_LANGUAGE, isEmailLanguage, emailLanguageSettingsSchema, type EmailLanguage } from "@shared/schema";
 import { db, pool } from "../db";
 import { testRuns } from "@shared/schema";
 import { eq, or, and, desc } from "drizzle-orm";
 
 const router = Router();
 const validEmailTemplateTypes = new Set<string>(EMAIL_TEMPLATE_TYPES);
+
+/**
+ * Reads the template language from `?language=` (or the JSON body). Missing
+ * means German, so existing admin clients keep editing the German templates.
+ * Returns null for an unsupported value.
+ */
+function parseEmailLanguage(req: { query: Record<string, unknown>; body?: Record<string, unknown> }): EmailLanguage | null {
+  const raw = req.query.language ?? req.body?.language;
+  if (raw === undefined || raw === null || raw === '') return DEFAULT_EMAIL_LANGUAGE;
+  return isEmailLanguage(raw) ? raw : null;
+}
+
+const INVALID_LANGUAGE_ERROR = 'Ungültige Sprache. Erlaubt: de, en';
 
 // ============== ADMIN STATS ==============
 
@@ -1701,7 +1715,9 @@ router.put('/wcag/settings', requireAdmin, async (req, res) => {
 
 router.get('/email-templates', requireAdmin, async (req, res) => {
   try {
-    const templates = await emailTemplateService.getAllTemplates();
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+    const templates = await emailTemplateService.getAllTemplates(language);
     res.json(templates);
   } catch (error) {
     console.error('Error fetching email templates:', error);
@@ -1717,7 +1733,9 @@ router.get('/email-templates/:type', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
-    const template = await emailTemplateService.getTemplate(type as any);
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+    const template = await emailTemplateService.getTemplate(type as any, language);
     res.json(template);
   } catch (error) {
     console.error('Error fetching email template:', error);
@@ -1734,7 +1752,10 @@ router.put('/email-templates/:type', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
-    const existingTemplate = await emailTemplateService.getTemplate(type as any);
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+
+    const existingTemplate = await emailTemplateService.getTemplate(type as any, language);
     const finalJsonContent = jsonContent || existingTemplate.jsonContent;
     
     if (!finalJsonContent) {
@@ -1746,7 +1767,8 @@ router.put('/email-templates/:type', requireAdmin, async (req, res) => {
       finalJsonContent, 
       subject, 
       name,
-      textContent
+      textContent,
+      language
     );
     res.json(template);
   } catch (error) {
@@ -1763,7 +1785,9 @@ router.post('/email-templates/:type/reset', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Ungültiger Template-Typ' });
     }
     
-    const template = await emailTemplateService.resetTemplate(type as any);
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+    const template = await emailTemplateService.resetTemplate(type as any, language);
     res.json(template);
   } catch (error) {
     console.error('Error resetting email template:', error);
@@ -1858,7 +1882,13 @@ router.post('/email-templates/:type/preview', requireAdmin, async (req, res) => 
       },
     };
     
-    const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+    // English previews use the English sample data; German keeps its historic samples.
+    const variables = language === 'de'
+      ? (sampleVariables[type] || {})
+      : await EmailTemplateService.getSampleDataForType(type, language);
+    const rendered = await emailTemplateService.renderEmail(type as any, variables, language);
     res.json(rendered);
   } catch (error) {
     console.error('Error previewing email template:', error);
@@ -1955,7 +1985,12 @@ router.post('/email-templates/:type/test', requireAdmin, async (req, res) => {
       },
     };
     
-    const rendered = await emailTemplateService.renderEmail(type as any, sampleVariables[type] || {});
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+    const variables = language === 'de'
+      ? (sampleVariables[type] || {})
+      : { ...(await EmailTemplateService.getSampleDataForType(type, language)), ...(type === 'welcome' ? { userEmail: recipientEmail } : {}) };
+    const rendered = await emailTemplateService.renderEmail(type as any, variables, language);
     await emailService.sendPreRenderedEmail(recipientEmail, rendered.subject, rendered.html, rendered.text);
     
     res.json({ success: true, message: 'Test-E-Mail gesendet' });
@@ -1985,7 +2020,9 @@ router.get('/email-templates/:type/variables', requireAdmin, async (req, res) =>
 
 router.get('/email-footer', requireAdmin, async (req, res) => {
   try {
-    const footer = await emailTemplateService.getEmailFooter();
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+    const footer = await emailTemplateService.getEmailFooter(language);
     res.json(footer);
   } catch (error) {
     console.error('Error fetching email footer:', error);
@@ -2001,13 +2038,42 @@ router.put('/email-footer', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Fußzeilen-Text erforderlich' });
     }
     
+    const language = parseEmailLanguage(req);
+    if (!language) return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+
     const footer = await emailTemplateService.setEmailFooter({
       html: html || text || '',
       text: text || html || ''
-    });
+    }, language);
     res.json(footer);
   } catch (error) {
     console.error('Error updating email footer:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+// ============== EMAIL LANGUAGE ==============
+
+// Language used for recipients whose language is unknown (guests without a
+// UI language hint, external addresses). Registered users always get their own.
+router.get('/email-language', requireAdmin, async (_req, res) => {
+  try {
+    res.json(await getEmailLanguageSettings());
+  } catch (error) {
+    console.error('Error fetching email language:', error);
+    res.status(500).json({ error: 'Interner Fehler' });
+  }
+});
+
+router.put('/email-language', requireAdmin, async (req, res) => {
+  try {
+    const parsed = emailLanguageSettingsSchema.safeParse(req.body);
+    if (!parsed.success || !isEmailLanguage(req.body?.defaultLanguage)) {
+      return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
+    }
+    res.json(await setEmailLanguageSettings(parsed.data));
+  } catch (error) {
+    console.error('Error updating email language:', error);
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });

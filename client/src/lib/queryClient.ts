@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import i18n from "i18next";
 
 export const API_VERSION = 'v1';
 export const API_BASE = `/api/${API_VERSION}`;
@@ -25,6 +26,15 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * Tells the server which UI language is active, so emails triggered by this
+ * request (vote confirmations, poll links, …) can be sent in that language.
+ */
+export function languageHeaders(): Record<string, string> {
+  const lang = (i18n.resolvedLanguage || i18n.language || '').slice(0, 2).toLowerCase();
+  return lang === 'de' || lang === 'en' ? { "X-Polly-Language": lang } : {};
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -39,7 +49,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: data ? { "Content-Type": "application/json", ...languageHeaders() } : languageHeaders(),
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -56,6 +66,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers: languageHeaders(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

@@ -5,7 +5,7 @@ const { storage, tokenService, emailService, deviceTokenService } = vi.hoisted((
   storage: Object.fromEntries([
     'getPollByPublicToken', 'getCustomizationSettings', 'getVotesByEmail', 'getVotesByUserId',
     'getVotesByEditToken', 'getUser', 'getUserByEmail', 'deleteVote', 'updateVote',
-    'createVote', 'replaceSimpleModeVotes', 'getPoll', 'getVotesByVoterKey',
+    'createVote', 'replaceSimpleModeVotes', 'getPoll', 'getVotesByVoterKey', 'getSetting',
   ].map(name => [name, vi.fn()])),
   tokenService: { extractBearerToken: vi.fn(), validateToken: vi.fn() },
   emailService: { smtpConfigured: true, sendVotingConfirmationEmail: vi.fn(), sendVoteWithdrawalEmail: vi.fn(), sendVoteUpdatedEmail: vi.fn() },
@@ -269,7 +269,7 @@ it('uses current withdrawal-only permissions when resending the confirmation', a
   const res = await call('post', { email: vote.voterEmail }, undefined, '/polls/:token/resend-email');
   expect(res.statusCode).toBe(200);
   expect(emailService.sendVotingConfirmationEmail.mock.calls[0]?.slice(7)).toEqual([
-    expect.stringContaining(`/edit/${token}`), true,
+    expect.stringContaining(`/edit/${token}`), true, undefined,
   ]);
 });
 
@@ -287,7 +287,7 @@ describe.each(['/polls/:token/vote', '/polls/:token/vote-bulk'])('Email-only gue
     expect(emailService.sendVotingConfirmationEmail).toHaveBeenCalledWith(
       vote.voterEmail, vote.voterName, poll.title, 'survey',
       expect.any(String), expect.any(String), expect.any(Array), expect.stringContaining(`/edit/${token}`),
-      false,
+      false, 'de',
     );
   });
 
@@ -355,7 +355,7 @@ describe.each(['/polls/:token/vote', '/votes/edit/:editToken'])('Withdrawal emai
     expect(storage.deleteVote).toHaveBeenCalledTimes(2);
     expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledTimes(notify ? 2 : 1);
     expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledWith(
-      vote.voterEmail, vote.voterName, poll.title, expect.stringContaining('/poll/public-token'),
+      vote.voterEmail, vote.voterName, poll.title, expect.stringContaining('/poll/public-token'), false, undefined,
     );
     if (notify) expect(emailService.sendVoteWithdrawalEmail).toHaveBeenCalledWith(
       poll.creatorEmail, vote.voterName, poll.title, expect.stringContaining('/admin/admin-token'), true,
@@ -401,6 +401,11 @@ describe('Saved answer email summaries', () => {
     expect(getVoteEmailSummary(summaryPoll, [{ optionId: 10, response: 'yes' }, { optionId: 11, response: 'no' }])).toEqual([
       '01.10.2026 09:00–12:00 — Ja', '01.10.2026 14:00–17:00 — Nein',
     ]);
+  });
+  it('labels answers in English for English emails', () => {
+    expect(getVoteEmailSummary(summaryPoll, [
+      { optionId: 10, response: 'yes' }, { optionId: 11, response: 'maybe' },
+    ], 'en')).toEqual(['01.10.2026 09:00–12:00 — Yes', '01.10.2026 14:00–17:00 — Maybe']);
   });
   it.each(['simple', 'organization'])('preserves selection-only wording for %s', mode => {
     const selectionPoll = mode === 'simple' ? { ...summaryPoll, responseMode: 'simple' } : { ...summaryPoll, type: 'organization' };

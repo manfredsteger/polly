@@ -345,7 +345,7 @@ describe('EmailService Integration — Template System', () => {
         pollTitle: 'Teammeeting',
         publicLink: 'https://polly.example.com/poll/abc',
         adminLink: 'https://polly.example.com/admin/xyz',
-      }));
+      }), 'de');
     });
 
     it('sendInvitationEmail calls renderEmail with invitation and qrCodeUrl', async () => {
@@ -358,7 +358,7 @@ describe('EmailService Integration — Template System', () => {
         pollTitle: 'Sommerfeier',
         publicLink: expect.stringContaining('polly.example.com/poll/summer'),
         qrCodeUrl: expect.any(String),
-      }));
+      }), 'de');
     });
 
     it('sendVotingConfirmationEmail calls renderEmail with vote_confirmation', async () => {
@@ -370,7 +370,7 @@ describe('EmailService Integration — Template System', () => {
         voterName: 'Anna',
         pollTitle: 'Weihnachtsfeier',
         editLink: 'https://polly.example.com/edit/token123',
-      }));
+      }), 'de');
     });
 
     it('sendVoteUpdatedEmail calls renderEmail with vote_updated', async () => {
@@ -382,7 +382,7 @@ describe('EmailService Integration — Template System', () => {
         voterName: 'Anna',
         pollTitle: 'Weihnachtsfeier',
         editLink: 'https://polly.example.com/edit/token123',
-      }));
+      }), 'de');
     });
 
     it('sendReminderEmail calls renderEmail with reminder', async () => {
@@ -395,7 +395,7 @@ describe('EmailService Integration — Template System', () => {
         pollTitle: 'Wichtige Umfrage',
         pollLink: 'https://polly.example.com/poll/urgent',
         qrCodeUrl: expect.any(String),
-      }));
+      }), 'de');
     });
 
     it('sendPasswordResetEmail calls renderEmail with password_reset', async () => {
@@ -404,7 +404,7 @@ describe('EmailService Integration — Template System', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('password_reset', expect.objectContaining({
         resetLink: 'https://polly.example.com/reset/token123',
-      }));
+      }), 'de');
     });
 
     it('sendEmailChangeConfirmation calls renderEmail with email_change', async () => {
@@ -413,12 +413,12 @@ describe('EmailService Integration — Template System', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('email_change', expect.objectContaining({
         confirmLink: 'https://polly.example.com/confirm/abc',
-      }));
+      }), 'de');
     });
 
     it('sendPasswordChangedEmail calls renderEmail with password_changed', async () => {
       await emailService.sendPasswordChangedEmail('user@test.com', 'Max Mustermann');
-      expect(renderEmailSpy).toHaveBeenCalledWith('password_changed', expect.any(Object));
+      expect(renderEmailSpy).toHaveBeenCalledWith('password_changed', expect.any(Object), 'de');
     });
 
     it('sendTestReportEmail calls renderEmail with test_report', async () => {
@@ -429,7 +429,7 @@ describe('EmailService Integration — Template System', () => {
         startedAt: new Date('2025-03-15T14:30:00'),
         completedAt: new Date('2025-03-15T14:30:12'),
       });
-      expect(renderEmailSpy).toHaveBeenCalledWith('test_report', expect.any(Object));
+      expect(renderEmailSpy).toHaveBeenCalledWith('test_report', expect.any(Object), 'de');
     });
 
     it('sendTestReportEmail attaches PDF when provided', async () => {
@@ -453,7 +453,7 @@ describe('EmailService Integration — Template System', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('welcome', expect.objectContaining({
         verificationLink: expect.stringContaining('polly.example.com/verify/abc123'),
-      }));
+      }), 'de');
     });
   });
 

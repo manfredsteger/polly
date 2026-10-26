@@ -9,3 +9,4 @@
 - [Mockup sandbox dependency setup](mockup-sandbox-install.md) — a fresh sandbox can need a local dependency install before Vite resolves its declared Tailwind packages.
 - [Vite middleware React stability](vite-middleware-react-stability.md) — keep Cartographer’s dev instrumentation out of this middleware-served app; it can split React’s runtime graph during startup.
 - [CSS color variable wrapping](css-color-variable-wrapping.md) — --primary/--primary-foreground must be full hsl()/rgb() values, not bare "H S% L%" triplets; a bare triplet silently no-ops backgrounds.
+- [Email language resolution](email-language.md) — per-recipient DE/EN order (account → requester header → admin default → de); German output must stay unchanged.

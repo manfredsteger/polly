@@ -1498,6 +1498,16 @@ Alle Branding-Einstellungen auf Systemstandard zurücksetzen.
 
 **Template-Typen:** `poll_created`, `invitation`, `vote_confirmation`, `reminder`, `password_reset`, `email_change`, `password_changed`, `welcome`, `test_report`, `poll_finalized`
 
+**Sprache:** Alle Template- und Footer-Endpunkte akzeptieren den Query-Parameter `?language=de|en` (Standard: `de`). Jede Sprache hat eigene Anpassungen; bestehende Anpassungen gelten als Deutsch. Ungültige Werte liefern `400`.
+
+**Welche Sprache bekommt ein Empfänger?**
+1. Registrierte Nutzer: die Sprache ihres Kontos (`languagePreference`).
+2. Gäste, die die E-Mail selbst ausgelöst haben (z. B. Abstimmungsbestätigung): die UI-Sprache, die der Client im Header `X-Polly-Language: de|en` mitschickt. `Accept-Language` wird bewusst ignoriert.
+3. Sonst: die Standardsprache aus `GET /api/v1/admin/email-language`.
+4. Fallback: Deutsch.
+
+Bei der Registrierung wird `X-Polly-Language` als Kontosprache übernommen.
+
 ### `GET /api/v1/admin/email-templates`
 
 Alle Templates auflisten.
@@ -1566,6 +1576,28 @@ Globalen E-Mail-Footer abrufen.
 ### `PUT /api/v1/admin/email-footer`
 
 Globalen E-Mail-Footer aktualisieren.
+
+---
+
+### `GET /api/v1/admin/email-language`
+
+Standardsprache für E-Mails an Empfänger ohne bekannte Sprache.
+
+**Response (200 OK):**
+```json
+{ "defaultLanguage": "de" }
+```
+
+---
+
+### `PUT /api/v1/admin/email-language`
+
+Standardsprache setzen. Erlaubt: `de`, `en` (sonst `400`).
+
+**Request Body:**
+```json
+{ "defaultLanguage": "en" }
+```
 
 ---
 

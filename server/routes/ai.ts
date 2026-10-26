@@ -18,6 +18,7 @@ import { aiSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { storage } from "../storage";
 import { emailService } from "../services/emailService";
+import { getRequestLanguage } from '../services/emailLanguage';
 import { pollCreationRateLimiter } from "../services/apiRateLimiterService";
 import multer from "multer";
 
@@ -531,7 +532,8 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
         publicLink,
         adminLink,
         suggestion.pollType,
-        userId !== null
+        userId !== null,
+        getRequestLanguage(req)
       );
     }
 

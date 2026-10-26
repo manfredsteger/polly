@@ -243,8 +243,47 @@ describe('Poll CRUD Routes', () => {
         expect.stringContaining(`/poll/${publicToken}`),
         undefined, // This fixture has private results.
         [expect.stringContaining(' — Nein')],
-        expect.stringContaining(`/edit/${editToken}`)
+        expect.stringContaining(`/edit/${editToken}`),
+        'de'
       );
+    });
+
+    it('labels the answers in English when the vote is edited from the English UI', async () => {
+      const createRes = await agent
+        .post('/api/v1/polls')
+        .send({
+          title: 'English Edit Poll',
+          type: 'schedule',
+          allowVoteEdit: true,
+          options: [{ text: 'Monday 10:00' }, { text: 'Tuesday 14:00' }],
+        });
+      expect(createRes.status).toBe(200);
+      const publicToken = createRes.body.publicToken;
+      const pollRes = await request(app).get(`/api/v1/polls/public/${publicToken}`);
+      const optionId = pollRes.body.options[0].id;
+
+      const voteRes = await request(app)
+        .post(`/api/v1/polls/${publicToken}/vote`)
+        .set('X-Polly-Language', 'en')
+        .send({
+          votes: [{ optionId, response: 'yes' }],
+          voterName: 'English Editor',
+          voterEmail: 'edit-mailer-english@example.com',
+        });
+      expect(voteRes.status).toBe(200);
+      const editToken = await getSubmittedVoteToken(voteRes);
+
+      const emailSpy = vi.spyOn(emailService, 'sendVoteUpdatedEmail').mockResolvedValue(undefined);
+      const updateRes = await request(app)
+        .put(`/api/v1/votes/edit/${editToken}`)
+        .set('X-Polly-Language', 'en')
+        .send({ votes: [{ optionId, response: 'maybe' }] });
+
+      expect(updateRes.status).toBe(200);
+      expect(emailSpy).toHaveBeenCalledTimes(1);
+      const args = emailSpy.mock.calls[0];
+      expect(args[6]).toEqual(['Monday 10:00 — Maybe']);
+      expect(args[8]).toBe('en');
     });
   });
 

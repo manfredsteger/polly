@@ -2,9 +2,19 @@ import { storage } from '../storage';
 import { 
   type EmailTemplate, 
   type EmailTemplateType, 
+  type EmailLanguage,
   EMAIL_TEMPLATE_TYPES,
-  EMAIL_TEMPLATE_VARIABLES
+  EMAIL_TEMPLATE_VARIABLES,
+  EMAIL_LANGUAGES,
+  DEFAULT_EMAIL_LANGUAGE,
 } from '@shared/schema';
+import {
+  emailStrings,
+  emailLocale,
+  DEFAULT_EMAIL_FOOTERS,
+  AUTO_FOOTER_DETECT,
+  AUTO_FOOTER_REPLACE,
+} from './emailI18n';
 
 // Email theme settings that can be imported from emailbuilder.js
 export interface EmailTheme {
@@ -458,27 +468,60 @@ function buildSimpleTemplate(
 }
 
 // ---- poll_created: the showcase template with containers ----
-function buildPollCreatedTemplate(): TemplateDefinition {
+function buildPollCreatedTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      adminHeading: 'Administratorlink',
+      adminText: 'Mit diesem Link l\u00E4sst sich die Umfrage verwalten, bearbeiten und die Ergebnisse einsehen.',
+      adminButton: 'Umfrage verwalten',
+      publicHeading: 'Öffentlicher Link zum Teilen',
+      publicText: 'Diesen Link an alle Teilnehmer weiterleiten, damit diese an der Abstimmung teilnehmen k\u00F6nnen.',
+      publicButton: 'Zur Abstimmung',
+      headline: '{{pollType}} erfolgreich erstellt!',
+      greeting: 'Hallo,',
+      intro: 'Die {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich erstellt.',
+      warn: '<strong>\u26A0\uFE0F Wichtig:</strong> Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.',
+      text: `{{pollType}} erfolgreich erstellt!\n\nHallo,\n\nDie {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.\n\nAdministratorlink:\nUmfrage verwalten: {{adminLink}}\n\n\u00D6ffentlicher Link zum Teilen:\nZur Abstimmung: {{publicLink}}\n\nWichtig: Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.`,
+      name: 'Umfrage erstellt',
+      subject: '[{{siteName}}] {{pollType}} wurde erstellt: {{pollTitle}}',
+    },
+    en: {
+      adminHeading: 'Administrator link',
+      adminText: 'Use this link to manage and edit the poll and to view the results.',
+      adminButton: 'Manage poll',
+      publicHeading: 'Public link to share',
+      publicText: 'Forward this link to all participants so they can take part in the vote.',
+      publicButton: 'Go to voting',
+      headline: '{{pollType}} created successfully!',
+      greeting: 'Hello,',
+      intro: 'Your {{pollType}} <strong>"{{pollTitle}}"</strong> has been created successfully.',
+      warn: '<strong>\u26A0\uFE0F Important:</strong> Keep the administrator link safe. It is the only way to manage the poll.',
+      text: `{{pollType}} created successfully!\n\nHello,\n\nYour {{pollType}} "{{pollTitle}}" has been created successfully.\n\nAdministrator link:\nManage poll: {{adminLink}}\n\nPublic link to share:\nGo to voting: {{publicLink}}\n\nImportant: Keep the administrator link safe. It is the only way to manage the poll.`,
+      name: 'Poll created',
+      subject: '[{{siteName}}] {{pollType}} created: {{pollTitle}}',
+    },
+  }[lang];
+
   const adminBox = container('admin-box', '#f8f9fa', '#2a2a3e', [
-    heading('ab-h', 'Administratorlink', 'h3'),
-    txt('ab-t', 'Mit diesem Link l\u00E4sst sich die Umfrage verwalten, bearbeiten und die Ergebnisse einsehen.'),
-    btn('ab-btn', 'Umfrage verwalten', 'adminLink', 'primary'),
+    heading('ab-h', S.adminHeading, 'h3'),
+    txt('ab-t', S.adminText),
+    btn('ab-btn', S.adminButton, 'adminLink', 'primary'),
   ]);
 
   const publicBox = container('public-box', '#e8f4f8', '#1e3a4a', [
-    heading('pb-h', 'Öffentlicher Link zum Teilen', 'h3'),
-    txt('pb-t', 'Diesen Link an alle Teilnehmer weiterleiten, damit diese an der Abstimmung teilnehmen k\u00F6nnen.'),
-    btn('pb-btn', 'Zur Abstimmung', 'publicLink', 'secondary'),
+    heading('pb-h', S.publicHeading, 'h3'),
+    txt('pb-t', S.publicText),
+    btn('pb-btn', S.publicButton, 'publicLink', 'secondary'),
   ], 'secondary');
 
   const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', '{{pollType}} erfolgreich erstellt!', 'h1'),
-    txt('t1', 'Hallo,'),
-    txt('t2', 'Die {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich erstellt.'),
+    heading('h1', S.headline, 'h1'),
+    txt('t1', S.greeting),
+    txt('t2', S.intro),
   ];
 
   const bottomDefs: [string, EmailBuilderBlock][] = [
-    txt('warn', '<strong>\u26A0\uFE0F Wichtig:</strong> Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.', { bold: true }),
+    txt('warn', S.warn, { bold: true }),
     divider('d1'),
   ];
 
@@ -497,225 +540,324 @@ function buildPollCreatedTemplate(): TemplateDefinition {
 
   for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
 
-  const textContent = `{{pollType}} erfolgreich erstellt!\n\nHallo,\n\nDie {{pollType}} "{{pollTitle}}" wurde erfolgreich erstellt.\n\nAdministratorlink:\nUmfrage verwalten: {{adminLink}}\n\n\u00D6ffentlicher Link zum Teilen:\nZur Abstimmung: {{publicLink}}\n\nWichtig: Den Administratorlink sicher aufbewahren. Nur damit l\u00E4sst sich die Umfrage verwalten.`;
-
-  return { name: 'Umfrage erstellt', subject: '[{{siteName}}] {{pollType}} wurde erstellt: {{pollTitle}}', jsonContent: tpl(allBlocks, topIds), textContent };
+  return { name: S.name, subject: S.subject, jsonContent: tpl(allBlocks, topIds), textContent: S.text };
 }
 
 // ---- invitation with QR code ----
-function buildInvitationTemplate(): TemplateDefinition {
+function buildInvitationTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      headline: 'Einladung zur Abstimmung',
+      greeting: 'Hallo,',
+      intro: '{{inviterName}} lädt Sie ein, an der Umfrage <strong>"{{pollTitle}}"</strong> teilzunehmen.',
+      button: 'Jetzt abstimmen',
+      qrAlt: 'QR-Code zur Umfrage',
+      text: `Einladung zur Abstimmung\n\nHallo,\n\n{{inviterName}} lädt Sie ein, an der Umfrage "{{pollTitle}}" teilzunehmen.\n\n{{message}}\n\nJetzt abstimmen: {{publicLink}}`,
+      name: 'Einladung zur Umfrage',
+      subject: '[{{siteName}}] {{inviterName}} lädt Sie ein: {{pollTitle}}',
+    },
+    en: {
+      headline: 'Invitation to vote',
+      greeting: 'Hello,',
+      intro: '{{inviterName}} invites you to take part in the poll <strong>"{{pollTitle}}"</strong>.',
+      button: 'Vote now',
+      qrAlt: 'QR code for the poll',
+      text: `Invitation to vote\n\nHello,\n\n{{inviterName}} invites you to take part in the poll "{{pollTitle}}".\n\n{{message}}\n\nVote now: {{publicLink}}`,
+      name: 'Poll invitation',
+      subject: '[{{siteName}}] {{inviterName}} invites you: {{pollTitle}}',
+    },
+  }[lang];
   const defs: [string, EmailBuilderBlock][] = [];
-  defs.push(heading('h1', 'Einladung zur Abstimmung', 'h1'));
-  defs.push(txt('t0', 'Hallo,'));
-  defs.push(txt('t1', '{{inviterName}} lädt Sie ein, an der Umfrage <strong>"{{pollTitle}}"</strong> teilzunehmen.'));
+  defs.push(heading('h1', S.headline, 'h1'));
+  defs.push(txt('t0', S.greeting));
+  defs.push(txt('t1', S.intro));
   defs.push(txt('t2', '{{message}}'));
-  defs.push(btn('b1', 'Jetzt abstimmen', 'publicLink', 'primary'));
-  defs.push(img('qr', 'qrCodeUrl', 'QR-Code zur Umfrage', '150px'));
+  defs.push(btn('b1', S.button, 'publicLink', 'primary'));
+  defs.push(img('qr', 'qrCodeUrl', S.qrAlt, '150px'));
   defs.push(divider('d1'));
 
-  const textContent = `Einladung zur Abstimmung\n\nHallo,\n\n{{inviterName}} lädt Sie ein, an der Umfrage "{{pollTitle}}" teilzunehmen.\n\n{{message}}\n\nJetzt abstimmen: {{publicLink}}`;
-
-  return buildTemplate('Einladung zur Umfrage', '[{{siteName}}] {{inviterName}} lädt Sie ein: {{pollTitle}}', defs, [], textContent);
+  return buildTemplate(S.name, S.subject, defs, [], S.text);
 }
 
 // ---- reminder with QR code ----
-function buildReminderTemplate(): TemplateDefinition {
+function buildReminderTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      headline: 'Erinnerung zur Abstimmung',
+      greeting: 'Hallo,',
+      intro: '{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage <strong>"{{pollTitle}}"</strong>.',
+      importance: 'Ihre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.',
+      button: 'Jetzt abstimmen',
+      qrAlt: 'QR-Code zur Umfrage',
+      text: `Erinnerung zur Abstimmung\n\nHallo,\n\n{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage "{{pollTitle}}".\n\nIhre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.\n\n{{expiresAt}}\n\nJetzt abstimmen: {{pollLink}}`,
+      name: 'Erinnerung',
+      subject: '[{{siteName}}] Erinnerung: {{pollTitle}}',
+    },
+    en: {
+      headline: 'Voting reminder',
+      greeting: 'Hello,',
+      intro: '{{senderName}} kindly reminds you to take part in the poll <strong>"{{pollTitle}}"</strong>.',
+      importance: 'Your vote matters! Please take a moment to cast it.',
+      button: 'Vote now',
+      qrAlt: 'QR code for the poll',
+      text: `Voting reminder\n\nHello,\n\n{{senderName}} kindly reminds you to take part in the poll "{{pollTitle}}".\n\nYour vote matters! Please take a moment to cast it.\n\n{{expiresAt}}\n\nVote now: {{pollLink}}`,
+      name: 'Reminder',
+      subject: '[{{siteName}}] Reminder: {{pollTitle}}',
+    },
+  }[lang];
   const defs: [string, EmailBuilderBlock][] = [];
-  defs.push(heading('h1', 'Erinnerung zur Abstimmung', 'h1'));
-  defs.push(txt('t0', 'Hallo,'));
-  defs.push(txt('t1', '{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage <strong>"{{pollTitle}}"</strong>.'));
-  defs.push(txt('t2', 'Ihre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.'));
+  defs.push(heading('h1', S.headline, 'h1'));
+  defs.push(txt('t0', S.greeting));
+  defs.push(txt('t1', S.intro));
+  defs.push(txt('t2', S.importance));
   defs.push(txt('t3', '{{expiresAt}}'));
-  defs.push(btn('b1', 'Jetzt abstimmen', 'pollLink', 'primary'));
-  defs.push(img('qr', 'qrCodeUrl', 'QR-Code zur Umfrage', '150px'));
+  defs.push(btn('b1', S.button, 'pollLink', 'primary'));
+  defs.push(img('qr', 'qrCodeUrl', S.qrAlt, '150px'));
   defs.push(divider('d1'));
 
-  const textContent = `Erinnerung zur Abstimmung\n\nHallo,\n\n{{senderName}} erinnert Sie freundlich an die Teilnahme an der Umfrage "{{pollTitle}}".\n\nIhre Stimme ist wichtig! Bitte nehmen Sie sich kurz Zeit, um abzustimmen.\n\n{{expiresAt}}\n\nJetzt abstimmen: {{pollLink}}`;
+  return buildTemplate(S.name, S.subject, defs, [], S.text);
+}
 
-  return buildTemplate('Erinnerung', '[{{siteName}}] Erinnerung: {{pollTitle}}', defs, [], textContent);
+function assembleBoxTemplate(
+  topDefs: [string, EmailBuilderBlock][],
+  box: { entry: [string, EmailBuilderBlock]; children: Record<string, EmailBuilderBlock> },
+  bottomDefs: [string, EmailBuilderBlock][],
+): EmailBuilderDocument {
+  const allBlocks: Record<string, EmailBuilderBlock> = {};
+  const topIds: string[] = [];
+  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
+  const [boxId, boxBlock] = box.entry;
+  allBlocks[boxId] = boxBlock; topIds.push(boxId);
+  for (const [cid, cb] of Object.entries(box.children)) allBlocks[cid] = cb;
+  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
+  return tpl(allBlocks, topIds);
 }
 
 // ---- vote_confirmation with container ----
-function buildVoteConfirmationTemplate(): TemplateDefinition {
+function buildVoteConfirmationTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      boxText: 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.',
+      boxButton: 'Ergebnisse anzeigen',
+      headline: 'Vielen Dank für Ihre Teilnahme!',
+      greeting: 'Hallo {{voterName}},',
+      intro: 'vielen Dank für Ihre Teilnahme an der {{pollType}} <strong>"{{pollTitle}}"</strong>. Ihre Auswahl wurde erfolgreich gespeichert.',
+      name: 'Abstimmungsbestätigung',
+      subject: '[{{siteName}}] Vielen Dank für Ihre Teilnahme - {{pollTitle}}',
+      text: 'Vielen Dank für Ihre Teilnahme!\n\nHallo {{voterName}},\n\nvielen Dank für Ihre Teilnahme an der {{pollType}} "{{pollTitle}}". Ihre Auswahl wurde erfolgreich gespeichert.\n\nErgebnisse anzeigen: {{resultsLink}}',
+    },
+    en: {
+      boxText: 'Use this link to return to the poll or view the current results at any time.',
+      boxButton: 'View results',
+      headline: 'Thank you for taking part!',
+      greeting: 'Hello {{voterName}},',
+      intro: 'Thank you for taking part in the {{pollType}} <strong>"{{pollTitle}}"</strong>. Your selection has been saved.',
+      name: 'Vote confirmation',
+      subject: '[{{siteName}}] Thank you for taking part - {{pollTitle}}',
+      text: 'Thank you for taking part!\n\nHello {{voterName}},\n\nThank you for taking part in the {{pollType}} "{{pollTitle}}". Your selection has been saved.\n\nView results: {{resultsLink}}',
+    },
+  }[lang];
   const linkBox = container('link-box', '#e8f4f8', '#1e3a4a', [
-    txt('lb-t', 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.'),
-    btn('lb-btn1', 'Ergebnisse anzeigen', 'resultsLink', 'secondary'),
+    txt('lb-t', S.boxText),
+    btn('lb-btn1', S.boxButton, 'resultsLink', 'secondary'),
   ], 'secondary');
 
-  const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', 'Vielen Dank für Ihre Teilnahme!', 'h1'),
-    txt('t1', 'Hallo {{voterName}},'),
-    txt('t2', 'vielen Dank für Ihre Teilnahme an der {{pollType}} <strong>"{{pollTitle}}"</strong>. Ihre Auswahl wurde erfolgreich gespeichert.'),
-  ];
-
-  const bottomDefs: [string, EmailBuilderBlock][] = [
-    divider('d1'),
-  ];
-
-  const allBlocks: Record<string, EmailBuilderBlock> = {};
-  const topIds: string[] = [];
-  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
-  const [boxId, boxBlock] = linkBox.entry;
-  allBlocks[boxId] = boxBlock; topIds.push(boxId);
-  for (const [cid, cb] of Object.entries(linkBox.children)) allBlocks[cid] = cb;
-  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
-
   return {
-    name: 'Abstimmungsbestätigung',
-    subject: '[{{siteName}}] Vielen Dank für Ihre Teilnahme - {{pollTitle}}',
-    jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Vielen Dank für Ihre Teilnahme!\n\nHallo {{voterName}},\n\nvielen Dank für Ihre Teilnahme an der {{pollType}} "{{pollTitle}}". Ihre Auswahl wurde erfolgreich gespeichert.\n\nErgebnisse anzeigen: {{resultsLink}}',
+    name: S.name,
+    subject: S.subject,
+    jsonContent: assembleBoxTemplate(
+      [heading('h1', S.headline, 'h1'), txt('t1', S.greeting), txt('t2', S.intro)],
+      linkBox,
+      [divider('d1')],
+    ),
+    textContent: S.text,
   };
 }
 
-function buildVoteUpdatedTemplate(): TemplateDefinition {
+function buildVoteUpdatedTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      boxText: 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.',
+      boxButton: 'Ergebnisse anzeigen',
+      headline: 'Ihre Abstimmung wurde aktualisiert',
+      greeting: 'Hallo {{voterName}},',
+      intro: 'Ihre Auswahl für die {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich aktualisiert.',
+      name: 'Abstimmung aktualisiert',
+      subject: '[{{siteName}}] Abstimmung aktualisiert - {{pollTitle}}',
+      text: 'Ihre Abstimmung wurde aktualisiert\n\nHallo {{voterName}},\n\nIhre Auswahl für die {{pollType}} "{{pollTitle}}" wurde erfolgreich aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}',
+    },
+    en: {
+      boxText: 'Use this link to return to the poll or view the current results at any time.',
+      boxButton: 'View results',
+      headline: 'Your vote has been updated',
+      greeting: 'Hello {{voterName}},',
+      intro: 'Your selection for the {{pollType}} <strong>"{{pollTitle}}"</strong> has been updated.',
+      name: 'Vote updated',
+      subject: '[{{siteName}}] Vote updated - {{pollTitle}}',
+      text: 'Your vote has been updated\n\nHello {{voterName}},\n\nYour selection for the {{pollType}} "{{pollTitle}}" has been updated.\n\nView results: {{resultsLink}}',
+    },
+  }[lang];
   const linkBox = container('update-link-box', '#e8f4f8', '#1e3a4a', [
-    txt('ulb-t', 'Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.'),
-    btn('ulb-btn1', 'Ergebnisse anzeigen', 'resultsLink', 'secondary'),
+    txt('ulb-t', S.boxText),
+    btn('ulb-btn1', S.boxButton, 'resultsLink', 'secondary'),
   ], 'secondary');
 
-  const topDefs: [string, EmailBuilderBlock][] = [
-    heading('uh1', 'Ihre Abstimmung wurde aktualisiert', 'h1'),
-    txt('ut1', 'Hallo {{voterName}},'),
-    txt('ut2', 'Ihre Auswahl für die {{pollType}} <strong>"{{pollTitle}}"</strong> wurde erfolgreich aktualisiert.'),
-  ];
-
-  const bottomDefs: [string, EmailBuilderBlock][] = [
-    divider('ud1'),
-  ];
-
-  const allBlocks: Record<string, EmailBuilderBlock> = {};
-  const topIds: string[] = [];
-  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
-  const [boxId, boxBlock] = linkBox.entry;
-  allBlocks[boxId] = boxBlock; topIds.push(boxId);
-  for (const [cid, cb] of Object.entries(linkBox.children)) allBlocks[cid] = cb;
-  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
-
   return {
-    name: 'Abstimmung aktualisiert',
-    subject: '[{{siteName}}] Abstimmung aktualisiert - {{pollTitle}}',
-    jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Ihre Abstimmung wurde aktualisiert\n\nHallo {{voterName}},\n\nIhre Auswahl für die {{pollType}} "{{pollTitle}}" wurde erfolgreich aktualisiert.\n\nErgebnisse anzeigen: {{resultsLink}}',
+    name: S.name,
+    subject: S.subject,
+    jsonContent: assembleBoxTemplate(
+      [heading('uh1', S.headline, 'h1'), txt('ut1', S.greeting), txt('ut2', S.intro)],
+      linkBox,
+      [divider('ud1')],
+    ),
+    textContent: S.text,
   };
 }
 
 // ---- new_vote_notification: notify creator on new vote ----
-function buildNewVoteNotificationTemplate(): TemplateDefinition {
+function buildNewVoteNotificationTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      boxText: 'Hier können Sie die aktuellen Ergebnisse einsehen und die Umfrage verwalten.',
+      boxButton: 'Ergebnisse anzeigen',
+      headline: 'Neue Abstimmung eingegangen',
+      greeting: 'Hallo,',
+      intro: '<strong>{{voterName}}</strong> hat soeben an Ihrer {{pollType}} <strong>"{{pollTitle}}"</strong> teilgenommen.',
+      name: 'Neue Abstimmung (Ersteller)',
+      subject: '[{{siteName}}] Neue Abstimmung – {{pollTitle}}',
+      text: 'Neue Abstimmung eingegangen\n\nHallo,\n\n{{voterName}} hat soeben an Ihrer {{pollType}} "{{pollTitle}}" teilgenommen.\n\nErgebnisse anzeigen: {{adminLink}}',
+    },
+    en: {
+      boxText: 'Here you can view the current results and manage the poll.',
+      boxButton: 'View results',
+      headline: 'New response received',
+      greeting: 'Hello,',
+      intro: '<strong>{{voterName}}</strong> has just taken part in your {{pollType}} <strong>"{{pollTitle}}"</strong>.',
+      name: 'New response (creator)',
+      subject: '[{{siteName}}] New response – {{pollTitle}}',
+      text: 'New response received\n\nHello,\n\n{{voterName}} has just taken part in your {{pollType}} "{{pollTitle}}".\n\nView results: {{adminLink}}',
+    },
+  }[lang];
   const adminBox = container('nvn-admin-box', '#f8f9fa', '#2a2a3e', [
-    txt('nvn-ab-t', 'Hier können Sie die aktuellen Ergebnisse einsehen und die Umfrage verwalten.'),
-    btn('nvn-ab-btn', 'Ergebnisse anzeigen', 'adminLink', 'primary'),
+    txt('nvn-ab-t', S.boxText),
+    btn('nvn-ab-btn', S.boxButton, 'adminLink', 'primary'),
   ]);
 
-  const topDefs: [string, EmailBuilderBlock][] = [
-    heading('nvn-h1', 'Neue Abstimmung eingegangen', 'h1'),
-    txt('nvn-t1', 'Hallo,'),
-    txt('nvn-t2', '<strong>{{voterName}}</strong> hat soeben an Ihrer {{pollType}} <strong>"{{pollTitle}}"</strong> teilgenommen.'),
-  ];
-
-  const bottomDefs: [string, EmailBuilderBlock][] = [
-    divider('nvn-d1'),
-  ];
-
-  const allBlocks: Record<string, EmailBuilderBlock> = {};
-  const topIds: string[] = [];
-  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
-  const [boxId, boxBlock] = adminBox.entry;
-  allBlocks[boxId] = boxBlock; topIds.push(boxId);
-  for (const [cid, cb] of Object.entries(adminBox.children)) allBlocks[cid] = cb;
-  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
-
   return {
-    name: 'Neue Abstimmung (Ersteller)',
-    subject: '[{{siteName}}] Neue Abstimmung – {{pollTitle}}',
-    jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Neue Abstimmung eingegangen\n\nHallo,\n\n{{voterName}} hat soeben an Ihrer {{pollType}} "{{pollTitle}}" teilgenommen.\n\nErgebnisse anzeigen: {{adminLink}}',
+    name: S.name,
+    subject: S.subject,
+    jsonContent: assembleBoxTemplate(
+      [heading('nvn-h1', S.headline, 'h1'), txt('nvn-t1', S.greeting), txt('nvn-t2', S.intro)],
+      adminBox,
+      [divider('nvn-d1')],
+    ),
+    textContent: S.text,
   };
 }
 
 // ---- password_reset with container ----
-function buildPasswordResetTemplate(): TemplateDefinition {
+function buildPasswordResetTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      boxText: 'Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben. Dieser Link ist 1 Stunde gültig.',
+      boxButton: 'Passwort zurücksetzen',
+      headline: 'Passwort zurücksetzen',
+      greeting: 'Hallo {{userName}},',
+      intro: 'Sie haben angefordert, Ihr Passwort für Ihren {{siteName}} Account zurückzusetzen.',
+      ignore: 'Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren. Ihr Passwort bleibt unverändert.',
+      name: 'Passwort zurücksetzen',
+      subject: '[{{siteName}}] Passwort zurücksetzen',
+      text: 'Passwort zurücksetzen\n\nHallo {{userName}},\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nPasswort zurücksetzen: {{resetLink}}\n\nDieser Link ist 1 Stunde gültig.',
+    },
+    en: {
+      boxText: 'Click the button below to choose a new password. This link is valid for 1 hour.',
+      boxButton: 'Reset password',
+      headline: 'Reset your password',
+      greeting: 'Hello {{userName}},',
+      intro: 'You requested a password reset for your {{siteName}} account.',
+      ignore: 'If you did not make this request, you can ignore this email. Your password will remain unchanged.',
+      name: 'Password reset',
+      subject: '[{{siteName}}] Reset your password',
+      text: 'Reset your password\n\nHello {{userName}},\n\nYou requested a password reset.\n\nReset password: {{resetLink}}\n\nThis link is valid for 1 hour.',
+    },
+  }[lang];
   const actionBox = container('action-box', '#f8f9fa', '#2a2a3e', [
-    txt('ab-t', 'Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben. Dieser Link ist 1 Stunde gültig.'),
-    btn('ab-btn', 'Passwort zurücksetzen', 'resetLink', 'primary'),
+    txt('ab-t', S.boxText),
+    btn('ab-btn', S.boxButton, 'resetLink', 'primary'),
   ]);
 
-  const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', 'Passwort zurücksetzen', 'h1'),
-    txt('t1', 'Hallo {{userName}},'),
-    txt('t2', 'Sie haben angefordert, Ihr Passwort für Ihren {{siteName}} Account zurückzusetzen.'),
-  ];
-
-  const bottomDefs: [string, EmailBuilderBlock][] = [
-    txt('t3', 'Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren. Ihr Passwort bleibt unverändert.', { color: '#6c757d', fontSize: 14 }),
-    divider('d1'),
-  ];
-
-  const allBlocks: Record<string, EmailBuilderBlock> = {};
-  const topIds: string[] = [];
-  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
-  const [boxId, boxBlock] = actionBox.entry;
-  allBlocks[boxId] = boxBlock; topIds.push(boxId);
-  for (const [cid, cb] of Object.entries(actionBox.children)) allBlocks[cid] = cb;
-  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
-
   return {
-    name: 'Passwort zurücksetzen',
-    subject: '[{{siteName}}] Passwort zurücksetzen',
-    jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Passwort zurücksetzen\n\nHallo {{userName}},\n\nSie haben angefordert, Ihr Passwort zurückzusetzen.\n\nPasswort zurücksetzen: {{resetLink}}\n\nDieser Link ist 1 Stunde gültig.',
+    name: S.name,
+    subject: S.subject,
+    jsonContent: assembleBoxTemplate(
+      [heading('h1', S.headline, 'h1'), txt('t1', S.greeting), txt('t2', S.intro)],
+      actionBox,
+      [txt('t3', S.ignore, { color: '#6c757d', fontSize: 14 }), divider('d1')],
+    ),
+    textContent: S.text,
   };
 }
 
 // ---- welcome with container ----
-function buildWelcomeTemplate(): TemplateDefinition {
+function buildWelcomeTemplate(lang: EmailLanguage): TemplateDefinition {
+  const S = {
+    de: {
+      boxText: 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um alle Funktionen von {{siteName}} nutzen zu können.',
+      boxButton: 'E-Mail bestätigen',
+      headline: 'Willkommen bei {{siteName}}!',
+      greeting: 'Hallo {{userName}},',
+      intro: 'vielen Dank für Ihre Registrierung bei {{siteName}}! Ihr Account wurde erfolgreich erstellt.',
+      name: 'Willkommen',
+      subject: '[{{siteName}}] Willkommen bei {{siteName}}!',
+      text: 'Willkommen bei {{siteName}}!\n\nHallo {{userName}},\n\nvielen Dank für Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.\n\nE-Mail bestätigen: {{verificationLink}}',
+    },
+    en: {
+      boxText: 'Please confirm your email address to use all features of {{siteName}}.',
+      boxButton: 'Confirm email',
+      headline: 'Welcome to {{siteName}}!',
+      greeting: 'Hello {{userName}},',
+      intro: 'Thank you for registering with {{siteName}}! Your account has been created.',
+      name: 'Welcome',
+      subject: '[{{siteName}}] Welcome to {{siteName}}!',
+      text: 'Welcome to {{siteName}}!\n\nHello {{userName}},\n\nThank you for registering! Your account has been created.\n\nConfirm email: {{verificationLink}}',
+    },
+  }[lang];
   const actionBox = container('action-box', '#e8f4f8', '#1e3a4a', [
-    txt('ab-t', 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um alle Funktionen von {{siteName}} nutzen zu können.'),
-    btn('ab-btn', 'E-Mail bestätigen', 'verificationLink', 'secondary'),
+    txt('ab-t', S.boxText),
+    btn('ab-btn', S.boxButton, 'verificationLink', 'secondary'),
   ], 'secondary');
 
-  const topDefs: [string, EmailBuilderBlock][] = [
-    heading('h1', 'Willkommen bei {{siteName}}!', 'h1'),
-    txt('t1', 'Hallo {{userName}},'),
-    txt('t2', 'vielen Dank für Ihre Registrierung bei {{siteName}}! Ihr Account wurde erfolgreich erstellt.'),
-  ];
-
-  const bottomDefs: [string, EmailBuilderBlock][] = [
-    divider('d1'),
-  ];
-
-  const allBlocks: Record<string, EmailBuilderBlock> = {};
-  const topIds: string[] = [];
-  for (const [id, block] of topDefs) { allBlocks[id] = block; topIds.push(id); }
-  const [boxId, boxBlock] = actionBox.entry;
-  allBlocks[boxId] = boxBlock; topIds.push(boxId);
-  for (const [cid, cb] of Object.entries(actionBox.children)) allBlocks[cid] = cb;
-  for (const [id, block] of bottomDefs) { allBlocks[id] = block; topIds.push(id); }
-
   return {
-    name: 'Willkommen',
-    subject: '[{{siteName}}] Willkommen bei {{siteName}}!',
-    jsonContent: tpl(allBlocks, topIds),
-    textContent: 'Willkommen bei {{siteName}}!\n\nHallo {{userName}},\n\nvielen Dank für Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.\n\nE-Mail bestätigen: {{verificationLink}}',
+    name: S.name,
+    subject: S.subject,
+    jsonContent: assembleBoxTemplate(
+      [heading('h1', S.headline, 'h1'), txt('t1', S.greeting), txt('t2', S.intro)],
+      actionBox,
+      [divider('d1')],
+    ),
+    textContent: S.text,
   };
 }
 
-const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
-  poll_created: buildPollCreatedTemplate(),
-
-  invitation: buildInvitationTemplate(),
-
-  vote_confirmation: buildVoteConfirmationTemplate(),
-
-  vote_updated: buildVoteUpdatedTemplate(),
-
-  new_vote_notification: buildNewVoteNotificationTemplate(),
-
-  reminder: buildReminderTemplate(),
-
-  password_reset: buildPasswordResetTemplate(),
-
-  email_change: buildSimpleTemplate(
+function buildEmailChangeTemplate(lang: EmailLanguage): TemplateDefinition {
+  if (lang === 'en') {
+    return buildSimpleTemplate(
+      'Change email address',
+      '[{{siteName}}] Confirm your email address',
+      'Confirm your email address',
+      [
+        'Hello,',
+        'You requested to change the email address of your {{siteName}} account.',
+        '<strong>Old email:</strong> {{oldEmail}}',
+        '<strong>New email:</strong> {{newEmail}}',
+        'This link is valid for 24 hours.',
+        'If you did not make this request, you can ignore this email.',
+      ],
+      'Confirm email',
+      'confirmLink',
+    );
+  }
+  return buildSimpleTemplate(
     'E-Mail-Adresse ändern',
     '[{{siteName}}] E-Mail-Adresse bestätigen',
     'E-Mail-Adresse bestätigen',
@@ -729,9 +871,23 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
     ],
     'E-Mail bestätigen',
     'confirmLink',
-  ),
+  );
+}
 
-  password_changed: buildSimpleTemplate(
+function buildPasswordChangedTemplate(lang: EmailLanguage): TemplateDefinition {
+  if (lang === 'en') {
+    return buildSimpleTemplate(
+      'Password changed',
+      '[{{siteName}}] Your password has been changed',
+      'Password changed successfully',
+      [
+        'Hello {{userName}},',
+        'The password for your {{siteName}} account has been changed.',
+        '<strong>If you did not make this change, please contact the administrator immediately.</strong>',
+      ],
+    );
+  }
+  return buildSimpleTemplate(
     'Passwort geändert',
     '[{{siteName}}] Ihr Passwort wurde geändert',
     'Passwort erfolgreich geändert',
@@ -740,9 +896,28 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
       'Ihr Passwort für Ihren {{siteName}} Account wurde erfolgreich geändert.',
       '<strong>Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte umgehend den Administrator.</strong>',
     ],
-  ),
+  );
+}
 
-  test_report: buildSimpleTemplate(
+function buildTestReportTemplate(lang: EmailLanguage): TemplateDefinition {
+  if (lang === 'en') {
+    return buildSimpleTemplate(
+      'Test report',
+      '[{{siteName}}] Test report #{{testRunId}}: {{status}}',
+      '{{status}} — Automated test report',
+      [
+        'Automated test run <strong>#{{testRunId}}</strong> has finished.',
+        '{{failedSummaryHtml}}',
+        'Total tests: {{totalTests}}',
+        'Passed: {{passed}}',
+        'Failed: {{failed}}',
+        'Skipped: {{skipped}}',
+        'Duration: {{duration}}',
+        'Started: {{startedAt}}',
+      ],
+    );
+  }
+  return buildSimpleTemplate(
     'Testbericht',
     '[{{siteName}}] Testbericht #{{testRunId}}: {{status}}',
     '{{status}} — Automatischer Testbericht',
@@ -756,11 +931,27 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
       'Dauer: {{duration}}',
       'Gestartet: {{startedAt}}',
     ],
-  ),
+  );
+}
 
-  welcome: buildWelcomeTemplate(),
-
-  poll_finalized: buildSimpleTemplate(
+function buildPollFinalizedTemplate(lang: EmailLanguage): TemplateDefinition {
+  if (lang === 'en') {
+    return buildSimpleTemplate(
+      'Poll completed',
+      '[{{siteName}}] {{statusLabel}}: {{pollTitle}}',
+      '{{statusLabel}}',
+      [
+        'Hello,',
+        'The poll <strong>"{{pollTitle}}"</strong> has been completed.',
+        '{{confirmedDate}}',
+        '{{confirmedTime}}',
+        '{{videoConferenceHtml}}',
+      ],
+      '{{buttonLabel}}',
+      'buttonLink',
+    );
+  }
+  return buildSimpleTemplate(
     'Umfrage abgeschlossen',
     '[{{siteName}}] {{statusLabel}}: {{pollTitle}}',
     '{{statusLabel}}',
@@ -773,8 +964,36 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateType, TemplateDefinition> = {
     ],
     '{{buttonLabel}}',
     'buttonLink',
-  ),
+  );
+}
+
+function buildDefaultTemplates(lang: EmailLanguage): Record<EmailTemplateType, TemplateDefinition> {
+  return {
+    poll_created: buildPollCreatedTemplate(lang),
+    invitation: buildInvitationTemplate(lang),
+    vote_confirmation: buildVoteConfirmationTemplate(lang),
+    vote_updated: buildVoteUpdatedTemplate(lang),
+    new_vote_notification: buildNewVoteNotificationTemplate(lang),
+    reminder: buildReminderTemplate(lang),
+    password_reset: buildPasswordResetTemplate(lang),
+    email_change: buildEmailChangeTemplate(lang),
+    password_changed: buildPasswordChangedTemplate(lang),
+    test_report: buildTestReportTemplate(lang),
+    welcome: buildWelcomeTemplate(lang),
+    poll_finalized: buildPollFinalizedTemplate(lang),
+  };
+}
+
+// Built-in templates per language. German is the historical set; a missing
+// customization in a language always falls back to that language's built-in.
+const DEFAULT_TEMPLATES_BY_LANGUAGE: Record<EmailLanguage, Record<EmailTemplateType, TemplateDefinition>> = {
+  de: buildDefaultTemplates('de'),
+  en: buildDefaultTemplates('en'),
 };
+
+function getDefaultTemplateDefinition(type: EmailTemplateType, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): TemplateDefinition {
+  return DEFAULT_TEMPLATES_BY_LANGUAGE[lang][type];
+}
 
 // HTML escape helper to prevent XSS
 function htmlEscape(str: string): string {
@@ -1154,7 +1373,7 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
       failed: '1',
       skipped: '1',
       duration: '12.5 Sekunden',
-      startedAt: new Date().toLocaleString('de-DE'),
+      startedAt: new Date().toLocaleString(emailLocale('de')),
       failedSummaryHtml: '<p><strong>Fehlgeschlagene Tests (1)</strong></p><ul><li>API should reject invalid token (server/tests/api/security.test.ts)</li></ul>',
       failedSummaryText: 'Fehlgeschlagene Tests (1): API should reject invalid token (server/tests/api/security.test.ts)',
       siteName,
@@ -1180,6 +1399,44 @@ function getSampleData(siteName: string): Record<EmailTemplateType, Record<strin
   };
 }
 
+
+const SAMPLE_DATA_EN_OVERRIDES: Partial<Record<EmailTemplateType, Record<string, string>>> = {
+  poll_created: { pollType: 'Schedule Poll', pollTitle: 'Team meeting Q1 2025' },
+  invitation: { inviterName: 'John Smith', pollTitle: 'Team meeting Q1 2025', message: 'Please pick the dates that work for you.' },
+  vote_confirmation: { voterName: 'Anna Smith', pollType: 'Schedule Poll', pollTitle: 'Team meeting Q1 2025' },
+  vote_updated: { voterName: 'Anna Smith', pollType: 'Schedule Poll', pollTitle: 'Team meeting Q1 2025' },
+  new_vote_notification: { voterName: 'Anna Smith', pollType: 'Schedule Poll', pollTitle: 'Team meeting Q1 2025' },
+  reminder: { senderName: 'John Smith', pollTitle: 'Team meeting Q1 2025', expiresAt: 'The poll ends on 31/12/2025 at 23:59.' },
+  password_reset: { userName: 'John Smith' },
+  email_change: { oldEmail: 'old-email@example.com', newEmail: 'new-email@example.com' },
+  password_changed: { userName: 'John Smith' },
+  test_report: {
+    status: 'Passed',
+    duration: '12.5 seconds',
+    failedSummaryHtml: '<p><strong>Failed tests (1)</strong></p><ul><li>API should reject invalid token (server/tests/api/security.test.ts)</li></ul>',
+    failedSummaryText: 'Failed tests (1): API should reject invalid token (server/tests/api/security.test.ts)',
+  },
+  welcome: { userName: 'John Smith', userEmail: 'john.smith@example.com', verificationLink: 'https://polly.example.com/email-bestaetigen/abc123xyz789' },
+  poll_finalized: {
+    pollTitle: 'Team meeting Q1 2025',
+    statusLabel: 'Date confirmed',
+    confirmedDate: 'Monday, 15 January 2025',
+    confirmedTime: '14:00 – 15:00',
+    buttonLabel: 'Go to poll \u2192',
+  },
+};
+
+function getLocalizedSampleData(siteName: string, lang: EmailLanguage): Record<EmailTemplateType, Record<string, string>> {
+  const base = getSampleData(siteName);
+  if (lang === 'de') return base;
+  const result = { ...base };
+  for (const type of EMAIL_TEMPLATE_TYPES) {
+    result[type] = { ...base[type], ...(SAMPLE_DATA_EN_OVERRIDES[type] || {}) };
+  }
+  result.test_report.startedAt = new Date().toLocaleString(emailLocale('en'));
+  return result;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // V3 TEMPLATE SYSTEM
 // Single-HTML-template approach with {{VARIABLE}} substitution
@@ -1198,6 +1455,7 @@ interface V3TemplateData {
   footerText: string;
   fontFamily: string;
   subject: string;
+  language: EmailLanguage;
 }
 
 function v3DarkModeCSS(accentColor: string): string {
@@ -1251,7 +1509,7 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
     : '';
 
   return `<!DOCTYPE html>
-<html lang="de">
+<html lang="${data.language}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1298,7 +1556,7 @@ function v3Shell(data: V3TemplateData, bodyHtml: string): string {
           style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(data.siteUrl)}</a>`)}${data.privacyUrl ? `
         <br>
         <a href="${htmlEscape(data.privacyUrl)}" class="footer-link"
-          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">Datenschutz</a>` : ''}
+          style="color: #9ba8bb; text-decoration: none; border-bottom: 1px solid #c8d0dc;">${htmlEscape(emailStrings(data.language).privacy)}</a>` : ''}
       </p>
     </td>
   </tr>
@@ -1386,6 +1644,7 @@ interface V3BodyContext {
   primaryColor: string;
   secondaryColor: string;
   fontFamily: string;
+  language: EmailLanguage;
 }
 
 interface PollCreatedTextOverrides {
@@ -1433,6 +1692,15 @@ function extractPollCreatedIntroText(textContent: string): string {
     'Zur Abstimmung',
     'Wichtig:',
     'Wichtig ',
+    // English counterparts
+    'Administrator link',
+    'Admin link',
+    'Participant link',
+    'Public link',
+    'Manage poll',
+    'Go to voting',
+    'Go to poll',
+    'Important:',
   ];
 
   const lines = textContent.split(/\r?\n/);
@@ -1467,7 +1735,7 @@ function parsePollCreatedTextOverrides(textContent?: string | null): PollCreated
   const overrides: PollCreatedTextOverrides = {};
 
   const greetingLine = lines[0];
-  const hasGreeting = /^hallo\b/i.test(greetingLine || '');
+  const hasGreeting = /^(hallo|hello|hi)\b/i.test(greetingLine || '');
   if (hasGreeting) {
     overrides.greeting = greetingLine;
   }
@@ -1499,7 +1767,7 @@ function parsePollCreatedTextOverrides(textContent?: string | null): PollCreated
   const publicSectionLines = lines.slice(adminLinkIndex + 1, publicLinkIndex);
   // Match the public section header: line mentions "teilnehmer" or "öffentlich"
   // (with or without a trailing colon — users often omit it)
-  const publicTitleIndex = publicSectionLines.findIndex((line) => /(teilnehmer|öffentlich|oeffentlich)/i.test(line));
+  const publicTitleIndex = publicSectionLines.findIndex((line) => /(teilnehmer|öffentlich|oeffentlich|participant|public)/i.test(line));
   if (publicTitleIndex >= 0) {
     overrides.publicLabel = stripTrailingColon(publicSectionLines[publicTitleIndex]);
     const publicDescriptionLines = publicSectionLines.slice(publicTitleIndex + 1);
@@ -1543,7 +1811,9 @@ function resolveOverrideText(
 }
 
 function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
-  const pollType = vars.pollType || 'Umfrage';
+  const L = emailStrings(ctx.language);
+  const P = L.pollCreated;
+  const pollType = vars.pollType || L.defaultPollType;
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const creatorName = htmlEscape(vars.creatorName || '');
   const adminLink = vars.adminLink || '#';
@@ -1565,39 +1835,32 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
     const greetingOverride = resolveOverrideText(vars, 'greeting');
     const greeting = greetingOverride
       ? htmlEscape(greetingOverride)
-      : (creatorName ? `Hallo ${creatorName}` : 'Hallo');
-    const defaultSubline = isRegistered
-      ? `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`
-      : `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`;
+      : L.greeting(creatorName);
+    const defaultSubline = isRegistered ? P.sublineRegistered(greeting) : P.sublineGuest(greeting);
     const sublineOverride = resolveOverrideText(vars, 'subline');
     const subline = htmlEscape(sublineOverride || defaultSubline);
     headBlock = `${v3BodyStart()}
       ${v3Tag(pollType, ctx.primaryColor)}
-      ${v3Headline('Umfrage', `\u201E${pollTitle}\u201C`, 'wurde erstellt.', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Headline(P.headlineBefore, L.quote(pollTitle), P.headlineAfter, ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(subline)}
     ${v3BodyEnd()}`;
   }
 
-  const defaultNoticeTitle = isRegistered
-    ? 'Diese E-Mail dient als Schnellzugriff.'
-    : 'Bitte diese E-Mail aufbewahren.';
-
-  const defaultNoticeBody = isRegistered
-    ? 'Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten \u2014 nach der Anmeldung.'
-    : 'Diese E-Mail enth\u00E4lt den pers\u00F6nlichen Administratorlink \u2014 nur damit l\u00E4sst sich die Umfrage verwalten, bearbeiten und schlie\u00DFen.';
+  const defaultNoticeTitle = isRegistered ? P.noticeTitleRegistered : P.noticeTitleGuest;
+  const defaultNoticeBody = isRegistered ? P.noticeBodyRegistered : P.noticeBodyGuest;
 
   // When showing a custom intro (non-default template), omit the big section titles
   // ("Umfrage verwalten", "Abstimmung öffnen") by default — the custom label already
   // serves as the section header.  Default templates always show full titles.
   const isCustomTemplate = customIntro !== null;
-  const adminLabel = htmlEscape(resolveOverrideText(vars, 'adminLabel') || 'Administratorlink');
-  const adminTitle = htmlEscape(resolveOverrideText(vars, 'adminTitle') ?? (isCustomTemplate ? '' : 'Umfrage verwalten'));
-  const adminDescription = htmlEscape(resolveOverrideText(vars, 'adminDescription') || 'Bearbeiten, schlie\u00DFen und Ergebnisse einsehen. Nicht weitergeben.');
-  const adminButtonText = htmlEscape(resolveOverrideText(vars, 'adminButtonText') || 'Zur Verwaltung \u2192');
-  const publicLabel = htmlEscape(resolveOverrideText(vars, 'publicLabel') || '\u00D6ffentlicher Link \u00B7 F\u00FCr Teilnehmer');
-  const publicTitle = htmlEscape(resolveOverrideText(vars, 'publicTitle') ?? (isCustomTemplate ? '' : 'Abstimmung \u00F6ffnen'));
-  const publicDescription = htmlEscape(resolveOverrideText(vars, 'publicDescription') || 'Diesen Link an alle Teilnehmer weiterleiten, damit diese abstimmen k\u00F6nnen.');
-  const publicButtonText = htmlEscape(resolveOverrideText(vars, 'publicButtonText') || 'Zur Abstimmung \u2192');
+  const adminLabel = htmlEscape(resolveOverrideText(vars, 'adminLabel') || P.adminLabel);
+  const adminTitle = htmlEscape(resolveOverrideText(vars, 'adminTitle') ?? (isCustomTemplate ? '' : P.adminTitle));
+  const adminDescription = htmlEscape(resolveOverrideText(vars, 'adminDescription') || P.adminDescription);
+  const adminButtonText = htmlEscape(resolveOverrideText(vars, 'adminButtonText') || P.adminButton);
+  const publicLabel = htmlEscape(resolveOverrideText(vars, 'publicLabel') || P.publicLabel);
+  const publicTitle = htmlEscape(resolveOverrideText(vars, 'publicTitle') ?? (isCustomTemplate ? '' : P.publicTitle));
+  const publicDescription = htmlEscape(resolveOverrideText(vars, 'publicDescription') || P.publicDescription);
+  const publicButtonText = htmlEscape(resolveOverrideText(vars, 'publicButtonText') || P.publicButton);
   const noticeTitle = htmlEscape(resolveOverrideText(vars, 'noticeTitle') || defaultNoticeTitle);
   const noticeBody = htmlEscape(resolveOverrideText(vars, 'noticeBody') || defaultNoticeBody);
 
@@ -1610,174 +1873,176 @@ function buildV3PollCreatedBody(vars: Record<string, string | undefined>, ctx: V
 }
 
 function buildV3InvitationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
   const inviterName = htmlEscape(vars.inviterName || '');
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const message = vars.message ? htmlEscape(vars.message) : '';
   const publicLink = vars.publicLink || '#';
 
   return `${v3BodyStart()}
-      ${v3Tag('Einladung', ctx.primaryColor)}
-      ${v3Headline('Einladung zur Abstimmung', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(`${inviterName} l\u00E4dt Sie ein, an dieser Umfrage teilzunehmen.${message ? ` ${message}` : ''}`)}
+      ${v3Tag(L.invitation.tag, ctx.primaryColor)}
+      ${v3Headline(L.invitation.headline, L.quote(pollTitle), '', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Subline(`${L.invitation.subline(inviterName)}${message ? ` ${message}` : ''}`)}
     ${v3BodyEnd()}
     ${v3Divider()}
-    ${v3SingleButtonSection('Klicken Sie auf den Button, um zur Abstimmung zu gelangen.', 'Jetzt abstimmen \u2192', publicLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+    ${v3SingleButtonSection(L.invitation.buttonText, L.invitation.button, publicLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
 
 function buildV3NewVoteNotificationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const N = L.newVote;
   const voterName = htmlEscape(vars.voterName || '');
   const pollTitle = htmlEscape(vars.pollTitle || '');
-  const pollType = vars.pollType || 'Umfrage';
+  const pollType = vars.pollType || L.defaultPollType;
   const adminLink = vars.adminLink || '#';
   const resultsLink = vars.resultsLink || '#';
-  const participant = voterName || 'Ein Teilnehmer';
+  const participant = voterName || N.participantFallback;
 
   return `${v3BodyStart()}
-      ${v3Tag('Neue Abstimmung', ctx.primaryColor)}
-      ${v3SimpleHeadline('Neue Abstimmung eingegangen', ctx.fontFamily)}
-      ${v3Subline(`${participant} hat soeben an Ihrer ${htmlEscape(pollType)} \u201E${pollTitle}\u201C teilgenommen.`)}
+      ${v3Tag(N.tag, ctx.primaryColor)}
+      ${v3SimpleHeadline(N.headline, ctx.fontFamily)}
+      ${v3Subline(N.subline(participant, htmlEscape(pollType), L.quote(pollTitle)))}
     ${v3BodyEnd()}
     ${v3Divider()}
-    ${v3LinkSection('Verwaltung', 'Umfrage verwalten', 'Hier k\u00F6nnen Sie die Umfrage verwalten und alle Stimmen einsehen.', 'Umfrage verwalten \u2192', adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
+    ${v3LinkSection(N.manageLabel, N.manageTitle, N.manageDescription, N.manageButton, adminLink, 'primary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}
     ${v3Divider()}
-    ${v3LinkSection('Ergebnisse', 'Ergebnisse ansehen', 'Sehen Sie sich die aktuellen Ergebnisse der Umfrage an.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}`;
+    ${v3LinkSection(N.resultsLabel, N.resultsTitle, N.resultsDescription, N.resultsButton, resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor, ctx.fontFamily)}`;
+}
+
+function v3OptionsBlock(label: string, selectedOptionsHtml: string): string {
+  return selectedOptionsHtml
+    ? `<tr><td style="padding: 0 40px 20px;">
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">${label}</p>
+      ${selectedOptionsHtml}
+    </td></tr>`
+    : '';
 }
 
 function buildV3ReminderBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const R = L.reminder;
   const senderName = htmlEscape(vars.senderName || '');
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const expiresAt = vars.expiresAt ? htmlEscape(vars.expiresAt) : '';
   const pollLink = vars.pollLink || '#';
-  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
-
-  const optionsBlock = selectedOptionsHtml
-    ? `<tr><td style="padding: 0 40px 20px;">
-      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre aktuelle Auswahl</p>
-      ${selectedOptionsHtml}
-    </td></tr>`
-    : '';
+  const optionsBlock = v3OptionsBlock(R.currentSelection, vars.selectedOptionsHtml || '');
 
   return `${v3BodyStart()}
-      ${v3Tag('Erinnerung', ctx.primaryColor)}
-      ${v3Headline('Erinnerung an', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(`${senderName} erinnert Sie freundlich an die Teilnahme. Ihre Stimme ist wichtig!${expiresAt ? ` ${expiresAt}` : ''}`)}
+      ${v3Tag(R.tag, ctx.primaryColor)}
+      ${v3Headline(R.headlineBefore, L.quote(pollTitle), '', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Subline(`${R.subline(senderName)}${expiresAt ? ` ${expiresAt}` : ''}`)}
     ${v3BodyEnd()}
     ${optionsBlock}
     ${v3Divider()}
-    ${v3SingleButtonSection('Bitte nehmen Sie sich kurz Zeit, um abzustimmen.', 'Jetzt abstimmen \u2192', pollLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+    ${v3SingleButtonSection(R.buttonText, R.button, pollLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
 
 function buildV3VoteConfirmationBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const V = L.vote;
   const voterName = htmlEscape(vars.voterName || '');
   const pollTitle = htmlEscape(vars.pollTitle || '');
-  const pollType = vars.pollType || 'Umfrage';
+  const pollType = vars.pollType || L.defaultPollType;
   const resultsLink = vars.resultsLink || '#';
   const editLink = vars.editLink || '';
-  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
-  const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
-
-  const optionsBlock = selectedOptionsHtml
-    ? `<tr><td style="padding: 0 40px 20px;">
-      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre Auswahl</p>
-      ${selectedOptionsHtml}
-    </td></tr>`
-    : '';
+  const greeting = L.greeting(voterName);
+  const optionsBlock = v3OptionsBlock(V.selection, vars.selectedOptionsHtml || '');
+  const withdraw = vars.voteManagementAction === 'withdraw';
 
   const editSection = editLink
     ? `${v3Divider()}
     ${v3SingleButtonSection(
-      vars.voteManagementAction === 'withdraw'
-        ? 'Über diesen Link können Sie Ihre Stimme zurückziehen.'
-        : 'Wenn Sie Ihre Auswahl später ändern möchten, können Sie dafür diesen Link verwenden.',
-      vars.voteManagementAction === 'withdraw' ? 'Stimme zurückziehen →' : 'Stimme bearbeiten →',
+      withdraw ? V.withdrawText : V.editText,
+      withdraw ? V.withdrawButton : V.editButton,
       editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
     : '';
 
   return `${v3BodyStart()}
-      ${v3Tag('Best\u00E4tigung', ctx.primaryColor)}
-      ${v3SimpleHeadline('Vielen Dank f\u00FCr Ihre Teilnahme!', ctx.fontFamily)}
-      ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Teilnahme an der ${htmlEscape(pollType)} \u201E${pollTitle}\u201C. Ihre Auswahl wurde erfolgreich gespeichert.`)}
+      ${v3Tag(V.confirmationTag, ctx.primaryColor)}
+      ${v3SimpleHeadline(V.confirmationHeadline, ctx.fontFamily)}
+      ${v3Subline(V.confirmationSubline(greeting, htmlEscape(pollType), L.quote(pollTitle)))}
     ${v3BodyEnd()}
     ${optionsBlock}
     ${vars.resultsPublic === 'false' ? '' : `${v3Divider()}
-    ${v3SingleButtonSection('Mit diesem Link k\u00F6nnen Sie jederzeit zur Umfrage zur\u00FCckkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen \u2192', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
+    ${v3SingleButtonSection(V.resultsText, V.resultsButton, resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
 }
 
 function buildV3VoteUpdatedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const V = L.vote;
   const voterName = htmlEscape(vars.voterName || '');
   const pollTitle = htmlEscape(vars.pollTitle || '');
-  const pollType = vars.pollType || 'Umfrage';
+  const pollType = vars.pollType || L.defaultPollType;
   const resultsLink = vars.resultsLink || '#';
   const editLink = vars.editLink || '';
-  const selectedOptionsHtml = vars.selectedOptionsHtml || '';
-  const greeting = voterName ? `Hallo ${voterName}` : 'Hallo';
-
-  const optionsBlock = selectedOptionsHtml
-    ? `<tr><td style="padding: 0 40px 20px;">
-      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Ihre aktuelle Auswahl</p>
-      ${selectedOptionsHtml}
-    </td></tr>`
-    : '';
+  const greeting = L.greeting(voterName);
+  const optionsBlock = v3OptionsBlock(V.currentSelection, vars.selectedOptionsHtml || '');
 
   const editSection = editLink
     ? `${v3Divider()}
-    ${v3SingleButtonSection('Wenn Sie Ihre Auswahl erneut ändern möchten, können Sie dafür diesen Link verwenden.', 'Stimme weiter bearbeiten →', editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
+    ${v3SingleButtonSection(V.updatedEditText, V.updatedEditButton, editLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`
     : '';
 
   return `${v3BodyStart()}
-      ${v3Tag('Aktualisiert', ctx.primaryColor)}
-      ${v3SimpleHeadline('Ihre Abstimmung wurde aktualisiert', ctx.fontFamily)}
-      ${v3Subline(`${greeting} — Ihre Auswahl für die ${htmlEscape(pollType)} „${pollTitle}“ wurde erfolgreich aktualisiert.`)}
+      ${v3Tag(V.updatedTag, ctx.primaryColor)}
+      ${v3SimpleHeadline(V.updatedHeadline, ctx.fontFamily)}
+      ${v3Subline(V.updatedSubline(greeting, htmlEscape(pollType), L.quote(pollTitle)))}
     ${v3BodyEnd()}
     ${optionsBlock}
     ${vars.resultsPublic === 'false' ? '' : `${v3Divider()}
-    ${v3SingleButtonSection('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.', 'Ergebnisse anzeigen →', resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
+    ${v3SingleButtonSection(V.resultsText, V.resultsButton, resultsLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`}${editSection}`;
 }
 
 function buildV3PasswordResetBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const S = L.security;
   const userName = htmlEscape(vars.userName || '');
   const resetLink = vars.resetLink || '#';
-  const greeting = userName ? `Hallo ${userName}` : 'Hallo';
+  const greeting = L.greeting(userName);
 
   return `${v3BodyStart()}
-      ${v3Tag('Sicherheit', ctx.primaryColor)}
-      ${v3SimpleHeadline('Passwort zur\u00FCcksetzen', ctx.fontFamily)}
-      ${v3Subline(`${greeting} \u2014 Sie haben angefordert, Ihr Passwort zur\u00FCckzusetzen.`)}
+      ${v3Tag(S.tag, ctx.primaryColor)}
+      ${v3SimpleHeadline(S.resetHeadline, ctx.fontFamily)}
+      ${v3Subline(S.resetSubline(greeting))}
     ${v3BodyEnd()}
     ${v3Divider()}
-    ${v3SingleButtonSection('Klicken Sie auf den folgenden Button, um ein neues Passwort zu vergeben. Dieser Link ist 1 Stunde g\u00FCltig.', 'Passwort zur\u00FCcksetzen \u2192', resetLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}
-    ${v3Notice('Falls Sie diese Anfrage nicht gestellt haben,', 'k\u00F6nnen Sie diese E-Mail ignorieren. Ihr Passwort bleibt unver\u00E4ndert.', ctx.primaryColor)}`;
+    ${v3SingleButtonSection(S.resetButtonText, S.resetButton, resetLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}
+    ${v3Notice(S.notRequestedBold, S.resetNotice, ctx.primaryColor)}`;
 }
 
 function buildV3EmailChangeBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const S = emailStrings(ctx.language).security;
   const oldEmail = htmlEscape(vars.oldEmail || '');
   const newEmail = htmlEscape(vars.newEmail || '');
   const confirmLink = vars.confirmLink || '#';
 
   return `${v3BodyStart()}
-      ${v3Tag('Sicherheit', ctx.primaryColor)}
-      ${v3SimpleHeadline('E-Mail-Adresse best\u00E4tigen', ctx.fontFamily)}
-      ${v3Subline('Sie haben angefordert, Ihre E-Mail-Adresse zu \u00E4ndern.')}
+      ${v3Tag(S.tag, ctx.primaryColor)}
+      ${v3SimpleHeadline(S.changeHeadline, ctx.fontFamily)}
+      ${v3Subline(S.changeSubline)}
     ${v3BodyEnd()}
-    ${v3TextBlock(`<strong>Alte E-Mail:</strong> ${oldEmail}<br><strong>Neue E-Mail:</strong> ${newEmail}`)}
+    ${v3TextBlock(`<strong>${S.oldEmail}</strong> ${oldEmail}<br><strong>${S.newEmail}</strong> ${newEmail}`)}
     ${v3Divider()}
-    ${v3SingleButtonSection('Dieser Link ist 24 Stunden g\u00FCltig.', 'E-Mail best\u00E4tigen \u2192', confirmLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}
-    ${v3Notice('Falls Sie diese Anfrage nicht gestellt haben,', 'k\u00F6nnen Sie diese E-Mail ignorieren.', ctx.primaryColor)}`;
+    ${v3SingleButtonSection(S.changeValidity, S.changeButton, confirmLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}
+    ${v3Notice(S.notRequestedBold, S.changeNotice, ctx.primaryColor)}`;
 }
 
 function buildV3PasswordChangedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const S = L.security;
   const userName = htmlEscape(vars.userName || '');
-  const greeting = userName ? `Hallo ${userName}` : 'Hallo';
+  const greeting = L.greeting(userName);
 
   return `${v3BodyStart()}
-      ${v3Tag('Sicherheit', ctx.primaryColor)}
-      ${v3SimpleHeadline('Passwort erfolgreich ge\u00E4ndert', ctx.fontFamily)}
-      ${v3Subline(`${greeting} \u2014 Ihr Passwort wurde erfolgreich ge\u00E4ndert.`)}
+      ${v3Tag(S.tag, ctx.primaryColor)}
+      ${v3SimpleHeadline(S.changedHeadline, ctx.fontFamily)}
+      ${v3Subline(S.changedSubline(greeting))}
     ${v3BodyEnd()}
-    ${v3Notice('Falls Sie diese \u00C4nderung nicht vorgenommen haben,', 'kontaktieren Sie bitte umgehend den Administrator.', ctx.primaryColor)}`;
+    ${v3Notice(S.changedNoticeBold, S.changedNotice, ctx.primaryColor)}`;
 }
 
 function buildV3TestReportBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const T = emailStrings(ctx.language).testReport;
   const status = htmlEscape(vars.status || '');
   const testRunId = htmlEscape(vars.testRunId || '');
   const totalTests = htmlEscape(vars.totalTests || '0');
@@ -1789,63 +2054,65 @@ function buildV3TestReportBody(vars: Record<string, string | undefined>, ctx: V3
   const failedSummaryHtml = vars.failedSummaryHtml || '';
 
   return `${v3BodyStart()}
-      ${v3Tag('Testbericht', ctx.primaryColor)}
-      ${v3SimpleHeadline(`${status} \u2014 Testlauf #${testRunId}`, ctx.fontFamily)}
-      ${v3Subline('Der automatische Testlauf wurde abgeschlossen.')}
+      ${v3Tag(T.tag, ctx.primaryColor)}
+      ${v3SimpleHeadline(T.headline(status, testRunId), ctx.fontFamily)}
+      ${v3Subline(T.subline)}
     ${v3BodyEnd()}
     ${failedSummaryHtml ? v3TextBlock(failedSummaryHtml) : ''}
-    ${v3TextBlock(`Gesamte Tests: <strong>${totalTests}</strong><br>Bestanden: <strong>${passed}</strong><br>Fehlgeschlagen: <strong>${failed}</strong><br>\u00DCbersprungen: <strong>${skipped}</strong><br>Dauer: <strong>${duration}</strong><br>Gestartet: <strong>${startedAt}</strong>`)}`;
+    ${v3TextBlock(`${T.total}: <strong>${totalTests}</strong><br>${T.passed}: <strong>${passed}</strong><br>${T.failed}: <strong>${failed}</strong><br>${T.skipped}: <strong>${skipped}</strong><br>${T.duration}: <strong>${duration}</strong><br>${T.started}: <strong>${startedAt}</strong>`)}`;
 }
 
 function buildV3WelcomeBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const W = L.welcome;
   const userName = htmlEscape(vars.userName || '');
   const verificationLink = vars.verificationLink || '#';
   const siteName = htmlEscape(vars.siteName || '');
-  const greeting = userName ? `Hallo ${userName}` : 'Hallo';
+  const greeting = L.greeting(userName);
 
   return `${v3BodyStart()}
-      ${v3Tag('Willkommen', ctx.primaryColor)}
-      ${v3SimpleHeadline(`Willkommen bei ${siteName}!`, ctx.fontFamily)}
-      ${v3Subline(`${greeting} \u2014 vielen Dank f\u00FCr Ihre Registrierung! Ihr Account wurde erfolgreich erstellt.`)}
+      ${v3Tag(W.tag, ctx.primaryColor)}
+      ${v3SimpleHeadline(W.headline(siteName), ctx.fontFamily)}
+      ${v3Subline(W.subline(greeting))}
     ${v3BodyEnd()}
     ${v3Divider()}
-    ${v3SingleButtonSection('Bitte best\u00E4tigen Sie Ihre E-Mail-Adresse, um alle Funktionen nutzen zu k\u00F6nnen.', 'E-Mail best\u00E4tigen \u2192', verificationLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
+    ${v3SingleButtonSection(W.buttonText, W.button, verificationLink, 'secondary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
 
 function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx: V3BodyContext): string {
+  const L = emailStrings(ctx.language);
+  const F = L.finalized;
   const pollTitle = htmlEscape(vars.pollTitle || '');
   const pollType = vars.pollType || 'schedule';
   const pollLink = vars.pollLink || '#';
   const buttonLink = vars.buttonLink || pollLink;
-  const buttonLabel = vars.buttonLabel || 'Zur Umfrage \u2192';
+  const buttonLabel = vars.buttonLabel || F.goToPoll;
 
   if (pollType === 'schedule') {
     const confirmedDate = htmlEscape(vars.confirmedDate || '');
     const confirmedTime = htmlEscape(vars.confirmedTime || '');
     const videoConferenceUrl = vars.videoConferenceUrl || '';
     const videoLine = videoConferenceUrl
-      ? `<br/><strong>Videokonferenz:</strong> <a href="${htmlEscape(videoConferenceUrl)}" style="color:${ctx.primaryColor};text-decoration:underline;">${htmlEscape(videoConferenceUrl)}</a>`
+      ? `<br/><strong>${F.videoConference}</strong> <a href="${htmlEscape(videoConferenceUrl)}" style="color:${ctx.primaryColor};text-decoration:underline;">${htmlEscape(videoConferenceUrl)}</a>`
       : '';
     const scheduleClosingHtml = vars.closingMessageHtml || '';
     const scheduleClosingBlock = scheduleClosingHtml
       ? `${v3Divider()}
-    ${buildPollFinalizedClosingBlock(scheduleClosingHtml, ctx.primaryColor)}`
+    ${buildPollFinalizedClosingBlock(scheduleClosingHtml, ctx.primaryColor, ctx.language)}`
       : '';
     return `${v3BodyStart()}
-      ${v3Tag('Termin bestätigt', ctx.primaryColor)}
-      ${v3Headline('Termin festgelegt für', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
-      ${v3Subline(`<strong>Datum:</strong> ${confirmedDate}${confirmedTime ? `<br/><strong>Uhrzeit:</strong> ${confirmedTime}` : ''}${videoLine}<br/><br/>Im Anhang finden Sie eine Kalendereinladung (.ics), die Sie direkt in Ihren Kalender importieren können.`)}
+      ${v3Tag(F.scheduleTag, ctx.primaryColor)}
+      ${v3Headline(F.scheduleHeadline, L.quote(pollTitle), '', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Subline(`<strong>${F.date}</strong> ${confirmedDate}${confirmedTime ? `<br/><strong>${F.time}</strong> ${confirmedTime}` : ''}${videoLine}<br/><br/>${F.icsNote}`)}
     ${v3BodyEnd()}
     ${scheduleClosingBlock}
     ${v3Divider()}
-    ${v3SingleButtonSection('Klicken Sie auf den Button, um die Umfrage und Ergebnisse einzusehen.', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
+    ${v3SingleButtonSection(F.scheduleButtonText, buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
   }
 
   // Survey / orga: "poll ended" notification
   const resultsPublic = vars.resultsPublic !== 'false';
-  const resultNote = resultsPublic
-    ? 'Die Ergebnisse sind öffentlich einsehbar – klicken Sie auf den Button, um sie anzuzeigen.'
-    : 'Der Ersteller hat die Ergebnisse nicht öffentlich gemacht.';
+  const resultNote = resultsPublic ? F.resultsPublicNote : F.resultsPrivateNote;
 
   const finalOptionText = vars.finalOptionText || '';
   const slotSummaryHtml = vars.slotSummaryHtml || '';
@@ -1854,22 +2121,22 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
   if (finalOptionText) {
     extraBlock = `<tr><td style="padding: 0 40px 16px;">
       <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; margin: 0;">
-        <strong>Festgelegtes Ergebnis:</strong> ${finalOptionText}
+        <strong>${F.finalResult}</strong> ${finalOptionText}
       </p>
     </td></tr>`;
   } else if (slotSummaryHtml) {
     extraBlock = `<tr><td style="padding: 0 40px 16px;">
-      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; margin: 0 0 4px 0;"><strong>Slot-Übersicht:</strong></p>
+      <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; margin: 0 0 4px 0;"><strong>${F.slotOverview}</strong></p>
       <div style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563;">${slotSummaryHtml}</div>
     </td></tr>`;
   }
 
   const closingMessageHtml = vars.closingMessageHtml || '';
-  const closingBlock = buildPollFinalizedClosingBlock(closingMessageHtml, ctx.primaryColor);
+  const closingBlock = buildPollFinalizedClosingBlock(closingMessageHtml, ctx.primaryColor, ctx.language);
 
   return `${v3BodyStart()}
-      ${v3Tag('Umfrage beendet', ctx.primaryColor)}
-      ${v3Headline('Die Umfrage wurde abgeschlossen:', `\u201E${pollTitle}\u201C`, '', ctx.fontFamily, ctx.primaryColor)}
+      ${v3Tag(F.endedTag, ctx.primaryColor)}
+      ${v3Headline(F.endedHeadline, L.quote(pollTitle), '', ctx.fontFamily, ctx.primaryColor)}
       ${v3Subline(resultNote)}
     ${v3BodyEnd()}
     ${extraBlock}
@@ -1878,12 +2145,12 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
     ${v3SingleButtonSection('', buttonLabel, buttonLink, 'primary', ctx.primaryColor, ctx.secondaryColor)}`;
 }
 
-function buildPollFinalizedClosingBlock(closingMessageHtml: string, primaryColor: string): string {
+function buildPollFinalizedClosingBlock(closingMessageHtml: string, primaryColor: string, language: EmailLanguage): string {
   if (!closingMessageHtml) return '';
 
   return `<tr><td style="padding: 0 40px 20px;">
         <div style="background-color: #f8f5f0; border-left: 4px solid ${primaryColor}; border-radius: 4px; padding: 14px 16px; font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #374151; line-height: 1.6;">
-          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Nachricht des Organisators</p>
+          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">${emailStrings(language).organizerMessage}</p>
           <div style="margin: 0;">${closingMessageHtml}</div>
         </div>
       </td></tr>`;
@@ -1922,7 +2189,7 @@ function buildV3CustomContentBody(text: string, ctx: V3BodyContext): string {
     .map(({ before, url }) =>
       `${v3Divider()}${v3SingleButtonSection(
         before ? htmlEscape(before) : htmlEscape(url),
-        'Link \u00f6ffnen \u2192',
+        emailStrings(ctx.language).openLink,
         url,
         'primary',
         ctx.primaryColor,
@@ -1961,7 +2228,8 @@ export class EmailTemplateService {
 
   private appendVoteEditLink(
     text: string,
-    variables: Record<string, string | undefined>
+    variables: Record<string, string | undefined>,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): string {
     if (!variables.editLink) return text;
 
@@ -1969,7 +2237,8 @@ export class EmailTemplateService {
     const hasRenderedEditLink = !!variables.editLink && text.includes(variables.editLink);
     if (hasEditPlaceholder || hasRenderedEditLink) return text;
 
-    const label = variables.voteManagementAction === 'withdraw' ? 'Stimme zurückziehen' : 'Stimme bearbeiten';
+    const V = emailStrings(lang).vote;
+    const label = variables.voteManagementAction === 'withdraw' ? V.withdrawLabel : V.editLabel;
     return text.trimEnd() + `\n\n${label}: {{editLink}}`;
   }
 
@@ -1989,7 +2258,8 @@ export class EmailTemplateService {
 
   private appendVoteSelectedOptions(
     text: string,
-    variables: Record<string, string | undefined>
+    variables: Record<string, string | undefined>,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): string {
     const optionLines = this.extractSelectedOptionsText(variables.selectedOptionsHtml);
     if (optionLines.length === 0) return text;
@@ -1997,13 +2267,14 @@ export class EmailTemplateService {
     const alreadyContainsAllOptions = optionLines.every(line => text.includes(line));
     if (alreadyContainsAllOptions) return text;
 
-    const optionsSection = `Ihre Auswahl:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
+    const optionsSection = `${emailStrings(lang).vote.selection}:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
     return text.trimEnd() + `\n\n${optionsSection}`;
   }
 
   private appendReminderSelectedOptions(
     text: string,
-    variables: Record<string, string | undefined>
+    variables: Record<string, string | undefined>,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): string {
     const optionLines = this.extractSelectedOptionsText(variables.selectedOptionsHtml);
     if (optionLines.length === 0) return text;
@@ -2011,29 +2282,31 @@ export class EmailTemplateService {
     const alreadyContainsAllOptions = optionLines.every(line => text.includes(line));
     if (alreadyContainsAllOptions) return text;
 
-    const optionsSection = `Ihre aktuelle Auswahl:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
+    const optionsSection = `${emailStrings(lang).reminder.currentSelection}:\n${optionLines.map(line => `- ${line}`).join('\n')}`;
     return text.trimEnd() + `\n\n${optionsSection}`;
   }
 
   private enhanceVoteTemplateText(
     text: string,
-    variables: Record<string, string | undefined>
+    variables: Record<string, string | undefined>,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): string {
     // Remove the results link and standard explanatory copy in plain-text and
     // customized text templates as well as in the default HTML body.
     if (variables.resultsPublic === 'false') {
+      const resultsCopy = EMAIL_LANGUAGES.map(l => emailStrings(l).vote.resultsText);
       text = text.split('\n').filter(line =>
         !line.includes('{{resultsLink}}') &&
-        !line.includes('Mit diesem Link können Sie jederzeit zur Umfrage zurückkehren oder die aktuellen Ergebnisse einsehen.')
+        !resultsCopy.some(copy => line.includes(copy))
       ).join('\n');
     }
-    let enhanced = this.appendVoteSelectedOptions(text, variables);
-    enhanced = this.appendVoteEditLink(enhanced, variables);
+    let enhanced = this.appendVoteSelectedOptions(text, variables, lang);
+    enhanced = this.appendVoteEditLink(enhanced, variables, lang);
     return enhanced;
   }
 
   // Static method: Get default template by type
-  static getDefaultTemplate(type: EmailTemplateType): {
+  static getDefaultTemplate(type: EmailTemplateType, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): {
     type: EmailTemplateType;
     name: string;
     subject: string;
@@ -2041,7 +2314,7 @@ export class EmailTemplateService {
     textContent: string;
     variables: { key: string; description: string }[];
   } {
-    const defaultData = DEFAULT_TEMPLATES[type];
+    const defaultData = getDefaultTemplateDefinition(type, lang);
     if (!defaultData) {
       throw new Error(`Unknown template type: ${type}`);
     }
@@ -2056,7 +2329,7 @@ export class EmailTemplateService {
   }
 
   // Static method: Get all default templates
-  static getAllDefaultTemplates(): Array<{
+  static getAllDefaultTemplates(lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Array<{
     type: EmailTemplateType;
     name: string;
     subject: string;
@@ -2064,7 +2337,7 @@ export class EmailTemplateService {
     textContent: string;
     variables: { key: string; description: string }[];
   }> {
-    return EMAIL_TEMPLATE_TYPES.map(type => EmailTemplateService.getDefaultTemplate(type));
+    return EMAIL_TEMPLATE_TYPES.map(type => EmailTemplateService.getDefaultTemplate(type, lang));
   }
 
   // Static method: Substitute variables (with optional HTML escaping)
@@ -2076,19 +2349,20 @@ export class EmailTemplateService {
     return substituteVariables(template, variables, escapeHtml);
   }
 
-  static async getSampleDataForType(type: string): Promise<Record<string, string>> {
+  static async getSampleDataForType(type: string, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<Record<string, string>> {
     const customization = await storage.getCustomizationSettings();
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
-    const data = getSampleData(siteName);
+    const data = getLocalizedSampleData(siteName, lang);
     return data[type as EmailTemplateType] || {};
   }
 
   // Static method: Render template to HTML
   static async renderTemplate(
     type: EmailTemplateType,
-    variables: Record<string, string | undefined>
+    variables: Record<string, string | undefined>,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): Promise<string> {
-    const defaultData = DEFAULT_TEMPLATES[type];
+    const defaultData = getDefaultTemplateDefinition(type, lang);
     if (!defaultData) {
       throw new Error(`Unknown template type: ${type}`);
     }
@@ -2107,20 +2381,21 @@ export class EmailTemplateService {
   }
 
   // Get all templates (from DB or defaults)
-  async getAllTemplates(): Promise<EmailTemplate[]> {
-    const dbTemplates = await storage.getEmailTemplates();
+  async getAllTemplates(lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<EmailTemplate[]> {
+    const dbTemplates = await storage.getEmailTemplates(lang);
     const result: EmailTemplate[] = [];
 
     for (const type of EMAIL_TEMPLATE_TYPES) {
-      const dbTemplate = dbTemplates.find(t => t.type === type);
+      const dbTemplate = dbTemplates.find(t => t.type === type && (t.language ?? DEFAULT_EMAIL_LANGUAGE) === lang);
       if (dbTemplate) {
         result.push(this.withCurrentVariables(dbTemplate));
       } else {
         // Return default template as a pseudo-template
-        const defaultData = DEFAULT_TEMPLATES[type];
+        const defaultData = getDefaultTemplateDefinition(type, lang);
         result.push({
           id: 0,
           type,
+          language: lang,
           name: defaultData.name,
           subject: defaultData.subject,
           jsonContent: defaultData.jsonContent as unknown as Record<string, unknown>,
@@ -2139,18 +2414,21 @@ export class EmailTemplateService {
   }
 
   // Get a specific template
-  async getTemplate(type: EmailTemplateType): Promise<EmailTemplate> {
-    const dbTemplate = await storage.getEmailTemplate(type);
+  // A missing customization falls back to the built-in template of the SAME
+  // language — never to a customization written in another language.
+  async getTemplate(type: EmailTemplateType, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<EmailTemplate> {
+    const dbTemplate = await storage.getEmailTemplate(type, lang);
     
     if (dbTemplate) {
       return this.withCurrentVariables(dbTemplate);
     }
 
     // Return default template
-    const defaultData = DEFAULT_TEMPLATES[type];
+    const defaultData = getDefaultTemplateDefinition(type, lang);
     return {
       id: 0,
       type,
+      language: lang,
       name: defaultData.name,
       subject: defaultData.subject,
       jsonContent: defaultData.jsonContent as unknown as Record<string, unknown>,
@@ -2170,9 +2448,10 @@ export class EmailTemplateService {
     jsonContent: Record<string, unknown>,
     subject?: string,
     name?: string,
-    textContentOverride?: string
+    textContentOverride?: string,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): Promise<EmailTemplate> {
-    const defaultData = DEFAULT_TEMPLATES[type];
+    const defaultData = getDefaultTemplateDefinition(type, lang);
     
     // If textContent is provided, we'll generate HTML from it instead of JSON
     let htmlContent: string;
@@ -2190,6 +2469,7 @@ export class EmailTemplateService {
 
     return await storage.upsertEmailTemplate({
       type,
+      language: lang,
       name: name || defaultData.name,
       subject: subject || defaultData.subject,
       jsonContent,
@@ -2202,33 +2482,39 @@ export class EmailTemplateService {
   }
 
   // Reset template to default
-  async resetTemplate(type: EmailTemplateType): Promise<EmailTemplate> {
-    await storage.resetEmailTemplate(type);
-    return this.getTemplate(type);
+  async resetTemplate(type: EmailTemplateType, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<EmailTemplate> {
+    await storage.resetEmailTemplate(type, lang);
+    return this.getTemplate(type, lang);
   }
 
   // Get email footer from system settings
-  static readonly DEFAULT_FOOTER = 'Diese E-Mail wurde automatisch von {{siteName}} erstellt.\n{{link:#|Datenschutz}}';
+  static readonly DEFAULT_FOOTER = DEFAULT_EMAIL_FOOTERS.de;
 
-  async getEmailFooter(): Promise<{ html: string; text: string }> {
-    const setting = await storage.getSetting('email_footer');
+  // German keeps the historical setting key so existing footers stay intact.
+  static footerSettingKey(lang: EmailLanguage): string {
+    return lang === 'de' ? 'email_footer' : `email_footer_${lang}`;
+  }
+
+  async getEmailFooter(lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<{ html: string; text: string }> {
+    const fallback = DEFAULT_EMAIL_FOOTERS[lang];
+    const setting = await storage.getSetting(EmailTemplateService.footerSettingKey(lang));
     if (setting?.value) {
       const footerData = setting.value as { html?: string; text?: string };
       return {
-        html: footerData.html || EmailTemplateService.DEFAULT_FOOTER,
-        text: footerData.text || EmailTemplateService.DEFAULT_FOOTER
+        html: footerData.html || fallback,
+        text: footerData.text || fallback
       };
     }
     return {
-      html: EmailTemplateService.DEFAULT_FOOTER,
-      text: EmailTemplateService.DEFAULT_FOOTER
+      html: fallback,
+      text: fallback
     };
   }
 
   // Set email footer in system settings
-  async setEmailFooter(footer: { html: string; text: string }): Promise<{ html: string; text: string }> {
+  async setEmailFooter(footer: { html: string; text: string }, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<{ html: string; text: string }> {
     await storage.setSetting({
-      key: 'email_footer',
+      key: EmailTemplateService.footerSettingKey(lang),
       value: footer
     });
     return footer;
@@ -2453,12 +2739,13 @@ export class EmailTemplateService {
   private async buildV3TemplateData(
     customization: any,
     emailTheme: EmailTheme,
-    subject: string
+    subject: string,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): Promise<V3TemplateData> {
     const { getBaseUrl } = await import('../utils/baseUrl');
     const siteUrl = getBaseUrl();
     const logoDataUri = await this.resolveLogoDataUri(customization.branding.logoUrl || undefined);
-    const footer = await this.getEmailFooter();
+    const footer = await this.getEmailFooter(lang);
     const fullSiteName = `${customization.branding.siteName || ''}${customization.branding.siteNameAccent || ''}`;
     const privacyUrl = this.resolvePrivacyUrl(customization);
     const hasFooterPrivacyPlaceholder = /\{\{link:#\|/.test(footer.html);
@@ -2486,20 +2773,20 @@ export class EmailTemplateService {
       footerText,
       fontFamily: emailTheme.fontFamily || DEFAULT_EMAIL_THEME.fontFamily,
       subject,
+      language: lang,
     };
   }
 
   // Uses the existing branding without adding persisted template types.
-  async renderVoteWithdrawalEmail(voterName: string, pollTitle: string, link: string, organizer = false) {
-    const subject = organizer ? `Stimme zurückgezogen: ${pollTitle}` : `Ihre Stimme wurde zurückgezogen: ${pollTitle}`;
-    const heading = organizer ? 'Eine Stimme wurde zurückgezogen.' : 'Ihre Stimme wurde zurückgezogen.';
-    const message = organizer
-      ? `${voterName || 'Eine teilnehmende Person'} hat die Teilnahme an „${pollTitle}“ zurückgezogen. Die Antworten werden nicht mehr gezählt.`
-      : `${voterName ? `Hallo ${voterName} — ` : ''}Ihre Antworten für „${pollTitle}“ wurden entfernt und werden nicht mehr gezählt.`;
-    const label = organizer ? 'Umfrage verwalten' : 'Zur Umfrage';
+  async renderVoteWithdrawalEmail(voterName: string, pollTitle: string, link: string, organizer = false, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE) {
+    const W = emailStrings(lang).withdrawal;
+    const subject = organizer ? W.subjectOrganizer(pollTitle) : W.subjectVoter(pollTitle);
+    const heading = organizer ? W.headingOrganizer : W.headingVoter;
+    const message = organizer ? W.messageOrganizer(voterName, pollTitle) : W.messageVoter(voterName, pollTitle);
+    const label = organizer ? W.labelOrganizer : W.labelVoter;
     const customization = await storage.getCustomizationSettings();
-    const data = await this.buildV3TemplateData(customization, await this.getEmailTheme(), subject);
-    const body = `${v3BodyStart()}${v3Tag('Zurückgezogen', data.primaryColor)}${v3SimpleHeadline(heading, data.fontFamily)}${v3Subline(htmlEscape(message))}${v3BodyEnd()}${v3Divider()}${v3SingleButtonSection('', `${label} →`, link, 'primary', data.primaryColor, data.secondaryColor)}`;
+    const data = await this.buildV3TemplateData(customization, await this.getEmailTheme(), subject, lang);
+    const body = `${v3BodyStart()}${v3Tag(W.tag, data.primaryColor)}${v3SimpleHeadline(heading, data.fontFamily)}${v3Subline(htmlEscape(message))}${v3BodyEnd()}${v3Divider()}${v3SingleButtonSection('', `${label} →`, link, 'primary', data.primaryColor, data.secondaryColor)}`;
     return {
       subject,
       html: v3Shell(data, body),
@@ -2510,9 +2797,11 @@ export class EmailTemplateService {
   // Render a template with variables — V3 template system
   async renderEmail(
     type: EmailTemplateType,
-    variables: Record<string, string | undefined>
+    variables: Record<string, string | undefined>,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): Promise<{ subject: string; html: string; text: string }> {
-    const template = await this.getTemplate(type);
+    const L = emailStrings(lang);
+    const template = await this.getTemplate(type, lang);
     const customization = await storage.getCustomizationSettings();
     const siteName = `${customization.branding.siteName}${customization.branding.siteNameAccent}`;
     const emailTheme = await this.getEmailTheme();
@@ -2524,11 +2813,12 @@ export class EmailTemplateService {
     const v3Builder = V3_BODY_BUILDERS[type];
     const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!v3Builder && !!template.textContent;
     if (v3Builder) {
-      const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
+      const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject, lang);
       const ctx: V3BodyContext = {
         primaryColor: v3Data.primaryColor,
         secondaryColor: v3Data.secondaryColor,
         fontFamily: v3Data.fontFamily,
+        language: lang,
       };
       let mergedVariables = { ...allVariables };
       let bodyHtml: string;
@@ -2555,14 +2845,14 @@ export class EmailTemplateService {
         // The outer v3Shell (logo, branding, footer) is always applied.
         let customTemplateText = template.textContent;
         if (type === 'vote_confirmation' || type === 'vote_updated') {
-          customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables);
+          customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables, lang);
         } else if (type === 'reminder') {
-          customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables);
+          customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables, lang);
         }
         const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
         bodyHtml = buildV3CustomContentBody(renderedText, ctx);
         if (type === 'poll_finalized') {
-          const closingBlock = buildPollFinalizedClosingBlock(allVariables.closingMessageHtml || '', ctx.primaryColor);
+          const closingBlock = buildPollFinalizedClosingBlock(allVariables.closingMessageHtml || '', ctx.primaryColor, lang);
           if (closingBlock) {
             bodyHtml += `${v3Divider()}
     ${closingBlock}`;
@@ -2574,22 +2864,20 @@ export class EmailTemplateService {
       const html = v3Shell(v3Data, bodyHtml);
       let textBase = template.textContent || '';
       if (type === 'vote_confirmation' || type === 'vote_updated') {
-        textBase = this.enhanceVoteTemplateText(textBase, allVariables);
+        textBase = this.enhanceVoteTemplateText(textBase, allVariables, lang);
       } else if (type === 'reminder') {
-        textBase = this.appendReminderSelectedOptions(textBase, allVariables);
+        textBase = this.appendReminderSelectedOptions(textBase, allVariables, lang);
       } else if (type === 'poll_finalized') {
         const closingMsgText = allVariables.closingMessageText;
         if (closingMsgText && closingMsgText.trim()) {
-          textBase = textBase.trimEnd() + `\n\nNachricht des Organisators:\n${closingMsgText.trim()}`;
+          textBase = textBase.trimEnd() + `\n\n${L.organizerMessage}:\n${closingMsgText.trim()}`;
         }
       }
       if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
-        textBase = textBase
-          .replace(/Den Administratorlink sicher aufbewahren\. Nur damit l\u00E4sst sich die Umfrage verwalten\./,
-            'Diese E-Mail dient als Schnellzugriff. Registrierte Nutzer k\u00F6nnen die Umfrage jederzeit auch unter \u201EMeine Umfragen\u201C verwalten.');
+        textBase = textBase.replace(L.pollCreated.textGuestNotice, L.pollCreated.textRegisteredNotice);
       }
-      if (/\n---\nDiese E-Mail wurde automatisch vo[nm]/.test(textBase)) {
-        textBase = textBase.replace(/\n---\nDiese E-Mail wurde automatisch vo[nm][^\n]*$/, `\n---\n${v3Data.footerText}`);
+      if (AUTO_FOOTER_DETECT.test(textBase)) {
+        textBase = textBase.replace(AUTO_FOOTER_REPLACE, `\n---\n${v3Data.footerText}`);
       } else if (v3Data.footerText) {
         textBase = textBase.trimEnd() + `\n\n---\n${v3Data.footerText}`;
       }
@@ -2601,24 +2889,24 @@ export class EmailTemplateService {
     if (!template.isDefault && template.textContent) {
       let customTemplateText = template.textContent;
       if (type === 'vote_confirmation' || type === 'vote_updated') {
-        customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables);
+        customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables, lang);
       } else if (type === 'reminder') {
-        customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables);
+        customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables, lang);
       }
       const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
       bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
     } else if (template.htmlContent) {
       bodyHtml = substituteVariables(template.htmlContent, allVariables, true);
     } else {
-      bodyHtml = '<p>Template-Fehler: Kein Inhalt verf\u00FCgbar</p>';
+      bodyHtml = `<p>${L.templateError}</p>`;
     }
 
-    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
+    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject, lang);
     const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
     const html = v3Shell(v3Data, wrappedBody);
     let textFallback = template.textContent || '';
-    if (/\n---\nDiese E-Mail wurde automatisch vo[nm]/.test(textFallback)) {
-      textFallback = textFallback.replace(/\n---\nDiese E-Mail wurde automatisch vo[nm][^\n]*$/, `\n---\n${v3Data.footerText}`);
+    if (AUTO_FOOTER_DETECT.test(textFallback)) {
+      textFallback = textFallback.replace(AUTO_FOOTER_REPLACE, `\n---\n${v3Data.footerText}`);
     } else if (v3Data.footerText) {
       textFallback = textFallback.trimEnd() + `\n\n---\n${v3Data.footerText}`;
     }
@@ -2629,18 +2917,19 @@ export class EmailTemplateService {
   async wrapWithEmailTheme(
     subject: string,
     bodyHtml: string,
-    plainText: string
+    plainText: string,
+    lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE
   ): Promise<{ subject: string; html: string; text: string }> {
     const customization = await storage.getCustomizationSettings();
     const emailTheme = await this.getEmailTheme();
 
-    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject);
+    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject, lang);
     const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
     const html = v3Shell(v3Data, wrappedBody);
 
     let text = plainText;
-    if (/\n---\nDiese E-Mail wurde automatisch vo[nm]/.test(text)) {
-      text = text.replace(/\n---\nDiese E-Mail wurde automatisch vo[nm][^\n]*$/, `\n---\n${v3Data.footerText}`);
+    if (AUTO_FOOTER_DETECT.test(text)) {
+      text = text.replace(AUTO_FOOTER_REPLACE, `\n---\n${v3Data.footerText}`);
     } else if (v3Data.footerText) {
       text = text.trimEnd() + `\n\n---\n${v3Data.footerText}`;
     }
@@ -2744,13 +3033,14 @@ ${containerStyles}        .email-footer-text { color: #999999 !important; }
   }
 
   // Get default template data
-  getDefaultTemplate(type: EmailTemplateType): {
+  getDefaultTemplate(type: EmailTemplateType, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): {
     name: string;
     subject: string;
     jsonContent: Record<string, unknown>;
     textContent: string;
   } {
-    return DEFAULT_TEMPLATES[type];
+    const def = getDefaultTemplateDefinition(type, lang);
+    return { ...def, jsonContent: def.jsonContent as unknown as Record<string, unknown> };
   }
 }
 

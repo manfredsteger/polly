@@ -12,6 +12,7 @@ import {
   type EmailChangeToken, type InsertEmailChangeToken,
   type EmailTemplate, type InsertEmailTemplate,
   type EmailTemplateType,
+  type EmailLanguage, DEFAULT_EMAIL_LANGUAGE,
   type ClamavScanLog, type InsertClamavScanLog,
   type PollResults, type VoteStats,
   type CustomizationSettings, customizationSettingsSchema,
@@ -190,10 +191,10 @@ export interface IStorage {
   confirmDeletion(userId: number): Promise<void>;
 
   // Email templates
-  getEmailTemplates(): Promise<EmailTemplate[]>;
-  getEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
+  getEmailTemplates(language?: EmailLanguage): Promise<EmailTemplate[]>;
+  getEmailTemplate(type: EmailTemplateType, language?: EmailLanguage): Promise<EmailTemplate | undefined>;
   upsertEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
-  resetEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
+  resetEmailTemplate(type: EmailTemplateType, language?: EmailLanguage): Promise<EmailTemplate | undefined>;
 
   // ClamAV scan logs
   createClamavScanLog(log: InsertClamavScanLog): Promise<ClamavScanLog>;
@@ -1750,35 +1751,41 @@ export class DatabaseStorage implements IStorage {
     await this.deleteUser(userId);
   }
 
-  // Email templates
-  async getEmailTemplates(): Promise<EmailTemplate[]> {
-    return await db.select().from(emailTemplates).orderBy(emailTemplates.type);
+  // Email templates are stored per (type, language). Callers that omit the
+  // language get the German row, which is where all pre-i18n customizations live.
+  async getEmailTemplates(language?: EmailLanguage): Promise<EmailTemplate[]> {
+    if (language) {
+      return await db.select().from(emailTemplates)
+        .where(eq(emailTemplates.language, language))
+        .orderBy(emailTemplates.type);
+    }
+    return await db.select().from(emailTemplates).orderBy(emailTemplates.type, emailTemplates.language);
   }
 
-  async getEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined> {
-    const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.type, type));
+  async getEmailTemplate(type: EmailTemplateType, language: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<EmailTemplate | undefined> {
+    const [template] = await db.select().from(emailTemplates)
+      .where(and(eq(emailTemplates.type, type), eq(emailTemplates.language, language)));
     return template || undefined;
   }
 
   async upsertEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
-    const existing = await this.getEmailTemplate(template.type as EmailTemplateType);
-    
-    if (existing) {
-      const [updated] = await db
-        .update(emailTemplates)
-        .set({ ...template, updatedAt: new Date() })
-        .where(eq(emailTemplates.type, template.type))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(emailTemplates).values(template).returning();
-      return created;
-    }
+    const language = (template.language as EmailLanguage | undefined) ?? DEFAULT_EMAIL_LANGUAGE;
+    const values = { ...template, language };
+    const [saved] = await db
+      .insert(emailTemplates)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [emailTemplates.type, emailTemplates.language],
+        set: { ...values, updatedAt: new Date() },
+      })
+      .returning();
+    return saved;
   }
 
-  async resetEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined> {
+  async resetEmailTemplate(type: EmailTemplateType, language: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<EmailTemplate | undefined> {
     // This will be handled by the email template service which knows the defaults
-    await db.delete(emailTemplates).where(eq(emailTemplates.type, type));
+    await db.delete(emailTemplates)
+      .where(and(eq(emailTemplates.type, type), eq(emailTemplates.language, language)));
     return undefined;
   }
 

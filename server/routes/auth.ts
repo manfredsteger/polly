@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { authService } from "../services/authService";
 import { tokenService } from "../services/tokenService";
 import { emailService } from "../services/emailService";
+import { getRequestLanguage } from "../services/emailLanguage";
 import { z } from "zod";
 import {
   extractUserId,
@@ -399,13 +400,25 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Registrierung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.' });
     }
 
+    // Remember the UI language the account was created in, so every later
+    // email (welcome mail included) arrives in that language.
+    const requestLanguage = getRequestLanguage(req);
+    if (requestLanguage && requestLanguage !== user.languagePreference) {
+      try {
+        const updated = await storage.updateUser(user.id, { languagePreference: requestLanguage });
+        user.languagePreference = updated.languagePreference;
+      } catch (langError) {
+        console.error('[Register] Failed to store language preference:', langError);
+      }
+    }
+
     try {
       const verificationToken = await storage.createEmailVerificationToken(user.id);
       const { getBaseUrl } = await import('../utils/baseUrl');
       const baseUrl = getBaseUrl();
       const verificationLink = `${baseUrl}/email-bestaetigen/${verificationToken.token}`;
       
-      emailService.sendWelcomeEmail(user.email, user.name, verificationLink)
+      emailService.sendWelcomeEmail(user.email, user.name, verificationLink, getRequestLanguage(req))
         .then(() => console.log(`[Welcome Email] Sent to ${user.email}`))
         .catch((emailError) => console.error(`[Welcome Email] Failed to send to ${user.email}:`, emailError));
     } catch (emailError) {
@@ -485,7 +498,7 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
     const baseUrl = getBaseUrl();
     const verificationLink = `${baseUrl}/email-bestaetigen/${verificationToken.token}`;
     
-    await emailService.sendWelcomeEmail(user.email, user.name, verificationLink);
+    await emailService.sendWelcomeEmail(user.email, user.name, verificationLink, getRequestLanguage(req));
     
     res.json({ success: true, message: 'Bestätigungslink wurde erneut gesendet' });
   } catch (error) {
@@ -583,7 +596,7 @@ router.post('/request-password-reset', passwordResetRateLimiter, async (req, res
     const resetLink = `${baseUrl}/passwort-zuruecksetzen/${resetToken.token}`;
 
     // Send email asynchronously - don't wait for it to complete
-    emailService.sendPasswordResetEmail(user.email, resetLink, user.name)
+    emailService.sendPasswordResetEmail(user.email, resetLink, user.name, getRequestLanguage(req))
       .then(() => console.log(`[Password Reset] Email sent to ${user.email}`))
       .catch((emailError) => console.error(`[Password Reset] Failed to send email to ${user.email}:`, emailError));
     
@@ -627,7 +640,7 @@ router.post('/reset-password', async (req, res) => {
     await storage.markPasswordResetTokenUsed(token);
 
     // Send notification email
-    emailService.sendPasswordChangedEmail(user.email, user.name)
+    emailService.sendPasswordChangedEmail(user.email, user.name, getRequestLanguage(req))
       .catch((emailError) => console.error(`[Password Changed] Failed to send notification to ${user.email}:`, emailError));
 
     res.clearCookie('polly.sid', { path: '/' });
@@ -691,7 +704,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
     await storage.updateUser(user.id, updateData);
 
     // Send notification email
-    emailService.sendPasswordChangedEmail(user.email, user.name)
+    emailService.sendPasswordChangedEmail(user.email, user.name, getRequestLanguage(req))
       .catch((emailError) => console.error(`[Password Changed] Failed to send notification to ${user.email}:`, emailError));
 
     res.json({ success: true, message: 'Passwort wurde erfolgreich geändert' });
@@ -754,7 +767,7 @@ router.post('/request-email-change', requireAuth, async (req, res) => {
     const confirmLink = `${baseUrl}/email-bestaetigen/${emailChangeToken.token}`;
 
     // Send confirmation email to new address
-    await emailService.sendEmailChangeConfirmation(newEmail, user.email, confirmLink);
+    await emailService.sendEmailChangeConfirmation(newEmail, user.email, confirmLink, getRequestLanguage(req));
 
     res.json({ success: true, message: 'Bestätigungs-E-Mail wurde gesendet' });
   } catch (error) {

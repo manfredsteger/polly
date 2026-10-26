@@ -98,7 +98,7 @@ describe('Email HTML Escaping Security Tests', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('poll_created', expect.objectContaining({
         pollTitle: xssPayload,
-      }));
+      }), 'de');
       expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
@@ -108,7 +108,7 @@ describe('Email HTML Escaping Security Tests', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('invitation', expect.objectContaining({
         inviterName: xssPayload,
-      }));
+      }), 'de');
       expect(mockSendMail).toHaveBeenCalledTimes(1);
     });
 
@@ -118,7 +118,7 @@ describe('Email HTML Escaping Security Tests', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('invitation', expect.objectContaining({
         pollTitle: htmlPayload,
-      }));
+      }), 'de');
     });
 
     it('sendInvitationEmail - XSS customMessage is passed to renderEmail', async () => {
@@ -127,7 +127,7 @@ describe('Email HTML Escaping Security Tests', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('invitation', expect.objectContaining({
         message: xssPayload,
-      }));
+      }), 'de');
     });
 
     it('sendVotingConfirmationEmail - XSS voterName/pollTitle passed to renderEmail', async () => {
@@ -138,7 +138,7 @@ describe('Email HTML Escaping Security Tests', () => {
       expect(renderEmailSpy).toHaveBeenCalledWith('vote_confirmation', expect.objectContaining({
         voterName: xssPayload,
         pollTitle: htmlPayload,
-      }));
+      }), 'de');
     });
 
     it('sendReminderEmail - XSS senderName/pollTitle passed to renderEmail', async () => {
@@ -148,7 +148,7 @@ describe('Email HTML Escaping Security Tests', () => {
       expect(renderEmailSpy).toHaveBeenCalledWith('reminder', expect.objectContaining({
         senderName: xssPayload,
         pollTitle: htmlPayload,
-      }));
+      }), 'de');
     });
 
     it('sendPasswordResetEmail - XSS displayName passed to renderEmail', async () => {
@@ -157,7 +157,7 @@ describe('Email HTML Escaping Security Tests', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('password_reset', expect.objectContaining({
         userName: xssPayload,
-      }));
+      }), 'de');
     });
 
     it('sendWelcomeEmail - XSS userName passed to renderEmail', async () => {
@@ -166,7 +166,7 @@ describe('Email HTML Escaping Security Tests', () => {
       );
       expect(renderEmailSpy).toHaveBeenCalledWith('welcome', expect.objectContaining({
         userName: xssPayload,
-      }));
+      }), 'de');
     });
   });
 

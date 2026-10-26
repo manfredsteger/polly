@@ -12,6 +12,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -57,8 +64,12 @@ import {
   Bell,
   Key,
   Shield,
-  Info
+  Info,
+  Languages
 } from "lucide-react";
+
+const EMAIL_LANGUAGES = ['de', 'en'] as const;
+type EmailLanguage = typeof EMAIL_LANGUAGES[number];
 
 interface EmailTemplate {
   type: string;
@@ -71,6 +82,10 @@ interface EmailTemplate {
   isActive: boolean;
   updatedAt: string;
   createdAt: string;
+}
+
+interface EmailLanguageSettings {
+  defaultLanguage: EmailLanguage;
 }
 
 interface EmailFooter {
@@ -110,12 +125,21 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
   const [themeJsonInput, setThemeJsonInput] = useState('');
   const [themePreview, setThemePreview] = useState<Partial<EmailTheme> | null>(null);
 
+  // Templates and footer are edited per language; German is the historic default.
+  const [editingLanguage, setEditingLanguage] = useState<EmailLanguage>('de');
+  const languageQuery = `?language=${editingLanguage}`;
+  const footerQueryKey = `/api/v1/admin/email-footer${languageQuery}`;
+
   const { data: templates, isLoading, refetch } = useQuery<EmailTemplate[]>({
-    queryKey: ['/api/v1/admin/email-templates'],
+    queryKey: [`/api/v1/admin/email-templates${languageQuery}`],
   });
   
   const { data: emailFooter } = useQuery<EmailFooter>({
-    queryKey: ['/api/v1/admin/email-footer'],
+    queryKey: [footerQueryKey],
+  });
+
+  const { data: emailLanguageSettings } = useQuery<EmailLanguageSettings>({
+    queryKey: ['/api/v1/admin/email-language'],
   });
   
   const { data: emailTheme } = useQuery<EmailTheme>({
@@ -146,9 +170,31 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     }
   }, [editSubject, editTextContent, selectedTemplate]);
 
+  const switchEditingLanguage = (lang: EmailLanguage) => {
+    if (lang === editingLanguage) return;
+    setSelectedTemplate(null);
+    setShowPreview(false);
+    setPreviewHtml('');
+    setEditingLanguage(lang);
+  };
+
+  const saveEmailLanguageMutation = useMutation({
+    mutationFn: async (defaultLanguage: EmailLanguage) => {
+      const response = await apiRequest('PUT', '/api/v1/admin/email-language', { defaultLanguage });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('admin.emailTemplates.toasts.saved'), description: t('admin.emailTemplates.toasts.languageSaved') });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-language'] });
+    },
+    onError: () => {
+      toast({ title: t('errors.generic'), description: t('admin.emailTemplates.toasts.languageError'), variant: 'destructive' });
+    },
+  });
+
   const previewMutation = useMutation({
     mutationFn: async (type: string) => {
-      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/preview`);
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/preview${languageQuery}`);
       return response.json();
     },
     onSuccess: (data) => {
@@ -162,7 +208,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const testEmailMutation = useMutation({
     mutationFn: async ({ type, recipientEmail }: { type: string; recipientEmail: string }) => {
-      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/test`, { recipientEmail });
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/test${languageQuery}`, { recipientEmail });
       return response.json();
     },
     onSuccess: () => {
@@ -176,7 +222,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const resetMutation = useMutation({
     mutationFn: async (type: string) => {
-      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/reset`);
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/reset${languageQuery}`);
       return response.json();
     },
     onSuccess: () => {
@@ -191,7 +237,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const saveMutation = useMutation({
     mutationFn: async ({ type, subject, textContent }: { type: string; subject: string; textContent: string }) => {
-      const response = await apiRequest('PUT', `/api/v1/admin/email-templates/${type}`, {
+      const response = await apiRequest('PUT', `/api/v1/admin/email-templates/${type}${languageQuery}`, {
         subject,
         textContent,
         jsonContent: selectedTemplate?.jsonContent
@@ -210,12 +256,12 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const saveFooterMutation = useMutation({
     mutationFn: async ({ html, text }: { html: string; text: string }) => {
-      const response = await apiRequest('PUT', '/api/v1/admin/email-footer', { html, text });
+      const response = await apiRequest('PUT', footerQueryKey, { html, text });
       return response.json();
     },
     onSuccess: () => {
       toast({ title: t('admin.emailTemplates.toasts.saved'), description: t('admin.emailTemplates.toasts.footerSaved') });
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-footer'] });
+      queryClient.invalidateQueries({ queryKey: [footerQueryKey] });
       setShowFooterEditor(false);
     },
     onError: () => {
@@ -244,7 +290,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Importiert', description: 'Theme wurde erfolgreich gespeichert' });
+      toast({ title: t('admin.emailTemplates.toasts.themeImported'), description: t('admin.emailTemplates.toasts.themeImportedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-theme'] });
       setShowThemeImport(false);
       setThemeJsonInput('');
@@ -337,6 +383,61 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
           {t('admin.emailTemplates.templatesCount', { count: templates?.length || 0 })}
         </Badge>
       </div>
+
+      <Card className="polly-card" data-testid="card-email-language">
+        <CardHeader className="pb-3">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-primary/10 rounded-lg text-primary">
+              <Languages className="w-5 h-5" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">{t('admin.emailTemplates.languageCardTitle')}</CardTitle>
+              <CardDescription>{t('admin.emailTemplates.languageCardDescription')}</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-0">
+          <div>
+            <Label className="text-sm font-medium" htmlFor="select-email-default-language">{t('admin.emailTemplates.defaultLanguage')}</Label>
+            <Select
+              value={emailLanguageSettings?.defaultLanguage ?? 'de'}
+              onValueChange={(value) => saveEmailLanguageMutation.mutate(value as EmailLanguage)}
+              disabled={!emailLanguageSettings || saveEmailLanguageMutation.isPending}
+            >
+              <SelectTrigger id="select-email-default-language" className="mt-1" data-testid="select-email-default-language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EMAIL_LANGUAGES.map((lang) => (
+                  <SelectItem key={lang} value={lang} data-testid={`option-email-default-language-${lang}`}>
+                    {t(`admin.emailTemplates.languages.${lang}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">{t('admin.emailTemplates.defaultLanguageHint')}</p>
+          </div>
+          <div>
+            <Label className="text-sm font-medium">{t('admin.emailTemplates.editingLanguage')}</Label>
+            <div className="flex gap-2 mt-1" role="group" aria-label={t('admin.emailTemplates.editingLanguage')}>
+              {EMAIL_LANGUAGES.map((lang) => (
+                <Button
+                  key={lang}
+                  type="button"
+                  size="sm"
+                  variant={editingLanguage === lang ? 'default' : 'outline'}
+                  aria-pressed={editingLanguage === lang}
+                  onClick={() => switchEditingLanguage(lang)}
+                  data-testid={`button-edit-language-${lang}`}
+                >
+                  {lang.toUpperCase()} · {t(`admin.emailTemplates.languages.${lang}`)}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{t('admin.emailTemplates.editingLanguageHint')}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {!selectedTemplate ? (
         <>
@@ -553,9 +654,12 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                     <CardDescription>{templateTypeLabels[selectedTemplate.type]?.description}</CardDescription>
                   </div>
                 </div>
-                <Badge variant={selectedTemplate.isDefault ? "secondary" : "default"}>
-                  {selectedTemplate.isDefault ? t('admin.emailTemplates.defaultTemplate') : t('admin.emailTemplates.customized')}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" data-testid="badge-template-language">{editingLanguage.toUpperCase()}</Badge>
+                  <Badge variant={selectedTemplate.isDefault ? "secondary" : "default"}>
+                    {selectedTemplate.isDefault ? t('admin.emailTemplates.defaultTemplate') : t('admin.emailTemplates.customized')}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -708,7 +812,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                 <FileText className="w-5 h-5" />
               </div>
               <div>
-                <CardTitle className="text-lg">{t('admin.emailTemplates.centralFooter')}</CardTitle>
+                <CardTitle className="text-lg">{t('admin.emailTemplates.centralFooter')} <span className="text-sm font-normal text-muted-foreground">({t(`admin.emailTemplates.languages.${editingLanguage}`)})</span></CardTitle>
                 <CardDescription>{t('admin.emailTemplates.footerDescription')}</CardDescription>
               </div>
             </div>

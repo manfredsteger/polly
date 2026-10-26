@@ -927,7 +927,19 @@
         "themeResetDescription": "Theme has been reset to default",
         "themeResetError": "Theme could not be reset",
         "invalidJson": "Invalid JSON",
-        "invalidJsonDescription": "Please check the JSON syntax"
+        "invalidJsonDescription": "Please check the JSON syntax",
+        "languageSaved": "The default email language has been saved.",
+        "languageError": "The email language could not be saved."
+      },
+      "languageCardTitle": "Email language",
+      "languageCardDescription": "Registered users always receive emails in the language of their account. Guests receive the language they are currently using Polly in.",
+      "defaultLanguage": "Default email language",
+      "defaultLanguageHint": "Used for recipients whose language is unknown – e.g. invited people without an account.",
+      "editingLanguage": "Edit templates for",
+      "editingLanguageHint": "Each language has its own templates and footer. Changes only affect the selected language.",
+      "languages": {
+        "de": "German",
+        "en": "English"
       }
     },
     "customization": {

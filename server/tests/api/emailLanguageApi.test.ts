@@ -7,7 +7,7 @@ import { storage } from '../../storage';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { EmailTemplateService } from '../../services/emailTemplateService';
-import { EMAIL_LANGUAGE_SETTING_KEY } from '../../services/emailLanguage';
+import { EMAIL_LANGUAGE_SETTING_KEY, resolveEmailLanguage } from '../../services/emailLanguage';
 import { EMAIL_TEMPLATE_TYPES } from '@shared/schema';
 
 export const testMeta = {
@@ -190,6 +190,29 @@ describe('Email language — admin API and registration', () => {
     it('keeps German when no UI language is sent', async () => {
       const user = await register('reg_none');
       expect(user?.languagePreference).toBe('de');
+    });
+
+    it('follows the language the user switches to in the header menu', async () => {
+      const agent = request.agent(app);
+      const username = `reg_switch_${Date.now()}`;
+      const email = `${username}@test.example`;
+      const reg = await agent
+        .post('/api/v1/auth/register')
+        .set('x-test-meta', JSON.stringify({ isTestData: true }))
+        .set('X-Polly-Language', 'de')
+        .send({ username, email, name: 'Switcher', password: 'TestPass123!' });
+      expect(reg.status).toBeLessThan(300);
+      createdUserIds.push(reg.body.user.id);
+      expect(await resolveEmailLanguage(email)).toBe('de');
+
+      const toEn = await agent.patch('/api/v1/users/me/language').send({ language: 'en' });
+      expect(toEn.status).toBe(200);
+      // The header hint of a request must not override the saved choice.
+      expect(await resolveEmailLanguage(email, 'de')).toBe('en');
+
+      const toDe = await agent.patch('/api/v1/users/me/language').send({ language: 'de' });
+      expect(toDe.status).toBe(200);
+      expect(await resolveEmailLanguage(email, 'en')).toBe('de');
     });
 
     it('ignores unsupported UI languages', async () => {

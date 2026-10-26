@@ -7,14 +7,13 @@ import { authService } from "../services/authService";
 import { clamavService } from "../services/clamavService";
 import { emailService } from "../services/emailService";
 import { emailTemplateService, EmailTemplateService } from "../services/emailTemplateService";
-import { getEmailLanguageSettings, setEmailLanguageSettings } from "../services/emailLanguage";
 import { matrixService } from "../services/matrixService";
 import { pentestToolsService, TOOL_IDS, SCAN_TYPES } from "../services/pentestToolsService";
 import { apiRateLimiter } from "../services/apiRateLimiterService";
 import { adminCacheService } from "../services/adminCacheService";
 import { imageService } from "../services/imageService";
 import type { User } from "@shared/schema";
-import { apiRateLimitsSettingsSchema, EMAIL_TEMPLATE_TYPES, DEFAULT_EMAIL_LANGUAGE, isEmailLanguage, emailLanguageSettingsSchema, type EmailLanguage } from "@shared/schema";
+import { apiRateLimitsSettingsSchema, EMAIL_TEMPLATE_TYPES, DEFAULT_EMAIL_LANGUAGE, isEmailLanguage, type EmailLanguage } from "@shared/schema";
 import { db, pool } from "../db";
 import { testRuns } from "@shared/schema";
 import { eq, or, and, desc } from "drizzle-orm";
@@ -2048,32 +2047,6 @@ router.put('/email-footer', requireAdmin, async (req, res) => {
     res.json(footer);
   } catch (error) {
     console.error('Error updating email footer:', error);
-    res.status(500).json({ error: 'Interner Fehler' });
-  }
-});
-
-// ============== EMAIL LANGUAGE ==============
-
-// Language used for recipients whose language is unknown (guests without a
-// UI language hint, external addresses). Registered users always get their own.
-router.get('/email-language', requireAdmin, async (_req, res) => {
-  try {
-    res.json(await getEmailLanguageSettings());
-  } catch (error) {
-    console.error('Error fetching email language:', error);
-    res.status(500).json({ error: 'Interner Fehler' });
-  }
-});
-
-router.put('/email-language', requireAdmin, async (req, res) => {
-  try {
-    const parsed = emailLanguageSettingsSchema.safeParse(req.body);
-    if (!parsed.success || !isEmailLanguage(req.body?.defaultLanguage)) {
-      return res.status(400).json({ error: INVALID_LANGUAGE_ERROR });
-    }
-    res.json(await setEmailLanguageSettings(parsed.data));
-  } catch (error) {
-    console.error('Error updating email language:', error);
     res.status(500).json({ error: 'Interner Fehler' });
   }
 });

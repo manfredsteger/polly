@@ -46,6 +46,7 @@ export const polls = pgTable("polls", {
   type: text("type").notNull(), // "schedule", "survey", or "organization"
   userId: integer("user_id"), // null for anonymous
   creatorEmail: text("creator_email"), // for anonymous polls
+  creatorLanguage: text("creator_language"), // UI language of a guest creator ('de'/'en'), used for later emails
   adminToken: text("admin_token").notNull().unique(), // for admin access
   publicToken: text("public_token").notNull().unique(), // for public access
   isActive: boolean("is_active").default(true).notNull(),
@@ -105,6 +106,7 @@ export const votes = pgTable("votes", {
   response: text("response").notNull(), // "yes", "maybe", "no", "freetext", or "signup" for organization polls
   comment: text("comment"), // optional comment (e.g., contact info, which cake they bring)
   freeTextAnswer: text("free_text_answer"), // for survey free-text questions: the voter's typed answer
+  voterLanguage: text("voter_language"), // UI language of a guest voter ('de'/'en'), used for later emails
   voterEditToken: text("voter_edit_token"), // Unique token for editing votes
   isTestData: boolean("is_test_data").default(false).notNull(), // Test votes excluded from stats
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -426,17 +428,17 @@ export const EMAIL_TEMPLATE_TYPES = [
 
 export type EmailTemplateType = typeof EMAIL_TEMPLATE_TYPES[number];
 
-// Languages in which emails can be sent. German is the historical default.
+// Languages in which emails can be sent. German is the language existing
+// template customizations and footer were written in, so admin APIs default
+// to it. Which language a recipient gets is decided per recipient; the
+// fallback for unknown recipients is the site default language
+// (customization.language.defaultLanguage).
 export const EMAIL_LANGUAGES = ['de', 'en'] as const;
 export type EmailLanguage = typeof EMAIL_LANGUAGES[number];
 export const DEFAULT_EMAIL_LANGUAGE: EmailLanguage = 'de';
 export function isEmailLanguage(value: unknown): value is EmailLanguage {
   return typeof value === 'string' && (EMAIL_LANGUAGES as readonly string[]).includes(value);
 }
-export const emailLanguageSettingsSchema = z.object({
-  defaultLanguage: z.enum(EMAIL_LANGUAGES).default(DEFAULT_EMAIL_LANGUAGE),
-});
-export type EmailLanguageSettings = z.infer<typeof emailLanguageSettingsSchema>;
 
 // Email template variable definitions per type
 export const EMAIL_TEMPLATE_VARIABLES: Record<EmailTemplateType, { key: string; description: string }[]> = {

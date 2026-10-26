@@ -12,10 +12,10 @@ Diese Datei dokumentiert **alle E-Mails**, die Polly verschickt: was sie auslös
 
 Jede E-Mail gibt es auf Deutsch und Englisch. Die Sprache wird **pro Empfänger** bestimmt:
 
-1. **Registrierte Nutzer:** die Sprache ihres Kontos (bei der Registrierung aus der UI-Sprache übernommen, später im Profil änderbar).
+1. **Registrierte Nutzer:** die Sprache ihres Kontos. Sie wird bei der Registrierung bzw. beim ersten SSO-Login aus der UI-Sprache übernommen und ändert sich, sobald der Nutzer die Sprache oben im Menü oder im Profil umstellt.
 2. **Gäste, die die E-Mail selbst auslösen** (z. B. Abstimmungsbestätigung, Umfrage-Links nach dem Erstellen): die Sprache, in der sie Polly gerade nutzen (Header `X-Polly-Language`).
-3. **Alle anderen** (Einladungen, Erinnerungen an Gäste, Hinweise an Organisatoren ohne Konto): die Standardsprache aus *Admin → E-Mail-Vorlagen → E-Mail-Sprache*.
-4. Fallback: Deutsch.
+3. **Gäste bei späteren E-Mails** (neue Stimmen an Organisatoren ohne Konto, Ergebnisse, Erinnerungen): die Sprache, die sie zuletzt beim Erstellen einer Umfrage oder beim Abstimmen genutzt haben.
+4. **Alle anderen** (z. B. eingeladene Personen, die Polly noch nie genutzt haben): die Standardsprache der Seite aus *Admin → Anpassen → Spracheinstellungen*.
 
 Sammel-E-Mails (Ergebnisse, Finalisierung, Sicherheitswarnungen) gehen an jeden Empfänger in seiner eigenen Sprache. Vorlagen und Fußzeile werden im Admin-Bereich je Sprache gepflegt; Inhalte, die Nutzer selbst schreiben (Titel, Nachrichten), werden nicht übersetzt.
 

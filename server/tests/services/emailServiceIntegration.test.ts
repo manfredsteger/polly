@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import nodemailer from 'nodemailer';
 import { EmailService } from '../../services/emailService';
 import { emailTemplateService } from '../../services/emailTemplateService';
+import { useSiteDefaultLanguage } from '../fixtures/siteLanguage';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -61,6 +62,9 @@ function assertRequiredHeaders(mailOpts: CapturedMailOptions, priority: 'normal'
 }
 
 describe('EmailService Integration — Template System', () => {
+  // These tests assert German mail content for recipients without an account.
+  useSiteDefaultLanguage('de');
+
   let emailService: EmailService;
   let renderEmailSpy: ReturnType<typeof vi.spyOn>;
   let wrapWithEmailThemeSpy: ReturnType<typeof vi.spyOn>;

@@ -7,15 +7,22 @@ import { storage } from '../../storage';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { EmailTemplateService } from '../../services/emailTemplateService';
-import { EMAIL_LANGUAGE_SETTING_KEY, resolveEmailLanguage } from '../../services/emailLanguage';
+import { resolveEmailLanguage } from '../../services/emailLanguage';
 import { EMAIL_TEMPLATE_TYPES } from '@shared/schema';
+import { getSubmittedVoteToken } from '../fixtures/voteToken';
 
 export const testMeta = {
   category: 'functional' as const,
   name: 'E-Mail-Sprache Admin-API',
-  description: 'Prüft Vorlagen, Fußzeile und Standardsprache pro Sprache in der Admin-API sowie die Sprachübernahme bei der Registrierung',
+  description: 'Prüft Vorlagen und Fußzeile pro Sprache in der Admin-API, die Sprache neuer Konten und dass sich Polly die Sprache von Gästen merkt',
   severity: 'high' as const,
 };
+
+const SITE_LANGUAGE_KEY = 'customization_language';
+
+async function setSiteDefaultLanguage(language: 'de' | 'en') {
+  await storage.setSetting({ key: SITE_LANGUAGE_KEY, value: { defaultLanguage: language } });
+}
 
 describe('Email language — admin API and registration', () => {
   let app: Express;
@@ -23,6 +30,7 @@ describe('Email language — admin API and registration', () => {
   let previousLanguageSetting: unknown;
   let previousEnglishFooter: unknown;
   const createdUserIds: number[] = [];
+  const createdPollIds: string[] = [];
 
   beforeAll(async () => {
     app = await createTestApp();
@@ -31,7 +39,7 @@ describe('Email language — admin API and registration', () => {
       .post('/api/v1/auth/login')
       .send({ usernameOrEmail: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     expect([200, 201]).toContain(loginRes.status);
-    previousLanguageSetting = (await storage.getSetting(EMAIL_LANGUAGE_SETTING_KEY))?.value;
+    previousLanguageSetting = (await storage.getSetting(SITE_LANGUAGE_KEY))?.value;
     previousEnglishFooter = (await storage.getSetting(EmailTemplateService.footerSettingKey('en')))?.value;
   });
 
@@ -43,7 +51,10 @@ describe('Email language — admin API and registration', () => {
       if (value === undefined) await storage.deleteSetting(key);
       else await storage.setSetting({ key, value });
     };
-    await restore(EMAIL_LANGUAGE_SETTING_KEY, previousLanguageSetting);
+    await restore(SITE_LANGUAGE_KEY, previousLanguageSetting);
+    for (const id of createdPollIds) {
+      try { await storage.deletePoll(id); } catch { /* already gone */ }
+    }
     await restore(EmailTemplateService.footerSettingKey('en'), previousEnglishFooter);
     await storage.resetEmailTemplate('welcome', 'en');
     await storage.resetEmailTemplate('welcome', 'de');
@@ -136,30 +147,129 @@ describe('Email language — admin API and registration', () => {
     });
   });
 
-  describe('default email language setting', () => {
-    it('requires admin rights', async () => {
-      const res = await request(app).get('/api/v1/admin/email-language');
-      expect(res.status).toBe(401);
-      const put = await request(app).put('/api/v1/admin/email-language').send({ defaultLanguage: 'en' });
-      expect(put.status).toBe(401);
-    });
-
-    it('reads and updates the default language', async () => {
-      const put = await adminAgent.put('/api/v1/admin/email-language').send({ defaultLanguage: 'en' });
-      expect(put.status).toBe(200);
-      expect(put.body).toEqual({ defaultLanguage: 'en' });
-
+  describe('one site default language, no separate email default', () => {
+    it('no longer offers an email-specific default language endpoint', async () => {
       const get = await adminAgent.get('/api/v1/admin/email-language');
-      expect(get.body).toEqual({ defaultLanguage: 'en' });
-
-      await adminAgent.put('/api/v1/admin/email-language').send({ defaultLanguage: 'de' });
+      expect(get.status).toBe(404);
+      const put = await adminAgent.put('/api/v1/admin/email-language').send({ defaultLanguage: 'en' });
+      expect(put.status).toBe(404);
     });
 
-    it('rejects invalid values', async () => {
-      for (const body of [{ defaultLanguage: 'fr' }, {}, { defaultLanguage: 42 }]) {
-        const res = await adminAgent.put('/api/v1/admin/email-language').send(body);
-        expect(res.status).toBe(400);
-      }
+    it('sends mail to unknown recipients in the site default language (Customize → Language)', async () => {
+      const unknown = `nobody_${Date.now()}@test.example`;
+      await setSiteDefaultLanguage('en');
+      expect(await resolveEmailLanguage(unknown)).toBe('en');
+      await setSiteDefaultLanguage('de');
+      expect(await resolveEmailLanguage(unknown)).toBe('de');
+    });
+
+    it('starts accounts created by an admin in the site default language', async () => {
+      await setSiteDefaultLanguage('en');
+      const username = `admin_created_${Date.now()}`;
+      const res = await adminAgent.post('/api/v1/admin/users').send({
+        name: 'Admin Created',
+        email: `${username}@test.example`,
+        username,
+        password: 'TestPass123!',
+      });
+      expect(res.status).toBe(201);
+      createdUserIds.push(res.body.id);
+      expect((await storage.getUser(res.body.id))?.languagePreference).toBe('en');
+    });
+
+    it('keeps an explicitly given account language', async () => {
+      await setSiteDefaultLanguage('en');
+      const username = `explicit_lang_${Date.now()}`;
+      const user = await storage.createUser({
+        username,
+        email: `${username}@test.example`,
+        name: 'Explicit',
+        role: 'user',
+        languagePreference: 'de',
+        isTestData: true,
+      } as any);
+      createdUserIds.push(user.id);
+      expect(user.languagePreference).toBe('de');
+    });
+  });
+
+  describe('remembers the language of guests for later mails', () => {
+    it('uses the UI language a guest created a poll in for later organizer mails', async () => {
+      await setSiteDefaultLanguage('de');
+      const creatorEmail = `guest_creator_${Date.now()}@test.example`;
+      const res = await request(app)
+        .post('/api/v1/polls')
+        .set('X-Polly-Language', 'en')
+        .send({
+          title: 'Guest language poll',
+          type: 'schedule',
+          creatorEmail,
+          options: [{ text: 'Monday 10am' }, { text: 'Tuesday 2pm' }],
+        });
+      expect(res.status).toBe(200);
+      createdPollIds.push(res.body.poll.id);
+      expect((await storage.getPoll(res.body.poll.id))?.creatorLanguage).toBe('en');
+      // Later mail to the organizer (e.g. a new vote) has no requester hint for them.
+      expect(await resolveEmailLanguage(creatorEmail)).toBe('en');
+    });
+
+    it('uses the UI language a guest voted in, and follows when they edit their vote in another language', async () => {
+      await setSiteDefaultLanguage('de');
+      const poll = await adminAgent.post('/api/v1/polls').send({
+        title: 'Guest voter language poll',
+        type: 'schedule',
+        allowVoteEdit: true,
+        options: [{ text: 'Slot A' }, { text: 'Slot B' }],
+      });
+      expect(poll.status).toBe(200);
+      createdPollIds.push(poll.body.poll.id);
+      const optionId = poll.body.poll.options[0].id;
+      const voterEmail = `guest_voter_${Date.now()}@test.example`;
+
+      const first = await request(app)
+        .post(`/api/v1/polls/${poll.body.publicToken}/vote`)
+        .set('X-Polly-Language', 'en')
+        .send({ voterName: 'Guest', voterEmail, votes: [{ optionId, response: 'yes' }] });
+      expect(first.status).toBe(200);
+      expect(await resolveEmailLanguage(voterEmail)).toBe('en');
+
+      // The guest edits their vote later while using the German UI.
+      const editToken = await getSubmittedVoteToken(first);
+      expect(editToken).toBeTruthy();
+      const second = await request(app)
+        .put(`/api/v1/votes/edit/${editToken}`)
+        .set('X-Polly-Language', 'de')
+        .send({ votes: [{ optionId, response: 'no' }] });
+      expect(second.status).toBe(200);
+      expect(await resolveEmailLanguage(voterEmail)).toBe('de');
+    });
+
+    it('lets a registered account language win over a remembered guest language', async () => {
+      const username = `guest_then_user_${Date.now()}`;
+      const email = `${username}@test.example`;
+      const res = await request(app)
+        .post('/api/v1/polls')
+        .set('X-Polly-Language', 'en')
+        .send({ title: 'Before registering', type: 'survey', creatorEmail: email, options: [{ text: 'A' }, { text: 'B' }] });
+      expect(res.status).toBe(200);
+      createdPollIds.push(res.body.poll.id);
+      const user = await storage.createUser({
+        username, email, name: 'Now registered', role: 'user', languagePreference: 'de', isTestData: true,
+      } as any);
+      createdUserIds.push(user.id);
+      expect(await resolveEmailLanguage(email)).toBe('de');
+    });
+
+    it('does not remember anything when the client sent no language', async () => {
+      await setSiteDefaultLanguage('en');
+      const creatorEmail = `guest_nolang_${Date.now()}@test.example`;
+      const res = await request(app)
+        .post('/api/v1/polls')
+        .send({ title: 'No language', type: 'survey', creatorEmail, options: [{ text: 'A' }, { text: 'B' }] });
+      expect(res.status).toBe(200);
+      createdPollIds.push(res.body.poll.id);
+      expect((await storage.getPoll(res.body.poll.id))?.creatorLanguage).toBeNull();
+      expect(await resolveEmailLanguage(creatorEmail)).toBe('en');
     });
   });
 
@@ -187,9 +297,11 @@ describe('Email language — admin API and registration', () => {
       expect(user?.languagePreference).toBe('en');
     });
 
-    it('keeps German when no UI language is sent', async () => {
-      const user = await register('reg_none');
-      expect(user?.languagePreference).toBe('de');
+    it('uses the site default language when no UI language is sent', async () => {
+      await setSiteDefaultLanguage('en');
+      expect((await register('reg_none_en'))?.languagePreference).toBe('en');
+      await setSiteDefaultLanguage('de');
+      expect((await register('reg_none_de'))?.languagePreference).toBe('de');
     });
 
     it('follows the language the user switches to in the header menu', async () => {

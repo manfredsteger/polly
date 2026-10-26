@@ -29,6 +29,13 @@
       "when": 1793000000000,
       "tag": "0003_email_template_language",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793000100000,
+      "tag": "0004_guest_email_language",
+      "breakpoints": true
     }
   ]
 }

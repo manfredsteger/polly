@@ -21,6 +21,7 @@ declare module "express-session" {
     keycloakCodeVerifier?: string;
     keycloakState?: string;
     keycloakReturnTo?: string;
+    keycloakLanguage?: string; // UI language at SSO login start, used for new accounts
     lastActivity?: number;
   }
 }

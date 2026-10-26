@@ -5,6 +5,7 @@ import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 import { emailService } from '../../services/emailService';
+import { useSiteDefaultLanguage } from '../fixtures/siteLanguage';
 
 let app: Express;
 let agent: ReturnType<typeof request.agent>;
@@ -16,6 +17,9 @@ async function loginAsAdmin(ag: ReturnType<typeof request.agent>) {
 }
 
 describe('Poll CRUD Routes', () => {
+  // These tests assert German mail content for recipients without an account.
+  useSiteDefaultLanguage('de');
+
   let adminToken: string;
   let publicToken: string;
   let pollId: string;

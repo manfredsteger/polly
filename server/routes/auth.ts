@@ -4,6 +4,7 @@ import { authService } from "../services/authService";
 import { tokenService } from "../services/tokenService";
 import { emailService } from "../services/emailService";
 import { getRequestLanguage } from "../services/emailLanguage";
+import { normalizeEmailLanguage } from "../services/emailI18n";
 import { z } from "zod";
 import {
   extractUserId,
@@ -817,6 +818,10 @@ router.get('/keycloak', async (req, res) => {
       redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/anmelden')
         ? redirect
         : '/';
+
+    // A browser redirect carries no language header, so the client passes its
+    // UI language as a query parameter; a new account starts in that language.
+    req.session.keycloakLanguage = normalizeEmailLanguage(req.query.lang);
 
     const { authUrl, codeVerifier, state } = await authService.initiateKeycloakLogin(req);
     req.session.keycloakCodeVerifier = codeVerifier;

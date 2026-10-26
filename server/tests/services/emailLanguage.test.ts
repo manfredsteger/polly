@@ -6,10 +6,8 @@ import { emailTemplateService, EmailTemplateService } from '../../services/email
 import {
   resolveEmailLanguage,
   getRequestLanguage,
-  getEmailLanguageSettings,
-  setEmailLanguageSettings,
+  getSiteDefaultLanguage,
   groupRecipientsByLanguage,
-  EMAIL_LANGUAGE_SETTING_KEY,
 } from '../../services/emailLanguage';
 import { emailStrings, formatConfirmedSlot, normalizeEmailLanguage, pollTypeLabel } from '../../services/emailI18n';
 import { storage } from '../../storage';
@@ -57,6 +55,13 @@ function mailTo(email: string): CapturedMail {
 
 const createdUsers: User[] = [];
 
+// The site default language (Admin → Customize → Language) is the fallback for unknown recipients.
+const SITE_LANGUAGE_KEY = 'customization_language';
+async function setSiteDefaultLanguage(language: unknown) {
+  await storage.setSetting({ key: SITE_LANGUAGE_KEY, value: { defaultLanguage: language } });
+}
+const uniqueGuest = (prefix: string) => `${prefix}-${nanoid(8).toLowerCase()}@test.example`;
+
 async function createUserWithLanguage(language: 'de' | 'en'): Promise<User> {
   const id = nanoid(8).toLowerCase().replace(/[^a-z0-9]/g, 'x');
   const user = await storage.createUser({
@@ -78,8 +83,8 @@ describe('Email language (German/English)', () => {
   let germanUser: User;
 
   beforeAll(async () => {
-    previousLanguageSetting = (await storage.getSetting(EMAIL_LANGUAGE_SETTING_KEY))?.value;
-    await setEmailLanguageSettings({ defaultLanguage: 'de' });
+    previousLanguageSetting = (await storage.getSetting(SITE_LANGUAGE_KEY))?.value;
+    await setSiteDefaultLanguage('de');
     englishUser = await createUserWithLanguage('en');
     germanUser = await createUserWithLanguage('de');
     service = new EmailService();
@@ -91,9 +96,9 @@ describe('Email language (German/English)', () => {
       try { await storage.deleteUser(user.id); } catch { /* already gone */ }
     }
     if (previousLanguageSetting === undefined) {
-      await storage.deleteSetting(EMAIL_LANGUAGE_SETTING_KEY);
+      await storage.deleteSetting(SITE_LANGUAGE_KEY);
     } else {
-      await storage.setSetting({ key: EMAIL_LANGUAGE_SETTING_KEY, value: previousLanguageSetting });
+      await storage.setSetting({ key: SITE_LANGUAGE_KEY, value: previousLanguageSetting });
     }
     for (const type of EMAIL_TEMPLATE_TYPES) {
       await emailTemplateService.resetTemplate(type, 'de');
@@ -154,24 +159,29 @@ describe('Email language (German/English)', () => {
       expect(await resolveEmailLanguage('guest-unknown@test.example', 'en')).toBe('en');
     });
 
-    it('falls back to the admin default language, then German', async () => {
-      expect(await resolveEmailLanguage('guest-unknown@test.example')).toBe('de');
-      await setEmailLanguageSettings({ defaultLanguage: 'en' });
+    it('falls back to the site default language for unknown recipients', async () => {
+      const unknown = uniqueGuest('guest-unknown');
+      expect(await resolveEmailLanguage(unknown)).toBe('de');
+      await setSiteDefaultLanguage('en');
       try {
-        expect(await resolveEmailLanguage('guest-unknown@test.example')).toBe('en');
-        // A registered German user is not affected by the admin default.
+        expect(await resolveEmailLanguage(unknown)).toBe('en');
+        // A registered German user is not affected by the site default.
         expect(await resolveEmailLanguage(germanUser.email)).toBe('de');
+        // The requester's own UI language still wins for mails to the requester.
+        expect(await resolveEmailLanguage(unknown, 'de')).toBe('de');
       } finally {
-        await setEmailLanguageSettings({ defaultLanguage: 'de' });
+        await setSiteDefaultLanguage('de');
       }
     });
 
-    it('treats a missing or broken setting as German', async () => {
-      await storage.setSetting({ key: EMAIL_LANGUAGE_SETTING_KEY, value: { defaultLanguage: 'fr' } });
+    it('treats a missing or broken site language as English (the schema default)', async () => {
       try {
-        expect((await getEmailLanguageSettings()).defaultLanguage).toBe('de');
+        await setSiteDefaultLanguage('fr');
+        expect(await getSiteDefaultLanguage()).toBe('en');
+        await storage.deleteSetting(SITE_LANGUAGE_KEY);
+        expect(await getSiteDefaultLanguage()).toBe('en');
       } finally {
-        await setEmailLanguageSettings({ defaultLanguage: 'de' });
+        await setSiteDefaultLanguage('de');
       }
     });
 

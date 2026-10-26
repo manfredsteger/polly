@@ -1501,12 +1501,12 @@ Alle Branding-Einstellungen auf Systemstandard zurücksetzen.
 **Sprache:** Alle Template- und Footer-Endpunkte akzeptieren den Query-Parameter `?language=de|en` (Standard: `de`). Jede Sprache hat eigene Anpassungen; bestehende Anpassungen gelten als Deutsch. Ungültige Werte liefern `400`.
 
 **Welche Sprache bekommt ein Empfänger?**
-1. Registrierte Nutzer: die Sprache ihres Kontos (`languagePreference`).
+1. Registrierte Nutzer: die Sprache ihres Kontos (`languagePreference`, wird bei `PATCH /api/v1/users/me/language` und im Profil aktualisiert).
 2. Gäste, die die E-Mail selbst ausgelöst haben (z. B. Abstimmungsbestätigung): die UI-Sprache, die der Client im Header `X-Polly-Language: de|en` mitschickt. `Accept-Language` wird bewusst ignoriert.
-3. Sonst: die Standardsprache aus `GET /api/v1/admin/email-language`.
-4. Fallback: Deutsch.
+3. Gäste ohne Konto bei späteren E-Mails (neue Stimmen, Ergebnisse, Erinnerungen): die UI-Sprache, die sie zuletzt beim Erstellen einer Umfrage (`polls.creator_language`) oder beim Abstimmen (`votes.voter_language`) genutzt haben.
+4. Sonst: die Standardsprache der Seite (`customization.language.defaultLanguage`, Admin → Anpassen → Spracheinstellungen; öffentlich unter `GET /api/v1/system/language`).
 
-Bei der Registrierung wird `X-Polly-Language` als Kontosprache übernommen.
+Neue Konten starten mit der UI-Sprache, in der sie angelegt wurden (Registrierung: `X-Polly-Language`; SSO: Query-Parameter `lang` an `GET /api/v1/auth/keycloak`), sonst mit der Standardsprache der Seite. Das gilt auch für vom Admin angelegte Konten.
 
 ### `GET /api/v1/admin/email-templates`
 
@@ -1576,28 +1576,6 @@ Globalen E-Mail-Footer abrufen.
 ### `PUT /api/v1/admin/email-footer`
 
 Globalen E-Mail-Footer aktualisieren.
-
----
-
-### `GET /api/v1/admin/email-language`
-
-Standardsprache für E-Mails an Empfänger ohne bekannte Sprache.
-
-**Response (200 OK):**
-```json
-{ "defaultLanguage": "de" }
-```
-
----
-
-### `PUT /api/v1/admin/email-language`
-
-Standardsprache setzen. Erlaubt: `de`, `en` (sonst `400`).
-
-**Request Body:**
-```json
-{ "defaultLanguage": "en" }
-```
 
 ---
 

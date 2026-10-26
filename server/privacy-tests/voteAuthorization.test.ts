@@ -6,6 +6,7 @@ const { storage, tokenService, emailService, deviceTokenService } = vi.hoisted((
     'getPollByPublicToken', 'getCustomizationSettings', 'getVotesByEmail', 'getVotesByUserId',
     'getVotesByEditToken', 'getUser', 'getUserByEmail', 'deleteVote', 'updateVote',
     'createVote', 'replaceSimpleModeVotes', 'getPoll', 'getVotesByVoterKey', 'getSetting',
+    'getLatestGuestLanguage',
   ].map(name => [name, vi.fn()])),
   tokenService: { extractBearerToken: vi.fn(), validateToken: vi.fn() },
   emailService: { smtpConfigured: true, sendVotingConfirmationEmail: vi.fn(), sendVoteWithdrawalEmail: vi.fn(), sendVoteUpdatedEmail: vi.fn() },
@@ -76,7 +77,8 @@ beforeEach(() => {
   storage.getVotesByVoterKey.mockResolvedValue([vote]);
   poll = makePoll();
   storage.getPollByPublicToken.mockImplementation(async () => poll);
-  storage.getCustomizationSettings.mockResolvedValue({ guestAccess: { allowGuestVoting: true } });
+  // A German installation: the site default language decides mails to unknown guests.
+  storage.getCustomizationSettings.mockResolvedValue({ guestAccess: { allowGuestVoting: true }, language: { defaultLanguage: 'de' } });
   storage.getVotesByEmail.mockResolvedValue([{ ...vote }]);
   storage.getVotesByUserId.mockResolvedValue([]);
   storage.getVotesByEditToken.mockResolvedValue([]);

@@ -48,6 +48,8 @@ export const COLUMN_UPDATES: { table: string; column: string; definition: string
   { table: 'users', column: 'mfa_required', definition: 'BOOLEAN NOT NULL DEFAULT FALSE' },
   { table: 'users', column: 'last_used_totp_token', definition: 'TEXT' },
   { table: 'email_templates', column: 'language', definition: 'TEXT NOT NULL DEFAULT \'de\'' },
+  { table: 'polls', column: 'creator_language', definition: 'TEXT' },
+  { table: 'votes', column: 'voter_language', definition: 'TEXT' },
 ];
 
 /**

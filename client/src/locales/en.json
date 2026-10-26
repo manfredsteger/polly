@@ -927,16 +927,14 @@
         "themeResetDescription": "Theme has been reset to default",
         "themeResetError": "Theme could not be reset",
         "invalidJson": "Invalid JSON",
-        "invalidJsonDescription": "Please check the JSON syntax",
-        "languageSaved": "The default email language has been saved.",
-        "languageError": "The email language could not be saved."
+        "invalidJsonDescription": "Please check the JSON syntax"
       },
-      "languageCardTitle": "Email language",
-      "languageCardDescription": "Registered users always receive emails in the language of their account. Guests receive the language they are currently using Polly in.",
-      "defaultLanguage": "Default email language",
-      "defaultLanguageHint": "Used for recipients whose language is unknown – e.g. invited people without an account.",
-      "editingLanguage": "Edit templates for",
+      "languageCardTitle": "Texts per language",
+      "languageCardDescription": "Every recipient receives emails in their own language: registered users in the language of their account, guests in the language they used Polly in. Here you maintain the texts for each language.",
+      "fallbackHint": "If a recipient's language is unknown, the site's default language under Customize → Language settings applies (currently: {{language}}).",
+      "editingLanguage": "Edit texts for",
       "editingLanguageHint": "Each language has its own templates and footer. Changes only affect the selected language.",
+      "languageStatus": "{{language}}: {{status}}",
       "languages": {
         "de": "German",
         "en": "English"
@@ -1582,7 +1580,7 @@
       "languageSection": "Language Settings",
       "languageDescription": "System-wide default language for all visitors without a personal language preference",
       "defaultLanguage": "Default Language",
-      "defaultLanguageHint": "This language is used for anonymous visitors and new users who have not set a personal language preference.",
+      "defaultLanguageHint": "This language is used for anonymous visitors and new users who have not set a personal language preference. Emails to recipients whose language is unknown are also sent in this language.",
       "saveLanguage": "Save Language"
     },
     "tests": {

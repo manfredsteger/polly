@@ -516,6 +516,8 @@ router.post("/apply", pollCreationRateLimiter, async (req, res) => {
     allowVoteWithdrawal: finalSettings.allowVoteWithdrawal ?? false,
     resultsPublic: finalSettings.resultsPublic ?? true,
     isTestData: (req as any).isTestMode === true,
+    // Remember the creator's UI language for later organizer mails (new votes, results).
+    creatorLanguage: getRequestLanguage(req) ?? null,
   };
 
   try {

@@ -116,6 +116,8 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       notifyCreatorOnVote: data.notifyCreatorOnVote,
       videoConferenceUrl: data.type === 'schedule' ? (data.videoConferenceUrl || null) : null,
       isTestData: req.isTestMode === true,
+      // Remember the creator's UI language for later organizer mails (new votes, results).
+      creatorLanguage: getRequestLanguage(req) ?? null,
     };
 
     const options = data.options.map((opt, index) => ({

@@ -3,6 +3,7 @@ import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../.
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
 import { customizationSettingsSchema } from '@shared/schema';
+import { useSiteDefaultLanguage } from '../fixtures/siteLanguage';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -31,6 +32,9 @@ const FOOTER_BACKUP_KEY = '_test_emailsvc_footer_backup';
  */
 
 describe('EmailTemplateService', () => {
+  // These tests assert German mail content for recipients without an account.
+  useSiteDefaultLanguage('de');
+
   let origCustomization: any;
   let origTheme: any;
   let origEmailFooter: any;

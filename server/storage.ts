@@ -48,6 +48,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  /** Most recent UI language a guest used when creating a poll or voting with this address. */
+  getLatestGuestLanguage(email: string): Promise<string | undefined>;
   getUserByKeycloakId(keycloakId: string): Promise<User | undefined>;
   getUserByCalendarToken(calendarToken: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -86,10 +88,10 @@ export interface IStorage {
     voterEmail?: string | null;
     voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
     maxSelections: number;
-    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData' | 'voterLanguage'>;
   }): Promise<{ votes: Vote[]; editToken: string }>;
   voteBulk(pollId: string, voterName: string, voterEmail: string, userId: number | null, voterEditToken: string | null, voteItems: Array<{ optionId: number; response: string }>): Promise<{ votes: Vote[]; alreadyVoted: boolean }>;
-  updateVote(id: number, response: string, updates?: Pick<InsertVote, 'comment' | 'freeTextAnswer'>): Promise<Vote>;
+  updateVote(id: number, response: string, updates?: Pick<InsertVote, 'comment' | 'freeTextAnswer' | 'voterLanguage'>): Promise<Vote>;
   deleteVote(id: number): Promise<void>;
   getUserVoteForOption(userId: number | undefined, optionId: number, voterName?: string): Promise<Vote | undefined>;
   getVotesByEmail(pollId: string, voterEmail: string): Promise<Vote[]>;
@@ -235,8 +237,30 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getLatestGuestLanguage(email: string): Promise<string | undefined> {
+    const result = await db.execute(sql`
+      SELECT lang FROM (
+        SELECT ${votes.voterLanguage} AS lang, ${votes.updatedAt} AS at FROM ${votes}
+          WHERE LOWER(${votes.voterEmail}) = LOWER(${email}) AND ${votes.voterLanguage} IS NOT NULL
+        UNION ALL
+        SELECT ${polls.creatorLanguage} AS lang, ${polls.createdAt} AS at FROM ${polls}
+          WHERE LOWER(${polls.creatorEmail}) = LOWER(${email}) AND ${polls.creatorLanguage} IS NOT NULL
+      ) AS known
+      ORDER BY at DESC
+      LIMIT 1
+    `);
+    const row = result.rows[0] as { lang?: string } | undefined;
+    return row?.lang ?? undefined;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    // Accounts created without an explicit language (SSO without a UI hint,
+    // admin-created, API) start with the site default language instead of the
+    // column's historic German default.
+    const values = insertUser.languagePreference
+      ? insertUser
+      : { ...insertUser, languagePreference: (await this.getCustomizationSettings()).language.defaultLanguage };
+    const [user] = await db.insert(users).values(values).returning();
     return user;
   }
 
@@ -735,7 +759,7 @@ export class DatabaseStorage implements IStorage {
     voterEmail?: string | null;
     voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
     maxSelections: number;
-    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData' | 'voterLanguage'>;
   }): Promise<{ votes: Vote[]; editToken: string }> {
     const { pollId, lockIdentifier, voteItems, maxSelections, newVoteTemplate } = params;
 
@@ -780,7 +804,12 @@ export class DatabaseStorage implements IStorage {
         const existingVote = existingVotes.find((v) => v.optionId === item.optionId);
         if (existingVote) {
           const [updated] = await tx.update(votes)
-            .set({ response: item.response, comment: item.comment ?? existingVote.comment, updatedAt: new Date() })
+            .set({
+              response: item.response,
+              comment: item.comment ?? existingVote.comment,
+              voterLanguage: newVoteTemplate.voterLanguage ?? existingVote.voterLanguage,
+              updatedAt: new Date(),
+            })
             .where(eq(votes.id, existingVote.id))
             .returning();
           result.push(updated);
@@ -795,6 +824,7 @@ export class DatabaseStorage implements IStorage {
             freeTextAnswer: item.freeTextAnswer ?? null,
             userId: newVoteTemplate.userId ?? null,
             isTestData: newVoteTemplate.isTestData ?? false,
+            voterLanguage: newVoteTemplate.voterLanguage ?? null,
             voterEditToken: editToken,
           }).returning();
           result.push(created);
@@ -812,7 +842,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateVote(id: number, response: string, updates: Pick<InsertVote, 'comment' | 'freeTextAnswer'> = {}): Promise<Vote> {
+  async updateVote(id: number, response: string, updates: Pick<InsertVote, 'comment' | 'freeTextAnswer' | 'voterLanguage'> = {}): Promise<Vote> {
     const [vote] = await db.update(votes).set({ response, ...updates, updatedAt: new Date() }).where(eq(votes.id, id)).returning();
     return vote;
   }

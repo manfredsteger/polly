@@ -1,36 +1,23 @@
 import type { Request } from 'express';
 import { storage } from '../storage';
-import {
-  DEFAULT_EMAIL_LANGUAGE,
-  emailLanguageSettingsSchema,
-  type EmailLanguage,
-  type EmailLanguageSettings,
-} from '@shared/schema';
+import { languageSettingsSchema, type EmailLanguage } from '@shared/schema';
 import { normalizeEmailLanguage } from './emailI18n';
-
-export const EMAIL_LANGUAGE_SETTING_KEY = 'email_language';
 
 /** Header the web client sends with every API request to announce its UI language. */
 export const CLIENT_LANGUAGE_HEADER = 'x-polly-language';
 
-export async function getEmailLanguageSettings(): Promise<EmailLanguageSettings> {
-  const setting = await storage.getSetting(EMAIL_LANGUAGE_SETTING_KEY);
-  const parsed = emailLanguageSettingsSchema.safeParse(setting?.value ?? {});
-  return parsed.success ? parsed.data : { defaultLanguage: DEFAULT_EMAIL_LANGUAGE };
-}
-
-export async function setEmailLanguageSettings(settings: EmailLanguageSettings): Promise<EmailLanguageSettings> {
-  const value = emailLanguageSettingsSchema.parse(settings);
-  await storage.setSetting({ key: EMAIL_LANGUAGE_SETTING_KEY, value });
-  return value;
-}
-
-export async function getDefaultEmailLanguage(): Promise<EmailLanguage> {
+/**
+ * The site's default language (Admin → Customize → Language). It is the
+ * language for recipients whose own language is unknown, and the starting
+ * language of new accounts that were created without a UI language.
+ */
+export async function getSiteDefaultLanguage(): Promise<EmailLanguage> {
   try {
-    return (await getEmailLanguageSettings()).defaultLanguage;
+    const settings = await storage.getCustomizationSettings();
+    return normalizeEmailLanguage(settings.language?.defaultLanguage) ?? languageSettingsSchema.parse({}).defaultLanguage;
   } catch (error) {
-    console.error('[Email] Failed to read email language setting, using default:', error);
-    return DEFAULT_EMAIL_LANGUAGE;
+    console.error('[Email] Failed to read the site default language:', error);
+    return languageSettingsSchema.parse({}).defaultLanguage;
   }
 }
 
@@ -53,21 +40,24 @@ export function getRequestLanguage(
 
 /**
  * Picks the language for one recipient:
- * 1. the language saved in the recipient's own account (registered users),
- * 2. the requester's UI language — only for mails sent to the person who
- *    triggered them (e.g. a guest voting in the English UI),
- * 3. the admin-configured default email language,
- * 4. German.
+ * 1. the language saved in the recipient's own account (registered users —
+ *    updated whenever they switch the language in the menu or profile),
+ * 2. the requester's current UI language — only for mails sent to the person
+ *    who triggered them (e.g. a guest voting in the English UI),
+ * 3. the UI language a guest last used when creating a poll or voting with
+ *    this address,
+ * 4. the site default language.
  */
 export async function resolveEmailLanguage(
   recipientEmail: string | null | undefined | Array<string | null | undefined>,
   requesterLanguage?: EmailLanguage,
 ): Promise<EmailLanguage> {
-  // Several addresses may identify the same account (e.g. old and new address
-  // during an email change); the first one that belongs to an account wins.
-  const candidates = Array.isArray(recipientEmail) ? recipientEmail : [recipientEmail];
+  // Several addresses may identify the same person (e.g. old and new address
+  // during an email change); the first one with a known language wins.
+  const candidates = (Array.isArray(recipientEmail) ? recipientEmail : [recipientEmail])
+    .filter((email): email is string => !!email);
+
   for (const email of candidates) {
-    if (!email) continue;
     try {
       const user = await storage.getUserByEmail(email);
       const preference = normalizeEmailLanguage(user?.languagePreference);
@@ -76,8 +66,19 @@ export async function resolveEmailLanguage(
       console.error('[Email] Failed to look up recipient language:', error);
     }
   }
+
   if (requesterLanguage) return requesterLanguage;
-  return getDefaultEmailLanguage();
+
+  for (const email of candidates) {
+    try {
+      const remembered = normalizeEmailLanguage(await storage.getLatestGuestLanguage(email));
+      if (remembered) return remembered;
+    } catch (error) {
+      console.error('[Email] Failed to look up remembered guest language:', error);
+    }
+  }
+
+  return getSiteDefaultLanguage();
 }
 
 /** Groups recipients by their resolved language, preserving input order within a group. */
@@ -93,4 +94,9 @@ export async function groupRecipientsByLanguage<T>(
     else groups.set(lang, [item]);
   }
   return groups;
+}
+
+/** Language a new account starts with: the UI language it was created in, else the site default. */
+export async function initialAccountLanguage(requestLanguage?: EmailLanguage): Promise<EmailLanguage> {
+  return requestLanguage ?? getSiteDefaultLanguage();
 }

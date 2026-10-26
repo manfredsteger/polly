@@ -369,6 +369,8 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
             voterEmail: data.voterEmail,
             userId: userId,
             isTestData: isTestMode,
+            // Remember the voter's UI language for later mails (results, reminders).
+            voterLanguage: getRequestLanguage(req) ?? null,
           },
         });
         createdVotes.push(...replaceResult.votes);
@@ -400,6 +402,7 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
           const updated = await storage.updateVote(existingVote.id, voteData.response, {
             comment: voteData.comment,
             freeTextAnswer: (voteData as any).freeTextAnswer || null,
+            ...(getRequestLanguage(req) ? { voterLanguage: getRequestLanguage(req) } : {}),
           });
           createdVotes.push(updated);
         }
@@ -414,6 +417,7 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
           freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
+          voterLanguage: getRequestLanguage(req) ?? null,
         }, voterEditToken);
         
         createdVotes.push(result.vote);
@@ -694,6 +698,8 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
             voterEmail: data.voterEmail,
             userId: userId,
             isTestData: isTestMode,
+            // Remember the voter's UI language for later mails (results, reminders).
+            voterLanguage: getRequestLanguage(req) ?? null,
           },
         });
         createdVotes.push(...replaceResult.votes);
@@ -725,6 +731,7 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
           const updated = await storage.updateVote(existingVote.id, voteData.response, {
             comment: voteData.comment,
             freeTextAnswer: (voteData as any).freeTextAnswer || null,
+            ...(getRequestLanguage(req) ? { voterLanguage: getRequestLanguage(req) } : {}),
           });
           createdVotes.push(updated);
         }
@@ -739,6 +746,7 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
           freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
+          voterLanguage: getRequestLanguage(req) ?? null,
         }, voterEditToken);
         
         createdVotes.push(result.vote);
@@ -1110,6 +1118,7 @@ router.put('/votes/edit/:editToken', async (req, res) => {
             voterEmail: template.voterEmail,
             userId: template.userId ?? null,
             isTestData: template.isTestData ?? false,
+            voterLanguage: getRequestLanguage(req) ?? template.voterLanguage ?? null,
           },
         });
         updatedResults = replaceResult.votes;
@@ -1126,7 +1135,11 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       for (const updatedVote of updatedVotes) {
         const existingVote = existingVotes.find((v: any) => v.optionId === updatedVote.optionId);
         if (existingVote) {
-          const updated = await storage.updateVote(existingVote.id, updatedVote.response);
+          const updated = await storage.updateVote(
+            existingVote.id,
+            updatedVote.response,
+            getRequestLanguage(req) ? { voterLanguage: getRequestLanguage(req) } : {},
+          );
           updatedResults.push(updated);
         }
       }

@@ -1145,6 +1145,13 @@ function renderMargin(margin: Record<string, number> | undefined): string {
   return `margin: ${margin.top || 0}px ${margin.right || 0}px ${margin.bottom || 0}px ${margin.left || 0}px;`;
 }
 
+// Layouts saved by older or hand-edited builders can lack a childrenIds list
+// (or store something that is not one). Treat those as "no blocks" so
+// rendering and plain-text extraction agree instead of crashing on save.
+function childIdList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+}
+
 function renderBlocksToHtml(
   blockIds: string[],
   doc: EmailBuilderDocument,
@@ -1153,9 +1160,9 @@ function renderBlocksToHtml(
   let html = '';
   for (const blockId of blockIds) {
     const block = doc[blockId];
-    if (!block) continue;
+    if (!block || typeof block !== 'object') continue;
 
-    const blockData = block.data as Record<string, unknown>;
+    const blockData = (block.data || {}) as Record<string, unknown>;
     const props = (blockData.props || {}) as Record<string, unknown>;
     const style = (blockData.style || {}) as Record<string, unknown>;
 
@@ -1210,8 +1217,7 @@ function renderBlocksToHtml(
         const borderWidth = (style.borderWidth as number) ?? 0;
         const padding = style.padding as Record<string, number> || { top: 20, right: 24, bottom: 20, left: 24 };
         const margin = style.margin as Record<string, number> || { top: 12, right: 0, bottom: 12, left: 0 };
-        const childIds = (blockData.childrenIds || []) as string[];
-        const childHtml = renderBlocksToHtml(childIds, doc, tv);
+        const childHtml = renderBlocksToHtml(childIdList(blockData.childrenIds), doc, tv);
         const containerClass = `email-container email-container-${blockId}`;
         html += `<div class="${containerClass}" style="background-color: ${bgColor}; border-radius: ${borderRadius}px; ${renderPadding(padding)} ${renderMargin(margin)}${borderWidth > 0 ? ` border: ${borderWidth}px solid ${borderColor};` : ''}">
 ${childHtml}</div>\n`;
@@ -1240,16 +1246,15 @@ function extractTextRecursive(blockIds: string[], doc: EmailBuilderDocument): st
   let text = '';
   for (const blockId of blockIds) {
     const block = doc[blockId];
-    if (!block) continue;
-    const blockData = block.data as Record<string, unknown>;
+    if (!block || typeof block !== 'object') continue;
+    const blockData = (block.data || {}) as Record<string, unknown>;
     const props = (blockData.props || {}) as Record<string, unknown>;
     if (props.text) {
       const rawText = (props.text as string).replace(/<[^>]*>/g, '');
       text += rawText + '\n\n';
     }
     if (block.type === 'Container') {
-      const childIds = (blockData.childrenIds || []) as string[];
-      text += extractTextRecursive(childIds, doc);
+      text += extractTextRecursive(childIdList(blockData.childrenIds), doc);
     }
     if (props.url && props.text) {
       text += `${props.url}\n\n`;
@@ -1260,8 +1265,8 @@ function extractTextRecursive(blockIds: string[], doc: EmailBuilderDocument): st
 
 function extractTextFromBlocks(doc: EmailBuilderDocument): string {
   const root = doc.root;
-  if (!root || !root.data.childrenIds) return '';
-  return extractTextRecursive(root.data.childrenIds, doc).trim();
+  if (!root) return '';
+  return extractTextRecursive(childIdList(root.data?.childrenIds), doc).trim();
 }
 
 // Convert email-builder JSON to HTML
@@ -1271,9 +1276,9 @@ export function jsonToHtml(jsonContent: EmailBuilderDocument, theme?: EmailTheme
     return '<div>Template-Fehler: Ungültiges Format</div>';
   }
 
-  const tv = resolveTheme(theme, root.data as unknown as Record<string, unknown>);
+  const tv = resolveTheme(theme, (root.data || {}) as unknown as Record<string, unknown>);
   let html = `<div style="font-family: ${tv.fontFamily}; color: ${tv.textColor};">`;
-  html += renderBlocksToHtml(root.data.childrenIds, jsonContent, tv);
+  html += renderBlocksToHtml(childIdList(root.data?.childrenIds), jsonContent, tv);
   html += `</div>`;
   return html;
 }

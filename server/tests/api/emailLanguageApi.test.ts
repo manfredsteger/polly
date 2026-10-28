@@ -102,6 +102,18 @@ describe('Email language — admin API and registration', () => {
       expect(reset.body.isDefault).toBe(true);
     });
 
+    it('saves a layout without blocks instead of returning a server error', async () => {
+      const save = await adminAgent
+        .put('/api/v1/admin/email-templates/welcome?language=en')
+        .send({ subject: 'Empty layout', jsonContent: { root: { type: 'EmailLayout', data: {} } } });
+      expect(save.status).toBe(200);
+      expect(save.body.subject).toBe('Empty layout');
+      expect(save.body.textContent).toBe(EmailTemplateService.getDefaultTemplate('welcome', 'en').textContent);
+
+      const reset = await adminAgent.post('/api/v1/admin/email-templates/welcome/reset?language=en');
+      expect(reset.status).toBe(200);
+    });
+
     it('previews the English version of a template', async () => {
       const res = await adminAgent.post('/api/v1/admin/email-templates/vote_confirmation/preview?language=en').send({});
       expect(res.status).toBe(200);

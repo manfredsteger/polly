@@ -188,6 +188,31 @@ describe('templates built from blocks', () => {
     expect(empty.textContent).toBe(EmailTemplateService.getDefaultTemplate('welcome', 'en').textContent);
   });
 
+  it.each([
+    ['no childrenIds list', { type: 'EmailLayout', data: {} }],
+    ['childrenIds that is not a list', { type: 'EmailLayout', data: { childrenIds: 'title' } }],
+    ['no data at all', { type: 'EmailLayout' }],
+  ])('saves a layout with %s as an empty template instead of failing', async (_label, root) => {
+    const service = new EmailTemplateService();
+    vi.spyOn(storage, 'upsertEmailTemplate').mockImplementation(async (t: any) => t);
+
+    const saved: any = await service.saveTemplate('welcome', { root } as any, 'Hi', undefined, undefined, 'en');
+    expect(saved.htmlContent).toMatch(/^<div style="font-family: [^"]+">\s*<\/div>$/);
+    expect(saved.htmlContent).not.toContain('Ungültiges Format');
+    expect(saved.textContent).toBe(EmailTemplateService.getDefaultTemplate('welcome', 'en').textContent);
+  });
+
+  it('skips malformed nested blocks but keeps rendering the valid ones', () => {
+    const html = jsonToHtml({
+      root: { type: 'EmailLayout', data: { childrenIds: ['box', 'bare', 7, 'ok'] } },
+      box: { type: 'Container', data: { style: {}, childrenIds: 'inner' } },
+      bare: { type: 'Text' },
+      ok: { type: 'Text', data: { props: { text: 'Still here' }, style: {} } },
+    } as any);
+    expect(html).toContain('Still here');
+    expect(html).toContain('email-container-box');
+  });
+
   it('renders container variants in the theme colors and flags invalid documents', () => {
     const primary = jsonToHtml({
       root: { type: 'EmailLayout', data: { childrenIds: ['c'] } },

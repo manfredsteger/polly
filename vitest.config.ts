@@ -32,14 +32,23 @@ export default defineConfig({
       include: ['server/**/*.ts'],
       exclude: [
         'server/tests/**',
+        // Test files outside server/tests (e.g. DB-free privacy tests) are not source code.
+        'server/**/*.test.ts',
         'server/vite.ts',
         'node_modules/**',
       ],
+      // Coverage gate (enforced in CI). Thresholds are a ratchet: set about one
+      // point below the last measured full run so normal fluctuation passes,
+      // but a real coverage drop fails the build. Raise them whenever new
+      // tests lift the measurement; never lower them to make CI green.
+      //   Oct 2026 baseline: 45.6 % statements / 42.9 % branches / 49.4 % functions / 46.4 % lines
+      //   Oct 2026 after targeted tests: 67.1 % / 63.4 % / 72.7 % / 67.8 %
+      // Next milestone: 75 % lines/statements, 70 % branches, 80 % functions.
       thresholds: {
-        lines: 60,
-        branches: 50,
-        functions: 60,
-        statements: 60,
+        lines: 66,
+        branches: 62,
+        functions: 71,
+        statements: 66,
       },
     },
   },

@@ -1040,9 +1040,11 @@ export class DatabaseStorage implements IStorage {
 
   async getSecuritySettings(): Promise<SecuritySettings> {
     const loginRateLimitSetting = await this.getSetting('security_login_rate_limit');
+    const apiRateLimitsSetting = await this.getSetting('security_api_rate_limits');
 
     const settings = {
       loginRateLimit: loginRateLimitSetting?.value || {},
+      apiRateLimits: apiRateLimitsSetting?.value || {},
     };
 
     return securitySettingsSchema.parse(settings);
@@ -1051,6 +1053,9 @@ export class DatabaseStorage implements IStorage {
   async setSecuritySettings(settings: Partial<SecuritySettings>): Promise<SecuritySettings> {
     if (settings.loginRateLimit) {
       await this.setSetting({ key: 'security_login_rate_limit', value: settings.loginRateLimit });
+    }
+    if (settings.apiRateLimits) {
+      await this.setSetting({ key: 'security_api_rate_limits', value: settings.apiRateLimits });
     }
 
     return await this.getSecuritySettings();

@@ -88,7 +88,8 @@ Schema changes involve updating `shared/schema.ts`, `server/scripts/ensureSchema
 ### Database Indexes
 Token tables (`password_reset_tokens`, `email_verification_tokens`, `email_change_tokens`) have indexes on `token` and `user_id`. `notification_logs` is indexed on `poll_id` and `type`. `votes` is indexed on `poll_id`, `option_id`, `voter_email`, `voter_key`, and `voter_edit_token`.
 
-### Test Coverage (454+ tests)
+### Test Coverage (~1,490 tests in 83 files)
+- **Coverage gate**: CI runs `npx vitest run --coverage`; the thresholds in `vitest.config.ts` (66 % lines/statements, 62 % branches, 71 % functions; measured Oct 2026: 67.8 / 67.1 / 63.4 / 72.7 %) are enforced, so a test failure or a coverage drop turns CI red. Raise the thresholds when coverage grows; never lower them to make CI pass.
 - **API**: 174 tests (admin CRUD, user profile/theme/language, poll CRUD/voting/export, email templates, security, validation)
 - **Auth**: 55 tests (login, registration, password reset, session persistence, cookie security)
 - **Polls**: 30 tests (CRUD, voting, finalize, types)

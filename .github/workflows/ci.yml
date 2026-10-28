@@ -79,21 +79,20 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
         run: npm run db:push
 
-      - name: Run tests
+      # One run covers both gates: any failing test OR a coverage value below
+      # the thresholds in vitest.config.ts fails this step (and the pipeline).
+      # Vitest prints "Coverage for <metric> (x%) does not meet global threshold"
+      # when the coverage gate is the cause.
+      - name: Run tests with coverage gate
         env:
           TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
-        run: npx vitest run --reporter=verbose
-
-      - name: Run tests with coverage
-        env:
-          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
-          NODE_ENV: test
-        run: npx vitest run --coverage || true
+        run: npx vitest run --coverage --reporter=verbose
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
-        if: success()
+        # Upload even when the gate failed so the report shows where coverage dropped.
+        if: ${{ !cancelled() }}
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import { EmailTemplateService, jsonToHtml, ensureButtonTextContrast } from '../../services/emailTemplateService';
 import type { EmailTheme } from '../../services/emailTemplateService';
 import { storage } from '../../storage';
-import { customizationSettingsSchema } from '@shared/schema';
+import { customizationSettingsSchema, EMAIL_TEMPLATE_TYPES } from '@shared/schema';
 import { useSiteDefaultLanguage } from '../fixtures/siteLanguage';
 
 export const testMeta = {
@@ -1624,6 +1624,45 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('link-label');
       expect(result.html).toContain('sec-divider');
       expect(result.html).toContain('notice');
+    });
+
+    // Regression guard: the legacy (pre-V3) layout path was removed from
+    // renderEmail. Every template type — default and customized — must go
+    // through the V3 shell and never produce the old layout or its error body.
+    it('renders every template type, default and customized, through the V3 shell', async () => {
+      const service = new EmailTemplateService();
+      const legacyMarkers = ['email-backdrop', 'email-canvas', 'Template-Fehler', 'Template error'];
+      const expectV3 = (html: string, label: string) => {
+        expect(html, label).toContain('class="shell"');
+        expect(html, label).toContain('prefers-color-scheme: dark');
+        for (const marker of legacyMarkers) {
+          expect(html, `${label} contains legacy marker ${marker}`).not.toContain(marker);
+        }
+      };
+
+      for (const type of EMAIL_TEMPLATE_TYPES) {
+        const sample = await EmailTemplateService.getSampleDataForType(type, 'de');
+        await service.resetTemplate(type);
+        try {
+          const defaultResult = await service.renderEmail(type, sample);
+          expectV3(defaultResult.html, `${type} (default)`);
+
+          const template = EmailTemplateService.getDefaultTemplate(type);
+          await service.saveTemplate(
+            type,
+            template.jsonContent,
+            `Eigener Betreff ${type}`,
+            `Eigene Vorlage ${type}`,
+            `Eigener Inhalt fuer ${type}`,
+          );
+          const customResult = await service.renderEmail(type, sample);
+          expectV3(customResult.html, `${type} (customized)`);
+          expect(customResult.subject).toBe(`Eigener Betreff ${type}`);
+          expect(customResult.html).toContain(`Eigener Inhalt fuer ${type}`);
+        } finally {
+          await service.resetTemplate(type);
+        }
+      }
     });
   });
 

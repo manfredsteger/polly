@@ -115,14 +115,6 @@ function lightenColorByPercent(hex: string, percent: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
-function darkenColor(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const r = Math.max(0, ((num >> 16) & 0xFF) - Math.round(255 * percent / 100));
-  const g = Math.max(0, ((num >> 8) & 0xFF) - Math.round(255 * percent / 100));
-  const b = Math.max(0, (num & 0xFF) - Math.round(255 * percent / 100));
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
-}
-
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -358,18 +350,6 @@ function lightenColor(hex: string, amount: number): string {
     return `#${((lr << 16) | (lg << 8) | lb).toString(16).padStart(6, '0').toUpperCase()}`;
   } catch {
     return '#f8f9fa';
-  }
-}
-
-function darkenColorForDarkMode(hex: string): string {
-  try {
-    const { r, g, b } = colorToRgb(hex);
-    const dr = Math.round(r * 0.15 + 20);
-    const dg = Math.round(g * 0.15 + 20);
-    const db = Math.round(b * 0.15 + 30);
-    return `#${((dr << 16) | (dg << 8) | db).toString(16).padStart(6, '0')}`;
-  } catch {
-    return '#2a2a3e';
   }
 }
 
@@ -2203,7 +2183,7 @@ function buildV3CustomContentBody(text: string, ctx: V3BodyContext): string {
     ${v3BodyEnd()}${buttonSections}`;
 }
 
-const V3_BODY_BUILDERS: Record<string, (vars: Record<string, string | undefined>, ctx: V3BodyContext) => string> = {
+const V3_BODY_BUILDERS: Record<EmailTemplateType, (vars: Record<string, string | undefined>, ctx: V3BodyContext) => string> = {
   poll_created: buildV3PollCreatedBody,
   invitation: buildV3InvitationBody,
   reminder: buildV3ReminderBody,
@@ -2688,25 +2668,6 @@ export class EmailTemplateService {
     return html;
   }
 
-  private generateFooterHtmlWithTheme(footerText: string, theme: EmailTheme): string {
-    return `
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px;">
-        <tr>
-          <td style="padding: 0 24px;">
-            <div style="border-top: 1px solid #e9ecef;"></div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 20px 24px 24px; text-align: center;">
-            <p class="email-footer-text" style="color: #999999; font-size: 12px; margin: 0; line-height: 1.5; font-family: ${theme.fontFamily};">
-              ${renderFooterMarkup(footerText, 'color: #999999; text-decoration: underline;')}
-            </p>
-          </td>
-        </tr>
-      </table>
-    `;
-  }
-
   private async resolveLogoDataUri(logoUrl?: string): Promise<string> {
     if (!logoUrl) return '';
     if (logoUrl.startsWith('data:')) {
@@ -2811,82 +2772,37 @@ export class EmailTemplateService {
     const subject = stripLeadingSitePrefix(rawSubject, siteName);
 
     const v3Builder = V3_BODY_BUILDERS[type];
-    const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!v3Builder && !!template.textContent;
-    if (v3Builder) {
-      const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject, lang);
-      const ctx: V3BodyContext = {
-        primaryColor: v3Data.primaryColor,
-        secondaryColor: v3Data.secondaryColor,
-        fontFamily: v3Data.fontFamily,
-        language: lang,
-      };
-      let mergedVariables = { ...allVariables };
-      let bodyHtml: string;
-      if (shouldUsePollCreatedV3 && template.textContent) {
-        // Parse the custom template text into structured overrides for the V3 sections.
-        // The greeting + subline become the intro paragraph (replacing the default tag+headline).
-        // All other overrides (adminLabel, adminDescription, adminButtonText, publicLabel, etc.)
-        // are passed as pollCreatedOverride_* vars so the V3 sections use the custom content.
-        const overrides = parsePollCreatedTextOverrides(template.textContent);
-        const introLines = [overrides.greeting, overrides.subline].filter(Boolean).join('\n');
-        // Fall back to line-based extraction if the structured parse didn't find a greeting
-        const rawIntro = introLines || extractPollCreatedIntroText(template.textContent);
-        const customIntroText = substituteVariables(rawIntro || template.textContent, allVariables, false);
-        const overrideVars = Object.fromEntries(
-          Object.entries(overrides)
-            .filter(([, v]) => v !== undefined)
-            .map(([key, value]) => [`pollCreatedOverride_${key}`, value as string])
-        );
-        mergedVariables = { ...allVariables, ...overrideVars, pollCreatedCustomIntro: customIntroText };
-        bodyHtml = v3Builder(mergedVariables, ctx);
-      } else if (!template.isDefault && template.textContent) {
-        // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
-        // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
-        // The outer v3Shell (logo, branding, footer) is always applied.
-        let customTemplateText = template.textContent;
-        if (type === 'vote_confirmation' || type === 'vote_updated') {
-          customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables, lang);
-        } else if (type === 'reminder') {
-          customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables, lang);
-        }
-        const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
-        bodyHtml = buildV3CustomContentBody(renderedText, ctx);
-        if (type === 'poll_finalized') {
-          const closingBlock = buildPollFinalizedClosingBlock(allVariables.closingMessageHtml || '', ctx.primaryColor, lang);
-          if (closingBlock) {
-            bodyHtml += `${v3Divider()}
-    ${closingBlock}`;
-          }
-        }
-      } else {
-        bodyHtml = v3Builder(mergedVariables, ctx);
-      }
-      const html = v3Shell(v3Data, bodyHtml);
-      let textBase = template.textContent || '';
-      if (type === 'vote_confirmation' || type === 'vote_updated') {
-        textBase = this.enhanceVoteTemplateText(textBase, allVariables, lang);
-      } else if (type === 'reminder') {
-        textBase = this.appendReminderSelectedOptions(textBase, allVariables, lang);
-      } else if (type === 'poll_finalized') {
-        const closingMsgText = allVariables.closingMessageText;
-        if (closingMsgText && closingMsgText.trim()) {
-          textBase = textBase.trimEnd() + `\n\n${L.organizerMessage}:\n${closingMsgText.trim()}`;
-        }
-      }
-      if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
-        textBase = textBase.replace(L.pollCreated.textGuestNotice, L.pollCreated.textRegisteredNotice);
-      }
-      if (AUTO_FOOTER_DETECT.test(textBase)) {
-        textBase = textBase.replace(AUTO_FOOTER_REPLACE, `\n---\n${v3Data.footerText}`);
-      } else if (v3Data.footerText) {
-        textBase = textBase.trimEnd() + `\n\n---\n${v3Data.footerText}`;
-      }
-      const text = renderTemplate(textBase, allVariables);
-      return { subject, html, text };
-    }
-
+    const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!template.textContent;
+    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject, lang);
+    const ctx: V3BodyContext = {
+      primaryColor: v3Data.primaryColor,
+      secondaryColor: v3Data.secondaryColor,
+      fontFamily: v3Data.fontFamily,
+      language: lang,
+    };
+    let mergedVariables = { ...allVariables };
     let bodyHtml: string;
-    if (!template.isDefault && template.textContent) {
+    if (shouldUsePollCreatedV3 && template.textContent) {
+      // Parse the custom template text into structured overrides for the V3 sections.
+      // The greeting + subline become the intro paragraph (replacing the default tag+headline).
+      // All other overrides (adminLabel, adminDescription, adminButtonText, publicLabel, etc.)
+      // are passed as pollCreatedOverride_* vars so the V3 sections use the custom content.
+      const overrides = parsePollCreatedTextOverrides(template.textContent);
+      const introLines = [overrides.greeting, overrides.subline].filter(Boolean).join('\n');
+      // Fall back to line-based extraction if the structured parse didn't find a greeting
+      const rawIntro = introLines || extractPollCreatedIntroText(template.textContent);
+      const customIntroText = substituteVariables(rawIntro || template.textContent, allVariables, false);
+      const overrideVars = Object.fromEntries(
+        Object.entries(overrides)
+          .filter(([, v]) => v !== undefined)
+          .map(([key, value]) => [`pollCreatedOverride_${key}`, value as string])
+      );
+      mergedVariables = { ...allVariables, ...overrideVars, pollCreatedCustomIntro: customIntroText };
+      bodyHtml = v3Builder(mergedVariables, ctx);
+    } else if (!template.isDefault && template.textContent) {
+      // Custom non-poll_created templates: render custom text with V3 structure and theme styles.
+      // URLs in the text become styled primary buttons; plain text becomes V3 sublines.
+      // The outer v3Shell (logo, branding, footer) is always applied.
       let customTemplateText = template.textContent;
       if (type === 'vote_confirmation' || type === 'vote_updated') {
         customTemplateText = this.enhanceVoteTemplateText(template.textContent, allVariables, lang);
@@ -2894,23 +2810,38 @@ export class EmailTemplateService {
         customTemplateText = this.appendReminderSelectedOptions(template.textContent, allVariables, lang);
       }
       const renderedText = renderSafeCustomMarkup(customTemplateText, allVariables);
-      bodyHtml = this.textToSimpleHtmlWithTheme(renderedText, emailTheme);
-    } else if (template.htmlContent) {
-      bodyHtml = substituteVariables(template.htmlContent, allVariables, true);
+      bodyHtml = buildV3CustomContentBody(renderedText, ctx);
+      if (type === 'poll_finalized') {
+        const closingBlock = buildPollFinalizedClosingBlock(allVariables.closingMessageHtml || '', ctx.primaryColor, lang);
+        if (closingBlock) {
+          bodyHtml += `${v3Divider()}
+    ${closingBlock}`;
+        }
+      }
     } else {
-      bodyHtml = `<p>${L.templateError}</p>`;
+      bodyHtml = v3Builder(mergedVariables, ctx);
     }
-
-    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject, lang);
-    const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
-    const html = v3Shell(v3Data, wrappedBody);
-    let textFallback = template.textContent || '';
-    if (AUTO_FOOTER_DETECT.test(textFallback)) {
-      textFallback = textFallback.replace(AUTO_FOOTER_REPLACE, `\n---\n${v3Data.footerText}`);
+    const html = v3Shell(v3Data, bodyHtml);
+    let textBase = template.textContent || '';
+    if (type === 'vote_confirmation' || type === 'vote_updated') {
+      textBase = this.enhanceVoteTemplateText(textBase, allVariables, lang);
+    } else if (type === 'reminder') {
+      textBase = this.appendReminderSelectedOptions(textBase, allVariables, lang);
+    } else if (type === 'poll_finalized') {
+      const closingMsgText = allVariables.closingMessageText;
+      if (closingMsgText && closingMsgText.trim()) {
+        textBase = textBase.trimEnd() + `\n\n${L.organizerMessage}:\n${closingMsgText.trim()}`;
+      }
+    }
+    if (type === 'poll_created' && allVariables.isRegisteredUser === 'true') {
+      textBase = textBase.replace(L.pollCreated.textGuestNotice, L.pollCreated.textRegisteredNotice);
+    }
+    if (AUTO_FOOTER_DETECT.test(textBase)) {
+      textBase = textBase.replace(AUTO_FOOTER_REPLACE, `\n---\n${v3Data.footerText}`);
     } else if (v3Data.footerText) {
-      textFallback = textFallback.trimEnd() + `\n\n---\n${v3Data.footerText}`;
+      textBase = textBase.trimEnd() + `\n\n---\n${v3Data.footerText}`;
     }
-    const text = renderTemplate(textFallback, allVariables);
+    const text = renderTemplate(textBase, allVariables);
     return { subject, html, text };
   }
 
@@ -2935,96 +2866,6 @@ export class EmailTemplateService {
     }
 
     return { subject, html, text };
-  }
-
-  private extractContainerDarkColors(doc: Record<string, unknown> | null, emailTheme?: EmailTheme): Map<string, string> {
-    const colors = new Map<string, string>();
-    if (!doc) return colors;
-    for (const [blockId, block] of Object.entries(doc)) {
-      if (blockId === 'root') continue;
-      const b = block as { type?: string; data?: { props?: Record<string, unknown>; style?: Record<string, unknown> } };
-      if (b.type !== 'Container') continue;
-      if (b.data?.style?.darkBackgroundColor) {
-        colors.set(blockId, b.data.style.darkBackgroundColor as string);
-      } else {
-        const variant = b.data?.props?.containerVariant as string | undefined;
-        if (variant && emailTheme) {
-          const themeColor = variant === 'secondary'
-            ? (emailTheme.secondaryButtonBackgroundColor || '#4A90A4')
-            : (emailTheme.buttonBackgroundColor || '#FF6B35');
-          colors.set(blockId, darkenColorForDarkMode(themeColor));
-        }
-      }
-    }
-    return colors;
-  }
-
-  private generateDarkModeStyles(darkBackdrop: string, darkCanvas: string, darkHeading: string, darkText: string, containerDarkColors?: Map<string, string>): string {
-    let containerStyles = '';
-    if (containerDarkColors && containerDarkColors.size > 0) {
-      for (const [id, color] of containerDarkColors) {
-        containerStyles += `        .email-container-${id} { background-color: ${color} !important; }\n`;
-      }
-    }
-    return `
-      @media (prefers-color-scheme: dark) {
-        body, .email-backdrop { background-color: ${darkBackdrop} !important; }
-        .email-canvas { background-color: ${darkCanvas} !important; }
-        .email-heading { color: ${darkHeading} !important; }
-        .email-text { color: ${darkText} !important; }
-${containerStyles}        .email-footer-text { color: #999999 !important; }
-        .email-header-text { color: #999999 !important; }
-        .email-divider { border-top-color: #3a3a5c !important; }
-      }
-    `;
-  }
-
-  private buildEmailHtml(subject: string, emailTheme: EmailTheme, darkModeStyles: string, headerHtml: string, bodyHtml: string, footerHtml: string): string {
-    return `
-      <!DOCTYPE html>
-      <html lang="de">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="color-scheme" content="light dark">
-        <meta name="supported-color-schemes" content="light dark">
-        <title>${htmlEscape(subject)}</title>
-        <style type="text/css">
-          ${darkModeStyles}
-        </style>
-        <!--[if mso]>
-        <style type="text/css">
-          body, table, td { font-family: Arial, sans-serif !important; }
-        </style>
-        <![endif]-->
-      </head>
-      <body class="email-backdrop" style="margin: 0; padding: 0; background-color: ${emailTheme.backdropColor}; font-family: ${emailTheme.fontFamily};">
-        <table width="100%" cellpadding="0" cellspacing="0" class="email-backdrop" style="background-color: ${emailTheme.backdropColor}; padding: 20px 0;">
-          <tr>
-            <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" class="email-canvas" style="max-width: 600px; width: 100%; background-color: ${emailTheme.canvasColor}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <tr>
-                  <td>
-                    ${headerHtml}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 16px 0 8px 0;">
-                    ${bodyHtml}
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    ${footerHtml}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
-      </html>
-    `;
   }
 
   // Get available variables for a template type

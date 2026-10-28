@@ -73,7 +73,6 @@ const de = {
   privacy: 'Datenschutz',
   openLink: 'Link \u00f6ffnen \u2192',
   organizerMessage: 'Nachricht des Organisators',
-  templateError: 'Template-Fehler: Kein Inhalt verf\u00FCgbar',
   pollCreated: {
     sublineRegistered: (greeting: string) => `${greeting} \u2014 unten befinden sich der Direktlink zur Umfrage sowie der Abstimmungslink f\u00FCr die Teilnehmer.`,
     sublineGuest: (greeting: string) => `${greeting} \u2014 unten befinden sich der pers\u00F6nliche Administratorlink sowie der Abstimmungslink f\u00FCr die Teilnehmer.`,
@@ -268,7 +267,6 @@ const en: EmailStrings = {
   privacy: 'Privacy',
   openLink: 'Open link \u2192',
   organizerMessage: 'Message from the organizer',
-  templateError: 'Template error: no content available',
   pollCreated: {
     sublineRegistered: (greeting: string) => `${greeting} \u2014 below you will find the direct link to your poll and the voting link for participants.`,
     sublineGuest: (greeting: string) => `${greeting} \u2014 below you will find your personal administrator link and the voting link for participants.`,

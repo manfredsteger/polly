@@ -45,12 +45,13 @@ export default defineConfig({
       //   Oct 2026 after targeted tests: 67.1 % / 63.4 % / 72.7 % / 67.8 %
       //   Oct 2026 scheduler/OIDC helpers: 68.83 % / 65.16 % / 74.64 % / 69.56 %
       //   Oct 2026 test runner, admin failures, vote emails: 75.8 % / 70.11 % / 81.22 % / 76.53 %
+      //   Oct 2026 legacy email layout removed: 77.01 % / 70.57 % / 81.68 % / 76.27 %
       // Next milestone: 80 % lines/statements, 75 % branches, 85 % functions.
       thresholds: {
-        lines: 75,
+        lines: 76,
         branches: 69,
         functions: 80,
-        statements: 74,
+        statements: 75,
       },
     },
   },

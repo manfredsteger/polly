@@ -5,7 +5,7 @@ import { getBaseUrl } from '../utils/baseUrl';
 const CHECK_INTERVAL_MS = 60 * 1000; // every minute
 const AUTO_EXPIRED_NOTIFICATION_TYPE = 'auto_expired_poll_ended';
 
-async function runExpiryReminderCheck(): Promise<void> {
+export async function runExpiryReminderCheck(): Promise<void> {
   try {
     const pollsToRemind = await storage.getPollsNeedingExpiryReminder();
     if (pollsToRemind.length === 0) return;
@@ -62,7 +62,7 @@ async function runExpiryReminderCheck(): Promise<void> {
   }
 }
 
-async function runExpiredPollDeactivation(): Promise<void> {
+export async function runExpiredPollDeactivation(): Promise<void> {
   try {
     const deactivated = await storage.deactivateExpiredPolls();
     if (deactivated.length > 0) {

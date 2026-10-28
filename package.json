@@ -124,6 +124,9 @@
     "zod": "^3.24.2",
     "zod-validation-error": "^3.4.0"
   },
+  "overrides": {
+    "proxy-addr": "^2.0.8"
+  },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.4.4",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
@@ -149,8 +152,5 @@
     "typescript": "5.6.3",
     "vite": "^6.4.3",
     "vitest": "^4.1.9"
-  },
-  "overrides": {
-    "proxy-addr": "^2.0.8"
   }
 }

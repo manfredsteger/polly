@@ -43,12 +43,14 @@ export default defineConfig({
       // tests lift the measurement; never lower them to make CI green.
       //   Oct 2026 baseline: 45.6 % statements / 42.9 % branches / 49.4 % functions / 46.4 % lines
       //   Oct 2026 after targeted tests: 67.1 % / 63.4 % / 72.7 % / 67.8 %
-      // Next milestone: 75 % lines/statements, 70 % branches, 80 % functions.
+      //   Oct 2026 scheduler/OIDC helpers: 68.83 % / 65.16 % / 74.64 % / 69.56 %
+      //   Oct 2026 test runner, admin failures, vote emails: 75.8 % / 70.11 % / 81.22 % / 76.53 %
+      // Next milestone: 80 % lines/statements, 75 % branches, 85 % functions.
       thresholds: {
-        lines: 66,
-        branches: 62,
-        functions: 71,
-        statements: 66,
+        lines: 75,
+        branches: 69,
+        functions: 80,
+        statements: 74,
       },
     },
   },

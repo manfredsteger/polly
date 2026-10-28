@@ -135,7 +135,7 @@ function normalizeNotificationRecipients(
   return Array.from(uniqueRecipients);
 }
 
-function normalizeScheduleConfig(config?: Partial<TestScheduleConfig> | null): TestScheduleConfig {
+export function normalizeScheduleConfig(config?: Partial<TestScheduleConfig> | null): TestScheduleConfig {
   const mergedConfig: TestScheduleConfig = {
     enabled: false,
     intervalDays: 7,
@@ -493,6 +493,15 @@ async function runTestsInBackground(runId: number, config: ResolvedTestConfig): 
       
   } catch (error) {
     const duration = Date.now() - startTime;
+
+    // An admin stop kills the process, which then exits without a report.
+    // Keep the run marked as cancelled instead of reporting it as failed.
+    const [stoppedRun] = await db.select({ status: testRuns.status }).from(testRuns).where(eq(testRuns.id, runId));
+    if (stoppedRun?.status === 'cancelled') {
+      console.log(`[TestRunner] Test run #${runId} was cancelled`);
+      return;
+    }
+
     console.error('Test run failed:', error);
     
     const completedAt = new Date();
@@ -786,7 +795,7 @@ export async function executeVitest(testFiles?: string[], testNamePattern?: stri
   }
 }
 
-function parseVitestOutput(output: string): VitestJsonOutput {
+export function parseVitestOutput(output: string): VitestJsonOutput {
   try {
     const jsonMatch = output.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
     if (jsonMatch) {
@@ -890,7 +899,7 @@ export async function updateScheduleConfig(config: Partial<TestScheduleConfig>):
   return newConfig;
 }
 
-function calculateNextRun(intervalDays: number, runTime: string): string {
+export function calculateNextRun(intervalDays: number, runTime: string): string {
   const [hours, minutes] = runTime.split(':').map(Number);
   const now = new Date();
   const next = new Date();

@@ -9,6 +9,8 @@ After adding npm packages here, check package-lock.json for `package-firewall.re
 
 **How to apply:** after every npm install, grep the lockfile for the internal host before committing; integrity hashes stay valid after the rewrite.
 
-Public lockfile URLs do not bypass Replit's configured package firewall: downloads are still routed through it. A security-policy denial requires updating the blocked dependency (and, when needed, its parent or a compatible override), not changing registries.
+Public lockfile URLs do not bypass Replit's configured package firewall: downloads are still routed through it. When installation is rejected for a vulnerable locked version, check the registry metadata for a compatible patched release before treating the security policy as an external blocker. Inspect all rejected packages in the installation log, not just npm's final error.
 
-**Why:** a clean install exposed blocked versions previously present in node_modules; normalizing lockfile URLs alone does not resolve a security-policy block.
+**Why:** a clean install exposed blocked versions previously present in node_modules, and a failed restore left the app without its startup dependencies even though compatible patch releases were available; normalizing lockfile URLs alone does not resolve a security-policy block.
+
+**How to apply:** update the affected direct dependency (or its parent) or use a narrowly scoped transitive override, refresh the lockfile through the normal installation path, and verify startup and tests. Do not bypass the security policy, change registries, or leave the app stopped merely because the initial installation failed.

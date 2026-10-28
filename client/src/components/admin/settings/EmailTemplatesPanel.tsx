@@ -51,15 +51,16 @@ import {
   Send,
   Check,
   AlertCircle,
-  PlusCircle,
-  UserPlus,
-  CheckCircle,
-  Bell,
-  Key,
-  Shield,
   Info,
   Languages
 } from "lucide-react";
+import {
+  EMAIL_TEMPLATE_TYPE_ICONS,
+  isKnownTemplateType,
+  templateTypeDescriptionKey,
+  templateTypeNameKey,
+  templateVariableDescriptionKey,
+} from "./emailTemplateTypes";
 
 const EMAIL_LANGUAGES = ['de', 'en'] as const;
 type EmailLanguage = typeof EMAIL_LANGUAGES[number];
@@ -330,19 +331,17 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const templateTypeLabels: Record<string, { name: string; icon: React.ReactNode; description: string }> = {
-    poll_created: { name: t('admin.emailTemplates.templateTypes.poll_created'), icon: <PlusCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_created_desc') },
-    invitation: { name: t('admin.emailTemplates.templateTypes.invitation'), icon: <UserPlus className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.invitation_desc') },
-    vote_confirmation: { name: t('admin.emailTemplates.templateTypes.vote_confirmation'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.vote_confirmation_desc') },
-    vote_updated: { name: t('admin.emailTemplates.templateTypes.vote_updated'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.vote_updated_desc') },
-    reminder: { name: t('admin.emailTemplates.templateTypes.reminder'), icon: <Bell className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.reminder_desc') },
-    password_reset: { name: t('admin.emailTemplates.templateTypes.password_reset'), icon: <Key className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_reset_desc') },
-    email_change: { name: t('admin.emailTemplates.templateTypes.email_change'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.email_change_desc') },
-    password_changed: { name: t('admin.emailTemplates.templateTypes.password_changed'), icon: <Shield className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_changed_desc') },
-    test_report: { name: t('admin.emailTemplates.templateTypes.test_report'), icon: <FileText className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.test_report_desc') },
-    welcome: { name: t('admin.emailTemplates.templateTypes.welcome'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.welcome_desc') },
-    poll_finalized: { name: t('admin.emailTemplates.templateTypes.poll_finalized'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_finalized_desc') },
-    new_vote_notification: { name: t('admin.emailTemplates.templateTypes.new_vote_notification'), icon: <Bell className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.new_vote_notification_desc') },
+  // Card title, description and icon of a template type, in the admin UI language.
+  const templateTypeInfo = (type: string, fallbackName: string, iconClassName = "w-4 h-4") => {
+    if (!isKnownTemplateType(type)) {
+      return { name: fallbackName, icon: <Mail className={iconClassName} />, description: '' };
+    }
+    const Icon = EMAIL_TEMPLATE_TYPE_ICONS[type];
+    return {
+      name: t(templateTypeNameKey(type)),
+      icon: <Icon className={iconClassName} />,
+      description: t(templateTypeDescriptionKey(type)),
+    };
   };
 
   if (isLoading) {
@@ -589,7 +588,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {templates?.map((template) => {
-              const typeInfo = templateTypeLabels[template.type] || { name: template.name, icon: <Mail className="w-4 h-4" />, description: '' };
+              const typeInfo = templateTypeInfo(template.type, template.name);
               return (
                 <Card 
                   key={template.type} 
@@ -643,11 +642,11 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                    {templateTypeLabels[selectedTemplate.type]?.icon || <Mail className="w-5 h-5" />}
+                    {templateTypeInfo(selectedTemplate.type, selectedTemplate.name, "w-5 h-5").icon}
                   </div>
                   <div>
-                    <CardTitle>{templateTypeLabels[selectedTemplate.type]?.name || selectedTemplate.name}</CardTitle>
-                    <CardDescription>{templateTypeLabels[selectedTemplate.type]?.description}</CardDescription>
+                    <CardTitle>{templateTypeInfo(selectedTemplate.type, selectedTemplate.name).name}</CardTitle>
+                    <CardDescription>{templateTypeInfo(selectedTemplate.type, selectedTemplate.name).description}</CardDescription>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -699,7 +698,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{variable.description}</p>
+                        <p>{t(templateVariableDescriptionKey(variable.key), { defaultValue: variable.description })}</p>
                         <p className="text-xs text-muted-foreground mt-1">{t('admin.emailTemplates.clickToInsert')}</p>
                       </TooltipContent>
                     </Tooltip>

@@ -14,3 +14,4 @@ Recipient language order: account languagePreference → requester UI language (
 - Mails to third parties (organizer notices, bulk sends) must not use the requester's hint; resolve per recipient and render once per language group.
 - User-written content (poll titles, messages) is never translated.
 - Every mail must be correct in every language; the user wants this enforced by tests (completeness + no foreign-language remnants).
+- The admin template UI must not show server-side German texts (template names, variable descriptions); it translates per template type / variable key on the client. A tester once found a card stuck in German because a new type lacked a label — new template types or variables need UI translations in every locale (a test enforces it).

@@ -13,3 +13,4 @@
 - [Quality and test expectations](quality-and-tests.md) — the user expects broad automated unit-test coverage and prompt CI failure signals for regressions.
 - [React component render tests](component-render-tests.md) — keep render tests .test.ts with real locales so the admin test runner finds them and translation gaps fail.
 - [npm lockfile registry URLs](npm-lockfile-registry.md) — npm installs here write an internal mirror host into package-lock.json; rewrite to registry.npmjs.org or CI npm ci fails.
+- [Drizzle push is interactive](drizzle-push-interactive.md) — `drizzle-kit push --force` can still prompt for unique constraints and can approve destructive changes; post-merge uses reviewed SQL migrations instead.

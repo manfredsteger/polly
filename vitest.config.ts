@@ -43,10 +43,14 @@ export default defineConfig({
       },
     },
   },
+  // Component tests (e.g. server/tests/ui/*Render.test.ts) import client .tsx files,
+  // which rely on the automatic JSX runtime; tsconfig's "preserve" is for Vite only.
+  esbuild: { jsx: 'automatic' },
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, 'shared'),
       '@server': path.resolve(__dirname, 'server'),
+      '@': path.resolve(__dirname, 'client/src'),
     },
   },
 });

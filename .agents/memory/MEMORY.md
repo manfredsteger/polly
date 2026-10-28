@@ -11,3 +11,5 @@
 - [CSS color variable wrapping](css-color-variable-wrapping.md) — --primary/--primary-foreground must be full hsl()/rgb() values, not bare "H S% L%" triplets; a bare triplet silently no-ops backgrounds.
 - [Email language resolution](email-language.md) — per-recipient DE/EN (account → requester header → remembered guest lang → site default); no separate email default.
 - [Quality and test expectations](quality-and-tests.md) — the user expects broad automated unit-test coverage and prompt CI failure signals for regressions.
+- [React component render tests](component-render-tests.md) — keep render tests .test.ts with real locales so the admin test runner finds them and translation gaps fail.
+- [npm lockfile registry URLs](npm-lockfile-registry.md) — npm installs here write an internal mirror host into package-lock.json; rewrite to registry.npmjs.org or CI npm ci fails.

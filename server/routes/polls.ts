@@ -15,6 +15,16 @@ import { publicPollResponse, safePollCreator } from "../lib/publicPollResponse";
 
 const router = Router();
 
+// Only :id identifies a poll UUID. Public/admin :token routes accept opaque strings.
+// Parameter middleware also protects any sibling UUID routes added to this router.
+const pollIdSchema = z.string().uuid();
+router.param('id', (_req, res, next, id) => {
+  if (!pollIdSchema.safeParse(id).success) {
+    return res.status(400).json({ error: 'Invalid poll ID' });
+  }
+  next();
+});
+
 function getReminderSelectionsForEmail(
   poll: { options: Array<{ id: number; text: string }>; votes?: Array<{ voterEmail: string; optionId: number; response: string }> },
   email: string
@@ -931,9 +941,6 @@ router.post('/admin/:token/remind', async (req, res) => {
 router.post('/:id/send-reminder', async (req, res) => {
   try {
     const pollId = req.params.id;
-    if (!pollId) {
-      return res.status(400).json({ error: 'Invalid poll ID' });
-    }
     
     const poll = await storage.getPoll(pollId);
     if (!poll) {

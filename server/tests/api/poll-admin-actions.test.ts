@@ -268,6 +268,22 @@ describe('Poll administration via admin token', () => {
       expect(modern.body.success).toBe(true);
     });
 
+    it.each([
+      'not-a-uuid',
+      '123',
+      '00000000-0000-4000-8000-00000000000g',
+      '00000000-0000-4000-8000-000000000000-extra',
+    ])('rejects malformed reminder poll ID %s before accessing storage', async (id) => {
+      const getPoll = vi.spyOn(storage, 'getPoll');
+      const send = vi.spyOn(emailService, 'sendPersonalizedReminders');
+      const res = await request(app).post(`/api/v1/polls/${id}/send-reminder`).send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: 'Invalid poll ID' });
+      expect(getPoll).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+
     it('enforces the manual reminder cooldown', async () => {
       const poll = await createPoll(owner.agent, { title: 'Remind poll', type: 'survey', expiresAt: hoursFromNow(100), options: [{ text: 'A' }, { text: 'B' }] });
       const url = `/api/v1/polls/admin/${poll.adminToken}/remind`;

@@ -902,7 +902,9 @@
         "welcome": "Welcome Email",
         "welcome_desc": "Confirmation with email verification link",
         "poll_finalized": "Poll Finalized",
-        "poll_finalized_desc": "Notification after a poll is completed or finalized"
+        "poll_finalized_desc": "Notification after a poll is completed or finalized",
+        "new_vote_notification": "New Vote (Poll Creator)",
+        "new_vote_notification_desc": "Notification to the poll creator when someone votes"
       },
       "toasts": {
         "previewError": "Preview could not be loaded",

@@ -148,6 +148,25 @@ describe('i18n Hardcoded Strings Prevention', () => {
       }
     });
 
+    it('should label the new-vote template in both languages in the admin panel', () => {
+      const component = fs.readFileSync(
+        path.join(CLIENT_SRC, 'components/admin/settings/EmailTemplatesPanel.tsx'),
+        'utf8',
+      );
+      expect(component).toContain(
+        "new_vote_notification: { name: t('admin.emailTemplates.templateTypes.new_vote_notification')",
+      );
+      expect(component).toContain(
+        "description: t('admin.emailTemplates.templateTypes.new_vote_notification_desc')",
+      );
+
+      for (const locale of [deJson, enJson]) {
+        const templateTypes = (locale as any).admin.emailTemplates.templateTypes;
+        expect(templateTypes.new_vote_notification).toBeTruthy();
+        expect(templateTypes.new_vote_notification_desc).toBeTruthy();
+      }
+    });
+
     it('should not have empty translation values in de.json', () => {
       const emptyKeys = flattenKeys(deJson).filter(key => {
         const parts = key.split('.');

@@ -342,6 +342,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     test_report: { name: t('admin.emailTemplates.templateTypes.test_report'), icon: <FileText className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.test_report_desc') },
     welcome: { name: t('admin.emailTemplates.templateTypes.welcome'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.welcome_desc') },
     poll_finalized: { name: t('admin.emailTemplates.templateTypes.poll_finalized'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_finalized_desc') },
+    new_vote_notification: { name: t('admin.emailTemplates.templateTypes.new_vote_notification'), icon: <Bell className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.new_vote_notification_desc') },
   };
 
   if (isLoading) {

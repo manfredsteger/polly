@@ -902,7 +902,9 @@
         "welcome": "Willkommens-E-Mail",
         "welcome_desc": "Bestätigung mit Link zur E-Mail-Verifizierung",
         "poll_finalized": "Umfrage abgeschlossen",
-        "poll_finalized_desc": "Benachrichtigung nach Abschluss oder Finalisierung einer Umfrage"
+        "poll_finalized_desc": "Benachrichtigung nach Abschluss oder Finalisierung einer Umfrage",
+        "new_vote_notification": "Neue Abstimmung (Ersteller)",
+        "new_vote_notification_desc": "Benachrichtigung des Erstellers, wenn jemand abstimmt"
       },
       "toasts": {
         "previewError": "Vorschau konnte nicht geladen werden",

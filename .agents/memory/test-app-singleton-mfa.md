@@ -27,3 +27,9 @@ When a test needs an authenticated admin session AND the admin must have MFA ena
 - `registerSchema` caps usernames at 30 chars. Test usernames built as `prefix_${Date.now()}` carry a 13-digit epoch suffix, so prefixes longer than ~16 chars make registration fail with 400 (zod) — assert every setup response so this surfaces at the right line.
 - **Why:** a hermetic-test rewrite failed only because `mfa_replay_disable_` + epoch = 32 chars; un-asserted setup steps turn such failures into misleading downstream assertion errors (e.g. 401-vs-400 from requireAuth).
 - **How to apply:** when creating per-test users, keep the username prefix short (`mfa_rd_` style) and `expect(...).toBe(200)` every registration/setup response.
+
+## Mocking storage.getUser for logged-in requests
+- The test app runs an initial-admin guard on every `/api/` request with a session (except `/auth/me`, `/auth/logout`, `/auth/change-password`) that calls `storage.getUser` *before* the route does. A single `mockResolvedValueOnce` on `getUser` is therefore consumed by the guard, and the route sees the real user.
+- **Why:** several auth error-branch tests (404 for vanished users) silently got 200 until the mock was made persistent.
+- **How to apply:** for logged-in requests use `mockResolvedValue(...)`/`mockRejectedValue(...)` and `mockRestore()` afterwards; `Once` is only safe on the allowlisted paths or anonymous requests.
+- `votes.voter_email` is NOT NULL — "name-only" voters must be inserted with `voterEmail: ''`.

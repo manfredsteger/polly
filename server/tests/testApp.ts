@@ -1,5 +1,6 @@
 import express, { type Express, type Request, Response, NextFunction } from 'express';
 import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import createMemoryStore from 'memorystore';
 import { registerRoutes } from '../routes/index';
 import { apiRateLimiter } from '../services/apiRateLimiterService';
@@ -30,6 +31,8 @@ export async function createTestApp(): Promise<Express> {
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
+  // Mirrors server/index.ts so cookie-based paths (theme, device token) behave as in production.
+  app.use(cookieParser());
   
   // Mark all requests as test mode - data created will be flagged as test data
   app.use((req: Request, _res: Response, next: NextFunction) => {

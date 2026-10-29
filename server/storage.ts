@@ -22,7 +22,7 @@ import {
   type CalendarSettings, calendarSettingsSchema
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count, isNull, asc } from "drizzle-orm";
+import { eq, desc, and, or, ne, sql, count, isNull, asc, inArray } from "drizzle-orm";
 
 // Export db for direct database access in routes
 export { db };
@@ -464,8 +464,8 @@ export class DatabaseStorage implements IStorage {
       .from(polls)
       .where(
         and(
-          sql`${polls.id} = ANY(${pollIds})`,
-          sql`${polls.userId} != ${userId} OR ${polls.userId} IS NULL`
+          inArray(polls.id, pollIds),
+          or(ne(polls.userId, userId), isNull(polls.userId))
         )
       )
       .orderBy(desc(polls.createdAt));

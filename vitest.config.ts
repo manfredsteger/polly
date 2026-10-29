@@ -47,10 +47,11 @@ export default defineConfig({
       //   Oct 2026 test runner, admin failures, vote emails: 75.8 % / 70.11 % / 81.22 % / 76.53 %
       //   Oct 2026 legacy email layout removed: 77.01 % / 70.57 % / 81.68 % / 76.27 %
       //   Oct 2026 auth/poll-edit errors, storage edges, admin branding, system routes: 80.95 % / 76 % / 86.11 % / 81.42 %
+      //   Oct 2026 email template render matrix (DE/EN), blocks, themes: 81.25 % / 77.57 % / 86.19 % / 81.65 %
       // Next milestone: 85 % lines/statements, 80 % branches, 90 % functions.
       thresholds: {
-        lines: 80,
-        branches: 75,
+        lines: 80.5,
+        branches: 76.5,
         functions: 85,
         statements: 80,
       },

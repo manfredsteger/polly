@@ -8,6 +8,7 @@ import { z } from "zod";
 import "express-session";
 import { AuthenticationError, AuthorizationError } from "../lib/errors";
 import { isValidHttpHttpsUrl } from "@shared/urlValidation";
+import { isValidTestModeHeader, TEST_MODE_HEADER } from "../lib/testMode";
 export { asyncHandler } from "../lib/errorHandler";
 export * from "../lib/errors";
 
@@ -36,11 +37,13 @@ declare global {
   }
 }
 
-export function testModeMiddleware(req: Request, res: Response, next: NextFunction) {
-  const testModeHeader = req.headers['x-test-mode'];
-  const testModeSecret = process.env.TEST_MODE_SECRET || 'polly-e2e-test-mode';
-  
-  if (testModeHeader === testModeSecret) {
+/**
+ * Marks a request as test mode only when test mode is explicitly enabled
+ * (ENABLE_TEST_MODE=true + TEST_MODE_SECRET >= 32 chars) and the X-Test-Mode
+ * header matches the secret (constant-time). Otherwise the header is ignored.
+ */
+export function testModeMiddleware(req: Request, _res: Response, next: NextFunction) {
+  if (isValidTestModeHeader(req.headers[TEST_MODE_HEADER])) {
     req.isTestMode = true;
   }
   next();

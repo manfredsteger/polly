@@ -181,6 +181,12 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Generate per-run test-mode secret
+        run: |
+          secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$secret"
+          echo "TEST_MODE_SECRET=$secret" >> "$GITHUB_ENV"
+
       - name: Run E2E tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/polly_e2e
@@ -188,6 +194,7 @@ jobs:
           SESSION_SECRET: e2e-test-session-secret-minimum-32-characters-long
           BASE_URL: http://localhost:5000
           SMTP_ENABLED: false
+          ENABLE_TEST_MODE: 'true'
         run: npx playwright test --timeout=60000
 
       - name: Upload Playwright report

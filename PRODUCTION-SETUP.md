@@ -154,6 +154,14 @@ npm start
 | `SESSION_SECRET` | Geheimer Schlüssel für Sessions (min. 32 Zeichen) | `openssl rand -hex 32` |
 | `BASE_URL` | Öffentliche URL der Anwendung | `https://polly.example.com` |
 
+> **Sicherheit – Testmodus:** `ENABLE_TEST_MODE` und `TEST_MODE_SECRET` sind nur für
+> automatisierte Tests gedacht und dürfen in Produktion **nie** gesetzt werden.
+> Bestehende Installationen entfernen beide Variablen (z. B. aus `.env`,
+> Compose-Overrides oder Kubernetes-Secrets). Der frühere Standardwert
+> `polly-e2e-test-mode` hat keine Wirkung mehr. Ist der Testmodus mit
+> `NODE_ENV=production` aktiv, protokolliert Polly beim Start
+> `[SECURITY] Test mode is enabled`.
+
 ### E-Mail-Konfiguration
 
 | Variable | Beschreibung | Beispiel |
@@ -275,6 +283,7 @@ spec:
 4. **Audit Logging**: Alle API-Zugriffe protokollieren
 5. **Read-Only Filesystem**: Container mit ReadOnlyRootFilesystem betreiben
 6. **ClamAV**: Virenscanner für Datei-Uploads aktivieren
+7. **Kein Testmodus**: `ENABLE_TEST_MODE` und `TEST_MODE_SECRET` nicht setzen
 
 ### Air-Gapped Installation
 

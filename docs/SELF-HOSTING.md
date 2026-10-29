@@ -566,7 +566,8 @@ If you ship custom icons, replace `client/public/android-chrome-*.png` (and the 
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export (set automatically in Docker image) | auto-detected |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
-| `TEST_MODE_SECRET` | Custom header value for E2E test mode (`X-Test-Mode` header) | `polly-e2e-test-mode` |
+| `ENABLE_TEST_MODE` | Enables E2E test mode (`true`). Only for automated tests — never set in production | – |
+| `TEST_MODE_SECRET` | `X-Test-Mode` header value for E2E test mode, min. 32 characters, random per run. Only for automated tests — never set in production | – |
 | `TEST_DATABASE_URL` | Separate initialized database for automated tests; never the application database | — |
 | `TEST_DATABASE_SSL` | Test connection SSL option, independent of application SSL | `false` |
 

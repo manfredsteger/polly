@@ -379,11 +379,14 @@ e2e-tests:
     BASE_URL: "http://localhost:5000"
     SMTP_ENABLED: "false"
     NODE_ENV: "test"
+    ENABLE_TEST_MODE: "true"
     npm_config_cache: "/tmp/.npm"
   script:
     - *npm_install
     - *wait_for_postgres
     - npm run db:push
+    # Fresh random test-mode secret per run; shared by the dev server and Playwright.
+    - export TEST_MODE_SECRET="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")"
     - npm run dev &
     - *wait_for_server
     - npx playwright test --reporter=list --timeout=60000 || true

@@ -3,6 +3,19 @@ import { nanoid } from 'nanoid';
 
 const BASE_URL = process.env.APP_URL || process.env.BASE_URL || 'http://localhost:5000';
 
+// The X-Test-Mode header value comes from the per-run TEST_MODE_SECRET that the
+// server under test was started with (together with ENABLE_TEST_MODE=true).
+// There is intentionally no hard-coded fallback.
+function testModeHeaders(): Record<string, string> {
+  const secret = process.env.TEST_MODE_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      'TEST_MODE_SECRET (min. 32 chars) must be set for E2E runs, and the server must run with ENABLE_TEST_MODE=true and the same secret.',
+    );
+  }
+  return { 'X-Test-Mode': secret };
+}
+
 // Helper function to create a poll via API
 async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organization', options: {
   title?: string;
@@ -60,7 +73,7 @@ async function createPollViaAPI(page: Page, type: 'schedule' | 'survey' | 'organ
 
   const response = await page.request.post(`${BASE_URL}/api/v1/polls`, {
     data: basePayload,
-    headers: { 'X-Test-Mode': 'polly-e2e-test-mode' },
+    headers: testModeHeaders(),
   });
   
   expect(response.status()).toBe(200);
@@ -74,7 +87,7 @@ async function voteViaAPI(page: Page, publicToken: string, voterName: string, op
   // Create an isolated API context for this voter (no shared cookies)
   const api = await request.newContext({ 
     baseURL: BASE_URL,
-    extraHTTPHeaders: { 'X-Test-Mode': 'polly-e2e-test-mode' },
+    extraHTTPHeaders: testModeHeaders(),
   });
   
   try {

@@ -6,6 +6,10 @@ import bcrypt from 'bcryptjs';
 import type { Express } from 'express';
 import { storage } from '../../storage';
 import { loginRateLimiter } from '../../services/rateLimiterService';
+import { enableTestModeForSuite } from '../testModeEnv';
+
+// Opens the ENABLE_TEST_MODE + TEST_MODE_SECRET gate for this file only.
+const testMode = enableTestModeForSuite();
 
 export const testMeta = {
   category: 'security' as const,
@@ -32,7 +36,7 @@ async function createUserAndLogin(app: Express) {
   
   const loginResponse = await request(app)
     .post('/api/v1/auth/login')
-    .set('X-Test-Mode', 'polly-e2e-test-mode')
+    .set('X-Test-Mode', testMode.secret)
     .send({
       usernameOrEmail: email,
       password: password,
@@ -223,13 +227,13 @@ describe('Cookie Security - CRITICAL', () => {
       const agent1 = request.agent(app);
       const agent2 = request.agent(app);
 
-      const loginRes1 = await agent1.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
+      const loginRes1 = await agent1.post('/api/v1/auth/login').set('X-Test-Mode', testMode.secret).send({
         usernameOrEmail: email1,
         password: password1,
       });
       expect(loginRes1.status).toBe(200);
 
-      const loginRes2 = await agent2.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
+      const loginRes2 = await agent2.post('/api/v1/auth/login').set('X-Test-Mode', testMode.secret).send({
         usernameOrEmail: email2,
         password: password2,
       });
@@ -249,7 +253,7 @@ describe('Cookie Security - CRITICAL', () => {
       const agent = request.agent(app);
       const { email, password } = await createUserAndLogin(app);
 
-      await agent.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
+      await agent.post('/api/v1/auth/login').set('X-Test-Mode', testMode.secret).send({
         usernameOrEmail: email,
         password: password,
       });
@@ -306,7 +310,7 @@ describe('Cookie Security - CRITICAL', () => {
       const agent = request.agent(app);
       const { email, password } = await createUserAndLogin(app);
 
-      await agent.post('/api/v1/auth/login').set('X-Test-Mode', 'polly-e2e-test-mode').send({
+      await agent.post('/api/v1/auth/login').set('X-Test-Mode', testMode.secret).send({
         usernameOrEmail: email,
         password: password,
       });

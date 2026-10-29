@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- **Test mode is now off unless explicitly enabled.** Previously the `X-Test-Mode` header fell back to the public default `polly-e2e-test-mode`, so anyone could bypass API rate limits, suppress emails, flag data as test data and log in to test accounts on any installation, including production. Test mode is now active only when `ENABLE_TEST_MODE=true` **and** `TEST_MODE_SECRET` (at least 32 characters) are both set; otherwise the header is ignored. The header is compared in constant time, the default value was removed from `docker-compose.yml`, CI/E2E runs generate a random secret per run, and the server logs `[SECURITY] Test mode is enabled` at startup when test mode is active with `NODE_ENV=production`.
 - Filter public poll/results responses to exclude account secrets, private voter credentials, other voters' emails, and votes when results are private.
 - Require authenticated ownership or a valid private token for vote changes and withdrawal; deliver guest management links by email rather than in guest responses.
 - Isolate database-backed tests using an explicit `TEST_DATABASE_URL`; reject unsafe configurations before test setup can modify application accounts.
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Save test reports in writable per-run temporary directories and include the changelog in test-capable images.
 
 ### Deployment notes
+- **Action required:** Remove `TEST_MODE_SECRET` and `ENABLE_TEST_MODE` from production environments (`.env`, Compose overrides, Kubernetes secrets). They are only for automated test runs. The old default `polly-e2e-test-mode` no longer has any effect.
 - No application database migration is required for these fixes. To run database-backed tests, provision a separate database with the current schema and configure `TEST_DATABASE_URL`; existing deployments without it can use normal app features but cannot start those tests.
 - `ADMIN_*` environment values are bootstrap credentials, not a mechanism to reset an existing account.
 - See [TESTING.md](TESTING.md) and [SELF-HOSTING.md](docs/SELF-HOSTING.md) for setup. Guest identity verification before the first vote and persistent organizer withdrawal history remain deferred.

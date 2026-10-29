@@ -8,6 +8,10 @@ import { db } from '../../db';
 import { passwordResetTokens, users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import { enableTestModeForSuite } from '../testModeEnv';
+
+// Opens the ENABLE_TEST_MODE + TEST_MODE_SECRET gate for this file only.
+const testMode = enableTestModeForSuite();
 
 export const testMeta = {
   category: 'auth' as const,
@@ -260,7 +264,7 @@ describe('Auth - Password Reset', () => {
 
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
-        .set('X-Test-Mode', 'polly-e2e-test-mode')
+        .set('X-Test-Mode', testMode.secret)
         .send({
           usernameOrEmail: loginTestEmail,
           password: newPassword,
@@ -300,7 +304,7 @@ describe('Auth - Password Reset', () => {
 
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
-        .set('X-Test-Mode', 'polly-e2e-test-mode')
+        .set('X-Test-Mode', testMode.secret)
         .send({
           usernameOrEmail: loginTestEmail,
           password: originalPassword,

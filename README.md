@@ -323,7 +323,8 @@ database. Normal application operation does not require one. See [TESTING.md](TE
 | `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export | auto-detected |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement | `false` |
-| `TEST_MODE_SECRET` | Custom header value for E2E test mode | `polly-e2e-test-mode` |
+| `ENABLE_TEST_MODE` | Enables E2E test mode (`true`). Only for automated tests — never set in production | – |
+| `TEST_MODE_SECRET` | `X-Test-Mode` header value for E2E test mode, min. 32 characters, random per run. Only for automated tests — never set in production | – |
 | `TEST_DATABASE_URL` | Separate database for automated tests; see [Testing Guide](TESTING.md#automated-tests-and-database-isolation) | — |
 | `TEST_DATABASE_SSL` | SSL option for the test database connection | `false` |
 

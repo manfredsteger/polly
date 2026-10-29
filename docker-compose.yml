@@ -114,8 +114,9 @@ services:
       # AI_API_KEY: ${AI_API_KEY:-}
       # AI_API_KEY_FALLBACK: ${AI_API_KEY_FALLBACK:-}
       # AI_MODEL: ${AI_MODEL:-llama-3.3-70b-instruct}
-      # E2E Testing
-      TEST_MODE_SECRET: ${TEST_MODE_SECRET:-polly-e2e-test-mode}
+      # E2E test mode is intentionally NOT configured here: ENABLE_TEST_MODE and
+      # TEST_MODE_SECRET are only for automated test runs and must never be set
+      # in production.
       # WCAG Override
       POLLY_WCAG_OVERRIDE: ${POLLY_WCAG_OVERRIDE:-false}
       # Admin MFA policy emergency override (leave unset to use the admin setting)

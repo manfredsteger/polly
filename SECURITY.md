@@ -43,6 +43,7 @@ Polly implements the following security measures:
 - **AI API key proxying** — Keys stored server-side only, never exposed to frontend
 - **Permissions-Policy headers** — Microphone restricted to same-origin, camera/geolocation/payment disabled
 - **Audio upload validation** — File type and size checks before AI transcription
+- **Hardened PDF export** — Poll titles, option texts, participant names, branding values and test-report fields are HTML-escaped before Chromium renders them; only allow-listed Markdown is rendered in descriptions. Links must be http(s), images must be inline `data:` images or an https logo. The render page runs with JavaScript disabled and aborts every network request except inline resources and an explicitly configured https logo; uploaded logos are inlined from disk. Chromium's own sandbox remains disabled (`--no-sandbox`) because the Docker image runs Chromium as a non-root user under Docker's default seccomp profile, where the sandbox cannot start; the measures above are the mitigation
 - **Test mode gate** — The E2E `X-Test-Mode` header is ignored unless `ENABLE_TEST_MODE=true` and a `TEST_MODE_SECRET` of at least 32 characters are both set; the header is compared in constant time and there is no default secret
 
 ## Security Best Practices for Self-Hosting

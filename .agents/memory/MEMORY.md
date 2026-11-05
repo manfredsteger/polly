@@ -16,3 +16,4 @@
 - [Drizzle push is interactive](drizzle-push-interactive.md) — `drizzle-kit push --force` can still prompt for unique constraints and can approve destructive changes; post-merge uses reviewed SQL migrations instead.
 - [Dependency security boundary](package-firewall.md) — a fresh checkout’s existing dependency baseline can be firewall-blocked; do not bypass it to run validation.
 - [Email template test isolation](email-template-tests.md) — email render tests use the in-memory storage fixture, not the shared DB; unfilled vars stay as {{key}} in subject/text/<title>.
+- [PDF render hardening](pdf-render-hardening.md) — escape all PDF template values, JS off + network blocked in Chromium; PDF /Title metadata is the test oracle for script execution.

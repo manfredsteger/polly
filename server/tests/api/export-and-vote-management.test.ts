@@ -4,6 +4,7 @@ import type { Express } from 'express';
 import { createTestApp } from '../testApp';
 import { storage } from '../../storage';
 import { emailService } from '../../services/emailService';
+import { pdfService } from '../../services/pdfService';
 import { getSubmittedVoteToken } from '../fixtures/voteToken';
 import { loginAdminAgent, createLoggedInUser, type TestAgent, type CreatedTestUser } from '../fixtures/users';
 
@@ -144,6 +145,35 @@ describe('Exports and vote management', () => {
       expect(res.headers['content-type']).toBe('application/pdf');
       expect(res.headers['content-disposition']).toContain("filename*=UTF-8''");
       expect((res.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+    });
+
+    it('renders injected title, option and participant name as text in a public PDF export', async () => {
+      const payload = '<img src="http://169.254.169.254/latest/meta-data/"><script>document.title="PWNED"</script>';
+      const pub = await createPoll(adminAgent, {
+        title: `Public ${payload}`,
+        type: 'survey',
+        resultsPublic: true,
+        options: [{ text: `Opt ${payload}` }, { text: 'Plain' }],
+      });
+      await guestVote(pub.publicToken, `Name ${payload}`, `inject-${Date.now()}@guest.example`, [
+        { optionId: pub.poll.options[0].id, response: 'yes' },
+      ]);
+
+      const render = vi.spyOn(pdfService, 'renderHtmlToPdf').mockResolvedValue(Buffer.from('%PDF-1.4 stub'));
+      const res = await request(app).get(`/api/v1/polls/${pub.publicToken}/export/pdf?includeParticipants=1`);
+      expect(res.status).toBe(200);
+      expect(render).toHaveBeenCalledTimes(1);
+
+      const [html, opts] = render.mock.calls[0];
+      expect(html).not.toMatch(/<script/i);
+      expect(html).not.toContain('<img src="http://169.254.169.254');
+      const escaped = '&lt;img src=&quot;http://169.254.169.254/latest/meta-data/&quot;&gt;&lt;script&gt;';
+      expect(html).toContain(`<div class="poll-title">Public ${escaped}`);
+      expect(html).toContain(`<span class="option-title">Opt ${escaped}`);
+      expect(html).toContain(`<td class="vm-name">Name ${escaped}`);
+      // Only inline resources: the QR code is a data URL and no remote URL is allow-listed.
+      expect(html).toContain('alt="QR Code"');
+      for (const url of opts?.allowedUrls ?? []) expect(url).toMatch(/^https:\/\//);
     });
 
     it('builds a German CSV matrix with dates, quoting and totals', async () => {

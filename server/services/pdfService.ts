@@ -1,8 +1,92 @@
 import puppeteer, { Browser, Page, LaunchOptions } from 'puppeteer';
 import { PollResults, Poll, TestRun, TestResult } from '@shared/schema';
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, promises as fsPromises } from 'fs';
+import path from 'path';
 import { marked } from 'marked';
+
+// ── Output encoding helpers ────────────────────────────────────────────────
+// Every user- or admin-controlled value that ends up in the PDF HTML must go
+// through one of these helpers. Chromium renders the template server-side, so
+// unescaped markup would run in the server's network context.
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+  '`': '&#96;',
+};
+
+export function escapeHtml(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[&<>"'`]/g, ch => HTML_ESCAPES[ch]);
+}
+
+/** Returns a normalised http(s) URL, or null for any other scheme / invalid input. */
+export function safeHttpUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+const SAFE_IMAGE_DATA_URL_RE = /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/**
+ * Image sources allowed in the PDF: inline base64 images, or (when
+ * `allowRemote` is set) an absolute https URL. Everything else is dropped.
+ */
+export function safeImageSrc(value: unknown, { allowRemote = false } = {}): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (SAFE_IMAGE_DATA_URL_RE.test(trimmed)) return trimmed;
+  if (!allowRemote) return null;
+  const url = safeHttpUrl(trimmed);
+  return url && url.startsWith('https:') ? url : null;
+}
+
+const LOGO_MIME_BY_EXT: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+};
+const MAX_INLINE_LOGO_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Resolves the branding logo for the PDF without letting Chromium fetch it:
+ * uploaded logos (`/uploads/<file>`) are read from disk and inlined as a data
+ * URL; an absolute https URL is passed through and later allow-listed as the
+ * only remote request the renderer may make. Anything else yields undefined.
+ */
+export async function resolvePdfLogoSrc(
+  logoUrl: string | null | undefined,
+  uploadsDir: string = path.join(process.cwd(), 'uploads'),
+): Promise<string | undefined> {
+  if (!logoUrl) return undefined;
+  const trimmed = logoUrl.trim();
+  if (trimmed.startsWith('/uploads/')) {
+    const filename = path.basename(trimmed.split(/[?#]/)[0]);
+    const mime = LOGO_MIME_BY_EXT[path.extname(filename).toLowerCase()];
+    if (!mime) return undefined;
+    try {
+      const data = await fsPromises.readFile(path.join(uploadsDir, filename));
+      if (data.length === 0 || data.length > MAX_INLINE_LOGO_BYTES) return undefined;
+      return `data:${mime};base64,${data.toString('base64')}`;
+    } catch {
+      return undefined;
+    }
+  }
+  return safeImageSrc(trimmed, { allowRemote: true }) ?? undefined;
+}
 
 // Dynamically resolve Chromium path for different environments
 function findChromiumPath(): string | undefined {
@@ -123,8 +207,10 @@ function sanitizeAllowlist(html: string): string {
         const href = hrefMatch
           ? (hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? '').trim()
           : '';
+        // Encode attribute-breaking characters; bare "&" is encoded too, but
+        // existing entities (e.g. from raw HTML "&amp;") are left intact.
         return SAFE_URL_RE.test(href)
-          ? `<a href="${href}">`
+          ? `<a href="${href.replace(/&(?!#?[a-zA-Z0-9]+;)|["'<>`]/g, (ch: string) => HTML_ESCAPES[ch])}">`
           : '<a>';  // keep anchor element but drop unsafe href
       }
       return `<${tag}>`;
@@ -168,9 +254,14 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
     : null;
   const bestOptionData = bestOption ? results.options.find(opt => opt.id === bestOption.optionId) : null;
 
-  const siteName = options.siteName || 'Poll';
-  const siteNameAccent = options.siteNameAccent || 'y';
+  const siteName = escapeHtml(options.siteName || 'Poll');
+  const siteNameAccent = escapeHtml(options.siteNameAccent || 'y');
   const poll = results.poll;
+  const pollTitle = escapeHtml(poll.title);
+  const pollUrl = safeHttpUrl(options.pollUrl);
+  const videoConferenceUrl = safeHttpUrl(poll.videoConferenceUrl);
+  const logoSrc = safeImageSrc(options.logoUrl, { allowRemote: true });
+  const qrCodeSrc = safeImageSrc(options.qrCodeDataUrl);
 
   // ── Markdown rendering ──────────────────────────────────────────────────
   const descriptionHtml = poll.description ? markdownToHtml(poll.description) : '';
@@ -222,10 +313,10 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
       return '<span class="vm-empty">–</span>';
     };
 
-    const headerCells = results.options.map(opt => `<th class="vm-th">${opt.text}</th>`).join('');
+    const headerCells = results.options.map(opt => `<th class="vm-th">${escapeHtml(opt.text)}</th>`).join('');
     const bodyRows = participants.map(p => {
       const cells = results.options.map(opt => `<td class="vm-td">${responseSymbol(p.responses.get(opt.id))}</td>`).join('');
-      return `<tr><td class="vm-name">${p.name}</td>${cells}</tr>`;
+      return `<tr><td class="vm-name">${escapeHtml(p.name)}</td>${cells}</tr>`;
     }).join('');
 
     voterMatrixHtml = `
@@ -262,7 +353,7 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
       <div class="option-card ${isBest ? 'best-option' : ''}">
         <div class="option-header">
           <span class="option-number">${index + 1}</span>
-          <span class="option-title">${option.text}</span>
+          <span class="option-title">${escapeHtml(option.text)}</span>
           ${isBest ? '<span class="best-badge">&#9733; Beste Option</span>' : ''}
         </div>
         ${option.startTime && option.endTime ? `
@@ -295,7 +386,7 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${siteName}${siteNameAccent} – ${poll.title}</title>
+  <title>${siteName}${siteNameAccent} – ${pollTitle}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -513,13 +604,13 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
   <div class="doc-header">
     <div class="brand-bar">
       <div class="brand-left">
-        ${options.logoUrl ? `<img src="${options.logoUrl}" alt="Logo" class="brand-logo" />` : ''}
+        ${logoSrc ? `<img src="${escapeHtml(logoSrc)}" alt="Logo" class="brand-logo" />` : ''}
         <span class="brand-name">${siteName}<span class="accent">${siteNameAccent}</span></span>
       </div>
       <span class="export-timestamp">Exportiert: ${formatDateTime(new Date())}</span>
     </div>
-    <div class="poll-title">${poll.title}</div>
-    ${options.pollUrl ? `<div class="poll-link"><a href="${options.pollUrl}">${options.pollUrl}</a></div>` : ''}
+    <div class="poll-title">${pollTitle}</div>
+    ${pollUrl ? `<div class="poll-link"><a href="${escapeHtml(pollUrl)}">${escapeHtml(pollUrl)}</a></div>` : ''}
   </div>
 
   <div class="letterhead">
@@ -530,7 +621,7 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
       </div>
       <div class="lh-item">
         <span class="lh-label">Umfragetyp</span>
-        <span class="lh-value">${getPollTypeName(poll.type)}</span>
+        <span class="lh-value">${escapeHtml(getPollTypeName(poll.type))}</span>
       </div>
       <div class="lh-item">
         <span class="lh-label">Gestartet am</span>
@@ -563,11 +654,11 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
         <span class="lh-value">${orgSlotInfo}</span>
       </div>` : ''}
     </div>
-    ${poll.videoConferenceUrl ? `
+    ${videoConferenceUrl ? `
     <hr class="lh-divider" />
     <div class="lh-video">
       <span class="lh-video-label">Videokonferenz</span>
-      <a href="${poll.videoConferenceUrl}" style="color:#4361ee;">${poll.videoConferenceUrl}</a>
+      <a href="${escapeHtml(videoConferenceUrl)}" style="color:#4361ee;">${escapeHtml(videoConferenceUrl)}</a>
     </div>` : ''}
   </div>
 
@@ -584,11 +675,11 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
     </div>
   </div>
 
-  ${options.qrCodeDataUrl ? `
+  ${qrCodeSrc ? `
   <div class="qr-section">
     <div style="font-size: 12px; color: #666; margin-bottom: 10px;">QR-Code zum Teilen der Umfrage</div>
-    <img src="${options.qrCodeDataUrl}" alt="QR Code" style="width: 130px; height: 130px; display: block; margin: 0 auto;" />
-    ${options.pollUrl ? `<div style="font-size: 10px; color: #999; margin-top: 6px; word-break: break-all;">${options.pollUrl}</div>` : ''}
+    <img src="${escapeHtml(qrCodeSrc)}" alt="QR Code" style="width: 130px; height: 130px; display: block; margin: 0 auto;" />
+    ${pollUrl ? `<div style="font-size: 10px; color: #999; margin-top: 6px; word-break: break-all;">${escapeHtml(pollUrl)}</div>` : ''}
   </div>` : ''}
 
   <h2 class="section-title">Ergebnisse</h2>
@@ -600,7 +691,7 @@ export function generateHTMLTemplate(results: PollResults, options: PDFOptions =
   ${bestOptionData ? `
   <div class="summary-box">
     <h3>&#9733; Beste Option</h3>
-    <div class="winner">${bestOptionData.text}</div>
+    <div class="winner">${escapeHtml(bestOptionData.text)}</div>
     ${bestOptionData.startTime && bestOptionData.endTime ? `
     <div class="winner-time">
       ${formatDateTime(bestOptionData.startTime)} – ${formatDateTime(bestOptionData.endTime)}
@@ -624,6 +715,12 @@ export class PDFService {
       // Dynamically find Chromium path, falls back to bundled browser if not found
       const chromiumPath = findChromiumPath();
       
+      // Chromium's own sandbox stays disabled: in the Docker image Chromium
+      // runs as the non-root `nodejs` user under Docker's default seccomp
+      // profile, which does not allow the namespaces the sandbox needs, so
+      // enabling it would break PDF export on standard installations.
+      // Mitigation: template values are HTML-escaped, page JavaScript is
+      // disabled and network requests are blocked (see renderHtmlToPdf).
       const launchOptions: LaunchOptions = {
         headless: true,
         args: [
@@ -656,10 +753,16 @@ export class PDFService {
     }
   }
 
-  async generatePollResultsPDF(results: PollResults, options: PDFOptions = {}): Promise<Buffer> {
+  /**
+   * Renders trusted, already-escaped template HTML to a PDF in a locked-down
+   * page: JavaScript is disabled and every network request is aborted except
+   * inline data: resources and the explicitly allow-listed URLs (e.g. a
+   * validated https logo). This is defence in depth on top of output encoding.
+   */
+  async renderHtmlToPdf(html: string, { allowedUrls = [] }: { allowedUrls?: string[] } = {}): Promise<Buffer> {
     let browser: Browser;
     let page: Page | null = null;
-    
+
     try {
       browser = await this.getBrowser();
     } catch (launchError) {
@@ -667,11 +770,22 @@ export class PDFService {
       await this.resetBrowser();
       browser = await this.getBrowser();
     }
-    
+
     try {
       page = await browser.newPage();
-      const html = generateHTMLTemplate(results, options);
-      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.setJavaScriptEnabled(false);
+      await page.setRequestInterception(true);
+      const allowed = new Set(allowedUrls);
+      page.on('request', (request) => {
+        if (request.isInterceptResolutionHandled()) return;
+        const url = request.url();
+        if (url.startsWith('data:') || url === 'about:blank' || allowed.has(url)) {
+          request.continue().catch(() => {});
+        } else {
+          request.abort('blockedbyclient').catch(() => {});
+        }
+      });
+      await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
@@ -697,6 +811,13 @@ export class PDFService {
         }
       }
     }
+  }
+
+  async generatePollResultsPDF(results: PollResults, options: PDFOptions = {}): Promise<Buffer> {
+    const logoUrl = await resolvePdfLogoSrc(options.logoUrl);
+    const html = generateHTMLTemplate(results, { ...options, logoUrl });
+    const allowedUrls = logoUrl && !logoUrl.startsWith('data:') ? [logoUrl] : [];
+    return this.renderHtmlToPdf(html, { allowedUrls });
   }
 
   async cleanup(): Promise<void> {
@@ -707,49 +828,13 @@ export class PDFService {
   }
 
   async generateTestReportPDF(testRun: TestRun, results: TestResult[]): Promise<Buffer> {
-    let browser: Browser;
-    let page: Page | null = null;
-    
-    try {
-      browser = await this.getBrowser();
-    } catch (launchError) {
-      await this.resetBrowser();
-      browser = await this.getBrowser();
-    }
-    
-    try {
-      page = await browser.newPage();
-      const html = generateTestReportHTMLTemplate(testRun, results);
-      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20mm',
-          bottom: '20mm',
-          left: '15mm',
-          right: '15mm',
-        },
-      });
-
-      return Buffer.from(pdfBuffer);
-    } catch (error) {
-      await this.resetBrowser();
-      throw error;
-    } finally {
-      if (page) {
-        try {
-          await page.close();
-        } catch {
-          // Ignore close errors
-        }
-      }
-    }
+    return this.renderHtmlToPdf(generateTestReportHTMLTemplate(testRun, results));
   }
 }
 
-function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[]): string {
+const TEST_STATUS_CLASSES = new Set(['passed', 'failed', 'skipped']);
+
+export function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[]): string {
   const passedCount = results.filter(r => r.status === 'passed').length;
   const failedCount = results.filter(r => r.status === 'failed').length;
   const skippedCount = results.filter(r => r.status === 'skipped').length;
@@ -780,15 +865,15 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
     
     return `
       <div class="category-section">
-        <h3 class="category-title">${getCategoryName(category)} (${categoryPassed}/${categoryResults.length})</h3>
+        <h3 class="category-title">${escapeHtml(getCategoryName(category))} (${categoryPassed}/${categoryResults.length})</h3>
         <div class="tests-list">
           ${categoryResults.map(result => `
-            <div class="test-item ${result.status}">
+            <div class="test-item ${TEST_STATUS_CLASSES.has(result.status) ? result.status : ''}">
               <span class="test-status-icon">${result.status === 'passed' ? '&#10003;' : result.status === 'failed' ? '&#10007;' : '&#8722;'}</span>
-              <span class="test-name">${result.testName}</span>
-              <span class="test-duration">${result.duration ? `${result.duration}ms` : '-'}</span>
+              <span class="test-name">${escapeHtml(result.testName)}</span>
+              <span class="test-duration">${result.duration ? `${escapeHtml(result.duration)}ms` : '-'}</span>
             </div>
-            ${result.error ? `<div class="test-error">${result.error}</div>` : ''}
+            ${result.error ? `<div class="test-error">${escapeHtml(result.error)}</div>` : ''}
           `).join('')}
         </div>
       </div>
@@ -801,9 +886,9 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
       <ul>
         ${failedResults.map((result) => `
           <li>
-            <strong>${result.testName}</strong>
-            <span class="failed-file">${result.testFile}</span>
-            ${result.error ? `<div class="failed-error">${result.error}</div>` : ''}
+            <strong>${escapeHtml(result.testName)}</strong>
+            <span class="failed-file">${escapeHtml(result.testFile)}</span>
+            ${result.error ? `<div class="failed-error">${escapeHtml(result.error)}</div>` : ''}
           </li>
         `).join('')}
       </ul>
@@ -816,7 +901,7 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Test-Report #${testRun.id}</title>
+  <title>Test-Report #${escapeHtml(testRun.id)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -974,7 +1059,7 @@ function generateTestReportHTMLTemplate(testRun: TestRun, results: TestResult[])
   </div>
 
   <div class="meta-info" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; font-size: 13px; color: #4b5563;">
-    <div><strong>Test-Lauf ID:</strong> #${testRun.id}</div>
+    <div><strong>Test-Lauf ID:</strong> #${escapeHtml(testRun.id)}</div>
     <div><strong>Auslöser:</strong> ${testRun.triggeredBy === 'manual' ? 'Manuell' : 'Geplant'}</div>
     <div><strong>Gestartet:</strong> ${formatDateTime(testRun.startedAt)}</div>
     <div><strong>Dauer:</strong> ${testRun.duration ? `${(testRun.duration / 1000).toFixed(2)}s` : '-'}</div>

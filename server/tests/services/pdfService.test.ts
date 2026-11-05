@@ -3,6 +3,28 @@ import { createPdfBrowserLaunchOptions, PDFService, generateHTMLTemplate } from 
 import { PollResults } from '@shared/schema';
 import { execSync } from 'child_process';
 import { existsSync } from 'fs';
+import { extractPdfText, type ExtractedPdfText } from '../fixtures/pdfText';
+
+function checkChromiumAvailable(): boolean {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    return true;
+  }
+  const possiblePaths = [
+    '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+  ];
+  for (const p of possiblePaths) {
+    if (existsSync(p)) return true;
+  }
+  try {
+    const result = execSync('which chromium || which chromium-browser || which google-chrome 2>/dev/null', { encoding: 'utf8' }).trim();
+    return !!result;
+  } catch {
+    return false;
+  }
+}
 
 describe('PDF Service', () => {
   let pdfService: PDFService;
@@ -20,27 +42,6 @@ describe('PDF Service', () => {
   afterAll(async () => {
     await pdfService.cleanup();
   });
-
-  function checkChromiumAvailable(): boolean {
-    if (process.env.PUPPETEER_EXECUTABLE_PATH && existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
-      return true;
-    }
-    const possiblePaths = [
-      '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
-      '/usr/bin/chromium',
-      '/usr/bin/chromium-browser',
-      '/usr/bin/google-chrome',
-    ];
-    for (const p of possiblePaths) {
-      if (existsSync(p)) return true;
-    }
-    try {
-      const result = execSync('which chromium || which chromium-browser || which google-chrome 2>/dev/null', { encoding: 'utf8' }).trim();
-      return !!result;
-    } catch {
-      return false;
-    }
-  }
 
   function createMockPollResults(): PollResults {
     return {
@@ -233,6 +234,189 @@ describe('PDF Service', () => {
 
       const pdfBuffer = await pdfService.generatePollResultsPDF(results);
       expect(pdfBuffer).toBeInstanceOf(Buffer);
+    });
+  });
+
+  // These tests read the text layer of the rendered PDF, so a template or
+  // rendering regression that drops titles, options or result values fails
+  // here even though a valid PDF is still produced. They always use the
+  // default (non-sandboxed) launch so they do not depend on whether the host
+  // supports Chromium's sandbox.
+  describe.skipIf(!checkChromiumAvailable())('Exported PDF text content', () => {
+    let textPdfService: PDFService;
+    let originalSandboxSetting: string | undefined;
+    let schedulePdf: ExtractedPdfText;
+    let surveyPdf: ExtractedPdfText;
+    let organizationPdf: ExtractedPdfText;
+
+    function createSurveyResults(): PollResults {
+      const base = createMockPollResults();
+      return {
+        ...base,
+        poll: { ...base.poll, id: 2, type: 'survey', title: 'Mittagessen beim Teamtag', allowMaybe: false },
+        options: [
+          { id: 21, pollId: 2, text: 'Pizza Margherita', startTime: null, endTime: null, capacity: null },
+          { id: 22, pollId: 2, text: 'Gemüsecurry mit Reis', startTime: null, endTime: null, capacity: null },
+          { id: 23, pollId: 2, text: 'Linsensuppe', startTime: null, endTime: null, capacity: null },
+        ],
+        votes: [],
+        stats: [
+          { optionId: 21, yesCount: 4, maybeCount: 0, noCount: 1, score: 8 },
+          { optionId: 22, yesCount: 2, maybeCount: 0, noCount: 3, score: 4 },
+          { optionId: 23, yesCount: 0, maybeCount: 0, noCount: 5, score: 0 },
+        ],
+        participantCount: 5,
+        responseRate: 62.5,
+      };
+    }
+
+    function createOrganizationResults(): PollResults {
+      const base = createMockPollResults();
+      const vote = (id: number, optionId: number, voterName: string) => ({
+        id, optionId, pollId: 3, response: 'yes', voterName, userId: null, comment: null, createdAt: new Date(), editToken: null,
+      });
+      return {
+        ...base,
+        poll: { ...base.poll, id: 3, type: 'organization', title: 'Sommerfest Helferliste', maxSlotsPerUser: 2 },
+        options: [
+          { id: 31, pollId: 3, text: 'Kuchen backen', startTime: null, endTime: null, capacity: 2 },
+          { id: 32, pollId: 3, text: 'Getränke ausschenken', startTime: null, endTime: null, capacity: 2 },
+          { id: 33, pollId: 3, text: 'Aufbau Bühne', startTime: null, endTime: null, capacity: 2 },
+        ],
+        votes: [
+          vote(301, 31, 'Erika Musterfrau'),
+          vote(302, 31, 'Jonas Becker'),
+          vote(303, 32, 'Jonas Becker'),
+        ] as PollResults['votes'],
+        stats: [
+          { optionId: 31, yesCount: 2, maybeCount: 0, noCount: 0, score: 4 },
+          { optionId: 32, yesCount: 1, maybeCount: 0, noCount: 0, score: 2 },
+          { optionId: 33, yesCount: 0, maybeCount: 0, noCount: 0, score: 0 },
+        ],
+        participantCount: 2,
+        responseRate: 100,
+      };
+    }
+
+    function countOccurrences(text: string, needle: string): number {
+      return text.split(needle).length - 1;
+    }
+
+    beforeAll(async () => {
+      originalSandboxSetting = process.env.PDF_CHROMIUM_SANDBOX;
+      delete process.env.PDF_CHROMIUM_SANDBOX;
+      textPdfService = new PDFService();
+
+      schedulePdf = await extractPdfText(await textPdfService.generatePollResultsPDF(createMockPollResults()));
+      surveyPdf = await extractPdfText(await textPdfService.generatePollResultsPDF(createSurveyResults()));
+      organizationPdf = await extractPdfText(
+        await textPdfService.generatePollResultsPDF(createOrganizationResults(), { includeParticipantTable: true })
+      );
+    }, 120000);
+
+    afterAll(async () => {
+      await textPdfService?.cleanup();
+      if (originalSandboxSetting === undefined) delete process.env.PDF_CHROMIUM_SANDBOX;
+      else process.env.PDF_CHROMIUM_SANDBOX = originalSandboxSetting;
+    });
+
+    it('schedule poll PDF shows title, type, every date option and its results', () => {
+      const { text } = schedulePdf;
+      expect(text).toContain('Test Terminumfrage');
+      expect(text).toContain('Terminumfrage');
+      expect(text).toContain('Eine Beschreibung für die Testumfrage');
+
+      expect(text).toContain('11.12.2025 09:00 - 11:00');
+      expect(text).toContain('11.12.2025 12:00 - 14:00');
+      expect(text).toContain('12.12.2025 10:00 - 12:00');
+
+      // Option 1: 2 yes / 1 maybe / 0 no
+      expect(text).toContain('Ja: 2 (67%)');
+      expect(text).toContain('Vielleicht: 1 (33%)');
+      expect(text).toContain('Gesamtwertung: 5');
+      // Option 2: 1 yes / 1 no
+      expect(text).toContain('Ja: 1 (50%)');
+      expect(text).toContain('Nein: 1 (50%)');
+      expect(text).toContain('Gesamtwertung: 1');
+      // Option 3: 1 yes only
+      expect(text).toContain('Ja: 1 (100%)');
+      expect(text).toContain('Gesamtwertung: 2');
+
+      expect(text).toContain('Teilnehmer: 3');
+      expect(text).toContain('Rücklaufquote: 100%');
+    });
+
+    it('schedule poll PDF names the highest-scoring option as the best option', () => {
+      const { text } = schedulePdf;
+      expect(text).toContain('Beste Option');
+      // Best option appears in its result card and again in the summary box.
+      expect(countOccurrences(text, '11.12.2025 09:00 - 11:00')).toBe(2);
+      expect(countOccurrences(text, '11.12.2025 12:00 - 14:00')).toBe(1);
+      expect(countOccurrences(text, '12.12.2025 10:00 - 12:00')).toBe(1);
+    });
+
+    it('survey poll PDF shows title, type, every option and its results', () => {
+      const { text } = surveyPdf;
+      expect(text).toContain('Mittagessen beim Teamtag');
+      expect(text).toContain('Umfrage');
+
+      expect(text).toContain('Pizza Margherita');
+      expect(text).toContain('Gemüsecurry mit Reis');
+      expect(text).toContain('Linsensuppe');
+
+      expect(text).toContain('Ja: 4 (80%)');
+      expect(text).toContain('Nein: 1 (20%)');
+      expect(text).toContain('Gesamtwertung: 8');
+      expect(text).toContain('Ja: 2 (40%)');
+      expect(text).toContain('Nein: 3 (60%)');
+      expect(text).toContain('Gesamtwertung: 4');
+      expect(text).toContain('Ja: 0 (0%)');
+      expect(text).toContain('Nein: 5 (100%)');
+      expect(text).toContain('Gesamtwertung: 0');
+
+      expect(text).toContain('Teilnehmer: 5');
+      expect(text).toContain('Rücklaufquote: 63%');
+      expect(countOccurrences(text, 'Pizza Margherita')).toBe(2);
+    });
+
+    it('survey poll PDF does not leak schedule-only content', () => {
+      const { text } = surveyPdf;
+      expect(text).not.toContain('Test Terminumfrage');
+      expect(text).not.toContain('11.12.2025 09:00 - 11:00');
+      expect(text.toLowerCase()).not.toContain('"vielleicht"-option');
+    });
+
+    it('organization poll PDF shows title, slot limit, every task and sign-up counts', () => {
+      const { text } = organizationPdf;
+      expect(text).toContain('Sommerfest Helferliste');
+      expect(text).toContain('Orga-Liste');
+      expect(text).toContain('Max. 2 Slots/Person');
+
+      expect(text).toContain('Kuchen backen');
+      expect(text).toContain('Getränke ausschenken');
+      expect(text).toContain('Aufbau Bühne');
+
+      expect(text).toContain('Ja: 2 (100%)');
+      expect(text).toContain('Gesamtwertung: 4');
+      expect(text).toContain('Ja: 1 (100%)');
+      expect(text).toContain('Gesamtwertung: 2');
+      expect(text).toContain('Ja: 0 (0%)');
+      expect(text).toContain('Gesamtwertung: 0');
+
+      expect(text).toContain('Teilnehmer: 2');
+      expect(text).toContain('Rücklaufquote: 100%');
+    });
+
+    it('organization poll PDF lists participants when the participant table is requested', () => {
+      const { text } = organizationPdf;
+      expect(text).toContain('Teilnehmerliste');
+      expect(text).toContain('Erika Musterfrau');
+      expect(text).toContain('Jonas Becker');
+      // Each task appears in its result card and as a table column; the most
+      // signed-up task also appears in the best-option summary.
+      expect(countOccurrences(text, 'Kuchen backen')).toBe(3);
+      expect(countOccurrences(text, 'Getränke ausschenken')).toBe(2);
+      expect(countOccurrences(text, 'Aufbau Bühne')).toBe(2);
     });
   });
 
@@ -522,6 +706,52 @@ describe('PDF Service', () => {
       const pdf2 = await pdfService.generatePollResultsPDF(results);
       expect(pdf2).toBeInstanceOf(Buffer);
     });
+  });
+});
+
+describe('PDF text extraction helper (no Chromium required)', () => {
+  // Builds a minimal one-page PDF using a standard font so the extractor can
+  // be verified on hosts without Chromium.
+  function buildMinimalPdf(lines: string[]): Buffer {
+    const escapePdfString = (value: string) => value.replace(/([\\()])/g, '\\$1');
+    const content = lines
+      .map((line, i) => `BT /F1 12 Tf 20 ${120 - i * 20} Td (${escapePdfString(line)}) Tj ET`)
+      .join('\n');
+    const objects = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+      `<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream`,
+    ];
+    let pdf = '%PDF-1.4\n';
+    const offsets: number[] = [];
+    objects.forEach((body, i) => {
+      offsets.push(Buffer.byteLength(pdf, 'latin1'));
+      pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+    });
+    const xrefOffset = Buffer.byteLength(pdf, 'latin1');
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    pdf += offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('');
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+    return Buffer.from(pdf, 'latin1');
+  }
+
+  it('returns the visible text of a PDF', async () => {
+    const extracted = await extractPdfText(buildMinimalPdf(['Sommerfest Helferliste', 'Ja: 2 (67%)']));
+    expect(extracted.pages).toHaveLength(1);
+    expect(extracted.text).toContain('Sommerfest Helferliste');
+    expect(extracted.text).toContain('Ja: 2 (67%)');
+  });
+
+  it('does not report text that is not in the PDF', async () => {
+    const extracted = await extractPdfText(buildMinimalPdf(['Kuchen backen']));
+    expect(extracted.text).toContain('Kuchen backen');
+    expect(extracted.text).not.toContain('Getränke ausschenken');
+  });
+
+  it('rejects data that is not a PDF', async () => {
+    await expect(extractPdfText(Buffer.from('not a pdf'))).rejects.toThrow();
   });
 });
 

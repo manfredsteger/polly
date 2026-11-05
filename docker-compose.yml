@@ -97,6 +97,8 @@ services:
       FORCE_HTTPS: ${FORCE_HTTPS:-false}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DOCKER_ENV: "true"
+      # Enable only when the host kernel and container seccomp profile support Chromium sandboxing.
+      PDF_CHROMIUM_SANDBOX: ${PDF_CHROMIUM_SANDBOX:-false}
       # Initial Admin (created on first start, updated if changed)
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@polly.local}

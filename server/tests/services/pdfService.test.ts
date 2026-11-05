@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { PDFService, generateHTMLTemplate } from '../../services/pdfService';
+import { createPdfBrowserLaunchOptions, PDFService, generateHTMLTemplate } from '../../services/pdfService';
 import { PollResults } from '@shared/schema';
 import { execSync } from 'child_process';
 import { existsSync } from 'fs';
@@ -500,6 +500,32 @@ describe('PDF Service', () => {
 });
 
 describe('PDF Service - Docker Environment', () => {
+  it('disables Chromium sandbox flags when the opt-in is unset', () => {
+    const original = process.env.PDF_CHROMIUM_SANDBOX;
+    delete process.env.PDF_CHROMIUM_SANDBOX;
+    try {
+      const options = createPdfBrowserLaunchOptions();
+      expect(options.args).toContain('--no-sandbox');
+      expect(options.args).toContain('--disable-setuid-sandbox');
+    } finally {
+      if (original === undefined) delete process.env.PDF_CHROMIUM_SANDBOX;
+      else process.env.PDF_CHROMIUM_SANDBOX = original;
+    }
+  });
+
+  it('keeps Chromium sandbox enabled when the opt-in is true', () => {
+    const original = process.env.PDF_CHROMIUM_SANDBOX;
+    process.env.PDF_CHROMIUM_SANDBOX = 'true';
+    try {
+      const options = createPdfBrowserLaunchOptions();
+      expect(options.args).not.toContain('--no-sandbox');
+      expect(options.args).not.toContain('--disable-setuid-sandbox');
+    } finally {
+      if (original === undefined) delete process.env.PDF_CHROMIUM_SANDBOX;
+      else process.env.PDF_CHROMIUM_SANDBOX = original;
+    }
+  });
+
   it('should detect Chromium path in Docker environment', () => {
     const dockerChromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH;
 

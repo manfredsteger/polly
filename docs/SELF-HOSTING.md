@@ -552,6 +552,32 @@ A vanilla service worker (`/sw.js`) registers in production builds only, caches 
 
 If you ship custom icons, replace `client/public/android-chrome-*.png` (and the `-maskable-*.png` variants — these need a safe-zone padding so Android's adaptive-icon mask doesn't crop your logo).
 
+### Enable the Chromium Sandbox
+
+PDF export keeps Chromium's sandbox disabled by default so the standard Docker
+setup continues to work with Docker's default seccomp profile. Operators whose
+Linux host allows unprivileged user namespaces and whose container policy permits
+Chromium's namespace syscalls can opt in:
+
+```yaml
+services:
+  app:
+    environment:
+      PDF_CHROMIUM_SANDBOX: "true"
+    security_opt:
+      # Simple compatibility example. This disables Docker's syscall filtering;
+      # use a narrowly scoped custom seccomp profile for production instead.
+      - seccomp:unconfined
+```
+
+For the repository's `docker-compose.yml`, set `PDF_CHROMIUM_SANDBOX=true` in
+`.env`; Compose passes it to the app. The image-based
+`docker-compose.image.yml` accepts the same variable. Confirm that user
+namespaces are enabled on the Linux host before enabling this option. If
+Chromium cannot start in sandbox mode, PDF export logs an error pointing back
+to this section. Leave the option unset or `false` to retain the default
+configuration.
+
 ### Advanced Settings
 
 | Variable | Description | Default |
@@ -564,6 +590,7 @@ If you ship custom icons, replace `client/public/android-chrome-*.png` (and the 
 | `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
 | `SEED_DEMO_DATA` | Seed demo polls showing all three poll types on first start | `false` |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export (set automatically in Docker image) | auto-detected |
+| `PDF_CHROMIUM_SANDBOX` | Enable Chromium's own sandbox for PDF export; requires host user namespaces and compatible container seccomp settings | `false` |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
 | `ENABLE_TEST_MODE` | Enables E2E test mode (`true`). Only for automated tests — never set in production | – |

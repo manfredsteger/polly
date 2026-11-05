@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import { existsSync, promises as fsPromises } from 'fs';
 import path from 'path';
 import { marked } from 'marked';
+import { logger } from '../lib/logger';
 
 // ── Output encoding helpers ────────────────────────────────────────────────
 // Every user- or admin-controlled value that ends up in the PDF HTML must go
@@ -121,6 +122,21 @@ function findChromiumPath(): string | undefined {
   
   // Return undefined to let Puppeteer use its bundled browser
   return undefined;
+}
+
+export function createPdfBrowserLaunchOptions(
+  sandboxEnabled = process.env.PDF_CHROMIUM_SANDBOX === 'true',
+  chromiumPath = findChromiumPath(),
+): LaunchOptions {
+  const args = [
+    ...(!sandboxEnabled ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--font-render-hinting=none',
+  ];
+  const launchOptions: LaunchOptions = { headless: true, args };
+  if (chromiumPath) launchOptions.executablePath = chromiumPath;
+  return launchOptions;
 }
 
 function formatDate(date: Date | string): string {
@@ -712,32 +728,19 @@ export class PDFService {
 
   private async getBrowser(): Promise<Browser> {
     if (!this.browser || !this.browser.connected) {
-      // Dynamically find Chromium path, falls back to bundled browser if not found
-      const chromiumPath = findChromiumPath();
-      
-      // Chromium's own sandbox stays disabled: in the Docker image Chromium
-      // runs as the non-root `nodejs` user under Docker's default seccomp
-      // profile, which does not allow the namespaces the sandbox needs, so
-      // enabling it would break PDF export on standard installations.
-      // Mitigation: template values are HTML-escaped, page JavaScript is
-      // disabled and network requests are blocked (see renderHtmlToPdf).
-      const launchOptions: LaunchOptions = {
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--font-render-hinting=none',
-        ],
-      };
-      
-      // Only set executablePath if we found a system Chromium
-      if (chromiumPath) {
-        launchOptions.executablePath = chromiumPath;
+      const sandboxEnabled = process.env.PDF_CHROMIUM_SANDBOX === 'true';
+      const launchOptions = createPdfBrowserLaunchOptions(sandboxEnabled);
+      try {
+        this.browser = await puppeteer.launch(launchOptions);
+      } catch (error) {
+        if (!sandboxEnabled) throw error;
+        const message =
+          'Chromium could not start with its sandbox enabled. Check that Linux user namespaces and the container seccomp profile allow Chromium sandboxing. See docs/SELF-HOSTING.md#enable-the-chromium-sandbox.';
+        logger.error('PDF', message, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw new Error(message, { cause: error });
       }
-      
-      this.browser = await puppeteer.launch(launchOptions);
     }
     return this.browser;
   }
@@ -766,6 +769,9 @@ export class PDFService {
     try {
       browser = await this.getBrowser();
     } catch (launchError) {
+      // Sandbox permission failures are deterministic; retrying will only
+      // duplicate the actionable log entry from getBrowser().
+      if (process.env.PDF_CHROMIUM_SANDBOX === 'true') throw launchError;
       // Reset browser on launch failure and retry once
       await this.resetBrowser();
       browser = await this.getBrowser();

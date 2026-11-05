@@ -29,6 +29,7 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@polly.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       MFA_ADMIN_REQUIRED: ${MFA_ADMIN_REQUIRED:-}
+      PDF_CHROMIUM_SANDBOX: ${PDF_CHROMIUM_SANDBOX:-false}
     ports:
       - "${APP_PORT:-3080}:5000"
     volumes:

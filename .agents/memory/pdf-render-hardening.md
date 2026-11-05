@@ -24,3 +24,5 @@ Tests read the rendered PDF's text layer with pdfjs-dist (legacy build) via a te
 - Ligatures split words ("Öffentlich" extracts as "Ö ff entlich") — pick assertion strings without ff/fi/fl.
 - CSS `text-transform: uppercase` labels extract uppercased; vote labels with `text-shadow` extract several times, so count occurrences only for option/title text, not vote labels.
 - For position/order checks use the per-item extractor: each wrapped line or table cell is its own item, so assert on short single-token labels (narrow participant-table columns wrap names). Opacity elements are drawn at the end of their page, out of DOM order.
+## Simulating "no Chromium" locally
+Chromium is reachable both via its nix store bin dir and a `/repl/tools/bin/chromium` wrapper. To check that PDF tests skip cleanly, strip both from PATH (and leave PUPPETEER_EXECUTABLE_PATH empty); removing only the nix dir still finds Chromium.

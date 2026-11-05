@@ -11,3 +11,4 @@ Every dynamic value in a PDF template must be HTML-escaped; URLs must be http(s)
 - Uploaded logos (`/uploads/...`) never loaded under `about:blank` anyway — they must be inlined from disk.
 - Test oracle: the PDF `/Title (...)` metadata reflects `document.title`, so a script setting `document.title` shows whether scripts ran (verified it flips to the script value when JS is enabled). Use a local HTTP server and count hits to prove network blocking.
 - Keep the default Docker setup functional; changes to Chromium sandbox configuration must remain opt-in and document the required host/container permissions.
+- This Replit environment's nested Docker runtime denies Chromium namespace creation even with Debian's setuid sandbox helper. Run the opt-in sandbox PDF smoke test only in a dedicated Linux runner/container that explicitly supports user namespaces; do not treat local nested-Docker failure as a PDF regression.

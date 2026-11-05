@@ -118,6 +118,32 @@ describe('PDF Service', () => {
   }
 
   describe('PDF Generation', () => {
+    const sandboxSmokeEnabled = process.env.PDF_CHROMIUM_SANDBOX_SMOKE === 'true';
+
+    if (!sandboxSmokeEnabled) {
+      console.log(
+        '⏭️  Sandboxed Chromium PDF smoke test skipped (set PDF_CHROMIUM_SANDBOX_SMOKE=true in a supported Linux container)'
+      );
+    }
+
+    it.skipIf(!sandboxSmokeEnabled)(
+      'renders a valid PDF with Chromium sandbox enabled in a supported Linux container',
+      async () => {
+        expect(chromiumAvailable).toBe(true);
+        expect(process.env.PDF_CHROMIUM_SANDBOX).toBe('true');
+
+        const launchOptions = createPdfBrowserLaunchOptions();
+        expect(launchOptions.args).not.toContain('--no-sandbox');
+        expect(launchOptions.args).not.toContain('--disable-setuid-sandbox');
+
+        const pdfBuffer = await pdfService.generatePollResultsPDF(createMockPollResults());
+
+        expect(pdfBuffer.length).toBeGreaterThan(0);
+        expect(pdfBuffer.slice(0, 5).toString('ascii')).toBe('%PDF-');
+      },
+      60000
+    );
+
     it('should generate a valid PDF buffer when Chromium is available', async () => {
       if (!chromiumAvailable) {
         console.log('  ⏭️  Skipping: Chromium not available');

@@ -97,6 +97,57 @@ jobs:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
 
+  pdf-sandbox:
+    name: Sandboxed PDF Export (Linux Container)
+    runs-on: ubuntu-latest
+    # This isolated test container permits Chromium's user-namespace setup.
+    # The relaxed outer profiles do not affect the application's production container.
+    container:
+      image: node:24-bookworm
+      options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: polly_pdf_sandbox_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Chromium
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends chromium chromium-sandbox
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://test:test@postgres:5432/polly_pdf_sandbox_test
+        run: npm run db:push
+
+      - name: Render PDF with Chromium sandbox enabled
+        env:
+          TEST_DATABASE_URL: postgresql://test:test@postgres:5432/polly_pdf_sandbox_test
+          NODE_ENV: test
+          PDF_CHROMIUM_SANDBOX: 'true'
+          PDF_CHROMIUM_SANDBOX_SMOKE: 'true'
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+        run: |
+          chown -R node:node "$GITHUB_WORKSPACE"
+          runuser --preserve-environment --user node -- \
+            env HOME=/home/node ./node_modules/.bin/vitest run server/tests/services/pdfService.test.ts \
+            -t "renders a valid PDF with Chromium sandbox enabled"
+
   build:
     name: Build
     runs-on: ubuntu-latest

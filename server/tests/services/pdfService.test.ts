@@ -3,7 +3,7 @@ import { createPdfBrowserLaunchOptions, PDFService, generateHTMLTemplate } from 
 import { PollResults } from '@shared/schema';
 import { execSync } from 'child_process';
 import { existsSync } from 'fs';
-import { extractPdfText, type ExtractedPdfText } from '../fixtures/pdfText';
+import { extractPdfLines, extractPdfText, type ExtractedPdfText } from '../fixtures/pdfText';
 
 function checkChromiumAvailable(): boolean {
   if (process.env.PUPPETEER_EXECUTABLE_PATH && existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
@@ -215,6 +215,140 @@ describe('PDF Service', () => {
       const pdfBuffer = await pdfService.generatePollResultsPDF(results);
       expect(pdfBuffer).toBeInstanceOf(Buffer);
     });
+
+    it('keeps the final options and participant rows of a poll spanning several pages', async () => {
+      if (!chromiumAvailable) {
+        console.log('  ⏭️  Skipping: Chromium not available');
+        return;
+      }
+
+      const OPTION_COUNT = 12;
+      const PARTICIPANT_COUNT = 90;
+      const pad = (n: number) => String(n).padStart(3, '0');
+      const optionLabel = (n: number) => `Termin ${pad(n)}`;
+      // Short single-token names: with a dozen option columns the name column is
+      // narrow, and a wrapped name would be split across PDF text lines.
+      const participantName = (n: number) => `P${pad(n)}`;
+
+      const base = createMockPollResults();
+      const options = Array.from({ length: OPTION_COUNT }, (_, i) => ({
+        id: i + 1,
+        pollId: 1,
+        text: optionLabel(i + 1),
+        startTime: null,
+        endTime: null,
+        capacity: null,
+      }));
+
+      const cycle = ['yes', 'maybe', 'no'] as const;
+      const votes: PollResults['votes'] = [];
+      for (let p = 1; p <= PARTICIPANT_COUNT; p++) {
+        for (const option of options) {
+          // The last participant has a unique row: ✗ everywhere except the
+          // final option, so the final column of the final row is identifiable.
+          const response = p === PARTICIPANT_COUNT
+            ? (option.id === OPTION_COUNT ? 'yes' : 'no')
+            : cycle[(p + option.id) % cycle.length];
+          votes.push({
+            id: votes.length + 1,
+            optionId: option.id,
+            pollId: 1,
+            response,
+            voterName: participantName(p),
+            userId: null,
+            comment: null,
+            createdAt: new Date(),
+            editToken: null,
+          } as PollResults['votes'][number]);
+        }
+      }
+
+      const stats = options.map(option => {
+        const forOption = votes.filter(v => v.optionId === option.id);
+        const yesCount = forOption.filter(v => v.response === 'yes').length;
+        const maybeCount = forOption.filter(v => v.response === 'maybe').length;
+        const noCount = forOption.filter(v => v.response === 'no').length;
+        return { optionId: option.id, yesCount, maybeCount, noCount, score: yesCount * 2 + maybeCount };
+      });
+
+      const results: PollResults = {
+        ...base,
+        poll: { ...base.poll, type: 'survey', title: 'Lange Umfrage über viele Seiten' },
+        options,
+        votes,
+        stats,
+        participantCount: PARTICIPANT_COUNT,
+        responseRate: 100,
+      };
+
+      const pdfBuffer = await pdfService.generatePollResultsPDF(results, { includeParticipantTable: true });
+      const { pageCount: declaredPageCount, pages } = await extractPdfLines(pdfBuffer);
+
+      // Multiple pages, and every page in the page tree was actually emitted.
+      expect(pages.length).toBe(declaredPageCount);
+      expect(pages.length).toBeGreaterThanOrEqual(4);
+
+      // Flatten to document order, remembering which page each text item came from.
+      const lines = pages.flatMap((items, pageIndex) => items.map(text => ({ text, page: pageIndex })));
+      const indicesOf = (text: string, from: number, to: number) =>
+        lines.slice(from, to).flatMap((line, i) => (line.text === text ? [from + i] : []));
+      const expectStrictlyIncreasing = (positions: number[]) => {
+        positions.slice(1).forEach((pos, i) => expect(pos).toBeGreaterThan(positions[i]));
+      };
+
+      // The results section (option cards) ends where the participant table begins.
+      const tableHeading = indicesOf('Teilnehmerliste', 0, lines.length);
+      expect(tableHeading).toHaveLength(1);
+      const tableStart = tableHeading[0];
+      const footer = indicesOf('Erstellt mit', tableStart, lines.length);
+      expect(footer).toHaveLength(1);
+      const footerStart = footer[0];
+
+      // The option cards sit between the "Ergebnisse" heading and the
+      // best-option summary box, whose winner label is drawn right before the
+      // table heading. (Its semi-transparent "★ Beste Option" heading is a
+      // transparency group that Chromium draws at the end of the page, so it
+      // cannot serve as the boundary.)
+      const resultsHeading = indicesOf('Ergebnisse', 0, tableStart);
+      expect(resultsHeading).toHaveLength(1);
+      const cardsStart = resultsHeading[0];
+      const summaryStart = tableStart - 1;
+      expect(summaryStart).toBeGreaterThan(cardsStart);
+      expect(options.map(option => option.text)).toContain(lines[summaryStart].text);
+
+      // Every option card appears exactly once in the results section, in
+      // document order, and the cards continue past the first page.
+      const optionPositions = options.map(option => {
+        const found = indicesOf(option.text, cardsStart, summaryStart);
+        expect(found, `option card "${option.text}"`).toHaveLength(1);
+        return found[0];
+      });
+      expectStrictlyIncreasing(optionPositions);
+      expect(lines[optionPositions[OPTION_COUNT - 1]].page).toBeGreaterThan(0);
+
+      // Every participant row appears exactly once inside the table, in document
+      // order, and the table continues onto later pages.
+      const participantPositions = Array.from({ length: PARTICIPANT_COUNT }, (_, i) => {
+        const name = participantName(i + 1);
+        const found = indicesOf(name, tableStart, footerStart);
+        expect(found, `participant row "${name}"`).toHaveLength(1);
+        return found[0];
+      });
+      expectStrictlyIncreasing(participantPositions);
+      const firstRowPage = lines[participantPositions[0]].page;
+      const lastRowPage = lines[participantPositions[PARTICIPANT_COUNT - 1]].page;
+      expect(lastRowPage).toBeGreaterThan(firstRowPage);
+
+      // The final participant row carries one cell per option, ending with the
+      // final option's ✓, and is directly followed by the footer.
+      const lastRow = participantPositions[PARTICIPANT_COUNT - 1];
+      const rowCells = lines.slice(lastRow + 1, lastRow + 1 + OPTION_COUNT).map(line => line.text);
+      expect(rowCells).toEqual([...Array(OPTION_COUNT - 1).fill('✗'), '✓']);
+      expect(footerStart).toBe(lastRow + 1 + OPTION_COUNT);
+
+      // The footer is rendered on the last page.
+      expect(lines[footerStart].page).toBe(pages.length - 1);
+    }, 60000);
 
     it('should handle organization type polls', async () => {
       if (!chromiumAvailable) {

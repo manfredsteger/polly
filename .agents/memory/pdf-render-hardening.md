@@ -18,8 +18,9 @@ For Docker, keep the sandbox opt-in and retain Docker's default syscall allowlis
 - Test oracle: the PDF `/Title (...)` metadata reflects `document.title`, so a script setting `document.title` shows whether scripts ran (verified it flips to the script value when JS is enabled). Use a local HTTP server and count hits to prove network blocking.
 - Keep the default Docker setup functional; changes to Chromium sandbox configuration must remain opt-in and document the required host/container permissions.
 - This Replit environment's nested Docker runtime denies Chromium namespace creation even with Debian's setuid sandbox helper. Run the opt-in sandbox PDF smoke test only in a dedicated Linux runner/container that explicitly supports user namespaces; do not treat local nested-Docker failure as a PDF regression.
-
+- Known gap (Nov 2026): the participant table clips columns horizontally once a poll has many options (~16+ fit on A4); vertical pagination of rows is fine.
 ## Asserting PDF text content
 Tests read the rendered PDF's text layer with pdfjs-dist (legacy build) via a test fixture helper. Quirks of Chromium-rendered text:
 - Ligatures split words ("Öffentlich" extracts as "Ö ff entlich") — pick assertion strings without ff/fi/fl.
 - CSS `text-transform: uppercase` labels extract uppercased; vote labels with `text-shadow` extract several times, so count occurrences only for option/title text, not vote labels.
+- For position/order checks use the per-item extractor: each wrapped line or table cell is its own item, so assert on short single-token labels (narrow participant-table columns wrap names). Opacity elements are drawn at the end of their page, out of DOM order.

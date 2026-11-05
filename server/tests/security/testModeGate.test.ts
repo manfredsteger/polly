@@ -120,7 +120,8 @@ describe('Test-mode gate – configuration', () => {
     expect(isValidTestModeHeader('', env)).toBe(false);
     expect(isValidTestModeHeader(STRONG_SECRET.slice(0, -1), env)).toBe(false);
     expect(isValidTestModeHeader(STRONG_SECRET + 'x', env)).toBe(false);
-    expect(isValidTestModeHeader(STRONG_SECRET.slice(0, -1) + 'Z', env)).toBe(false);
+    const changedLastChar = STRONG_SECRET.endsWith('Z') ? 'Y' : 'Z';
+    expect(isValidTestModeHeader(STRONG_SECRET.slice(0, -1) + changedLastChar, env)).toBe(false);
     expect(isValidTestModeHeader([STRONG_SECRET, STRONG_SECRET], env)).toBe(false);
   });
 });

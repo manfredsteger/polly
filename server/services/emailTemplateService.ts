@@ -2780,7 +2780,12 @@ export class EmailTemplateService {
     const emailTheme = await this.getEmailTheme();
     const allVariables: Record<string, string | undefined> = { siteName, ...variables };
 
-    const rawSubject = renderTemplate(template.subject, allVariables);
+    // Sanitize each value before substitution so control characters at the
+    // edges of a value don't leave stray spaces around template punctuation.
+    const subjectVariables = Object.fromEntries(
+      Object.entries(allVariables).map(([key, value]) => [key, value === undefined ? value : sanitizeEmailSubject(value)]),
+    );
+    const rawSubject = renderTemplate(template.subject, subjectVariables);
     const subject = sanitizeEmailSubject(stripLeadingSitePrefix(rawSubject, siteName));
 
     const v3Builder = V3_BODY_BUILDERS[type];

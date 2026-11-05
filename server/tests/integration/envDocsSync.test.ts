@@ -39,6 +39,8 @@ describe('environment variable documentation', () => {
     'KEYCLOAK_URL',
     // Documented in README under different formatting
     'APP_URL',
+    // CI-only switch for the sandboxed Chromium PDF smoke test
+    'PDF_CHROMIUM_SANDBOX_SMOKE',
   ]);
 
   function collectEnvReads(): Set<string> {

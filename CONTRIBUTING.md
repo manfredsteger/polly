@@ -340,46 +340,14 @@ Kurze Zusammenfassung der Änderungen.
 3. Alle Kommentare bearbeitet
 4. Merge nach Freigabe
 
-## GitLab-Mirroring einrichten
+## GitHub und GitLab
 
-Falls Sie den Code zusätzlich zu GitHub auch auf einer eigenen GitLab-Instanz hosten möchten, gibt es zwei empfohlene Ansätze:
+Polly wird auf einer internen GitLab-Instanz entwickelt. GitHub enthält nur den veröffentlichten Produktionsstand.
 
-### Option 1: GitLab Pull-Mirroring (Empfohlen)
-
-GitLab kann automatisch Änderungen von GitHub abrufen. Dies wird komplett in GitLab konfiguriert - kein Code im Repository erforderlich.
-
-**Einrichtung:**
-
-1. Öffnen Sie Ihr GitLab-Projekt → Settings → Repository → Mirroring repositories
-2. Git repository URL: `https://github.com/IHR-USERNAME/polly.git`
-3. Mirror direction: **Pull**
-4. Authentication method: Password (falls privates GitHub-Repo: GitHub PAT mit `read` Scope)
-5. "Mirror repository" klicken
-
-GitLab synchronisiert nun automatisch alle 5 Minuten oder bei manuellem Trigger.
-
-### Option 2: GitLab CI Sync-Job
-
-Die `.gitlab-ci.yml` enthält bereits einen `sync-from-github` Job, der Code von GitHub abruft. Dieser wird bei Pipeline-Trigger automatisch ausgeführt.
-
-**Voraussetzungen:**
-- `GITLAB_TOKEN` als CI/CD Variable mit `write_repository` Scope
-
-**Konfiguration für eigenen Fork:**
-1. GitLab → Settings → CI/CD → Variables
-2. Variable hinzufügen: `GITHUB_REPO_URL` = `https://github.com/IHR-USERNAME/polly.git`
-3. Optional: `GITLAB_TOKEN` für automatisches Pushen
-
-**Funktionsweise:**
-- Der Job klont den neuesten Code von GitHub (aus `GITHUB_REPO_URL`)
-- Pusht diesen zu GitLab (bei gesetztem `GITLAB_TOKEN`)
-- Alle anderen CI-Jobs bauen dann vom aktuellen GitHub-Stand
-
-### Hinweise
-
-- **Kein projektspezifischer Code**: Die Sync-Konfiguration erfolgt außerhalb des Repositories
-- **Eigene Credentials**: Jeder Nutzer richtet das Mirroring mit seinen eigenen Tokens ein
-- **Bidirektionaler Sync**: Wird nicht unterstützt - GitHub ist die Single Source of Truth
+- **Es gibt keine automatische Synchronisierung** zwischen GitHub und GitLab, weder per Mirror noch per CI-Job.
+- Entwicklung, Merge Requests und Reviews laufen in GitLab. Die GitLab-Pipeline testet den jeweiligen GitLab-Branch.
+- `main` wird nur auf GitHub gemergt: Für ein Release wird der freigegebene Branch von Hand nach GitHub gepusht, per Pull Request in `main` gemergt und direkt released. Danach wird `main` von Hand nach GitLab gepusht (siehe [docs/RELEASING.md](docs/RELEASING.md)).
+- Pull Requests von außen auf GitHub sind willkommen. Sie werden von Hand nach GitLab übernommen.
 
 ## Hilfe & Kontakt
 

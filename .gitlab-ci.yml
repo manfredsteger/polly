@@ -1,69 +1,14 @@
 stages:
-  - sync
   - build
   - test
   - security
 
-# One-way mirror: GitHub (source of truth) → GitLab (read-only mirror)
-# Replit pushes to GitHub, GitLab pulls from GitHub. No other direction!
-# Uses GITLAB_TOKEN secret for authenticated push to GitLab only
-sync-from-github:
-  stage: sync
-  image: alpine:latest
-  variables:
-    GIT_STRATEGY: clone
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "trigger" || $CI_PIPELINE_SOURCE == "api"
-  before_script:
-    - apk add --no-cache git
-  script:
-    - set -e
-    - echo "GitHub sync trigger received"
-    - git config --global user.email "ci@gitlab.com"
-    - git config --global user.name "GitLab CI"
-    # Fetch full history from GitHub (no --depth, avoids "shallow update not allowed")
-    # Flow: GitHub (source of truth) → GitLab (read-only mirror)
-    # GitLab NEVER pushes to GitHub!
-    - git remote add github "${GITHUB_REPO_URL}" || true
-    - git fetch github main
-    - echo "Latest GitHub commit:"
-    - git log github/main -1 --oneline
-    - echo "Current GitLab checkout commit:"
-    - git log HEAD -1 --oneline
-    # Mirror GitHub code to GitLab (requires GITLAB_TOKEN with write access)
-    - |
-      if [ -n "$GITLAB_TOKEN" ]; then
-        echo "Mirroring GitHub code to GitLab..."
-        git remote set-url origin "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-        git checkout -B main github/main
-        git push origin main --force
-        echo "Sync completed - GitLab now mirrors GitHub"
-      else
-        echo "WARNING: GITLAB_TOKEN not set - skipping mirror to GitLab"
-        echo "To enable sync, add GITLAB_TOKEN as CI/CD variable with write_repository scope"
-      fi
-
 variables:
   NODE_VERSION: "24"
-  GIT_STRATEGY: none
+  # Jobs test the GitLab checkout of the pushed branch. No automatic sync with GitHub.
+  GIT_STRATEGY: fetch
   CI: "true"
   npm_config_cache: "/tmp/.npm"
-  # Configure this in GitLab CI/CD Settings → Variables for your own fork
-  # Example: https://github.com/your-username/polly.git
-  GITHUB_REPO_URL: "https://github.com/manfredsteger/polly.git"
-
-# Reusable script for cloning from GitHub (avoids git init issues)
-# Preserves node_modules from build artifact if present, clears everything else
-# Uses GITHUB_REPO_URL variable - override in GitLab CI/CD settings for your fork
-.github_clone: &github_clone
-  - '[ -d node_modules ] && mv node_modules /tmp/_nm_preserve || true'
-  - rm -rf /tmp/polly-src 2>/dev/null || true
-  - find . -mindepth 1 -delete 2>/dev/null || rm -rf ./* ./.[!.]* 2>/dev/null || true
-  - git clone --depth=1 "${GITHUB_REPO_URL}" /tmp/polly-src
-  - rm -rf /tmp/polly-src/.git
-  - cp -r /tmp/polly-src/. .
-  - rm -rf /tmp/polly-src
-  - '[ -d /tmp/_nm_preserve ] && mv /tmp/_nm_preserve node_modules || true'
 
 # Reusable script for npm install with retry logic
 # Skips if node_modules already exists (from build artifact)
@@ -144,7 +89,6 @@ build:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
-    - *github_clone
   script:
     - *npm_install
     - npm run build
@@ -167,7 +111,6 @@ typescript-check:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
-    - *github_clone
   script:
     - *npm_install
     - npx tsc --noEmit
@@ -184,7 +127,6 @@ validate-translations:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
-    - *github_clone
   script:
     - node scripts/validate-translations.cjs
   allow_failure: false
@@ -202,7 +144,6 @@ unit-tests:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
-    - *github_clone
   services:
     - postgres:15
   variables:
@@ -238,7 +179,6 @@ integration-tests:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
-    - *github_clone
   services:
     - postgres:15
   variables:
@@ -270,7 +210,6 @@ api-tests:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
-    - *github_clone
   services:
     - postgres:15
   variables:
@@ -302,7 +241,6 @@ auth-tests:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
-    - *github_clone
   services:
     - postgres:15
   variables:
@@ -334,7 +272,6 @@ poll-tests:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client
-    - *github_clone
   services:
     - postgres:15
   variables:
@@ -366,7 +303,6 @@ e2e-tests:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git postgresql-client curl
-    - *github_clone
     - mkdir -p playwright-report test-results
   services:
     - postgres:15
@@ -409,7 +345,6 @@ security-audit:
       - runner_system_failure
   before_script:
     - apt-get update && apt-get install -y git
-    - *github_clone
   script:
     - *npm_install
     - npm audit --audit-level=high || true

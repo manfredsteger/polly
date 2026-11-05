@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Removed the automatic GitHub ↔ GitLab sync (GitLab `sync-from-github` job, GitHub `mirror-gitlab` release job). The GitLab pipeline now tests the pushed GitLab branch instead of cloning GitHub `main`. Development happens in GitLab; releases are pushed to GitHub by hand and merged there (see `docs/RELEASING.md`).
+- GitLab E2E job: Playwright image 1.57.0, Playwright starts the dev server itself, and E2E failures now fail the pipeline.
+
 ### Security
 - **Test mode is now off unless explicitly enabled.** Previously the `X-Test-Mode` header fell back to the public default `polly-e2e-test-mode`, so anyone could bypass API rate limits, suppress emails, flag data as test data and log in to test accounts on any installation, including production. Test mode is now active only when `ENABLE_TEST_MODE=true` **and** `TEST_MODE_SECRET` (at least 32 characters) are both set; otherwise the header is ignored. The header is compared in constant time, the default value was removed from `docker-compose.yml`, CI/E2E runs generate a random secret per run, and the server logs `[SECURITY] Test mode is enabled` at startup when test mode is active with `NODE_ENV=production`.
 - **PDF export no longer renders user input as HTML.** Poll titles, option texts and participant names were inserted into the server-side Chromium template without escaping, so anyone able to create a poll or vote could inject markup or scripts into a PDF export (including public `/export/pdf` downloads) and make the server-side browser load internal or external URLs. All dynamic values in the poll and test-report PDFs are now HTML-escaped, URLs are restricted to http(s) and images to inline `data:` images or an https logo, the render page runs with JavaScript disabled, and every other network request is blocked. Markdown in poll descriptions still renders as before, and a quote-based attribute break-out in description links was closed. Uploaded branding logos are now embedded directly, so they also appear in PDFs.

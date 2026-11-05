@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import ICAL from 'ical.js';
 import { generatePollIcs, generateUserCalendarFeed, generateSingleEventIcs, getDefaultCalendarSettings } from '../../services/icsService';
 import type { Poll, PollOption, Vote, CalendarSettings } from '../../../shared/schema';
 
@@ -11,6 +12,10 @@ export const testMeta = {
 
 function unfoldIcs(ics: string): string {
   return ics.replace(/\r\n[ \t]/g, '');
+}
+
+function parseCalendar(ics: string) {
+  return new ICAL.Component(ICAL.parse(ics));
 }
 
 function createMockPoll(overrides: Partial<Poll> = {}): Poll {
@@ -423,6 +428,46 @@ describe('ICS Service', () => {
   });
 
   describe('RFC 5545 text safety', () => {
+    it('parses poll exports and personal feeds with Unicode, folding, escaping, and embedded line breaks', () => {
+      const repeatedText = 'München 🗓️, équipe; Planung \\\\ '.repeat(8);
+      const pollTitle = `${repeatedText}Besprechung\r\nX-INJECTED:yes`;
+      const optionText = '15.01.2025 10:00 – Räume, Zeiten; Café \\\\ Details';
+      const pollDescription = `Agenda, café; Weg \\\\ zurück\r\nNächster Abschnitt: déjà vu`;
+      const voteComment = `Bitte reservieren, Küche; Büro \\\\ Eingang\r\nX-INJECTED:comment`;
+      const poll = createMockPoll({ title: pollTitle, description: pollDescription });
+      const option = createMockOption(1, optionText);
+      const vote = { ...createMockVote(1), comment: voteComment };
+      const settings = {
+        ...getDefaultCalendarSettings(),
+        prefixEnabled: false,
+        markOwnChoices: false,
+      };
+      const context = { settings, language: 'de' as const };
+      const pollIcs = generatePollIcs(poll, [option], [vote], 'https://test.com', context);
+      const feedIcs = generateUserCalendarFeed(
+        [{ poll, options: [option], votes: [vote] }],
+        `${repeatedText}Teilnehmer\r\nX-INJECTED:name`,
+        'https://test.com',
+        context,
+      );
+
+      for (const ics of [pollIcs, feedIcs]) {
+        const physicalLines = ics.split('\r\n');
+        expect(physicalLines.every(line => Buffer.byteLength(line, 'utf8') <= 75)).toBe(true);
+
+        const calendar = parseCalendar(ics);
+        expect(calendar.name).toBe('vcalendar');
+        expect(calendar.getFirstProperty('x-wr-calname')).not.toBeNull();
+        const events = calendar.getAllSubcomponents('vevent').map(component => new ICAL.Event(component));
+        expect(events).toHaveLength(1);
+        expect(events[0].summary).toBe(`${pollTitle.replace(/\r\n/g, '\n')}: ${optionText}`);
+        expect(events[0].description).toContain(pollDescription.replace(/\r\n/g, '\n'));
+      }
+
+      const parsedFeedEvent = new ICAL.Event(parseCalendar(feedIcs).getFirstSubcomponent('vevent')!);
+      expect(parsedFeedEvent.description).toContain(`Ihr Kommentar: ${voteComment.replace(/\r\n/g, '\n')}`);
+    });
+
     it('escapes CR/LF in titles, descriptions, comments, and feed names', () => {
       const payload = 'Planning\r\nX-INJECTED:yes';
       const poll = createMockPoll({

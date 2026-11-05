@@ -1,0 +1,8 @@
+# Opt-in seccomp profile for Chromium's user-namespace sandbox.
+#
+# Use together with docker-compose.yml or docker-compose.image.yml and set
+# PDF_CHROMIUM_SANDBOX=true in .env.
+services:
+  app:
+    security_opt:
+      - seccomp:./docker/chromium-seccomp.json

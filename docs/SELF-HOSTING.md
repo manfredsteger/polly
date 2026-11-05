@@ -556,27 +556,34 @@ If you ship custom icons, replace `client/public/android-chrome-*.png` (and the 
 
 PDF export keeps Chromium's sandbox disabled by default so the standard Docker
 setup continues to work with Docker's default seccomp profile. Operators whose
-Linux host allows unprivileged user namespaces and whose container policy permits
-Chromium's namespace syscalls can opt in:
+Linux host allows unprivileged user namespaces can opt in while keeping Docker's
+syscall filtering enabled. The repository includes a custom profile based on
+[Docker Engine 27.5.1's default seccomp profile](https://github.com/moby/moby/blob/v27.5.1/profiles/seccomp/default.json).
+It narrowly permits Chromium to create user, PID, and network namespaces with
+`clone`, and a user namespace with `unshare`; other namespace types and syscalls
+remain governed by the default profile.
 
-```yaml
-services:
-  app:
-    environment:
-      PDF_CHROMIUM_SANDBOX: "true"
-    security_opt:
-      # Simple compatibility example. This disables Docker's syscall filtering;
-      # use a narrowly scoped custom seccomp profile for production instead.
-      - seccomp:unconfined
+For a source build, set `PDF_CHROMIUM_SANDBOX=true` in `.env` and start Polly
+with the seccomp override:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.seccomp.yml up -d --build
 ```
 
-For the repository's `docker-compose.yml`, set `PDF_CHROMIUM_SANDBOX=true` in
-`.env`; Compose passes it to the app. The image-based
-`docker-compose.image.yml` accepts the same variable. Confirm that user
-namespaces are enabled on the Linux host before enabling this option. If
-Chromium cannot start in sandbox mode, PDF export logs an error pointing back
-to this section. Leave the option unset or `false` to retain the default
-configuration.
+For the prebuilt image, use the same override:
+
+```sh
+docker compose -f docker-compose.image.yml -f docker-compose.seccomp.yml up -d
+```
+
+On Linux hosts, confirm that unprivileged user namespaces are enabled before
+using the override. The profile is deliberately based on a pinned Docker default
+profile: when upgrading Docker Engine, review and refresh
+`docker/chromium-seccomp.json` against that engine's default profile rather than
+silently losing newer default syscall rules. Do not replace it with
+`seccomp:unconfined`. If Chromium cannot start in sandbox mode, PDF export logs
+an error pointing back to this section. Without the override, leave
+`PDF_CHROMIUM_SANDBOX` unset or `false` to keep the default configuration.
 
 ### Advanced Settings
 

@@ -6,6 +6,12 @@ Every dynamic value in a PDF template must be HTML-escaped; URLs must be http(s)
 
 **Why:** Chromium renders the template on the server; unescaped poll titles/options/names allowed script and SSRF-style resource loads from public PDF exports (reported vulnerability, fixed Nov 2026).
 
+For Docker, keep the sandbox opt-in and retain Docker's default syscall allowlist. A custom seccomp profile must preserve ordinary `clone` calls and narrowly permit Chromium's user, PID, and network namespace creation plus its user-namespace probe; allowlisting only `CLONE_NEWUSER` is not enough for PDF rendering.
+
+**Why:** Chromium launches its sandbox helper in user/PID/network namespaces and probes user-namespace creation with `unshare`; Docker's default profile blocks those operations unless specifically allowed.
+
+**How to apply:** When Docker's default seccomp profile changes, rebase the custom profile on the new upstream default and re-run a real headless PDF export with the sandbox enabled. Never replace Docker's syscall filtering with `seccomp:unconfined` as the production fix.
+
 **How to apply:**
 - New template fields: escape them; new external resources must be inlined or explicitly allow-listed, never just referenced.
 - Uploaded logos (`/uploads/...`) never loaded under `about:blank` anyway — they must be inlined from disk.

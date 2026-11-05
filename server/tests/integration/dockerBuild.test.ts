@@ -28,6 +28,67 @@ describe.skipIf(isRunningInPollyDocker)('Docker Build Configuration Tests', () =
       const entrypointPath = path.join(PROJECT_ROOT, 'docker-entrypoint.sh');
       expect(existsSync(entrypointPath)).toBe(true);
     });
+
+    it('should include the opt-in Chromium seccomp profile and Compose override', () => {
+      expect(existsSync(path.join(PROJECT_ROOT, 'docker/chromium-seccomp.json'))).toBe(true);
+      expect(existsSync(path.join(PROJECT_ROOT, 'docker-compose.seccomp.yml'))).toBe(true);
+    });
+  });
+
+  describe('Chromium seccomp profile', () => {
+    it('should retain Docker syscall filtering and narrowly allow Chromium namespaces', () => {
+      const profile = JSON.parse(
+        readFileSync(path.join(PROJECT_ROOT, 'docker/chromium-seccomp.json'), 'utf-8')
+      );
+      const cloneRules = profile.syscalls.filter((rule: any) => rule.names.includes('clone'));
+      const namespaceCloneRules = cloneRules.filter((rule: any) => rule.args?.[0]?.valueTwo !== undefined);
+      const allowedNamespaceFlags = new Set([
+        0x10000000, // CLONE_NEWUSER
+        0x20000000, // CLONE_NEWPID inside a user namespace
+        0x30000000, // CLONE_NEWUSER | CLONE_NEWPID
+        0x50000000, // CLONE_NEWUSER | CLONE_NEWNET
+        0x70000000, // CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNET
+      ]);
+
+      expect(profile.defaultAction).toBe('SCMP_ACT_ERRNO');
+      expect(cloneRules).toHaveLength(13); // Docker's three rules plus five namespace sets for two architectures.
+      expect(namespaceCloneRules).toHaveLength(10);
+      for (const rule of namespaceCloneRules) {
+        expect(rule.args[0]).toMatchObject({
+          value: 0x7e020000, // All Linux namespace flags: no other namespace may be combined.
+          op: 'SCMP_CMP_MASKED_EQ',
+        });
+        expect(allowedNamespaceFlags.has(rule.args[0].valueTwo)).toBe(true);
+      }
+      expect(
+        cloneRules.filter((rule: any) => rule.args?.[0]?.value === 0x7e020000 && rule.args[0].valueTwo === undefined)
+      ).toHaveLength(2); // Preserve Docker's normal clone/thread behavior.
+
+      const unshareRules = profile.syscalls.filter(
+        (rule: any) => rule.names.includes('unshare') && rule.args
+      );
+      expect(unshareRules).toHaveLength(1);
+      expect(unshareRules[0].args[0]).toMatchObject({
+        value: 0x7e020000,
+        valueTwo: 0x10000000, // Only CLONE_NEWUSER.
+        op: 'SCMP_CMP_MASKED_EQ',
+      });
+
+      const clone3Rule = profile.syscalls.find(
+        (rule: any) => rule.names.length === 1 && rule.names.includes('clone3')
+      );
+      expect(clone3Rule).toMatchObject({ action: 'SCMP_ACT_ERRNO', errnoRet: 38 });
+    });
+
+    it('should opt in through the profile without disabling seccomp', () => {
+      const compose = readFileSync(path.join(PROJECT_ROOT, 'docker-compose.seccomp.yml'), 'utf-8');
+      const documentation = readFileSync(path.join(PROJECT_ROOT, 'docs/SELF-HOSTING.md'), 'utf-8');
+
+      expect(compose).toContain('seccomp:./docker/chromium-seccomp.json');
+      expect(compose).not.toContain('unconfined');
+      expect(documentation).toContain('PDF_CHROMIUM_SANDBOX=true');
+      expect(documentation).toContain('docker-compose.seccomp.yml');
+    });
   });
 
   describe('Dockerfile Quality', () => {

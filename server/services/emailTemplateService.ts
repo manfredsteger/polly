@@ -119,6 +119,13 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function sanitizeEmailSubject(subject: string): string {
+  return subject
+    .replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
 function stripLeadingSitePrefix(subject: string, siteName: string): string {
   const trimmed = subject.trim();
   if (!trimmed) return trimmed;
@@ -2746,7 +2753,7 @@ export class EmailTemplateService {
   // Uses the existing branding without adding persisted template types.
   async renderVoteWithdrawalEmail(voterName: string, pollTitle: string, link: string, organizer = false, lang: EmailLanguage = DEFAULT_EMAIL_LANGUAGE) {
     const W = emailStrings(lang).withdrawal;
-    const subject = organizer ? W.subjectOrganizer(pollTitle) : W.subjectVoter(pollTitle);
+    const subject = sanitizeEmailSubject(organizer ? W.subjectOrganizer(pollTitle) : W.subjectVoter(pollTitle));
     const heading = organizer ? W.headingOrganizer : W.headingVoter;
     const message = organizer ? W.messageOrganizer(voterName, pollTitle) : W.messageVoter(voterName, pollTitle);
     const label = organizer ? W.labelOrganizer : W.labelVoter;
@@ -2774,7 +2781,7 @@ export class EmailTemplateService {
     const allVariables: Record<string, string | undefined> = { siteName, ...variables };
 
     const rawSubject = renderTemplate(template.subject, allVariables);
-    const subject = stripLeadingSitePrefix(rawSubject, siteName);
+    const subject = sanitizeEmailSubject(stripLeadingSitePrefix(rawSubject, siteName));
 
     const v3Builder = V3_BODY_BUILDERS[type];
     const shouldUsePollCreatedV3 = type === 'poll_created' && !template.isDefault && !!template.textContent;
@@ -2858,8 +2865,9 @@ export class EmailTemplateService {
   ): Promise<{ subject: string; html: string; text: string }> {
     const customization = await storage.getCustomizationSettings();
     const emailTheme = await this.getEmailTheme();
+    const safeSubject = sanitizeEmailSubject(subject);
 
-    const v3Data = await this.buildV3TemplateData(customization, emailTheme, subject, lang);
+    const v3Data = await this.buildV3TemplateData(customization, emailTheme, safeSubject, lang);
     const wrappedBody = buildV3GenericBody(bodyHtml, v3Data.fontFamily);
     const html = v3Shell(v3Data, wrappedBody);
 
@@ -2870,7 +2878,7 @@ export class EmailTemplateService {
       text = text.trimEnd() + `\n\n---\n${v3Data.footerText}`;
     }
 
-    return { subject, html, text };
+    return { subject: safeSubject, html, text };
   }
 
   // Get available variables for a template type

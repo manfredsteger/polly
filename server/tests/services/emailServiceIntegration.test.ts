@@ -112,6 +112,18 @@ describe('EmailService Integration — Template System', () => {
       assertRequiredHeaders(lastMailOptions, 'normal');
     });
 
+    it('sendMail removes control characters from direct subjects before transport', async () => {
+      await emailService.sendMail({
+        to: 'test@example.com',
+        subject: 'Poll\r\nBcc: injected@example.test\u0000\u0085\u2028Next',
+        html: '<p>Test</p>',
+        text: 'Test',
+      });
+
+      expect(lastMailOptions.subject).toBe('Poll Bcc: injected@example.test Next');
+      expect(lastMailOptions.subject).not.toMatch(/[\p{Cc}\p{Zl}\p{Zp}]/u);
+    });
+
     it('sendMail sets high priority headers when priority is high', async () => {
       await emailService.sendMail({
         to: 'test@example.com',

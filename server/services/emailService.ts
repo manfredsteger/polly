@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { qrService } from './qrService';
-import { emailTemplateService } from './emailTemplateService';
+import { emailTemplateService, sanitizeEmailSubject } from './emailTemplateService';
 import type { EmailTemplateType, EmailLanguage } from '@shared/schema';
 import { emailStrings, emailLocale, pollTypeLabel, formatConfirmedSlot } from './emailI18n';
 import { resolveEmailLanguage, groupRecipientsByLanguage } from './emailLanguage';
@@ -226,7 +226,7 @@ export class EmailService {
     const mailOptions: nodemailer.SendMailOptions = {
       from: this.getFromAddress(options.fromPrefix),
       to: options.to,
-      subject: options.subject,
+      subject: sanitizeEmailSubject(options.subject),
       html: options.html,
       text: options.text,
       headers,

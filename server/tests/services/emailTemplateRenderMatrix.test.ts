@@ -323,6 +323,53 @@ describe('Email templates — render matrix for every type and language', () => 
     }
   });
 
+  it('keeps names and poll titles on one safe subject line', async () => {
+    const unsafeValue = 'Nora\r\nBcc: injected@example.test\u0000\u0085\u2028Poll';
+    const rendered = await service.renderEmail('invitation', {
+      ...fullVariables('invitation'),
+      inviterName: unsafeValue,
+      pollTitle: unsafeValue,
+    }, 'en');
+
+    expect(rendered.subject).toBe(
+      'Nora Bcc: injected@example.test Poll invites you: Nora Bcc: injected@example.test Poll',
+    );
+    expect(rendered.subject).not.toMatch(/[\p{Cc}\p{Zl}\p{Zp}]/u);
+    expect(rendered.subject).not.toMatch(/\r|\n/);
+  });
+
+  it('sanitizes voter names used by customized subjects', async () => {
+    storeTemplate(memory, {
+      type: 'new_vote_notification',
+      language: 'en',
+      subject: '{{voterName}}: {{pollTitle}}',
+      textContent: 'A new response was received.',
+    });
+    const rendered = await service.renderEmail('new_vote_notification', {
+      ...fullVariables('new_vote_notification'),
+      voterName: 'Nora\r\nBcc: injected@example.test\u0000',
+      pollTitle: 'Roadmap\u0085\u2028Poll',
+    }, 'en');
+
+    expect(rendered.subject).toBe('Nora Bcc: injected@example.test: Roadmap Poll');
+    expect(rendered.subject).not.toMatch(/[\p{Cc}\p{Zl}\p{Zp}]/u);
+  });
+
+  it('sanitizes the special vote-withdrawal subject', async () => {
+    const rendered = await service.renderVoteWithdrawalEmail(
+      'Nora\r\nBcc: injected@example.test',
+      'Roadmap\r\nBcc: injected@example.test\u0000',
+      'https://polly.example.com/poll/pub-777',
+      false,
+      'en',
+    );
+
+    expect(rendered.subject).toBe(
+      'Your vote has been withdrawn: Roadmap Bcc: injected@example.test',
+    );
+    expect(rendered.subject).not.toMatch(/[\p{Cc}\p{Zl}\p{Zp}]/u);
+  });
+
   it('strips an empty "[]" site prefix when the site has no name, and drops the header', async () => {
     memory.setCustomization({ branding: { siteName: '', siteNameAccent: '', logoUrl: null } });
     const rendered = await service.renderEmail('password_reset', { userName: 'Ola', resetLink: VALUES.resetLink }, 'en');

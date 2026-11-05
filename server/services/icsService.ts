@@ -23,9 +23,25 @@ export interface CalendarExportContext {
 function escapeIcsText(text: string): string {
   return text
     .replace(/\\/g, '\\\\')
+    .replace(/\r\n|\r|\n/g, '\\n')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n');
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+}
+
+function safeIcsUrl(value: string): string | null {
+  if (/[\u0000-\u001F\u007F]/.test(value)) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeIcsOrganizer(value: string): string | null {
+  const match = /^MAILTO:([^\s<>@]+@[^\s<>@]+)$/i.exec(value);
+  return match ? `MAILTO:${match[1]}` : null;
 }
 
 function foldLine(line: string): string {
@@ -181,11 +197,13 @@ function generateEvent(event: CalendarEvent): string {
   }
 
   if (event.url) {
-    lines.push(foldLine(`URL:${event.url}`));
+    const url = safeIcsUrl(event.url);
+    if (url) lines.push(foldLine(`URL:${url}`));
   }
 
   if (event.organizer) {
-    lines.push(foldLine(`ORGANIZER:${event.organizer}`));
+    const organizer = safeIcsOrganizer(event.organizer);
+    if (organizer) lines.push(foldLine(`ORGANIZER:${organizer}`));
   }
 
   if (event.sequence !== undefined) {

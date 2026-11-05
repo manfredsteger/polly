@@ -421,4 +421,45 @@ describe('ICS Service', () => {
       expect(ics).not.toContain('STATUS:CONFIRMED');
     });
   });
+
+  describe('RFC 5545 text safety', () => {
+    it('escapes CR/LF in titles, descriptions, comments, and feed names', () => {
+      const payload = 'Planning\r\nX-INJECTED:yes';
+      const poll = createMockPoll({
+        title: payload,
+        description: `Description ${payload}`,
+      });
+      const option = createMockOption(1, `15.01.2025 10:00 ${payload}`);
+      const vote = { ...createMockVote(1), comment: `Comment ${payload}` };
+
+      const pollIcs = generatePollIcs(poll, [option], [vote], 'https://test.com');
+      const feedIcs = generateUserCalendarFeed(
+        [{ poll, options: [option], votes: [vote] }],
+        `User ${payload}`,
+        'https://test.com',
+      );
+
+      for (const ics of [pollIcs, feedIcs]) {
+        expect(ics).not.toMatch(/(?:^|\r\n)X-INJECTED:yes(?:\r\n|$)/);
+        expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+        expect(unfoldIcs(ics)).toContain('Planning\\nX-INJECTED:yes');
+      }
+      expect(unfoldIcs(feedIcs)).toContain('Comment Planning\\nX-INJECTED:yes');
+      expect(unfoldIcs(feedIcs)).toContain('User Planning\\nX-INJECTED:yes');
+    });
+
+    it('omits URL and organizer values containing line breaks or unsupported schemes', () => {
+      const poll = createMockPoll({
+        userId: 'organizer',
+        creatorEmail: 'organizer@example.com\r\nX-INJECTED:yes',
+        videoConferenceUrl: 'javascript:alert(1)\r\nX-INJECTED:yes',
+      });
+      const option = createMockOption(1, '15.01.2025 10:00');
+      const ics = generatePollIcs(poll, [option], [], 'https://test.com\r\nX-INJECTED:yes');
+
+      expect(ics).not.toMatch(/(?:^|\r\n)X-INJECTED:yes(?:\r\n|$)/);
+      expect(ics).not.toContain('URL:javascript:');
+      expect(ics).not.toContain('ORGANIZER:MAILTO:');
+    });
+  });
 });

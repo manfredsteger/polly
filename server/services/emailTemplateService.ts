@@ -2106,7 +2106,7 @@ function buildV3PollFinalizedBody(vars: Record<string, string | undefined>, ctx:
   if (finalOptionText) {
     extraBlock = `<tr><td style="padding: 0 40px 16px;">
       <p style="font-family: system-ui, -apple-system, Arial, sans-serif; font-size: 14px; color: #4b5563; margin: 0;">
-        <strong>${F.finalResult}</strong> ${finalOptionText}
+        <strong>${F.finalResult}</strong> ${htmlEscape(finalOptionText)}
       </p>
     </td></tr>`;
   } else if (slotSummaryHtml) {

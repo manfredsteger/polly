@@ -2346,6 +2346,8 @@ describe('EmailTemplateService', () => {
     it('should sanitize XSS payloads in closingMessageHtml', async () => {
       const { EmailService } = await import('../../services/emailService');
       const svc = new EmailService();
+      const pollTitle = '<script>alert("title")</script>';
+      const finalOptionText = '<img src=x onerror=alert(1)>';
 
       let capturedHtml = '';
       let capturedText = '';
@@ -2356,17 +2358,20 @@ describe('EmailTemplateService', () => {
 
       await svc.sendPollEndedEmails(
         ['participant@example.com'],
-        'XSS-Umfrage',
+        pollTitle,
         'https://example.com/poll/xss',
         true,
         'survey',
+        finalOptionText,
         undefined,
-        undefined,
-        '**Hallo!** <script>alert("xss")</script> [link](javascript:alert(1))'
+        '**Hallo!** <script>alert("xss")</script> <img src=x onerror=alert(1)> [link](javascript:alert(1))'
       );
 
       expect(capturedHtml).not.toContain('<script>');
+      expect(capturedHtml).not.toContain('<img');
       expect(capturedHtml).not.toContain('javascript:');
+      expect(capturedHtml).toContain('&lt;script&gt;');
+      expect(capturedHtml).toContain('&lt;img');
       expect(capturedHtml).toContain('Nachricht des Organisators');
       expect(capturedHtml).toContain('<strong>Hallo!</strong>');
       expect(capturedText).toContain('Nachricht des Organisators');
@@ -2395,6 +2400,70 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('<em>pünktlich</em>');
       expect(result.text).toContain('Nachricht des Organisators');
       expect(result.text).toContain('Bitte pünktlich erscheinen.');
+    });
+
+    it('escapes poll titles, names, and final option text in rendered HTML', async () => {
+      const service = new EmailTemplateService();
+      const types = ['invitation', 'vote_confirmation', 'new_vote_notification', 'reminder', 'poll_finalized'] as const;
+      const originals = new Map<string, Awaited<ReturnType<typeof service.getTemplate>>>();
+      for (const type of types) {
+        originals.set(type, await service.getTemplate(type));
+        await service.resetTemplate(type);
+      }
+
+      try {
+        const scriptPayload = '<script>alert("xss")</script>';
+        const imagePayload = '<img src=x onerror=alert(1)>';
+        const rendered = await Promise.all([
+          service.renderEmail('invitation', {
+            inviterName: scriptPayload,
+            pollTitle: imagePayload,
+            message: scriptPayload,
+            publicLink: 'https://example.com/poll/xss',
+          }),
+          service.renderEmail('vote_confirmation', {
+            voterName: imagePayload,
+            pollTitle: scriptPayload,
+            resultsPublic: 'false',
+          }),
+          service.renderEmail('new_vote_notification', {
+            voterName: scriptPayload,
+            pollTitle: imagePayload,
+          }),
+          service.renderEmail('reminder', {
+            senderName: imagePayload,
+            pollTitle: scriptPayload,
+          }),
+          service.renderEmail('poll_finalized', {
+            pollType: 'survey',
+            pollTitle: scriptPayload,
+            finalOptionText: imagePayload,
+          }),
+        ]);
+
+        for (const result of rendered) {
+          expect(result.html).not.toContain('<script>');
+          expect(result.html).not.toContain('<img');
+        }
+        expect(rendered[0].html).toContain('&lt;script&gt;');
+        expect(rendered[1].html).toContain('&lt;img');
+        expect(rendered[4].html).toContain('&lt;img');
+      } finally {
+        for (const type of types) {
+          const original = originals.get(type);
+          if (!original || original.isDefault) {
+            await service.resetTemplate(type);
+          } else {
+            await service.saveTemplate(
+              type,
+              original.jsonContent,
+              original.subject,
+              original.name,
+              original.textContent,
+            );
+          }
+        }
+      }
     });
   });
 });

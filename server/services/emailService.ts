@@ -808,7 +808,7 @@ export class EmailService {
         confirmedTime: '',
         videoConferenceUrl: '',
         videoConferenceHtml: '',
-        finalOptionText: finalOptionText ? escapeHtml(finalOptionText) : '',
+        finalOptionText: finalOptionText || '',
         slotSummaryHtml,
         closingMessageHtml,
         closingMessageText,

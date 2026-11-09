@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 import { storage } from '../../storage';
 import { customizationSettingsSchema } from '@shared/schema';
+import * as npmAuditService from '../../services/npmAuditService';
 
 export const testMeta = {
   category: 'functional' as const,
@@ -52,9 +53,23 @@ describe('Admin API - Comprehensive Functional Tests', () => {
     });
 
     it('should return vulnerabilities report', async () => {
-      const res = await adminAgent.get('/api/v1/admin/vulnerabilities');
-      expect(res.status).toBe(200);
-      expect(typeof res.body).toBe('object');
+      // Exercise the authenticated API without depending on npm registry latency.
+      const report: npmAuditService.AuditResult = {
+        vulnerabilities: [],
+        summary: { critical: 0, high: 0, moderate: 0, low: 0, info: 0, total: 0 },
+        impactSummary: { frontend: 0, backend: 0, development: 0, shared: 0 },
+        lastChecked: new Date('2026-01-01T00:00:00Z'),
+        cacheExpiresAt: new Date('2026-01-01T06:00:00Z'),
+      };
+      const audit = vi.spyOn(npmAuditService, 'runNpmAudit').mockResolvedValue(report);
+      try {
+        const res = await adminAgent.get('/api/v1/admin/vulnerabilities');
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(JSON.parse(JSON.stringify(report)));
+        expect(audit).toHaveBeenCalledWith(false);
+      } finally {
+        audit.mockRestore();
+      }
     });
 
     it('should return system packages', async () => {

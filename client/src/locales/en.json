@@ -902,7 +902,47 @@
         "welcome": "Welcome Email",
         "welcome_desc": "Confirmation with email verification link",
         "poll_finalized": "Poll Finalized",
-        "poll_finalized_desc": "Notification after a poll is completed or finalized"
+        "poll_finalized_desc": "Notification after a poll is completed or finalized",
+        "new_vote_notification": "New Vote (Poll Creator)",
+        "new_vote_notification_desc": "Notification to the poll creator when someone votes"
+      },
+      "variableDescriptions": {
+        "pollTitle": "Poll title",
+        "pollType": "Poll type (schedule poll, survey, sign-up list)",
+        "publicLink": "Public link to the poll",
+        "adminLink": "Admin link to the poll",
+        "qrCodeUrl": "QR code as image URL",
+        "siteName": "Platform name",
+        "inviterName": "Name of the person sending the invitation",
+        "message": "Optional message",
+        "voterName": "Name of the person who voted",
+        "resultsLink": "Link to the results",
+        "editLink": "Link for editing one's own vote",
+        "senderName": "Sender name",
+        "pollLink": "Link to the poll",
+        "expiresAt": "Expiry date (formatted)",
+        "userName": "User name",
+        "resetLink": "Link for resetting the password",
+        "oldEmail": "Previous email address",
+        "newEmail": "New email address",
+        "confirmLink": "Confirmation link",
+        "testRunId": "Test run ID",
+        "status": "Status (passed/failed)",
+        "totalTests": "Total number of tests",
+        "passed": "Number of passed tests",
+        "failed": "Number of failed tests",
+        "skipped": "Number of skipped tests",
+        "duration": "Test duration",
+        "startedAt": "Start time",
+        "failedSummaryHtml": "Short HTML summary of the failed tests",
+        "failedSummaryText": "Short text summary of the failed tests",
+        "userEmail": "User email address",
+        "verificationLink": "Email verification link",
+        "confirmedDate": "Confirmed date (formatted)",
+        "confirmedTime": "Time of the appointment (if any)",
+        "videoConferenceUrl": "Video conference link as URL (if any)",
+        "videoConferenceHtml": "Video conference link as clickable HTML link (if any)",
+        "closingMessageHtml": "Organizer's personal message as sanitized HTML (optional)"
       },
       "toasts": {
         "previewError": "Preview could not be loaded",
@@ -928,6 +968,16 @@
         "themeResetError": "Theme could not be reset",
         "invalidJson": "Invalid JSON",
         "invalidJsonDescription": "Please check the JSON syntax"
+      },
+      "languageCardTitle": "Texts per language",
+      "languageCardDescription": "Every recipient receives emails in their own language: registered users in the language of their account, guests in the language they used Polly in. Here you maintain the texts for each language.",
+      "fallbackHint": "If a recipient's language is unknown, the site's default language under Customize → Language settings applies (currently: {{language}}).",
+      "editingLanguage": "Edit texts for",
+      "editingLanguageHint": "Each language has its own templates and footer. Changes only affect the selected language.",
+      "languageStatus": "{{language}}: {{status}}",
+      "languages": {
+        "de": "German",
+        "en": "English"
       }
     },
     "customization": {
@@ -1570,7 +1620,7 @@
       "languageSection": "Language Settings",
       "languageDescription": "System-wide default language for all visitors without a personal language preference",
       "defaultLanguage": "Default Language",
-      "defaultLanguageHint": "This language is used for anonymous visitors and new users who have not set a personal language preference.",
+      "defaultLanguageHint": "This language is used for anonymous visitors and new users who have not set a personal language preference. Emails to recipients whose language is unknown are also sent in this language.",
       "saveLanguage": "Save Language"
     },
     "tests": {

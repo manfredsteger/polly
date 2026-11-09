@@ -97,6 +97,8 @@ services:
       FORCE_HTTPS: ${FORCE_HTTPS:-false}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DOCKER_ENV: "true"
+      # Enable only when the host kernel and container seccomp profile support Chromium sandboxing.
+      PDF_CHROMIUM_SANDBOX: ${PDF_CHROMIUM_SANDBOX:-false}
       # Initial Admin (created on first start, updated if changed)
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@polly.local}
@@ -114,8 +116,9 @@ services:
       # AI_API_KEY: ${AI_API_KEY:-}
       # AI_API_KEY_FALLBACK: ${AI_API_KEY_FALLBACK:-}
       # AI_MODEL: ${AI_MODEL:-llama-3.3-70b-instruct}
-      # E2E Testing
-      TEST_MODE_SECRET: ${TEST_MODE_SECRET:-polly-e2e-test-mode}
+      # E2E test mode is intentionally NOT configured here: ENABLE_TEST_MODE and
+      # TEST_MODE_SECRET are only for automated test runs and must never be set
+      # in production.
       # WCAG Override
       POLLY_WCAG_OVERRIDE: ${POLLY_WCAG_OVERRIDE:-false}
       # Admin MFA policy emergency override (leave unset to use the admin setting)

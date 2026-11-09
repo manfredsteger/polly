@@ -12,6 +12,7 @@ import {
   type EmailChangeToken, type InsertEmailChangeToken,
   type EmailTemplate, type InsertEmailTemplate,
   type EmailTemplateType,
+  type EmailLanguage, DEFAULT_EMAIL_LANGUAGE,
   type ClamavScanLog, type InsertClamavScanLog,
   type PollResults, type VoteStats,
   type CustomizationSettings, customizationSettingsSchema,
@@ -21,7 +22,7 @@ import {
   type CalendarSettings, calendarSettingsSchema
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count, isNull, asc } from "drizzle-orm";
+import { eq, desc, and, or, ne, sql, count, isNull, asc, inArray } from "drizzle-orm";
 
 // Export db for direct database access in routes
 export { db };
@@ -47,6 +48,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  /** Most recent UI language a guest used when creating a poll or voting with this address. */
+  getLatestGuestLanguage(email: string): Promise<string | undefined>;
   getUserByKeycloakId(keycloakId: string): Promise<User | undefined>;
   getUserByCalendarToken(calendarToken: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -85,10 +88,10 @@ export interface IStorage {
     voterEmail?: string | null;
     voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
     maxSelections: number;
-    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData' | 'voterLanguage'>;
   }): Promise<{ votes: Vote[]; editToken: string }>;
   voteBulk(pollId: string, voterName: string, voterEmail: string, userId: number | null, voterEditToken: string | null, voteItems: Array<{ optionId: number; response: string }>): Promise<{ votes: Vote[]; alreadyVoted: boolean }>;
-  updateVote(id: number, response: string, updates?: Pick<InsertVote, 'comment' | 'freeTextAnswer'>): Promise<Vote>;
+  updateVote(id: number, response: string, updates?: Pick<InsertVote, 'comment' | 'freeTextAnswer' | 'voterLanguage'>): Promise<Vote>;
   deleteVote(id: number): Promise<void>;
   getUserVoteForOption(userId: number | undefined, optionId: number, voterName?: string): Promise<Vote | undefined>;
   getVotesByEmail(pollId: string, voterEmail: string): Promise<Vote[]>;
@@ -190,10 +193,10 @@ export interface IStorage {
   confirmDeletion(userId: number): Promise<void>;
 
   // Email templates
-  getEmailTemplates(): Promise<EmailTemplate[]>;
-  getEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
+  getEmailTemplates(language?: EmailLanguage): Promise<EmailTemplate[]>;
+  getEmailTemplate(type: EmailTemplateType, language?: EmailLanguage): Promise<EmailTemplate | undefined>;
   upsertEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
-  resetEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined>;
+  resetEmailTemplate(type: EmailTemplateType, language?: EmailLanguage): Promise<EmailTemplate | undefined>;
 
   // ClamAV scan logs
   createClamavScanLog(log: InsertClamavScanLog): Promise<ClamavScanLog>;
@@ -234,8 +237,30 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getLatestGuestLanguage(email: string): Promise<string | undefined> {
+    const result = await db.execute(sql`
+      SELECT lang FROM (
+        SELECT ${votes.voterLanguage} AS lang, ${votes.updatedAt} AS at FROM ${votes}
+          WHERE LOWER(${votes.voterEmail}) = LOWER(${email}) AND ${votes.voterLanguage} IS NOT NULL
+        UNION ALL
+        SELECT ${polls.creatorLanguage} AS lang, ${polls.createdAt} AS at FROM ${polls}
+          WHERE LOWER(${polls.creatorEmail}) = LOWER(${email}) AND ${polls.creatorLanguage} IS NOT NULL
+      ) AS known
+      ORDER BY at DESC
+      LIMIT 1
+    `);
+    const row = result.rows[0] as { lang?: string } | undefined;
+    return row?.lang ?? undefined;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    // Accounts created without an explicit language (SSO without a UI hint,
+    // admin-created, API) start with the site default language instead of the
+    // column's historic German default.
+    const values = insertUser.languagePreference
+      ? insertUser
+      : { ...insertUser, languagePreference: (await this.getCustomizationSettings()).language.defaultLanguage };
+    const [user] = await db.insert(users).values(values).returning();
     return user;
   }
 
@@ -439,8 +464,8 @@ export class DatabaseStorage implements IStorage {
       .from(polls)
       .where(
         and(
-          sql`${polls.id} = ANY(${pollIds})`,
-          sql`${polls.userId} != ${userId} OR ${polls.userId} IS NULL`
+          inArray(polls.id, pollIds),
+          or(ne(polls.userId, userId), isNull(polls.userId))
         )
       )
       .orderBy(desc(polls.createdAt));
@@ -734,7 +759,7 @@ export class DatabaseStorage implements IStorage {
     voterEmail?: string | null;
     voteItems: Array<{ optionId: number; response: string; comment?: string | null; freeTextAnswer?: string | null }>;
     maxSelections: number;
-    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData'>;
+    newVoteTemplate: Pick<InsertVote, 'voterName' | 'voterEmail' | 'userId' | 'isTestData' | 'voterLanguage'>;
   }): Promise<{ votes: Vote[]; editToken: string }> {
     const { pollId, lockIdentifier, voteItems, maxSelections, newVoteTemplate } = params;
 
@@ -779,7 +804,12 @@ export class DatabaseStorage implements IStorage {
         const existingVote = existingVotes.find((v) => v.optionId === item.optionId);
         if (existingVote) {
           const [updated] = await tx.update(votes)
-            .set({ response: item.response, comment: item.comment ?? existingVote.comment, updatedAt: new Date() })
+            .set({
+              response: item.response,
+              comment: item.comment ?? existingVote.comment,
+              voterLanguage: newVoteTemplate.voterLanguage ?? existingVote.voterLanguage,
+              updatedAt: new Date(),
+            })
             .where(eq(votes.id, existingVote.id))
             .returning();
           result.push(updated);
@@ -794,6 +824,7 @@ export class DatabaseStorage implements IStorage {
             freeTextAnswer: item.freeTextAnswer ?? null,
             userId: newVoteTemplate.userId ?? null,
             isTestData: newVoteTemplate.isTestData ?? false,
+            voterLanguage: newVoteTemplate.voterLanguage ?? null,
             voterEditToken: editToken,
           }).returning();
           result.push(created);
@@ -811,7 +842,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateVote(id: number, response: string, updates: Pick<InsertVote, 'comment' | 'freeTextAnswer'> = {}): Promise<Vote> {
+  async updateVote(id: number, response: string, updates: Pick<InsertVote, 'comment' | 'freeTextAnswer' | 'voterLanguage'> = {}): Promise<Vote> {
     const [vote] = await db.update(votes).set({ response, ...updates, updatedAt: new Date() }).where(eq(votes.id, id)).returning();
     return vote;
   }
@@ -1009,9 +1040,11 @@ export class DatabaseStorage implements IStorage {
 
   async getSecuritySettings(): Promise<SecuritySettings> {
     const loginRateLimitSetting = await this.getSetting('security_login_rate_limit');
+    const apiRateLimitsSetting = await this.getSetting('security_api_rate_limits');
 
     const settings = {
       loginRateLimit: loginRateLimitSetting?.value || {},
+      apiRateLimits: apiRateLimitsSetting?.value || {},
     };
 
     return securitySettingsSchema.parse(settings);
@@ -1020,6 +1053,9 @@ export class DatabaseStorage implements IStorage {
   async setSecuritySettings(settings: Partial<SecuritySettings>): Promise<SecuritySettings> {
     if (settings.loginRateLimit) {
       await this.setSetting({ key: 'security_login_rate_limit', value: settings.loginRateLimit });
+    }
+    if (settings.apiRateLimits) {
+      await this.setSetting({ key: 'security_api_rate_limits', value: settings.apiRateLimits });
     }
 
     return await this.getSecuritySettings();
@@ -1750,35 +1786,41 @@ export class DatabaseStorage implements IStorage {
     await this.deleteUser(userId);
   }
 
-  // Email templates
-  async getEmailTemplates(): Promise<EmailTemplate[]> {
-    return await db.select().from(emailTemplates).orderBy(emailTemplates.type);
+  // Email templates are stored per (type, language). Callers that omit the
+  // language get the German row, which is where all pre-i18n customizations live.
+  async getEmailTemplates(language?: EmailLanguage): Promise<EmailTemplate[]> {
+    if (language) {
+      return await db.select().from(emailTemplates)
+        .where(eq(emailTemplates.language, language))
+        .orderBy(emailTemplates.type);
+    }
+    return await db.select().from(emailTemplates).orderBy(emailTemplates.type, emailTemplates.language);
   }
 
-  async getEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined> {
-    const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.type, type));
+  async getEmailTemplate(type: EmailTemplateType, language: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<EmailTemplate | undefined> {
+    const [template] = await db.select().from(emailTemplates)
+      .where(and(eq(emailTemplates.type, type), eq(emailTemplates.language, language)));
     return template || undefined;
   }
 
   async upsertEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
-    const existing = await this.getEmailTemplate(template.type as EmailTemplateType);
-    
-    if (existing) {
-      const [updated] = await db
-        .update(emailTemplates)
-        .set({ ...template, updatedAt: new Date() })
-        .where(eq(emailTemplates.type, template.type))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(emailTemplates).values(template).returning();
-      return created;
-    }
+    const language = (template.language as EmailLanguage | undefined) ?? DEFAULT_EMAIL_LANGUAGE;
+    const values = { ...template, language };
+    const [saved] = await db
+      .insert(emailTemplates)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [emailTemplates.type, emailTemplates.language],
+        set: { ...values, updatedAt: new Date() },
+      })
+      .returning();
+    return saved;
   }
 
-  async resetEmailTemplate(type: EmailTemplateType): Promise<EmailTemplate | undefined> {
+  async resetEmailTemplate(type: EmailTemplateType, language: EmailLanguage = DEFAULT_EMAIL_LANGUAGE): Promise<EmailTemplate | undefined> {
     // This will be handled by the email template service which knows the defaults
-    await db.delete(emailTemplates).where(eq(emailTemplates.type, type));
+    await db.delete(emailTemplates)
+      .where(and(eq(emailTemplates.type, type), eq(emailTemplates.language, language)));
     return undefined;
   }
 

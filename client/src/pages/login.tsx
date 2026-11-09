@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LogIn, UserPlus, KeyRound, AlertCircle, Loader2, Eye, EyeOff, ShieldCheck, QrCode, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { PasswordStrengthIndicator, usePasswordPolicy, validatePasswordWithPolicy } from '@/components/PasswordStrengthIndicator';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, languageHeaders } from '@/lib/queryClient';
 
 const PENDING_LOGIN_REDIRECT_KEY = 'polly-pending-login-redirect';
 
@@ -23,6 +23,18 @@ function readRedirectFromSearch(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
   const redirect = searchParams.get('redirect') || searchParams.get('returnTo');
   return isSafeRedirectPath(redirect) ? redirect : null;
+}
+
+// SSO starts with a full-page redirect, which cannot carry the language
+// header, so the current UI language travels as a query parameter. A new
+// account created by this login then starts in that language.
+function keycloakLoginUrl(redirectUrl: string): string {
+  const params = new URLSearchParams();
+  if (redirectUrl !== '/') params.set('redirect', redirectUrl);
+  const lang = languageHeaders()['X-Polly-Language'];
+  if (lang) params.set('lang', lang);
+  const query = params.toString();
+  return query ? `/api/v1/auth/keycloak?${query}` : '/api/v1/auth/keycloak';
 }
 
 function readMfaStepFromSearch(): MfaStep {
@@ -131,10 +143,7 @@ export default function Login() {
 
   useEffect(() => {
     if (!ssoAutoRedirect) return;
-    window.location.href =
-      redirectUrl === '/'
-        ? '/api/v1/auth/keycloak'
-        : `/api/v1/auth/keycloak?redirect=${encodeURIComponent(redirectUrl)}`;
+    window.location.href = keycloakLoginUrl(redirectUrl);
   }, [ssoAutoRedirect, redirectUrl]);
 
   useEffect(() => {
@@ -273,9 +282,7 @@ export default function Login() {
   };
 
   const handleKeycloakLogin = () => {
-    window.location.href = redirectUrl === '/' 
-      ? '/api/v1/auth/keycloak'
-      : `/api/v1/auth/keycloak?redirect=${encodeURIComponent(redirectUrl)}`;
+    window.location.href = keycloakLoginUrl(redirectUrl);
   };
 
   if (mfaStep === 'verify') {

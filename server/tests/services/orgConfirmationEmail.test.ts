@@ -122,6 +122,25 @@ describe('sendOrgConfirmationEmails', () => {
     expect(bobMail?.html).not.toContain('Mittwoch 10:00');
   });
 
+  it('escapes poll titles, option text, and participant names in rendered HTML', async () => {
+    renderSpy.mockRestore();
+    const payload = '<img src=x onerror=alert(1)>';
+
+    await emailService.sendOrgConfirmationEmails(
+      payload,
+      'https://polly.example.com/poll/abc',
+      [{ id: 1, text: payload }],
+      [{ optionId: 1, voterEmail: 'alice@example.com', voterName: payload, response: 'yes' }],
+      'organizer@example.com',
+    );
+
+    expect(allMails.length).toBeGreaterThan(0);
+    for (const mail of allMails) {
+      expect(mail.html).not.toContain('<img');
+      expect(mail.html).toContain('&lt;img');
+    }
+  });
+
   it('excludes participants without a valid email address from participant notifications', async () => {
     await emailService.sendOrgConfirmationEmails(
       'Test Poll',

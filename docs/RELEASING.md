@@ -11,34 +11,42 @@ Im GitHub Repository unter **Settings → Secrets and variables → Actions** m�
 | `DOCKERHUB_USERNAME` | Docker Hub Benutzername (z.B. `manfredsteger`) |
 | `DOCKERHUB_TOKEN` | Docker Hub Access Token mit Read/Write-Berechtigung ([hier erstellen](https://hub.docker.com/settings/security)) |
 
-### 2. GitLab Mirror (optional)
+### 2. Arbeitsweise GitHub und GitLab
 
-Für automatisches Tag-Mirroring zu GitLab:
+Entwickelt wird lokal und in GitLab. GitHub enthält nur den veröffentlichten Produktionsstand. **Es gibt keine automatische Synchronisierung**, alles wird von Hand gepusht.
 
-| Secret | Beschreibung |
-|--------|-------------|
-| `GITLAB_TOKEN` | GitLab Personal Access Token mit `write_repository` Berechtigung |
+- Gearbeitet wird in Branches. Review und Freigabe laufen über einen Merge Request in GitLab.
+- **`main` wird nur auf GitHub gemergt.** In GitLab wird der Merge Request nicht gemergt, sonst laufen die beiden `main` auseinander.
+- Nach dem Merge auf GitHub wird `main` von Hand nach GitLab gepusht. GitLab erkennt den Merge Request dann automatisch als gemergt.
 
 ---
 
 ## Release erstellen
 
-### Automatisch (empfohlen)
+### Ablauf
 
-Der Release-Prozess wird über Git-Tags gesteuert. Sobald ein Tag mit dem Prefix `v` gepusht wird, startet die Pipeline automatisch.
+Der Release-Prozess wird über Git-Tags auf GitHub gesteuert. Sobald dort ein Tag mit dem Prefix `v` gepusht wird, startet die Pipeline automatisch.
 
 ```bash
-# 1. Sicherstellen, dass der freigegebene Beta-Branch aktiv ist
-git branch  # → muss "feature/guest-access-control" zeigen
+# 0. Remotes: origin = GitHub (Produktion), gitlab = GitLab (Entwicklung)
+git fetch origin && git fetch gitlab
 
-# 2. CHANGELOG.md abschließen, Paketversion setzen und beide Paketdateien committen
-git add CHANGELOG.md package.json package-lock.json
-git commit -m "chore: prepare v0.1.0-beta.3 release"
-git push origin feature/guest-access-control
+# 1. Release-Branch in GitLab fertigstellen: Merge Request reviewen und freigeben, NICHT in GitLab mergen
+#    CHANGELOG.md abschließen, Version in package.json + package-lock.json setzen, committen
+git push gitlab <branch>
 
-# 3. Tag auf dem geprüften Beta-Commit erstellen und pushen → Pipeline startet
-git tag -a v0.1.0-beta.3 -m "Beta Release 0.1.0-beta.3"
-git push origin v0.1.0-beta.3
+# 2. Fertigen Branch von Hand nach GitHub pushen
+git push origin <branch>
+
+# 3. Auf GitHub einen Pull Request <branch> → main öffnen, CI abwarten, mergen
+
+# 4. Tag auf dem gemergten main-Commit setzen und nach GitHub pushen → Pipeline startet
+git fetch origin && git switch main && git merge --ff-only origin/main
+git tag -a v0.1.0-beta.10 -m "Beta Release 0.1.0-beta.10"
+git push origin v0.1.0-beta.10
+
+# 5. GitLab nachziehen, damit beide main und das Tag gleich haben (der GitLab-MR gilt danach als gemergt)
+git push gitlab main v0.1.0-beta.10
 ```
 
 ### Was die Pipeline macht
@@ -47,7 +55,6 @@ git push origin v0.1.0-beta.3
 2. **Docker**: Image bauen und auf Docker Hub pushen
 3. **Docker Hub README**: `DOCKERHUB.md` automatisch als Docker Hub Repository-Beschreibung hochladen
 4. **GitHub Release**: Release auf GitHub erstellen — der Release-Text übernimmt den passenden Abschnitt aus `CHANGELOG.md` (Fallback: Commit-Liste seit dem letzten Tag) plus taggenauen Quick Start und Vergleichslink; GitHubs automatische "What's Changed"-Notes sind deaktiviert, damit keine doppelten Änderungslisten in Benachrichtigungen landen
-5. **GitLab Mirror**: Tags automatisch zu GitLab spiegeln
 
 ### Docker Image Tags
 
@@ -96,8 +103,7 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 
 ## Checkliste vor einem Release
 
-- [ ] Aktiver Branch ist der freigegebene Beta-Branch (`feature/guest-access-control`)
-- [ ] `git pull origin feature/guest-access-control` — lokaler Stand aktuell
+- [ ] Merge Request in GitLab reviewt und freigegeben (nicht in GitLab gemergt), GitLab-Pipeline grün
 - [ ] Alle Tests bestehen (`make test`)
 - [ ] TypeScript kompiliert fehlerfrei (`npx tsc --noEmit`)
 - [ ] Übersetzungen vollständig (`make validate-translations`)
@@ -108,7 +114,9 @@ Polly folgt [Semantic Versioning](https://semver.org/):
 - [ ] `package-lock.json` enthält dieselbe Projektversion wie `package.json`
 - [ ] `SELF-HOSTING.md` aktuell
 - [ ] `DOCKERHUB.md` aktuell (Versions-Tag-Beispiel, ENV-Vars)
-- [ ] Tag auf dem freigegebenen Beta-Commit erstellt und gepusht
+- [ ] Branch nach GitHub gepusht, PR nach `main` gemergt
+- [ ] Tag auf dem gemergten `main`-Commit erstellt und nach GitHub gepusht
+- [ ] `main` und Tag auch nach GitLab gepusht
 
 ---
 

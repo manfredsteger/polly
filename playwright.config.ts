@@ -34,6 +34,9 @@ export default defineConfig({
       SESSION_SECRET: process.env.SESSION_SECRET || 'e2e-test-session-secret-minimum-32-characters-long',
       NODE_ENV: 'test',
       SMTP_ENABLED: 'false',
+      // Test mode must be explicitly enabled for the server under test; the
+      // per-run TEST_MODE_SECRET is inherited from process.env.
+      ENABLE_TEST_MODE: 'true',
     },
   } : undefined,
 });

@@ -64,4 +64,4 @@ AI_MODEL = "qwen3.5-122b-a10b"
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 20000
+timeoutMs = 180000

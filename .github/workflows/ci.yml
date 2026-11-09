@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, release]
+    branches: [main]
   pull_request:
-    branches: [main, develop, release]
+    branches: [main]
 
 env:
   NODE_VERSION: '24'
@@ -13,7 +13,7 @@ env:
 jobs:
   lint:
     name: Lint & Type Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
 
   test:
     name: Unit & Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:15
@@ -79,28 +79,81 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
         run: npm run db:push
 
-      - name: Run tests
+      # One run covers both gates: any failing test OR a coverage value below
+      # the thresholds in vitest.config.ts fails this step (and the pipeline).
+      # Vitest prints "Coverage for <metric> (x%) does not meet global threshold"
+      # when the coverage gate is the cause.
+      - name: Run tests with coverage gate
         env:
           TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
           NODE_ENV: test
-        run: npx vitest run --reporter=verbose
-
-      - name: Run tests with coverage
-        env:
-          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/polly_test
-          NODE_ENV: test
-        run: npx vitest run --coverage || true
+        run: npx vitest run --coverage --reporter=verbose
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
-        if: success()
+        # Upload even when the gate failed so the report shows where coverage dropped.
+        if: ${{ !cancelled() }}
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
 
+  pdf-sandbox:
+    name: Sandboxed PDF Export (Linux Container)
+    # Ubuntu 24.04 hosts restrict unprivileged user namespaces via AppArmor
+    # (kernel.apparmor_restrict_unprivileged_userns=1), which breaks Chromium's sandbox even
+    # inside a container. 22.04 has no such restriction.
+    runs-on: ubuntu-22.04
+    # This isolated test container permits Chromium's user-namespace setup.
+    # The relaxed outer profiles do not affect the application's production container.
+    container:
+      image: node:24-bookworm
+      options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: polly_pdf_sandbox_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Chromium
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends chromium chromium-sandbox
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://test:test@postgres:5432/polly_pdf_sandbox_test
+        run: npm run db:push
+
+      - name: Render PDF with Chromium sandbox enabled
+        env:
+          TEST_DATABASE_URL: postgresql://test:test@postgres:5432/polly_pdf_sandbox_test
+          NODE_ENV: test
+          PDF_CHROMIUM_SANDBOX: 'true'
+          PDF_CHROMIUM_SANDBOX_SMOKE: 'true'
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+        run: |
+          chown -R node:node "$GITHUB_WORKSPACE"
+          runuser --preserve-environment --user node -- \
+            env HOME=/home/node ./node_modules/.bin/vitest run server/tests/services/pdfService.test.ts \
+            -t "renders a valid PDF with Chromium sandbox enabled"
+
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint, test]
     steps:
       - name: Checkout
@@ -120,7 +173,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build
     if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'main')
     services:
@@ -182,6 +235,12 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Generate per-run test-mode secret
+        run: |
+          secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$secret"
+          echo "TEST_MODE_SECRET=$secret" >> "$GITHUB_ENV"
+
       - name: Run E2E tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/polly_e2e
@@ -189,6 +248,7 @@ jobs:
           SESSION_SECRET: e2e-test-session-secret-minimum-32-characters-long
           BASE_URL: http://localhost:5000
           SMTP_ENABLED: false
+          ENABLE_TEST_MODE: 'true'
         run: npx playwright test --timeout=60000
 
       - name: Upload Playwright report
@@ -201,7 +261,7 @@ jobs:
 
   security:
     name: Security Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

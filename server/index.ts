@@ -12,6 +12,7 @@ import { bootstrapBranding } from "./scripts/applyBranding";
 import { errorHandler } from "./lib/errorHandler";
 import { getBaseUrl, warnIfLocalhostInProduction } from "./utils/baseUrl";
 import { shouldUseSecureCookies } from "./utils/sessionConfig";
+import { logTestModeStatus } from "./lib/testMode";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -285,6 +286,9 @@ app.use((req, res, next) => {
       console.error('[Demo Seed] Failed:', error);
     }
   }
+
+  // Warn loudly when the E2E test-mode gate is open in production (or misconfigured)
+  logTestModeStatus();
 
   // Warn when admin MFA enforcement is overridden by environment variable
   if (process.env.MFA_ADMIN_REQUIRED === 'false') {

@@ -903,7 +903,8 @@ Schema changes involve updating `shared/schema.ts` and `server/scripts/ensureSch
 
 ---
 
-## Test Coverage (454+ tests)
+## Test Coverage (~1,490 tests in 83 files)
+- **Coverage gate**: CI runs `npx vitest run --coverage`; the thresholds in `vitest.config.ts` (66 % lines/statements, 62 % branches, 71 % functions; measured Oct 2026: 67.8 / 67.1 / 63.4 / 72.7 %) are enforced, so a test failure or a coverage drop turns CI red. Raise the thresholds when coverage grows; never lower them to make CI pass.
 
 - **API**: 174 tests (admin CRUD, user profile/theme/language, poll CRUD/voting/export, email templates, security, validation)
 - **Auth**: 55 tests (login, registration, password reset, session persistence, cookie security)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,14 +51,19 @@ import {
   Send,
   Check,
   AlertCircle,
-  PlusCircle,
-  UserPlus,
-  CheckCircle,
-  Bell,
-  Key,
-  Shield,
-  Info
+  Info,
+  Languages
 } from "lucide-react";
+import {
+  EMAIL_TEMPLATE_TYPE_ICONS,
+  isKnownTemplateType,
+  templateTypeDescriptionKey,
+  templateTypeNameKey,
+  templateVariableDescriptionKey,
+} from "./emailTemplateTypes";
+
+const EMAIL_LANGUAGES = ['de', 'en'] as const;
+type EmailLanguage = typeof EMAIL_LANGUAGES[number];
 
 interface EmailTemplate {
   type: string;
@@ -110,12 +115,36 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
   const [themeJsonInput, setThemeJsonInput] = useState('');
   const [themePreview, setThemePreview] = useState<Partial<EmailTheme> | null>(null);
 
-  const { data: templates, isLoading, refetch } = useQuery<EmailTemplate[]>({
-    queryKey: ['/api/v1/admin/email-templates'],
+  // Templates and footer are edited per language; German is the historic default.
+  const [editingLanguage, setEditingLanguage] = useState<EmailLanguage>('de');
+  const languageQuery = `?language=${editingLanguage}`;
+  const footerQueryKey = `/api/v1/admin/email-footer${languageQuery}`;
+
+  // Template lists of all languages, so every card can show per-language status.
+  const templateQueries = useQueries({
+    queries: EMAIL_LANGUAGES.map((lang) => ({
+      queryKey: [`/api/v1/admin/email-templates?language=${lang}`],
+    })),
   });
+  const templatesByLanguage = Object.fromEntries(
+    EMAIL_LANGUAGES.map((lang, index) => [lang, templateQueries[index].data as EmailTemplate[] | undefined]),
+  ) as Record<EmailLanguage, EmailTemplate[] | undefined>;
+  const editingQuery = templateQueries[EMAIL_LANGUAGES.indexOf(editingLanguage)];
+  const templates = templatesByLanguage[editingLanguage];
+  const isLoading = editingQuery.isLoading;
+  const refetch = () => {
+    queryClient.invalidateQueries({
+      predicate: (query) => String(query.queryKey[0]).startsWith('/api/v1/admin/email-templates?language='),
+    });
+  };
   
   const { data: emailFooter } = useQuery<EmailFooter>({
-    queryKey: ['/api/v1/admin/email-footer'],
+    queryKey: [footerQueryKey],
+  });
+
+  // Site default language (Customize → Language) — used for recipients whose language is unknown.
+  const { data: siteLanguage } = useQuery<{ defaultLanguage: string }>({
+    queryKey: ['/api/v1/system/language'],
   });
   
   const { data: emailTheme } = useQuery<EmailTheme>({
@@ -146,9 +175,17 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     }
   }, [editSubject, editTextContent, selectedTemplate]);
 
+  const switchEditingLanguage = (lang: EmailLanguage) => {
+    if (lang === editingLanguage) return;
+    setSelectedTemplate(null);
+    setShowPreview(false);
+    setPreviewHtml('');
+    setEditingLanguage(lang);
+  };
+
   const previewMutation = useMutation({
     mutationFn: async (type: string) => {
-      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/preview`);
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/preview${languageQuery}`);
       return response.json();
     },
     onSuccess: (data) => {
@@ -162,7 +199,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const testEmailMutation = useMutation({
     mutationFn: async ({ type, recipientEmail }: { type: string; recipientEmail: string }) => {
-      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/test`, { recipientEmail });
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/test${languageQuery}`, { recipientEmail });
       return response.json();
     },
     onSuccess: () => {
@@ -176,7 +213,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const resetMutation = useMutation({
     mutationFn: async (type: string) => {
-      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/reset`);
+      const response = await apiRequest('POST', `/api/v1/admin/email-templates/${type}/reset${languageQuery}`);
       return response.json();
     },
     onSuccess: () => {
@@ -191,7 +228,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const saveMutation = useMutation({
     mutationFn: async ({ type, subject, textContent }: { type: string; subject: string; textContent: string }) => {
-      const response = await apiRequest('PUT', `/api/v1/admin/email-templates/${type}`, {
+      const response = await apiRequest('PUT', `/api/v1/admin/email-templates/${type}${languageQuery}`, {
         subject,
         textContent,
         jsonContent: selectedTemplate?.jsonContent
@@ -210,12 +247,12 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
   const saveFooterMutation = useMutation({
     mutationFn: async ({ html, text }: { html: string; text: string }) => {
-      const response = await apiRequest('PUT', '/api/v1/admin/email-footer', { html, text });
+      const response = await apiRequest('PUT', footerQueryKey, { html, text });
       return response.json();
     },
     onSuccess: () => {
       toast({ title: t('admin.emailTemplates.toasts.saved'), description: t('admin.emailTemplates.toasts.footerSaved') });
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-footer'] });
+      queryClient.invalidateQueries({ queryKey: [footerQueryKey] });
       setShowFooterEditor(false);
     },
     onError: () => {
@@ -244,7 +281,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Importiert', description: 'Theme wurde erfolgreich gespeichert' });
+      toast({ title: t('admin.emailTemplates.toasts.themeImported'), description: t('admin.emailTemplates.toasts.themeImportedDescription') });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/admin/email-theme'] });
       setShowThemeImport(false);
       setThemeJsonInput('');
@@ -294,18 +331,17 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const templateTypeLabels: Record<string, { name: string; icon: React.ReactNode; description: string }> = {
-    poll_created: { name: t('admin.emailTemplates.templateTypes.poll_created'), icon: <PlusCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_created_desc') },
-    invitation: { name: t('admin.emailTemplates.templateTypes.invitation'), icon: <UserPlus className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.invitation_desc') },
-    vote_confirmation: { name: t('admin.emailTemplates.templateTypes.vote_confirmation'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.vote_confirmation_desc') },
-    vote_updated: { name: t('admin.emailTemplates.templateTypes.vote_updated'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.vote_updated_desc') },
-    reminder: { name: t('admin.emailTemplates.templateTypes.reminder'), icon: <Bell className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.reminder_desc') },
-    password_reset: { name: t('admin.emailTemplates.templateTypes.password_reset'), icon: <Key className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_reset_desc') },
-    email_change: { name: t('admin.emailTemplates.templateTypes.email_change'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.email_change_desc') },
-    password_changed: { name: t('admin.emailTemplates.templateTypes.password_changed'), icon: <Shield className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.password_changed_desc') },
-    test_report: { name: t('admin.emailTemplates.templateTypes.test_report'), icon: <FileText className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.test_report_desc') },
-    welcome: { name: t('admin.emailTemplates.templateTypes.welcome'), icon: <Mail className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.welcome_desc') },
-    poll_finalized: { name: t('admin.emailTemplates.templateTypes.poll_finalized'), icon: <CheckCircle className="w-4 h-4" />, description: t('admin.emailTemplates.templateTypes.poll_finalized_desc') },
+  // Card title, description and icon of a template type, in the admin UI language.
+  const templateTypeInfo = (type: string, fallbackName: string, iconClassName = "w-4 h-4") => {
+    if (!isKnownTemplateType(type)) {
+      return { name: fallbackName, icon: <Mail className={iconClassName} />, description: '' };
+    }
+    const Icon = EMAIL_TEMPLATE_TYPE_ICONS[type];
+    return {
+      name: t(templateTypeNameKey(type)),
+      icon: <Icon className={iconClassName} />,
+      description: t(templateTypeDescriptionKey(type)),
+    };
   };
 
   if (isLoading) {
@@ -337,6 +373,51 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
           {t('admin.emailTemplates.templatesCount', { count: templates?.length || 0 })}
         </Badge>
       </div>
+
+      <Card className="polly-card" data-testid="card-email-language">
+        <CardHeader className="pb-3">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-primary/10 rounded-lg text-primary">
+              <Languages className="w-5 h-5" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">{t('admin.emailTemplates.languageCardTitle')}</CardTitle>
+              <CardDescription>{t('admin.emailTemplates.languageCardDescription')}</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-0">
+          <div>
+            <Label className="text-sm font-medium">{t('admin.emailTemplates.editingLanguage')}</Label>
+            <div className="flex gap-2 mt-1" role="group" aria-label={t('admin.emailTemplates.editingLanguage')}>
+              {EMAIL_LANGUAGES.map((lang) => (
+                <Button
+                  key={lang}
+                  type="button"
+                  size="sm"
+                  variant={editingLanguage === lang ? 'default' : 'outline'}
+                  aria-pressed={editingLanguage === lang}
+                  onClick={() => switchEditingLanguage(lang)}
+                  data-testid={`button-edit-language-${lang}`}
+                >
+                  {lang.toUpperCase()} · {t(`admin.emailTemplates.languages.${lang}`)}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{t('admin.emailTemplates.editingLanguageHint')}</p>
+          </div>
+          <div className="flex items-start gap-2 text-xs text-muted-foreground" data-testid="text-email-language-fallback">
+            <Info className="w-4 h-4 mt-px shrink-0" />
+            <span>
+              {t('admin.emailTemplates.fallbackHint', {
+                language: siteLanguage?.defaultLanguage === 'de' || siteLanguage?.defaultLanguage === 'en'
+                  ? t(`admin.emailTemplates.languages.${siteLanguage.defaultLanguage}`)
+                  : '…',
+              })}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {!selectedTemplate ? (
         <>
@@ -507,7 +588,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {templates?.map((template) => {
-              const typeInfo = templateTypeLabels[template.type] || { name: template.name, icon: <Mail className="w-4 h-4" />, description: '' };
+              const typeInfo = templateTypeInfo(template.type, template.name);
               return (
                 <Card 
                   key={template.type} 
@@ -524,9 +605,24 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                           <p className="text-sm text-muted-foreground">{typeInfo.description}</p>
                         </div>
                       </div>
-                      <Badge variant={template.isDefault ? "secondary" : "default"} className="text-xs">
-                        {template.isDefault ? t('admin.emailTemplates.default') : t('admin.emailTemplates.customized')}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {EMAIL_LANGUAGES.map((lang) => {
+                          const localized = templatesByLanguage[lang]?.find((entry) => entry.type === template.type);
+                          if (!localized) return null;
+                          const status = localized.isDefault ? t('admin.emailTemplates.default') : t('admin.emailTemplates.customized');
+                          return (
+                            <Badge
+                              key={lang}
+                              variant={localized.isDefault ? "secondary" : "default"}
+                              className={`text-xs ${lang === editingLanguage ? '' : 'opacity-70'}`}
+                              title={t('admin.emailTemplates.languageStatus', { language: t(`admin.emailTemplates.languages.${lang}`), status })}
+                              data-testid={`badge-template-status-${template.type}-${lang}`}
+                            >
+                              {lang.toUpperCase()} · {status}
+                            </Badge>
+                          );
+                        })}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -546,16 +642,19 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                    {templateTypeLabels[selectedTemplate.type]?.icon || <Mail className="w-5 h-5" />}
+                    {templateTypeInfo(selectedTemplate.type, selectedTemplate.name, "w-5 h-5").icon}
                   </div>
                   <div>
-                    <CardTitle>{templateTypeLabels[selectedTemplate.type]?.name || selectedTemplate.name}</CardTitle>
-                    <CardDescription>{templateTypeLabels[selectedTemplate.type]?.description}</CardDescription>
+                    <CardTitle>{templateTypeInfo(selectedTemplate.type, selectedTemplate.name).name}</CardTitle>
+                    <CardDescription>{templateTypeInfo(selectedTemplate.type, selectedTemplate.name).description}</CardDescription>
                   </div>
                 </div>
-                <Badge variant={selectedTemplate.isDefault ? "secondary" : "default"}>
-                  {selectedTemplate.isDefault ? t('admin.emailTemplates.defaultTemplate') : t('admin.emailTemplates.customized')}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" data-testid="badge-template-language">{editingLanguage.toUpperCase()}</Badge>
+                  <Badge variant={selectedTemplate.isDefault ? "secondary" : "default"}>
+                    {selectedTemplate.isDefault ? t('admin.emailTemplates.defaultTemplate') : t('admin.emailTemplates.customized')}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -599,7 +698,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{variable.description}</p>
+                        <p>{t(templateVariableDescriptionKey(variable.key), { defaultValue: variable.description })}</p>
                         <p className="text-xs text-muted-foreground mt-1">{t('admin.emailTemplates.clickToInsert')}</p>
                       </TooltipContent>
                     </Tooltip>
@@ -708,7 +807,7 @@ export function EmailTemplatesPanel({ onBack }: { onBack: () => void }) {
                 <FileText className="w-5 h-5" />
               </div>
               <div>
-                <CardTitle className="text-lg">{t('admin.emailTemplates.centralFooter')}</CardTitle>
+                <CardTitle className="text-lg">{t('admin.emailTemplates.centralFooter')} <span className="text-sm font-normal text-muted-foreground">({t(`admin.emailTemplates.languages.${editingLanguage}`)})</span></CardTitle>
                 <CardDescription>{t('admin.emailTemplates.footerDescription')}</CardDescription>
               </div>
             </div>

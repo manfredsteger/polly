@@ -14,11 +14,13 @@ import { voteRateLimiter, emailRateLimiter, apiGeneralRateLimiter } from "../ser
 
 import { publicVote } from '../lib/publicPollResponse';
 import { assertVoteOwnership, VOTE_AUTHORIZATION_REQUIRED } from '../lib/voteOwnership';
-import type { Poll, Vote } from '@shared/schema';
+import type { Poll, Vote, EmailLanguage } from '@shared/schema';
+import { getRequestLanguage, resolveEmailLanguage } from '../services/emailLanguage';
+import { emailStrings } from '../services/emailI18n';
 
 const router = Router();
 
-async function notifyWithdrawal(poll: Poll, votes: Vote[], isTestMode: boolean) {
+async function notifyWithdrawal(poll: Poll, votes: Vote[], isTestMode: boolean, languageHint?: EmailLanguage) {
   if (isTestMode || !emailService.smtpConfigured) return;
   // Email failures must never turn a completed withdrawal into an API failure.
   try {
@@ -30,7 +32,7 @@ async function notifyWithdrawal(poll: Poll, votes: Vote[], isTestMode: boolean) 
     }
     const deliveries: Promise<void>[] = [];
     for (const [email, vote] of participants) {
-      deliveries.push(emailService.sendVoteWithdrawalEmail(email, vote.voterName, poll.title, `${baseUrl}/poll/${poll.publicToken}`));
+      deliveries.push(emailService.sendVoteWithdrawalEmail(email, vote.voterName, poll.title, `${baseUrl}/poll/${poll.publicToken}`, false, languageHint));
       if (poll.notifyCreatorOnVote && poll.creatorEmail && poll.creatorEmail.trim().toLowerCase() !== email) {
         deliveries.push(emailService.sendVoteWithdrawalEmail(
           poll.creatorEmail, poll.isAnonymous ? '' : vote.voterName, poll.title, `${baseUrl}/admin/${poll.adminToken}`, true
@@ -220,11 +222,12 @@ const validateVoteResponses = (
 
 export const getVoteEmailSummary = (
   poll: { type: string; responseMode?: string | null; options: Array<{ id: number; text?: string | null }> },
-  votes: Array<{ optionId: number; response: string }>
+  votes: Array<{ optionId: number; response: string }>,
+  language: EmailLanguage = 'de'
 ) => {
   const optionMap = new Map(poll.options.map(opt => [opt.id, opt.text || '']));
   const selectionOnly = poll.responseMode === 'simple' || poll.type === 'organization';
-  const labels: Record<string, string> = { yes: 'Ja', maybe: 'Vielleicht', no: 'Nein' };
+  const labels = emailStrings(language).vote.responseLabels;
   const summary = votes.flatMap(vote => {
     const text = optionMap.get(vote.optionId);
     if (!text || !labels[vote.response]) return [];
@@ -366,6 +369,8 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
             voterEmail: data.voterEmail,
             userId: userId,
             isTestData: isTestMode,
+            // Remember the voter's UI language for later mails (results, reminders).
+            voterLanguage: getRequestLanguage(req) ?? null,
           },
         });
         createdVotes.push(...replaceResult.votes);
@@ -397,6 +402,7 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
           const updated = await storage.updateVote(existingVote.id, voteData.response, {
             comment: voteData.comment,
             freeTextAnswer: (voteData as any).freeTextAnswer || null,
+            ...(getRequestLanguage(req) ? { voterLanguage: getRequestLanguage(req) } : {}),
           });
           createdVotes.push(updated);
         }
@@ -411,6 +417,7 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
           freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
+          voterLanguage: getRequestLanguage(req) ?? null,
         }, voterEditToken);
         
         createdVotes.push(result.vote);
@@ -458,8 +465,10 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
             ? `${baseUrl}/edit/${voterEditToken}`
             : undefined;
 
-        // Summarize saved answers, including explicit Maybe and No responses.
-        const selectedOptions = getVoteEmailSummary(poll, createdVotes);
+        // Summarize saved answers, including explicit Maybe and No responses,
+        // labelled in the language the confirmation will be sent in.
+        const emailLanguage = await resolveEmailLanguage(data.voterEmail, getRequestLanguage(req));
+        const selectedOptions = getVoteEmailSummary(poll, createdVotes, emailLanguage);
         
         recentEmailSends.set(emailKey, now);
         await emailService.sendVotingConfirmationEmail(
@@ -471,7 +480,8 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
           resultsLink,
           selectedOptions,
           editLink,
-          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
+          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal,
+          emailLanguage
         ).then(() => {
           confirmationEmailStatus = 'sent';
         }).catch(err => {
@@ -550,6 +560,12 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
     }
     if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
       return res.status(403).json(voteAuthorizationError);
+    }
+    if (error instanceof Error && error.message === 'SLOT_FULL') {
+      return res.status(409).json({
+        error: 'Dieser Slot ist bereits voll.',
+        errorCode: 'SLOT_FULL',
+      });
     }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
@@ -688,6 +704,8 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
             voterEmail: data.voterEmail,
             userId: userId,
             isTestData: isTestMode,
+            // Remember the voter's UI language for later mails (results, reminders).
+            voterLanguage: getRequestLanguage(req) ?? null,
           },
         });
         createdVotes.push(...replaceResult.votes);
@@ -719,6 +737,7 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
           const updated = await storage.updateVote(existingVote.id, voteData.response, {
             comment: voteData.comment,
             freeTextAnswer: (voteData as any).freeTextAnswer || null,
+            ...(getRequestLanguage(req) ? { voterLanguage: getRequestLanguage(req) } : {}),
           });
           createdVotes.push(updated);
         }
@@ -733,6 +752,7 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
           freeTextAnswer: (voteData as any).freeTextAnswer || null,
           userId: userId,
           isTestData: isTestMode,
+          voterLanguage: getRequestLanguage(req) ?? null,
         }, voterEditToken);
         
         createdVotes.push(result.vote);
@@ -776,8 +796,10 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
         const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
         const resultsLink = poll.resultsPublic ? `${baseUrl}/poll/${poll.publicToken}#results` : undefined;
 
-        // Summarize saved answers, including explicit Maybe and No responses.
-        const selectedOptions = getVoteEmailSummary(poll, createdVotes);
+        // Summarize saved answers, including explicit Maybe and No responses,
+        // labelled in the language the confirmation will be sent in.
+        const emailLanguage = await resolveEmailLanguage(data.voterEmail, getRequestLanguage(req));
+        const selectedOptions = getVoteEmailSummary(poll, createdVotes, emailLanguage);
         
         recentEmailSends.set(emailKey, now);
         await emailService.sendVotingConfirmationEmail(
@@ -791,7 +813,8 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
           (poll.allowVoteEdit || poll.allowVoteWithdrawal || poll.type === 'organization') && voterEditToken
             ? `${baseUrl}/edit/${voterEditToken}`
             : undefined,
-          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
+          !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal,
+          emailLanguage
         ).then(() => {
           confirmationEmailStatus = 'sent';
         }).catch(err => {
@@ -871,6 +894,12 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
     if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
       return res.status(403).json(voteAuthorizationError);
     }
+    if (error instanceof Error && error.message === 'SLOT_FULL') {
+      return res.status(409).json({
+        error: 'Dieser Slot ist bereits voll.',
+        errorCode: 'SLOT_FULL',
+      });
+    }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
       return res.status(400).json({ 
@@ -943,7 +972,7 @@ router.delete('/polls/:token/vote', async (req, res) => {
     }
     
     console.log(`[Vote] Withdrew ${votesToDelete.length} votes from poll ${poll.id}`);
-    await notifyWithdrawal(poll, votesToDelete, req.isTestMode === true);
+    await notifyWithdrawal(poll, votesToDelete, req.isTestMode === true, getRequestLanguage(req));
     
     // For organization polls: Broadcast slot update via WebSocket after withdrawal
     if (poll.type === 'organization') {
@@ -1101,6 +1130,7 @@ router.put('/votes/edit/:editToken', async (req, res) => {
             voterEmail: template.voterEmail,
             userId: template.userId ?? null,
             isTestData: template.isTestData ?? false,
+            voterLanguage: getRequestLanguage(req) ?? template.voterLanguage ?? null,
           },
         });
         updatedResults = replaceResult.votes;
@@ -1117,7 +1147,11 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       for (const updatedVote of updatedVotes) {
         const existingVote = existingVotes.find((v: any) => v.optionId === updatedVote.optionId);
         if (existingVote) {
-          const updated = await storage.updateVote(existingVote.id, updatedVote.response);
+          const updated = await storage.updateVote(
+            existingVote.id,
+            updatedVote.response,
+            getRequestLanguage(req) ? { voterLanguage: getRequestLanguage(req) } : {},
+          );
           updatedResults.push(updated);
         }
       }
@@ -1135,7 +1169,8 @@ router.put('/votes/edit/:editToken', async (req, res) => {
       const savedAnswers = isSimpleMode ? updatedResults : existingVotes.map(vote =>
         updatedResults.find(updated => updated.id === vote.id) ?? vote
       );
-      const selectedOptions = getVoteEmailSummary(poll, savedAnswers);
+      const emailLanguage = await resolveEmailLanguage(voterEmail, getRequestLanguage(req));
+      const selectedOptions = getVoteEmailSummary(poll, savedAnswers, emailLanguage);
 
       emailService.sendVoteUpdatedEmail(
         voterEmail,
@@ -1145,7 +1180,8 @@ router.put('/votes/edit/:editToken', async (req, res) => {
         publicLink,
         resultsLink,
         selectedOptions,
-        editLink
+        editLink,
+        emailLanguage
       ).catch(err => {
         console.error('Error sending updated voting confirmation email:', err);
       });
@@ -1213,7 +1249,7 @@ router.delete('/votes/edit/:editToken', async (req, res) => {
     }
 
     console.log(`[Vote] Withdrew ${votes.length} votes via edit token from poll ${poll.id}`);
-    await notifyWithdrawal(poll, votes, req.isTestMode === true);
+    await notifyWithdrawal(poll, votes, req.isTestMode === true, getRequestLanguage(req));
 
     if (poll.type === 'organization') {
       const freshPoll = await storage.getPollByPublicToken(poll.publicToken);
@@ -1286,7 +1322,8 @@ router.post('/polls/:token/resend-email', emailRateLimiter, async (req, res) => 
         resultsLink,
         undefined,
         editLink,
-        !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal
+        !poll.allowVoteEdit && poll.type !== 'organization' && !!poll.allowVoteWithdrawal,
+        getRequestLanguage(req)
       );
       res.json({ success: true, message: 'Email sent successfully' });
     } catch (emailError: any) {

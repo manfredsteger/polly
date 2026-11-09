@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { storage } from "../storage";
 import { emailService } from "../services/emailService";
+import { getRequestLanguage } from '../services/emailLanguage';
 import { z } from "zod";
 import {
   extractUserId,
@@ -13,6 +14,16 @@ import { adminCacheService } from "../services/adminCacheService";
 import { publicPollResponse, safePollCreator } from "../lib/publicPollResponse";
 
 const router = Router();
+
+// Only :id identifies a poll UUID. Public/admin :token routes accept opaque strings.
+// Parameter middleware also protects any sibling UUID routes added to this router.
+const pollIdSchema = z.string().uuid();
+router.param('id', (_req, res, next, id) => {
+  if (!pollIdSchema.safeParse(id).success) {
+    return res.status(400).json({ error: 'Invalid poll ID' });
+  }
+  next();
+});
 
 function getReminderSelectionsForEmail(
   poll: { options: Array<{ id: number; text: string }>; votes?: Array<{ voterEmail: string; optionId: number; response: string }> },
@@ -115,6 +126,8 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
       notifyCreatorOnVote: data.notifyCreatorOnVote,
       videoConferenceUrl: data.type === 'schedule' ? (data.videoConferenceUrl || null) : null,
       isTestData: req.isTestMode === true,
+      // Remember the creator's UI language for later organizer mails (new votes, results).
+      creatorLanguage: getRequestLanguage(req) ?? null,
     };
 
     const options = data.options.map((opt, index) => ({
@@ -144,7 +157,8 @@ router.post('/', pollCreationRateLimiter, requireEmailVerified, async (req, res)
         publicLink,
         adminLink,
         data.type,
-        userId !== null
+        userId !== null,
+        getRequestLanguage(req)
       );
     }
 
@@ -364,22 +378,12 @@ router.patch('/admin/:token', async (req, res) => {
               : undefined;
 
             if (confirmedOption) {
-              const startTime = confirmedOption.startTime ? new Date(confirmedOption.startTime) : null;
-              const endTime = confirmedOption.endTime ? new Date(confirmedOption.endTime) : null;
-
-              const confirmedDate = startTime
-                ? startTime.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-                : confirmedOption.text;
-
-              let confirmedTime = '';
-              if (startTime && (startTime.getHours() !== 0 || startTime.getMinutes() !== 0)) {
-                confirmedTime = startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                if (endTime && (endTime.getHours() !== 0 || endTime.getMinutes() !== 0)) {
-                  confirmedTime += ` \u2013 ${endTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
-                } else {
-                  confirmedTime += ' Uhr';
-                }
-              }
+              // Formatted per recipient language inside the email service.
+              const confirmedSlot = {
+                startTime: confirmedOption.startTime ? new Date(confirmedOption.startTime) : null,
+                endTime: confirmedOption.endTime ? new Date(confirmedOption.endTime) : null,
+                text: confirmedOption.text,
+              };
 
               const { generateSingleEventIcs } = await import('../services/icsService');
               const icsContent = generateSingleEventIcs(updatedPoll, confirmedOption, baseUrl, undefined, true);
@@ -388,8 +392,7 @@ router.patch('/admin/:token', async (req, res) => {
               await emailService.sendFinalizationEmails(
                 uniqueEmails,
                 poll.title,
-                confirmedDate,
-                confirmedTime,
+                confirmedSlot,
                 pollLink,
                 icsBuffer,
                 poll.videoConferenceUrl,
@@ -593,22 +596,12 @@ router.post('/admin/:token/finalize', async (req, res) => {
           if (poll.type === 'schedule') {
             const confirmedOption = poll.options.find((o: { id: number }) => o.id === finalOptionId);
             if (confirmedOption) {
-              const startTime = confirmedOption.startTime ? new Date(confirmedOption.startTime) : null;
-              const endTime = confirmedOption.endTime ? new Date(confirmedOption.endTime) : null;
-
-              const confirmedDate = startTime
-                ? startTime.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-                : confirmedOption.text;
-
-              let confirmedTime = '';
-              if (startTime && (startTime.getHours() !== 0 || startTime.getMinutes() !== 0)) {
-                confirmedTime = startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                if (endTime && (endTime.getHours() !== 0 || endTime.getMinutes() !== 0)) {
-                  confirmedTime += ` – ${endTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
-                } else {
-                  confirmedTime += ' Uhr';
-                }
-              }
+              // Formatted per recipient language inside the email service.
+              const confirmedSlot = {
+                startTime: confirmedOption.startTime ? new Date(confirmedOption.startTime) : null,
+                endTime: confirmedOption.endTime ? new Date(confirmedOption.endTime) : null,
+                text: confirmedOption.text,
+              };
 
               const { generateSingleEventIcs } = await import('../services/icsService');
               const icsContent = generateSingleEventIcs(updatedPoll, confirmedOption, baseUrl, undefined, true);
@@ -617,8 +610,7 @@ router.post('/admin/:token/finalize', async (req, res) => {
               emailResult = await emailService.sendFinalizationEmails(
                 uniqueEmails,
                 poll.title,
-                confirmedDate,
-                confirmedTime,
+                confirmedSlot,
                 pollLink,
                 icsBuffer,
                 poll.videoConferenceUrl
@@ -830,11 +822,11 @@ router.post('/admin/:token/invite', async (req, res) => {
     const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
     
     // Get sender name
-    let senderName = 'Jemand';
+    let senderName = ''; // localized "someone" is filled in per recipient
     if (poll.userId) {
       const user = await storage.getUser(poll.userId);
       if (user) {
-        senderName = user.name || user.username || 'Jemand';
+        senderName = user.name || user.username || '';
       }
     }
     
@@ -905,11 +897,11 @@ router.post('/admin/:token/remind', async (req, res) => {
     const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
     
     // Get sender name
-    let senderName = 'Jemand';
+    let senderName = ''; // localized "someone" is filled in per recipient
     if (poll.userId) {
       const user = await storage.getUser(poll.userId);
       if (user) {
-        senderName = user.name || user.username || 'Jemand';
+        senderName = user.name || user.username || '';
       }
     }
     
@@ -949,9 +941,6 @@ router.post('/admin/:token/remind', async (req, res) => {
 router.post('/:id/send-reminder', async (req, res) => {
   try {
     const pollId = req.params.id;
-    if (!pollId) {
-      return res.status(400).json({ error: 'Invalid poll ID' });
-    }
     
     const poll = await storage.getPoll(pollId);
     if (!poll) {
@@ -1037,11 +1026,11 @@ router.post('/:id/send-reminder', async (req, res) => {
     const pollLink = `${baseUrl}/poll/${poll.publicToken}`;
     
     // Get sender name
-    let senderName = 'Jemand';
+    let senderName = ''; // localized "someone" is filled in per recipient
     if (poll.userId) {
       const user = await storage.getUser(poll.userId);
       if (user) {
-        senderName = user.name || user.username || 'Jemand';
+        senderName = user.name || user.username || '';
       }
     }
     
@@ -1211,11 +1200,11 @@ router.post('/:token/invite', async (req, res) => {
     const publicLink = `${baseUrl}/poll/${poll.publicToken}`;
     
     // Get sender name
-    let senderName = 'Jemand';
+    let senderName = ''; // localized "someone" is filled in per recipient
     if (poll.userId) {
       const user = await storage.getUser(poll.userId);
       if (user) {
-        senderName = user.name || user.username || 'Jemand';
+        senderName = user.name || user.username || '';
       }
     }
     

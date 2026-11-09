@@ -1,5 +1,5 @@
 - [Mermaid diagram rendering](mermaid-rendering.md) — docs Mermaid diagrams committed as PNGs via `scripts/render-mermaid.mjs`; a stray ASCII `"` in an unquoted Mermaid label breaks Mermaid 11 parsing.
-- [Test app singleton + MFA test setup](test-app-singleton-mfa.md) — createTestApp() is a module-level singleton; all describe blocks share the same MemoryStore; login BEFORE enabling MFA to avoid TOTP challenge in session setup.
+- [Test app singleton + MFA test setup](test-app-singleton-mfa.md) — shared app/MemoryStore; login before enabling MFA; getUser Once-mocks get eaten by the initial-admin guard.
 - [SAST false positives](sast-false-positives.md) — image/whisper path-traversal, TOTP SHA-1, theme-cookie and CI postgres-string findings verified harmless; skip re-analysis unless code changed.
 - [Immutable release tags](release-pipeline.md) — a failed public tag stays permanent; fix the branch and use the next prerelease identifier, then monitor all gated artifact jobs.
 - [MFA enforcement boundary](mfa-enforcement-boundary.md) — enrolled app MFA is required after every browser primary login; setup policy and emergency recovery are separate decisions.
@@ -9,3 +9,12 @@
 - [Mockup sandbox dependency setup](mockup-sandbox-install.md) — a fresh sandbox can need a local dependency install before Vite resolves its declared Tailwind packages.
 - [Vite middleware React stability](vite-middleware-react-stability.md) — keep Cartographer’s dev instrumentation out of this middleware-served app; it can split React’s runtime graph during startup.
 - [CSS color variable wrapping](css-color-variable-wrapping.md) — --primary/--primary-foreground must be full hsl()/rgb() values, not bare "H S% L%" triplets; a bare triplet silently no-ops backgrounds.
+- [Email language resolution](email-language.md) — per-recipient DE/EN (account → requester header → remembered guest lang → site default); no separate email default.
+- [Quality and test expectations](quality-and-tests.md) — broad tests expected; CI coverage gate is blocking, thresholds ratchet up (~1 pt below last measured run), never down.
+- [React component render tests](component-render-tests.md) — keep render tests .test.ts with real locales so the admin test runner finds them and translation gaps fail.
+- [npm lockfile registry URLs](npm-lockfile-registry.md) — npm installs here write an internal mirror host into package-lock.json; rewrite to registry.npmjs.org or CI npm ci fails.
+- [Drizzle push is interactive](drizzle-push-interactive.md) — `drizzle-kit push --force` can still prompt for unique constraints and can approve destructive changes; post-merge uses reviewed SQL migrations instead.
+- [Dependency security boundary](package-firewall.md) — a fresh checkout’s existing dependency baseline can be firewall-blocked; do not bypass it to run validation.
+- [Email template test isolation](email-template-tests.md) — email render tests use the in-memory storage fixture, not the shared DB; unfilled vars stay as {{key}} in subject/text/<title>.
+- [PDF render hardening](pdf-render-hardening.md) — escape PDF template values, JS/network off; /Title is the script oracle; text-layer assertion quirks (ligatures).
+- [ICS parser behavior](ics-parser-behavior.md) — ical.js preserves escapes on unregistered X-properties; use standard VEVENT text fields to verify decoded RFC text.

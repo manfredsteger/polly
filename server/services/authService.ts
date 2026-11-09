@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { storage } from '../storage';
 import type { User } from '@shared/schema';
 import { getBaseUrl } from '../utils/baseUrl';
+import { normalizeEmailLanguage } from './emailI18n';
 
 let oidcConfig: client.Configuration | null = null;
 
@@ -311,6 +312,8 @@ export const authService = {
             keycloakId,
             provider: 'keycloak',
             emailVerified: true,
+            // Undefined → storage falls back to the site default language.
+            languagePreference: normalizeEmailLanguage(req?.session?.keycloakLanguage),
           });
           await storage.updateUserLastLogin(user.id);
         }

@@ -226,21 +226,26 @@ prune:
 # Testing
 # ============================================
 
+# E2E test mode: never enabled by default. Each E2E run gets a fresh random
+# TEST_MODE_SECRET unless one is already exported (needed when the app server
+# is started separately - start it with ENABLE_TEST_MODE=true and the same secret).
+E2E_ENV = ENABLE_TEST_MODE=true TEST_MODE_SECRET="$${TEST_MODE_SECRET:-$$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")}"
+
 test:
 	@echo "$(GREEN)Running unit & integration tests...$(NC)"
 	npx vitest run --no-file-parallelism
 
 test-e2e:
 	@echo "$(GREEN)Running E2E tests with Playwright...$(NC)"
-	npx playwright test
+	$(E2E_ENV) npx playwright test
 
 test-e2e-ui:
 	@echo "$(GREEN)Running E2E tests with Playwright UI...$(NC)"
-	npx playwright test --ui
+	$(E2E_ENV) npx playwright test --ui
 
 test-e2e-headed:
 	@echo "$(GREEN)Running E2E tests (headed mode)...$(NC)"
-	npx playwright test --headed
+	$(E2E_ENV) npx playwright test --headed
 
 test-all: test test-e2e
 	@echo "$(GREEN)All tests completed!$(NC)"
@@ -360,7 +365,7 @@ ci:
 	@echo "$(YELLOW)Step 4/5: Build...$(NC)"
 	npm run build
 	@echo "$(YELLOW)Step 5/5: E2E tests...$(NC)"
-	npx playwright test || true
+	$(E2E_ENV) npx playwright test || true
 	@echo "$(GREEN)Local CI complete!$(NC)"
 
 ci-docker:

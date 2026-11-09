@@ -43,6 +43,8 @@ Polly implements the following security measures:
 - **AI API key proxying** — Keys stored server-side only, never exposed to frontend
 - **Permissions-Policy headers** — Microphone restricted to same-origin, camera/geolocation/payment disabled
 - **Audio upload validation** — File type and size checks before AI transcription
+- **Hardened PDF export** — Poll titles, option texts, participant names, branding values and test-report fields are HTML-escaped before Chromium renders them; only allow-listed Markdown is rendered in descriptions. Links must be http(s), images must be inline `data:` images or an https logo. The render page runs with JavaScript disabled and aborts every network request except inline resources and an explicitly configured https logo; uploaded logos are inlined from disk. Chromium's own sandbox is disabled by default for Docker compatibility, but self-hosters can enable it with `PDF_CHROMIUM_SANDBOX=true` when host user namespaces and container seccomp settings permit it (see `docs/SELF-HOSTING.md#enable-the-chromium-sandbox`)
+- **Test mode gate** — The E2E `X-Test-Mode` header is ignored unless `ENABLE_TEST_MODE=true` and a `TEST_MODE_SECRET` of at least 32 characters are both set; the header is compared in constant time and there is no default secret
 
 ## Security Best Practices for Self-Hosting
 
@@ -54,6 +56,7 @@ Polly implements the following security measures:
 6. **Enable audit logging** for compliance requirements
 7. **Protect AI API keys** — Use environment variables, never commit keys to source control
 8. **Monitor AI usage** — Check admin panel for unusual AI request patterns
+9. **Never enable test mode in production** — Do not set `ENABLE_TEST_MODE` or `TEST_MODE_SECRET`. Existing installations that set `TEST_MODE_SECRET` (e.g. from an older `docker-compose.yml`) should remove both variables. If test mode is active with `NODE_ENV=production`, Polly logs `[SECURITY] Test mode is enabled` at startup
 
 ## Acknowledgments
 

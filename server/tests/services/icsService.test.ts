@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import ICAL from 'ical.js';
 import { generatePollIcs, generateUserCalendarFeed, generateSingleEventIcs, getDefaultCalendarSettings } from '../../services/icsService';
 import type { Poll, PollOption, Vote, CalendarSettings } from '../../../shared/schema';
 
@@ -11,6 +12,10 @@ export const testMeta = {
 
 function unfoldIcs(ics: string): string {
   return ics.replace(/\r\n[ \t]/g, '');
+}
+
+function parseCalendar(ics: string) {
+  return new ICAL.Component(ICAL.parse(ics));
 }
 
 function createMockPoll(overrides: Partial<Poll> = {}): Poll {
@@ -419,6 +424,87 @@ describe('ICS Service', () => {
 
       expect(ics).toContain('(Vorläufig)');
       expect(ics).not.toContain('STATUS:CONFIRMED');
+    });
+  });
+
+  describe('RFC 5545 text safety', () => {
+    it('parses poll exports and personal feeds with Unicode, folding, escaping, and embedded line breaks', () => {
+      const repeatedText = 'München 🗓️, équipe; Planung \\\\ '.repeat(8);
+      const pollTitle = `${repeatedText}Besprechung\r\nX-INJECTED:yes`;
+      const optionText = '15.01.2025 10:00 – Räume, Zeiten; Café \\\\ Details';
+      const pollDescription = `Agenda, café; Weg \\\\ zurück\r\nNächster Abschnitt: déjà vu`;
+      const voteComment = `Bitte reservieren, Küche; Büro \\\\ Eingang\r\nX-INJECTED:comment`;
+      const poll = createMockPoll({ title: pollTitle, description: pollDescription });
+      const option = createMockOption(1, optionText);
+      const vote = { ...createMockVote(1), comment: voteComment };
+      const settings = {
+        ...getDefaultCalendarSettings(),
+        prefixEnabled: false,
+        markOwnChoices: false,
+      };
+      const context = { settings, language: 'de' as const };
+      const pollIcs = generatePollIcs(poll, [option], [vote], 'https://test.com', context);
+      const feedIcs = generateUserCalendarFeed(
+        [{ poll, options: [option], votes: [vote] }],
+        `${repeatedText}Teilnehmer\r\nX-INJECTED:name`,
+        'https://test.com',
+        context,
+      );
+
+      for (const ics of [pollIcs, feedIcs]) {
+        const physicalLines = ics.split('\r\n');
+        expect(physicalLines.every(line => Buffer.byteLength(line, 'utf8') <= 75)).toBe(true);
+
+        const calendar = parseCalendar(ics);
+        expect(calendar.name).toBe('vcalendar');
+        expect(calendar.getFirstProperty('x-wr-calname')).not.toBeNull();
+        const events = calendar.getAllSubcomponents('vevent').map(component => new ICAL.Event(component));
+        expect(events).toHaveLength(1);
+        expect(events[0].summary).toBe(`${pollTitle.replace(/\r\n/g, '\n')}: ${optionText}`);
+        expect(events[0].description).toContain(pollDescription.replace(/\r\n/g, '\n'));
+      }
+
+      const parsedFeedEvent = new ICAL.Event(parseCalendar(feedIcs).getFirstSubcomponent('vevent')!);
+      expect(parsedFeedEvent.description).toContain(`Ihr Kommentar: ${voteComment.replace(/\r\n/g, '\n')}`);
+    });
+
+    it('escapes CR/LF in titles, descriptions, comments, and feed names', () => {
+      const payload = 'Planning\r\nX-INJECTED:yes';
+      const poll = createMockPoll({
+        title: payload,
+        description: `Description ${payload}`,
+      });
+      const option = createMockOption(1, `15.01.2025 10:00 ${payload}`);
+      const vote = { ...createMockVote(1), comment: `Comment ${payload}` };
+
+      const pollIcs = generatePollIcs(poll, [option], [vote], 'https://test.com');
+      const feedIcs = generateUserCalendarFeed(
+        [{ poll, options: [option], votes: [vote] }],
+        `User ${payload}`,
+        'https://test.com',
+      );
+
+      for (const ics of [pollIcs, feedIcs]) {
+        expect(ics).not.toMatch(/(?:^|\r\n)X-INJECTED:yes(?:\r\n|$)/);
+        expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+        expect(unfoldIcs(ics)).toContain('Planning\\nX-INJECTED:yes');
+      }
+      expect(unfoldIcs(feedIcs)).toContain('Comment Planning\\nX-INJECTED:yes');
+      expect(unfoldIcs(feedIcs)).toContain('User Planning\\nX-INJECTED:yes');
+    });
+
+    it('omits URL and organizer values containing line breaks or unsupported schemes', () => {
+      const poll = createMockPoll({
+        userId: 'organizer',
+        creatorEmail: 'organizer@example.com\r\nX-INJECTED:yes',
+        videoConferenceUrl: 'javascript:alert(1)\r\nX-INJECTED:yes',
+      });
+      const option = createMockOption(1, '15.01.2025 10:00');
+      const ics = generatePollIcs(poll, [option], [], 'https://test.com\r\nX-INJECTED:yes');
+
+      expect(ics).not.toMatch(/(?:^|\r\n)X-INJECTED:yes(?:\r\n|$)/);
+      expect(ics).not.toContain('URL:javascript:');
+      expect(ics).not.toContain('ORGANIZER:MAILTO:');
     });
   });
 });

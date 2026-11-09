@@ -552,6 +552,39 @@ A vanilla service worker (`/sw.js`) registers in production builds only, caches 
 
 If you ship custom icons, replace `client/public/android-chrome-*.png` (and the `-maskable-*.png` variants — these need a safe-zone padding so Android's adaptive-icon mask doesn't crop your logo).
 
+### Enable the Chromium Sandbox
+
+PDF export keeps Chromium's sandbox disabled by default so the standard Docker
+setup continues to work with Docker's default seccomp profile. Operators whose
+Linux host allows unprivileged user namespaces can opt in while keeping Docker's
+syscall filtering enabled. The repository includes a custom profile based on
+[Docker Engine 27.5.1's default seccomp profile](https://github.com/moby/moby/blob/v27.5.1/profiles/seccomp/default.json).
+It narrowly permits Chromium to create user, PID, and network namespaces with
+`clone`, and a user namespace with `unshare`; other namespace types and syscalls
+remain governed by the default profile.
+
+For a source build, set `PDF_CHROMIUM_SANDBOX=true` in `.env` and start Polly
+with the seccomp override:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.seccomp.yml up -d --build
+```
+
+For the prebuilt image, use the same override:
+
+```sh
+docker compose -f docker-compose.image.yml -f docker-compose.seccomp.yml up -d
+```
+
+On Linux hosts, confirm that unprivileged user namespaces are enabled before
+using the override. The profile is deliberately based on a pinned Docker default
+profile: when upgrading Docker Engine, review and refresh
+`docker/chromium-seccomp.json` against that engine's default profile rather than
+silently losing newer default syscall rules. Do not replace it with
+`seccomp:unconfined`. If Chromium cannot start in sandbox mode, PDF export logs
+an error pointing back to this section. Without the override, leave
+`PDF_CHROMIUM_SANDBOX` unset or `false` to keep the default configuration.
+
 ### Advanced Settings
 
 | Variable | Description | Default |
@@ -564,9 +597,11 @@ If you ship custom icons, replace `client/public/android-chrome-*.png` (and the 
 | `LOG_LEVEL` | Logging level: `debug`, `info`, `warn`, `error` | `info` (prod) / `debug` (dev) |
 | `SEED_DEMO_DATA` | Seed demo polls showing all three poll types on first start | `false` |
 | `PUPPETEER_EXECUTABLE_PATH` | Chromium path for PDF export (set automatically in Docker image) | auto-detected |
+| `PDF_CHROMIUM_SANDBOX` | Enable Chromium's own sandbox for PDF export; requires host user namespaces and compatible container seccomp settings | `false` |
 | `POLLY_WCAG_OVERRIDE` | Disable WCAG default theme enforcement without a `branding.local.json` | `false` |
 | `PENTEST_TOOLS_API_TOKEN` | Pentest-Tools.com Pro API token for vulnerability scanning | — |
-| `TEST_MODE_SECRET` | Custom header value for E2E test mode (`X-Test-Mode` header) | `polly-e2e-test-mode` |
+| `ENABLE_TEST_MODE` | Enables E2E test mode (`true`). Only for automated tests — never set in production | – |
+| `TEST_MODE_SECRET` | `X-Test-Mode` header value for E2E test mode, min. 32 characters, random per run. Only for automated tests — never set in production | – |
 | `TEST_DATABASE_URL` | Separate initialized database for automated tests; never the application database | — |
 | `TEST_DATABASE_SSL` | Test connection SSL option, independent of application SSL | `false` |
 

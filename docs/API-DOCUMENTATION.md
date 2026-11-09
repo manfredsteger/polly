@@ -1498,6 +1498,16 @@ Alle Branding-Einstellungen auf Systemstandard zurücksetzen.
 
 **Template-Typen:** `poll_created`, `invitation`, `vote_confirmation`, `reminder`, `password_reset`, `email_change`, `password_changed`, `welcome`, `test_report`, `poll_finalized`
 
+**Sprache:** Alle Template- und Footer-Endpunkte akzeptieren den Query-Parameter `?language=de|en` (Standard: `de`). Jede Sprache hat eigene Anpassungen; bestehende Anpassungen gelten als Deutsch. Ungültige Werte liefern `400`.
+
+**Welche Sprache bekommt ein Empfänger?**
+1. Registrierte Nutzer: die Sprache ihres Kontos (`languagePreference`, wird bei `PATCH /api/v1/users/me/language` und im Profil aktualisiert).
+2. Gäste, die die E-Mail selbst ausgelöst haben (z. B. Abstimmungsbestätigung): die UI-Sprache, die der Client im Header `X-Polly-Language: de|en` mitschickt. `Accept-Language` wird bewusst ignoriert.
+3. Gäste ohne Konto bei späteren E-Mails (neue Stimmen, Ergebnisse, Erinnerungen): die UI-Sprache, die sie zuletzt beim Erstellen einer Umfrage (`polls.creator_language`) oder beim Abstimmen (`votes.voter_language`) genutzt haben.
+4. Sonst: die Standardsprache der Seite (`customization.language.defaultLanguage`, Admin → Anpassen → Spracheinstellungen; öffentlich unter `GET /api/v1/system/language`).
+
+Neue Konten starten mit der UI-Sprache, in der sie angelegt wurden (Registrierung: `X-Polly-Language`; SSO: Query-Parameter `lang` an `GET /api/v1/auth/keycloak`), sonst mit der Standardsprache der Seite. Das gilt auch für vom Admin angelegte Konten.
+
 ### `GET /api/v1/admin/email-templates`
 
 Alle Templates auflisten.

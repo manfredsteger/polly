@@ -34,6 +34,10 @@ import { createTestApp } from '../testApp';
 import type { Express } from 'express';
 import { ADMIN_USERNAME, ADMIN_PASSWORD } from '../testCredentials';
 import { emailService } from '../../services/emailService';
+import { enableTestModeForSuite } from '../testModeEnv';
+
+// Opens the ENABLE_TEST_MODE + TEST_MODE_SECRET gate for this file only.
+const testMode = enableTestModeForSuite();
 
 export const testMeta = {
   category: 'api' as const,
@@ -91,7 +95,7 @@ describe('Vote E-Mail Regression', () => {
 
       const voteRes = await request(app)
         .post(`/api/v1/polls/${publicToken}/vote`)
-        .set('x-test-mode', 'polly-e2e-test-mode')
+        .set('x-test-mode', testMode.secret)
         .send({
           votes: [{ optionId, response: 'yes' }],
           voterName: 'Regression Voter',
@@ -113,7 +117,7 @@ describe('Vote E-Mail Regression', () => {
 
       const voteRes = await request(app)
         .post(`/api/v1/polls/${publicToken}/vote`)
-        .set('x-test-mode', 'polly-e2e-test-mode')
+        .set('x-test-mode', testMode.secret)
         .send({
           votes: [{ optionId, response: 'yes' }],
           voterName: 'Editable Voter',
@@ -192,7 +196,7 @@ describe('Vote E-Mail Regression', () => {
 
       const firstVote = await request(app)
         .post(`/api/v1/polls/${publicToken}/vote`)
-        .set('x-test-mode', 'polly-e2e-test-mode')
+        .set('x-test-mode', testMode.secret)
         .send({
           votes: [{ optionId, response: 'yes' }],
           voterName: 'First Voter',
@@ -202,7 +206,7 @@ describe('Vote E-Mail Regression', () => {
 
       const secondVote = await request(app)
         .post(`/api/v1/polls/${publicToken}/vote`)
-        .set('x-test-mode', 'polly-e2e-test-mode')
+        .set('x-test-mode', testMode.secret)
         .send({
           votes: [{ optionId, response: 'no' }],
           voterEditToken: await getSubmittedVoteToken(firstVote),
@@ -225,7 +229,7 @@ describe('Vote E-Mail Regression', () => {
 
       const firstVote = await request(app)
         .post(`/api/v1/polls/${publicToken}/vote`)
-        .set('x-test-mode', 'polly-e2e-test-mode')
+        .set('x-test-mode', testMode.secret)
         .send({
           votes: [{ optionId, response: 'yes' }],
           voterName: 'Editable Voter',
@@ -235,7 +239,7 @@ describe('Vote E-Mail Regression', () => {
 
       const secondVote = await request(app)
         .post(`/api/v1/polls/${publicToken}/vote`)
-        .set('x-test-mode', 'polly-e2e-test-mode')
+        .set('x-test-mode', testMode.secret)
         .send({
           votes: [{ optionId, response: 'no' }],
           voterEditToken: await getSubmittedVoteToken(firstVote),

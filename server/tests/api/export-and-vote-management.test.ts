@@ -86,6 +86,32 @@ describe('Exports and vote management', () => {
     await storage.deleteUser(voterUser.id).catch(() => {});
   });
 
+  it.each(['vote', 'vote-bulk'])('rejects a full organization slot with 409 via /%s', async (endpoint) => {
+    const poll = await createPoll(adminAgent, {
+      title: `Capacity conflict ${endpoint}`,
+      type: 'organization',
+      allowMultipleSlots: true,
+      resultsPublic: true,
+      options: [{ text: 'Limited slot', maxCapacity: 2 }, { text: 'Other slot', maxCapacity: 5 }],
+    });
+    const optionId = poll.poll.options[0].id;
+    for (let participant = 1; participant <= 3; participant++) {
+      const response = await request(app).post(`/api/v1/polls/${poll.publicToken}/${endpoint}`).send({
+        voterName: `Person ${participant}`,
+        voterEmail: `capacity-${endpoint}-${participant}@guest.example`,
+        votes: [{ optionId, response: 'yes' }],
+      });
+      expect(response.status).toBe(participant <= 2 ? 200 : 409);
+      if (participant === 3) expect(response.body).toMatchObject({ errorCode: 'SLOT_FULL' });
+    }
+    const result = await request(app).get(`/api/v1/polls/public/${poll.publicToken}`);
+    expect(result.status).toBe(200);
+    const signups = result.body.votes.filter((vote: { optionId: number; response: string }) =>
+      vote.optionId === optionId && vote.response === 'yes');
+    expect(signups).toHaveLength(2);
+    expect(signups.map((vote: { voterName: string }) => vote.voterName).sort()).toEqual(['Person 1', 'Person 2']);
+  });
+
   describe('QR codes', () => {
     it('returns PNG and SVG data URLs for the public link', async () => {
       const png = await request(app).get(`/api/v1/polls/${schedule.publicToken}/qr`);

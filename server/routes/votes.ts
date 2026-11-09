@@ -561,6 +561,12 @@ router.post('/polls/:token/vote', voteRateLimiter, async (req, res) => {
     if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
       return res.status(403).json(voteAuthorizationError);
     }
+    if (error instanceof Error && error.message === 'SLOT_FULL') {
+      return res.status(409).json({
+        error: 'Dieser Slot ist bereits voll.',
+        errorCode: 'SLOT_FULL',
+      });
+    }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {
       return res.status(400).json({ 
@@ -887,6 +893,12 @@ router.post('/polls/:token/vote-bulk', voteRateLimiter, async (req, res) => {
     }
     if (error instanceof Error && error.message === VOTE_AUTHORIZATION_REQUIRED) {
       return res.status(403).json(voteAuthorizationError);
+    }
+    if (error instanceof Error && error.message === 'SLOT_FULL') {
+      return res.status(409).json({
+        error: 'Dieser Slot ist bereits voll.',
+        errorCode: 'SLOT_FULL',
+      });
     }
     console.error('Error bulk voting:', error);
     if (error instanceof Error && error.message === 'DUPLICATE_EMAIL_VOTE') {

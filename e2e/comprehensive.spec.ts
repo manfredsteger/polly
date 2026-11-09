@@ -356,11 +356,20 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     const optionId = pollData.poll.options[0].id;
     
     // Fill capacity
-    await voteViaAPI(page, pollData.publicToken, 'Person 1', optionId, 'yes');
-    await voteViaAPI(page, pollData.publicToken, 'Person 2', optionId, 'yes');
+    expect((await voteViaAPI(page, pollData.publicToken, 'Person 1', optionId, 'yes')).status()).toBe(200);
+    expect((await voteViaAPI(page, pollData.publicToken, 'Person 2', optionId, 'yes')).status()).toBe(200);
     
-    // Third vote should fail or show full
+    // The third signup must be rejected without changing the stored participants.
     const response = await voteViaAPI(page, pollData.publicToken, 'Person 3', optionId, 'yes');
+    expect(response.status()).toBe(409);
+    expect(await response.json()).toMatchObject({ errorCode: 'SLOT_FULL' });
+    const updatedPollResponse = await page.request.get(`${BASE_URL}/api/v1/polls/public/${pollData.publicToken}`);
+    expect(updatedPollResponse.ok()).toBeTruthy();
+    const updatedPoll = await updatedPollResponse.json();
+    const signups = updatedPoll.votes.filter((vote: { optionId: number; response: string }) =>
+      vote.optionId === optionId && vote.response === 'yes');
+    expect(signups).toHaveLength(2);
+    expect(signups.map((vote: { voterName: string }) => vote.voterName).sort()).toEqual(['Person 1', 'Person 2']);
     
     await page.goto(`/poll/${pollData.publicToken}`);
     await page.waitForLoadState('networkidle');
@@ -376,9 +385,10 @@ test.describe('Orga-Liste - Vollständiger Workflow', () => {
     // Slot should be visible (use .first() since text may appear in multiple places)
     await expect(page.locator('text=Limitierter Slot').first()).toBeVisible({ timeout: 10000 });
     
-    // At least first two persons should be visible (capacity is 2)
+    // Only the accepted participants should be visible.
     await expect(page.locator('text=Person 1').first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=Person 2').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Person 3', { exact: true })).toHaveCount(0);
   });
 });
 

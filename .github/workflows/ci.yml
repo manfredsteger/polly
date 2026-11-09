@@ -99,7 +99,10 @@ jobs:
 
   pdf-sandbox:
     name: Sandboxed PDF Export (Linux Container)
-    runs-on: ubuntu-24.04
+    # Ubuntu 24.04 hosts restrict unprivileged user namespaces via AppArmor
+    # (kernel.apparmor_restrict_unprivileged_userns=1), which breaks Chromium's sandbox even
+    # inside a container. 22.04 has no such restriction.
+    runs-on: ubuntu-22.04
     # This isolated test container permits Chromium's user-namespace setup.
     # The relaxed outer profiles do not affect the application's production container.
     container:

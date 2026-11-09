@@ -791,7 +791,11 @@ export class PDFService {
           request.abort('blockedbyclient').catch(() => {});
         }
       });
-      await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
+      // A <meta http-equiv="refresh"> starts a navigation while setContent is still running,
+      // which destroys Puppeteer's execution context (flaky "Execution context was destroyed").
+      // The redirect is blocked by the request filter anyway, so remove it before loading.
+      const safeHtml = html.replace(/<meta\b[^>]*http-equiv\s*=\s*["']?\s*refresh[^>]*>/gi, '');
+      await page.setContent(safeHtml, { waitUntil: 'load', timeout: 30000 });
 
       const pdfBuffer = await page.pdf({
         format: 'A4',

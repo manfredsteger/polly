@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.10] - 2026-11-09
+
 ### Changed
 - Removed the automatic GitHub ↔ GitLab sync (GitLab `sync-from-github` job, GitHub `mirror-gitlab` release job). The GitLab pipeline now tests the pushed GitLab branch instead of cloning GitHub `main`. Development happens in GitLab; releases are pushed to GitHub by hand and merged there (see `docs/RELEASING.md`).
 - GitLab E2E job: Playwright image 1.57.0, Playwright starts the dev server itself, and E2E failures now fail the pipeline.
@@ -280,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.9...HEAD
+[Unreleased]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.10...HEAD
+[0.1.0-beta.10]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.9...v0.1.0-beta.10
 [0.1.0-beta.9]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.8...v0.1.0-beta.9
 [0.1.0-beta.8]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.7...v0.1.0-beta.8
 [0.1.0-beta.7]: https://github.com/manfredsteger/polly/compare/v0.1.0-beta.6...v0.1.0-beta.7

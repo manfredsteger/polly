@@ -143,10 +143,12 @@ unit-tests:
       - script_failure
       - runner_system_failure
   before_script:
-    - apt-get update && apt-get install -y git postgresql-client
+    - apt-get update && apt-get install -y git postgresql-client chromium fonts-liberation
   services:
     - postgres:15
   variables:
+    PUPPETEER_SKIP_DOWNLOAD: "true"
+    PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium"
     POSTGRES_DB: polly_test
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
@@ -209,10 +211,12 @@ api-tests:
       - script_failure
       - runner_system_failure
   before_script:
-    - apt-get update && apt-get install -y git postgresql-client
+    - apt-get update && apt-get install -y git postgresql-client chromium fonts-liberation
   services:
     - postgres:15
   variables:
+    PUPPETEER_SKIP_DOWNLOAD: "true"
+    PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium"
     POSTGRES_DB: polly_test
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres

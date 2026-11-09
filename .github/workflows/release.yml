@@ -16,7 +16,7 @@ permissions:
 jobs:
   validate:
     name: Validate & Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:15
@@ -87,7 +87,7 @@ jobs:
 
   docker:
     name: Build & Push Docker Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: validate
     steps:
       - name: Checkout
@@ -141,7 +141,7 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: docker
     steps:
       - name: Checkout
@@ -235,7 +235,7 @@ jobs:
 
   update-dockerhub-readme:
     name: Update Docker Hub README
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: docker
     steps:
       - name: Checkout

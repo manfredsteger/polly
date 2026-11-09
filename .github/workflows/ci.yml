@@ -13,7 +13,7 @@ env:
 jobs:
   lint:
     name: Lint & Type Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
 
   test:
     name: Unit & Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:15
@@ -99,7 +99,7 @@ jobs:
 
   pdf-sandbox:
     name: Sandboxed PDF Export (Linux Container)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # This isolated test container permits Chromium's user-namespace setup.
     # The relaxed outer profiles do not affect the application's production container.
     container:
@@ -150,7 +150,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint, test]
     steps:
       - name: Checkout
@@ -170,7 +170,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build
     if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'main')
     services:
@@ -258,7 +258,7 @@ jobs:
 
   security:
     name: Security Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
